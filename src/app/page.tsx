@@ -165,12 +165,12 @@ export default function Home() {
       {/* Hero Banner */}
       <div className="hero-banner">
         <div className="hero-content">
-          <img
-            src="https://upload.wikimedia.org/wikipedia/commons/thumb/5/5a/Capoeira-in-the-street-2.jpg/640px-Capoeira-in-the-street-2.jpg"
-            alt="Logo"
-            className="hero-logo"
-            style={{ objectFit: 'cover' }}
-          />
+            <img
+              src="/logo.jpg"
+              alt="Logo Associação Cultural de Capoeira Barão de Mauá"
+              className="hero-logo"
+              style={{ objectFit: 'contain', borderRadius: '50%', width: 160, height: 160 }}
+            />
           <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
           <p className="hero-subtitle">Ficha de Inscrição</p>
         </div>
