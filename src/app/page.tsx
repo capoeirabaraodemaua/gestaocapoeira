@@ -139,8 +139,9 @@ export default function Home() {
       const { error } = await supabase.from('students').insert({
         nome_completo: form.nome_completo,
         cpf: form.cpf,
-        identidade: form.identidade,
-        data_nascimento: form.data_nascimento,
+          identidade: form.identidade,
+          data_nascimento: form.data_nascimento,
+          telefone: form.telefone,
         cep: form.cep,
         endereco: form.endereco,
         numero: form.numero,
