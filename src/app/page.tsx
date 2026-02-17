@@ -205,9 +205,24 @@ export default function Home() {
           </div>
         </div>
 
-      <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
-        <form onSubmit={handleSubmit}>
-          {/* Dados Pessoais */}
+        <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
+          <form onSubmit={handleSubmit}>
+            {/* Núcleo */}
+            <div className="form-section">
+              <h2 className="form-section-title">Núcleo de Treinamento</h2>
+              <div className="form-grid">
+                <div className="form-group full-width">
+                  <label>Selecione o Núcleo <span className="required">*</span></label>
+                  <select value={nucleo} onChange={(e) => setNucleo(e.target.value)} required>
+                    <option value="">Selecione o núcleo</option>
+                    <option value="Saracuruna">Saracuruna</option>
+                    <option value="Mauá">Mauá</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* Dados Pessoais */}
           <div className="form-section">
             <h2 className="form-section-title">Dados Pessoais</h2>
             <div className="form-grid">
