@@ -12,6 +12,7 @@ export default function Home() {
   const [menorDeIdade, setMenorDeIdade] = useState(false);
   const [tipoGraduacao, setTipoGraduacao] = useState('adulta');
   const [graduacao, setGraduacao] = useState('');
+  const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [form, setForm] = useState({
