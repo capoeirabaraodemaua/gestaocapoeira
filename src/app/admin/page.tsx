@@ -11,6 +11,7 @@ interface Student {
   cpf: string;
   identidade: string;
   data_nascimento: string;
+  telefone: string;
   cep: string;
   endereco: string;
   numero: string;
