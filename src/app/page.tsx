@@ -176,18 +176,31 @@ export default function Home() {
   return (
     <>
       {/* Hero Banner */}
-      <div className="hero-banner">
-        <div className="hero-content">
-            <img
-              src="/logo.jpg"
-              alt="Logo Associação Cultural de Capoeira Barão de Mauá"
-              className="hero-logo"
-              style={{ objectFit: 'contain', borderRadius: '50%', width: 160, height: 160 }}
-            />
-          <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
-          <p className="hero-subtitle">Ficha de Inscrição</p>
+        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden' }}>
+          <img
+            src="/mestres.png"
+            alt="Mestres"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              opacity: 0.25,
+              zIndex: 0,
+            }}
+          />
+          <div className="hero-content" style={{ position: 'relative', zIndex: 1 }}>
+              <img
+                src="/logo.jpg"
+                alt="Logo Associação Cultural de Capoeira Barão de Mauá"
+                className="hero-logo"
+                style={{ objectFit: 'contain', borderRadius: '50%', width: 160, height: 160 }}
+              />
+            <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
+            <p className="hero-subtitle">Ficha de Inscrição</p>
+          </div>
         </div>
-      </div>
 
       <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
         <form onSubmit={handleSubmit}>
