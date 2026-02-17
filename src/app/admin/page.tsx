@@ -229,10 +229,14 @@ export default function AdminPage() {
                 <span className="detail-label">Identidade</span>
                 <span className="detail-value">{selected.identidade}</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">Data de Nascimento</span>
-                <span className="detail-value">{new Date(selected.data_nascimento).toLocaleDateString('pt-BR')}</span>
-              </div>
+                <div className="detail-item">
+                  <span className="detail-label">Data de Nascimento</span>
+                  <span className="detail-value">{new Date(selected.data_nascimento).toLocaleDateString('pt-BR')}</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Telefone</span>
+                  <span className="detail-value">{selected.telefone || '—'}</span>
+                </div>
               <div className="detail-item">
                 <span className="detail-label">Status</span>
                 <span className={`badge ${selected.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
