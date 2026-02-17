@@ -68,7 +68,18 @@ export default function Home() {
     return `${d.slice(0,5)}-${d.slice(5)}`;
   };
 
-  const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const formatTelefone = (v: string) => {
+      const d = v.replace(/\D/g, '').slice(0, 11);
+      if (d.length <= 2) return d;
+      if (d.length <= 7) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+      return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+    };
+
+    const handleTelefoneChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+      setForm(prev => ({ ...prev, telefone: formatTelefone(e.target.value) }));
+    };
+
+    const handleCPFChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(prev => ({ ...prev, cpf: formatCPF(e.target.value) }));
   };
 
