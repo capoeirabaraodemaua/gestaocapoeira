@@ -210,8 +210,12 @@ export default function Home() {
                 <label>Data de Nascimento <span className="required">*</span></label>
                 <input type="date" name="data_nascimento" value={form.data_nascimento} onChange={handleChange} required />
               </div>
-              <div className="form-group">
-                <label>Nome do Pai</label>
+                <div className="form-group">
+                  <label>Telefone <span className="required">*</span></label>
+                  <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} required placeholder="(00) 00000-0000" />
+                </div>
+                <div className="form-group">
+                  <label>Nome do Pai</label>
                 <input name="nome_pai" value={form.nome_pai} onChange={handleChange} placeholder="Nome completo do pai" />
               </div>
               <div className="form-group full-width">
