@@ -37,3 +37,5 @@ It can also happen if the client has a browser extension installed which messes 
                             <ClientPageRoot Component={function Home} searchParams={{}} params={{}}>
                               <Home params={Promise} searchParams={Promise}>
                            ...
+2026-03-05T23:37:09.021Z [console][warn] %c%s%c  ⚠ Unsupported metadata themeColor is configured in metadata export in /. Please move it to viewport export instead.
+Read more: https://nextjs.org/docs/app/api-reference/functions/generate-viewport background: #e6e6e6;background: light-dark(rgba(0,0,0,0.1), rgba(255,255,255,0.25));color: #000000;color: light-dark(#000000, #ffffff);border-radius: 2px  Server  
