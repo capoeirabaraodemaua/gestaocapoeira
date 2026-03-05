@@ -46,9 +46,7 @@ html, body {
   align-items: center;
   justify-content: center;
   flex-direction: column;
-  background:
-    linear-gradient(135deg, rgba(10,10,10,0.7) 0%, rgba(232,168,56,0.15) 50%, rgba(10,10,10,0.85) 100%),
-    url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 400"><defs><radialGradient id="g1" cx="50%25" cy="50%25" r="80%25"><stop offset="0%25" stop-color="%23e8a838" stop-opacity="0.12"/><stop offset="100%25" stop-color="%230a0a0a" stop-opacity="0"/></radialGradient></defs><rect fill="%230a0a0a" width="800" height="400"/><circle cx="200" cy="200" r="150" fill="none" stroke="%23e8a838" stroke-width="1" opacity="0.15"/><circle cx="600" cy="180" r="120" fill="none" stroke="%23e8a838" stroke-width="1" opacity="0.1"/><circle cx="400" cy="300" r="180" fill="none" stroke="%23e8a838" stroke-width="0.5" opacity="0.08"/><path d="M150,350 Q250,200 350,280 T550,180" fill="none" stroke="%23e8a838" stroke-width="2" opacity="0.15"/><path d="M100,150 Q300,50 500,200 T750,100" fill="none" stroke="%23e8a838" stroke-width="1.5" opacity="0.1"/><rect x="0" y="0" width="800" height="400" fill="url(%23g1)"/></svg>');
+  background: var(--bg-primary);
   background-size: cover;
   background-position: center;
   overflow: hidden;
