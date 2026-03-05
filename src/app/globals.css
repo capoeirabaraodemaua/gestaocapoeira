@@ -57,7 +57,7 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, rgba(232,168,56,0.08) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(220,38,38,0.06) 0%, transparent 70%);
   pointer-events: none;
 }
 
