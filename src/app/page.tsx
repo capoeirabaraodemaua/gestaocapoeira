@@ -537,6 +537,288 @@ export default function Home() {
           </div>
         </div>
         )}
+
+        {/* Student List Section */}
+        <div className="container" style={{ paddingTop: 32, paddingBottom: 48 }}>
+          <button
+            onClick={() => setShowList(v => !v)}
+            style={{
+              width: '100%',
+              padding: '14px 20px',
+              background: 'linear-gradient(135deg, #1a0a2e, #2d1854)',
+              border: '1px solid rgba(139,92,246,0.4)',
+              borderRadius: 12,
+              color: '#fff',
+              fontWeight: 700,
+              fontSize: '1rem',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <span>Gerenciar Cadastros de Alunos ({students.length})</span>
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"
+              style={{ transform: showList ? 'rotate(180deg)' : 'none', transition: 'transform 0.2s' }}>
+              <path d="M6 9l6 6 6-6"/>
+            </svg>
+          </button>
+
+          {showList && (
+            <div style={{ marginTop: 16 }}>
+              {/* Filters */}
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                <input
+                  className="search-input"
+                  style={{ flex: 1, minWidth: 200 }}
+                  placeholder="Buscar por nome ou CPF..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                />
+                <select
+                  className="search-input"
+                  style={{ width: 160 }}
+                  value={filterNucleo}
+                  onChange={(e) => setFilterNucleo(e.target.value)}
+                >
+                  <option value="">Todos os núcleos</option>
+                  <option value="Saracuruna">Saracuruna</option>
+                  <option value="Mauá">Mauá</option>
+                </select>
+              </div>
+
+              {listLoading ? (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+              ) : filteredStudents.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Nenhum aluno encontrado.</div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {filteredStudents.map(student => {
+                    const colors = getCordaColors(student.graduacao);
+                    return (
+                      <div key={student.id} style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                        padding: '14px 16px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                        flexWrap: 'wrap',
+                      }}>
+                        {/* Avatar */}
+                        {student.foto_url ? (
+                          <img src={student.foto_url} alt="" style={{ width: 48, height: 48, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                          </div>
+                        )}
+
+                        {/* Info */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                            {student.nome_completo}
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : ''}`}>
+                              {student.nucleo || '—'}
+                            </span>
+                            <div style={{ display: 'flex', width: 32, height: 8, borderRadius: 4, overflow: 'hidden' }}>
+                              {colors.map((c, i) => <div key={i} style={{ flex: 1, background: c }} />)}
+                            </div>
+                            <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{student.graduacao}</span>
+                          </div>
+                        </div>
+
+                        {/* Actions */}
+                        <div style={{ display: 'flex', gap: 8, flexShrink: 0 }}>
+                          <button
+                            onClick={() => openEditStudent(student)}
+                            style={{ padding: '7px 14px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.35)', color: '#a78bfa', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                          >
+                            Editar
+                          </button>
+                          <button
+                            onClick={() => setDeleteConfirm(student)}
+                            style={{ padding: '7px 14px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                          >
+                            Excluir
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          )}
+        </div>
+
+        {/* Edit Modal */}
+        {editingStudent && (
+          <div className="modal-overlay" onClick={() => setEditingStudent(null)}>
+            <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
+              <h2>
+                Editar Cadastro
+                <button className="modal-close" onClick={() => setEditingStudent(null)}>&times;</button>
+              </h2>
+              <div className="detail-grid" style={{ gap: 14 }}>
+                <div className="detail-item detail-full">
+                  <span className="detail-label">Nome Completo</span>
+                  <input className="edit-input" name="nome_completo" value={editForm.nome_completo || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">CPF</span>
+                  <input className="edit-input" name="cpf" value={editForm.cpf || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Identidade (RG)</span>
+                  <input className="edit-input" name="identidade" value={editForm.identidade || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Data de Nascimento</span>
+                  <input className="edit-input" type="date" name="data_nascimento" value={editForm.data_nascimento || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Telefone</span>
+                  <input className="edit-input" name="telefone" value={editForm.telefone || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Núcleo</span>
+                  <select className="edit-input" name="nucleo" value={editForm.nucleo || ''} onChange={handleEditChange}>
+                    <option value="">Selecione</option>
+                    <option value="Saracuruna">Saracuruna</option>
+                    <option value="Mauá">Mauá</option>
+                  </select>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Tipo Graduação</span>
+                  <select className="edit-input" name="tipo_graduacao" value={editForm.tipo_graduacao || ''} onChange={handleEditChange}>
+                    <option value="adulta">Adulta</option>
+                    <option value="infantil">Infantil</option>
+                  </select>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Graduação (Corda)</span>
+                  <select className="edit-input" name="graduacao" value={editForm.graduacao || ''} onChange={handleEditChange}>
+                    <option value="">Selecione</option>
+                    {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                  </select>
+                </div>
+                <div className="detail-item detail-full" style={{ paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 4 }}>
+                  <span className="detail-label">Endereço</span>
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">CEP</span>
+                  <input className="edit-input" name="cep" value={editForm.cep || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Estado</span>
+                  <input className="edit-input" name="estado" value={editForm.estado || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item detail-full">
+                  <span className="detail-label">Logradouro</span>
+                  <input className="edit-input" name="endereco" value={editForm.endereco || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Número</span>
+                  <input className="edit-input" name="numero" value={editForm.numero || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Complemento</span>
+                  <input className="edit-input" name="complemento" value={editForm.complemento || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Bairro</span>
+                  <input className="edit-input" name="bairro" value={editForm.bairro || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Cidade</span>
+                  <input className="edit-input" name="cidade" value={editForm.cidade || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Nome do Pai</span>
+                  <input className="edit-input" name="nome_pai" value={editForm.nome_pai || ''} onChange={handleEditChange} />
+                </div>
+                <div className="detail-item">
+                  <span className="detail-label">Nome da Mãe</span>
+                  <input className="edit-input" name="nome_mae" value={editForm.nome_mae || ''} onChange={handleEditChange} />
+                </div>
+                {editingStudent.menor_de_idade && (
+                  <>
+                    <div className="detail-item detail-full" style={{ paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 4 }}>
+                      <span className="detail-label" style={{ color: 'var(--danger)', fontWeight: 600 }}>Responsável</span>
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">Nome do Responsável</span>
+                      <input className="edit-input" name="nome_responsavel" value={editForm.nome_responsavel || ''} onChange={handleEditChange} />
+                    </div>
+                    <div className="detail-item">
+                      <span className="detail-label">CPF do Responsável</span>
+                      <input className="edit-input" name="cpf_responsavel" value={editForm.cpf_responsavel || ''} onChange={handleEditChange} />
+                    </div>
+                  </>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+                <button
+                  onClick={() => setEditingStudent(null)}
+                  style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={saveEdit}
+                  disabled={saving}
+                  style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg, var(--accent), #b0452a)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', opacity: saving ? 0.6 : 1 }}
+                >
+                  {saving ? 'Salvando...' : 'Salvar Alterações'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Delete Confirm Modal */}
+        {deleteConfirm && (
+          <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
+            <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+              <div style={{ marginBottom: 16 }}>
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" style={{ marginBottom: 12 }}>
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 8v4M12 16h.01"/>
+                </svg>
+                <h2 style={{ fontSize: '1.2rem', marginBottom: 0, display: 'block', WebkitTextFillColor: 'var(--text-primary)' }}>
+                  Confirmar Exclusão
+                </h2>
+              </div>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.6 }}>
+                Tem certeza que deseja excluir o cadastro de
+              </p>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 24, color: '#f87171' }}>
+                {deleteConfirm.nome_completo}?
+              </p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24 }}>
+                Esta ação não pode ser desfeita.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmDelete}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', color: '#f87171', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Sim, Excluir
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </>
     );
 }
