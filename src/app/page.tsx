@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors } from '@/lib/graduacoes';
+import Link from 'next/link';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
