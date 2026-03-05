@@ -84,7 +84,7 @@ html, body {
   height: 120px;
   border-radius: 50%;
   border: 3px solid var(--accent);
-  box-shadow: 0 0 40px rgba(232,168,56,0.3);
+  box-shadow: 0 0 40px rgba(220,38,38,0.25);
   margin-bottom: 20px;
   object-fit: cover;
   background: var(--bg-card);
