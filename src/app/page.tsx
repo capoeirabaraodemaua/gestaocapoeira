@@ -46,6 +46,17 @@ export default function Home() {
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
 
+  // Student list state
+  const [students, setStudents] = useState<Student[]>([]);
+  const [listLoading, setListLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [filterNucleo, setFilterNucleo] = useState('');
+  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  const [editForm, setEditForm] = useState<EditForm>({});
+  const [saving, setSaving] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
+  const [showList, setShowList] = useState(false);
+
   const [form, setForm] = useState({
     nome_completo: '',
     cpf: '',
