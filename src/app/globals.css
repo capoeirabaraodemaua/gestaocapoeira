@@ -198,7 +198,7 @@ html, body {
 .form-group select:focus,
 .form-group textarea:focus {
   border-color: var(--accent);
-  box-shadow: 0 0 0 3px rgba(232,168,56,0.15);
+  box-shadow: 0 0 0 3px rgba(220,38,38,0.15);
 }
 
 .form-group input::placeholder {
