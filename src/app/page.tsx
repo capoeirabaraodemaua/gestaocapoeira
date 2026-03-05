@@ -3,37 +3,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors } from '@/lib/graduacoes';
-import Link from 'next/link';
-
-interface Student {
-  id: string;
-  nome_completo: string;
-  cpf: string;
-  identidade: string;
-  data_nascimento: string;
-  telefone: string;
-  cep: string;
-  endereco: string;
-  numero: string;
-  complemento: string;
-  bairro: string;
-  cidade: string;
-  estado: string;
-  graduacao: string;
-  tipo_graduacao: string;
-  nucleo: string | null;
-  foto_url: string | null;
-  nome_pai: string;
-  nome_mae: string;
-  autoriza_imagem: boolean;
-  menor_de_idade: boolean;
-  nome_responsavel: string | null;
-  cpf_responsavel: string | null;
-  assinatura_responsavel: boolean;
-  created_at: string;
-}
-
-type EditForm = Partial<Student>;
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -45,17 +14,6 @@ export default function Home() {
   const [graduacao, setGraduacao] = useState('');
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-
-  // Student list state
-  const [students, setStudents] = useState<Student[]>([]);
-  const [listLoading, setListLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterNucleo, setFilterNucleo] = useState('');
-  const [editingStudent, setEditingStudent] = useState<Student | null>(null);
-  const [editForm, setEditForm] = useState<EditForm>({});
-  const [saving, setSaving] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [showList, setShowList] = useState(false);
 
   const [form, setForm] = useState({
     nome_completo: '',
