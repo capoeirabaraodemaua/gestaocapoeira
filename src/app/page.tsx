@@ -568,19 +568,19 @@ export default function Home() {
             <div style={{ marginTop: 16 }}>
               {/* Filters */}
               <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
-                <input
-                  className="search-input"
-                  style={{ flex: 1, minWidth: 200 }}
-                  placeholder="Buscar por nome ou CPF..."
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
-                />
-                <select
-                  className="search-input"
-                  style={{ width: 160 }}
-                  value={filterNucleo}
-                  onChange={(e) => setFilterNucleo(e.target.value)}
-                >
+                  <input
+                    className="search-input"
+                    style={{ flex: 1, minWidth: 200, border: '1.5px solid #1e40af' }}
+                    placeholder="Buscar por nome ou CPF..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  <select
+                    className="search-input"
+                    style={{ width: 160, border: '1.5px solid #1e40af' }}
+                    value={filterNucleo}
+                    onChange={(e) => setFilterNucleo(e.target.value)}
+                  >
                   <option value="">Todos os núcleos</option>
                   <option value="Saracuruna">Saracuruna</option>
                   <option value="Mauá">Mauá</option>
