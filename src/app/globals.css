@@ -520,7 +520,7 @@ html, body {
 /* Edit input (used in edit modal) */
 .edit-input {
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1.5px solid #1e40af;
   border-radius: 8px;
   padding: 9px 12px;
   font-size: 0.9rem;
@@ -533,13 +533,13 @@ html, body {
 }
 
 .edit-input:focus {
-  border-color: var(--accent-purple);
-  box-shadow: 0 0 0 3px rgba(139,92,246,0.15);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
 }
 
 .search-input {
   background: var(--bg-input);
-  border: 1px solid var(--border);
+  border: 1.5px solid #1e40af;
   border-radius: 10px;
   padding: 10px 16px;
   font-size: 0.9rem;
@@ -551,7 +551,8 @@ html, body {
 }
 
 .search-input:focus {
-  border-color: var(--accent);
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59,130,246,0.2);
 }
 
 .back-link {
