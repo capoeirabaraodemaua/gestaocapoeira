@@ -5,6 +5,36 @@ import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors } from '@/lib/graduacoes';
 import Link from 'next/link';
 
+interface Student {
+  id: string;
+  nome_completo: string;
+  cpf: string;
+  identidade: string;
+  data_nascimento: string;
+  telefone: string;
+  cep: string;
+  endereco: string;
+  numero: string;
+  complemento: string;
+  bairro: string;
+  cidade: string;
+  estado: string;
+  graduacao: string;
+  tipo_graduacao: string;
+  nucleo: string | null;
+  foto_url: string | null;
+  nome_pai: string;
+  nome_mae: string;
+  autoriza_imagem: boolean;
+  menor_de_idade: boolean;
+  nome_responsavel: string | null;
+  cpf_responsavel: string | null;
+  assinatura_responsavel: boolean;
+  created_at: string;
+}
+
+type EditForm = Partial<Student>;
+
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
