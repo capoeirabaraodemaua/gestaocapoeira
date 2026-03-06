@@ -45,12 +45,15 @@ export default function Home() {
 
   useEffect(() => {
     if (form.data_nascimento) {
-      const birth = new Date(form.data_nascimento);
+      // Adicionar T12:00:00 evita problema de fuso (UTC meia-noite vs local)
+      const birth = new Date(form.data_nascimento + 'T12:00:00');
       const today = new Date();
       let age = today.getFullYear() - birth.getFullYear();
       const m = today.getMonth() - birth.getMonth();
       if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
       setMenorDeIdade(age < 18);
+    } else {
+      setMenorDeIdade(false);
     }
   }, [form.data_nascimento]);
 
@@ -219,11 +222,20 @@ export default function Home() {
       if (form.email) payload.email = form.email;
 
       let { error } = await supabase.from('students').insert(payload);
-      // Se falhar por coluna email inexistente, tenta sem email
-      if (error && error.message?.includes('email')) {
-        delete payload.email;
-        const res = await supabase.from('students').insert(payload);
-        error = res.error;
+
+      // Retry removendo colunas que ainda não existem no banco
+      if (error) {
+        const msg = error.message || '';
+        if (msg.includes('assinatura_pai') || msg.includes('assinatura_mae')) {
+          delete payload.assinatura_pai;
+          delete payload.assinatura_mae;
+          const r2 = await supabase.from('students').insert(payload);
+          error = r2.error;
+        } else if (msg.includes('email')) {
+          delete payload.email;
+          const r2 = await supabase.from('students').insert(payload);
+          error = r2.error;
+        }
       }
 
       if (error) throw error;
@@ -363,7 +375,32 @@ export default function Home() {
               </div>
               <div className="form-group">
                 <label>Data de Nascimento <span className="required">*</span></label>
-                <input type="date" name="data_nascimento" value={form.data_nascimento} onChange={handleChange} required />
+                <input
+                  type="date"
+                  name="data_nascimento"
+                  value={form.data_nascimento}
+                  onChange={e => {
+                    handleChange(e);
+                    // Recalcula menor de idade imediatamente
+                    const val = e.target.value;
+                    if (val) {
+                      const birth = new Date(val + 'T12:00:00');
+                      const today = new Date();
+                      let age = today.getFullYear() - birth.getFullYear();
+                      const m = today.getMonth() - birth.getMonth();
+                      if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+                      setMenorDeIdade(age < 18);
+                    } else {
+                      setMenorDeIdade(false);
+                    }
+                  }}
+                  required
+                />
+                {form.data_nascimento && (
+                  <span style={{ fontSize: '0.78rem', marginTop: 4, display: 'block', color: menorDeIdade ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
+                    {menorDeIdade ? '⚠ Menor de idade — Termo de Autorização obrigatório' : '✓ Maior de idade'}
+                  </span>
+                )}
               </div>
                 <div className="form-group">
                   <label>Telefone <span className="required">*</span></label>
