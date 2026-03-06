@@ -14,6 +14,8 @@ export default function Home() {
   const [graduacao, setGraduacao] = useState('');
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
+  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string }>({});
+  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean }>({});
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -88,6 +90,28 @@ export default function Home() {
     setForm(prev => ({ ...prev, cpf_responsavel: formatCPF(e.target.value) }));
   };
 
+  const checkDuplicate = async (field: 'cpf' | 'identidade' | 'nome_completo', value: string) => {
+    const cleanValue = value.trim();
+    if (!cleanValue) return;
+    setCheckingDuplicate(prev => ({ ...prev, [field]: true }));
+    setDuplicateErrors(prev => ({ ...prev, [field]: undefined }));
+    try {
+      const { data } = await supabase
+        .from('students')
+        .select('id, nome_completo')
+        .eq(field, cleanValue)
+        .limit(1);
+      if (data && data.length > 0) {
+        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Identidade (RG)', nome_completo: 'Nome' };
+        setDuplicateErrors(prev => ({
+          ...prev,
+          [field]: `${labels[field]} já cadastrado(a): ${data[0].nome_completo}`,
+        }));
+      }
+    } catch {}
+    setCheckingDuplicate(prev => ({ ...prev, [field]: false }));
+  };
+
   const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const cep = formatCEP(e.target.value);
     setForm(prev => ({ ...prev, cep }));
@@ -121,6 +145,10 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo) {
+      alert('Corrija os campos duplicados antes de enviar.');
+      return;
+    }
     setLoading(true);
 
     try {
@@ -238,15 +266,57 @@ export default function Home() {
             <div className="form-grid">
               <div className="form-group full-width">
                 <label>Nome Completo <span className="required">*</span></label>
-                <input name="nome_completo" value={form.nome_completo} onChange={handleChange} required placeholder="Digite seu nome completo" />
+                <input
+                  name="nome_completo"
+                  value={form.nome_completo}
+                  onChange={(e) => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, nome_completo: undefined })); }}
+                  onBlur={() => checkDuplicate('nome_completo', form.nome_completo)}
+                  required
+                  placeholder="Digite seu nome completo"
+                  style={duplicateErrors.nome_completo ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
+                />
+                {checkingDuplicate.nome_completo && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
+                {duplicateErrors.nome_completo && (
+                  <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
+                    ⚠ {duplicateErrors.nome_completo}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label>CPF <span className="required">*</span></label>
-                <input name="cpf" value={form.cpf} onChange={handleCPFChange} required placeholder="000.000.000-00" />
+                <input
+                  name="cpf"
+                  value={form.cpf}
+                  onChange={(e) => { handleCPFChange(e); setDuplicateErrors(prev => ({ ...prev, cpf: undefined })); }}
+                  onBlur={() => checkDuplicate('cpf', form.cpf)}
+                  required
+                  placeholder="000.000.000-00"
+                  style={duplicateErrors.cpf ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
+                />
+                {checkingDuplicate.cpf && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
+                {duplicateErrors.cpf && (
+                  <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
+                    ⚠ {duplicateErrors.cpf}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label>Identidade (RG) <span className="required">*</span></label>
-                <input name="identidade" value={form.identidade} onChange={handleChange} required placeholder="Número do RG" />
+                <input
+                  name="identidade"
+                  value={form.identidade}
+                  onChange={(e) => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, identidade: undefined })); }}
+                  onBlur={() => checkDuplicate('identidade', form.identidade)}
+                  required
+                  placeholder="Número do RG"
+                  style={duplicateErrors.identidade ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
+                />
+                {checkingDuplicate.identidade && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
+                {duplicateErrors.identidade && (
+                  <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
+                    ⚠ {duplicateErrors.identidade}
+                  </span>
+                )}
               </div>
               <div className="form-group">
                 <label>Data de Nascimento <span className="required">*</span></label>
@@ -401,7 +471,7 @@ export default function Home() {
             </div>
           )}
 
-          <button type="submit" className="btn-submit" disabled={loading || (menorDeIdade && !form.assinatura_responsavel)}>
+          <button type="submit" className="btn-submit" disabled={loading || (menorDeIdade && !form.assinatura_responsavel) || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo)}>
             {loading ? 'Enviando...' : 'Realizar Inscrição'}
           </button>
         </form>
