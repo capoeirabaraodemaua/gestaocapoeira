@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabaseAdmin } from './supabase';
 
 export interface CheckinRecord {
   student_id: string;
@@ -12,24 +12,37 @@ export interface CheckinRecord {
 }
 
 const BUCKET = 'photos';
+const checkinKey   = (date: string, sid: string) => `checkins/${date}/${sid}.json`;
+const tombstoneKey = (date: string, sid: string) => `checkins/${date}/${sid}.deleted`;
+const checkinDir   = (date: string) => `checkins/${date}`;
 
-// Cada check-in é um arquivo próprio: checkins/YYYY-MM-DD/{student_id}.json
-// Isso garante que deletar é simplesmente remover o arquivo — sem cache stale.
-const checkinKey = (date: string, studentId: string) => `checkins/${date}/${studentId}.json`;
-const checkinDir = (date: string) => `checkins/${date}`;
+// Todas as operações de storage usam supabaseAdmin (service_role) para
+// evitar bloqueio por RLS no bucket público.
 
 export async function getCheckins(date: string): Promise<CheckinRecord[]> {
-  // Lista os arquivos na pasta do dia — esta chamada nunca usa CDN
-  const { data: files, error } = await supabase.storage.from(BUCKET).list(checkinDir(date));
+  const { data: files, error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .list(checkinDir(date));
+
   if (error || !files || files.length === 0) return [];
 
-  const jsonFiles = files.filter(f => f.name.endsWith('.json'));
-  if (jsonFiles.length === 0) return [];
+  // IDs que têm tombstone (.deleted) → foram removidos pelo admin
+  const deletedIds = new Set(
+    files
+      .filter(f => f.name.endsWith('.deleted'))
+      .map(f => f.name.replace('.deleted', ''))
+  );
 
-  // Baixa cada arquivo individualmente em paralelo
+  // Apenas arquivos .json ativos (sem tombstone correspondente)
+  const active = files.filter(
+    f => f.name.endsWith('.json') && !deletedIds.has(f.name.replace('.json', ''))
+  );
+
+  if (active.length === 0) return [];
+
   const results = await Promise.all(
-    jsonFiles.map(async f => {
-      const { data } = await supabase.storage
+    active.map(async f => {
+      const { data } = await supabaseAdmin.storage
         .from(BUCKET)
         .download(`${checkinDir(date)}/${f.name}`);
       if (!data) return null;
@@ -50,12 +63,20 @@ export async function registerCheckin(student: {
   telefone: string;
 }): Promise<{ success: boolean; alreadyRegistered: boolean }> {
   const today = new Date().toISOString().split('T')[0];
-  const key = checkinKey(today, student.id);
 
-  // Verifica se já existe arquivo para este aluno hoje
-  const { data: existing } = await supabase.storage.from(BUCKET).download(key);
-  if (existing) {
-    return { success: false, alreadyRegistered: true };
+  // Verifica tombstone e arquivo ativo
+  const { data: files } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .list(checkinDir(today));
+
+  if (files) {
+    const names = files.map(f => f.name);
+    const hasTombstone = names.includes(`${student.id}.deleted`);
+    const hasCheckin   = names.includes(`${student.id}.json`);
+    // Presença existente e não removida
+    if (hasCheckin && !hasTombstone) {
+      return { success: false, alreadyRegistered: true };
+    }
   }
 
   const now = new Date();
@@ -71,31 +92,27 @@ export async function registerCheckin(student: {
   };
 
   const blob = new Blob([JSON.stringify(record)], { type: 'application/json' });
-  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, {
-    contentType: 'application/json',
-    upsert: false, // não deve sobrescrever — protege contra duplo clique
-  });
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(checkinKey(today, student.id), blob, {
+      contentType: 'application/json',
+      upsert: true, // permite re-registrar após remoção do tombstone
+    });
 
-  if (error) {
-    // Se falhou por já existir (conflict), é presença duplicada
-    if (error.message?.includes('already exists') || error.statusCode === '409') {
-      return { success: false, alreadyRegistered: true };
-    }
-    return { success: false, alreadyRegistered: false };
-  }
-
+  if (error) return { success: false, alreadyRegistered: false };
   return { success: true, alreadyRegistered: false };
 }
 
 export async function removeCheckin(date: string, studentId: string): Promise<boolean> {
-  // Deleta apenas o arquivo do aluno específico — sem read-modify-write, sem cache
-  const { error } = await supabase.storage
+  // Grava um tombstone — não precisa deletar nada, evita todo problema de cache
+  const blob = new Blob(['1'], { type: 'text/plain' });
+  const { error } = await supabaseAdmin.storage
     .from(BUCKET)
-    .remove([checkinKey(date, studentId)]);
+    .upload(tombstoneKey(date, studentId), blob, { upsert: true });
   return !error;
 }
 
-// Retorna últimos N dias de check-ins agrupados por student_id
+// Retorna últimos N dias agrupados por student_id
 export async function getHistorico(days = 30): Promise<Record<string, string[]>> {
   const dates: string[] = [];
   for (let i = 0; i < days; i++) {
@@ -103,11 +120,9 @@ export async function getHistorico(days = 30): Promise<Record<string, string[]>>
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().split('T')[0]);
   }
-
   const results = await Promise.all(
     dates.map(d => getCheckins(d).then(recs => ({ date: d, recs })))
   );
-
   const map: Record<string, string[]> = {};
   for (const { date, recs } of results) {
     for (const r of recs) {

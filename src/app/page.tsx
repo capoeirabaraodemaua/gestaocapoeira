@@ -203,6 +203,16 @@ export default function Home() {
       }
 
       if (error) throw error;
+
+      // Envia email de confirmação (não bloqueia, falha silenciosa)
+      if (form.email) {
+        fetch('/api/send-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ to: form.email, nome: form.nome_completo, nucleo, graduacao }),
+        }).catch(() => {});
+      }
+
       setSuccess(true);
     } catch (err) {
       console.error(err);
