@@ -7,30 +7,43 @@ export interface CheckinRecord {
   nucleo: string;
   foto_url: string | null;
   telefone: string;
-  hora: string;       // HH:MM
-  timestamp: string;  // ISO
+  hora: string;
+  timestamp: string;
 }
 
 const BUCKET = 'photos';
 const fileKey = (date: string) => `checkins/${date}.json`;
 
+// Baixa o arquivo JSON ignorando cache CDN (adiciona timestamp na URL)
 export async function getCheckins(date: string): Promise<CheckinRecord[]> {
-  // Cache-bust with timestamp to always get fresh data
-  const { data, error } = await supabase.storage.from(BUCKET).download(fileKey(date));
-  if (error || !data) return [];
-  try { return JSON.parse(await data.text()) as CheckinRecord[]; } catch { return []; }
+  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileKey(date));
+  if (!urlData?.publicUrl) return [];
+  try {
+    const res = await fetch(`${urlData.publicUrl}?t=${Date.now()}`, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
+    });
+    if (!res.ok) return [];
+    return await res.json() as CheckinRecord[];
+  } catch { return []; }
 }
 
+// Salva: remove o arquivo antigo e faz novo upload
 export async function saveCheckins(date: string, records: CheckinRecord[]): Promise<void> {
   const blob = new Blob([JSON.stringify(records)], { type: 'application/json' });
   const key = fileKey(date);
-  // Remove first to avoid CDN cache serving stale data, then re-upload
+
+  // Remove primeiro para forçar novo arquivo sem CDN stale
   await supabase.storage.from(BUCKET).remove([key]);
-  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, { contentType: 'application/json' });
-  if (error) {
-    // Fallback to upsert if remove+upload fails
-    await supabase.storage.from(BUCKET).upload(key, blob, { contentType: 'application/json', upsert: true });
-  }
+
+  // Aguarda breve instante para o storage propagar a remoção
+  await new Promise(r => setTimeout(r, 300));
+
+  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, {
+    contentType: 'application/json',
+    upsert: true,
+  });
+  if (error) throw new Error(`Erro ao salvar presenças: ${error.message}`);
 }
 
 export async function registerCheckin(student: {
@@ -65,9 +78,7 @@ export async function removeCheckin(date: string, studentId: string): Promise<bo
   const updated = records.filter(r => r.student_id !== studentId);
   if (updated.length === records.length) return false;
   await saveCheckins(date, updated);
-  // Verify the save actually took effect
-  const verify = await getCheckins(date);
-  return !verify.some(r => r.student_id === studentId);
+  return true;
 }
 
 // Retorna últimos N dias de check-ins agrupados por student_id

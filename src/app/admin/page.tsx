@@ -185,14 +185,18 @@ export default function AdminPage() {
     setRemoving(true);
     const today = new Date().toISOString().split('T')[0];
     const studentId = removeConfirm.student_id;
-    const ok = await removeCheckin(today, studentId);
-    setRemoving(false);
-    if (ok) {
-      setCheckins(prev => prev.filter(c => c.student_id !== studentId));
+    try {
+      await removeCheckin(today, studentId);
+      // Aguarda o storage propagar antes de recarregar
+      await new Promise(r => setTimeout(r, 600));
+      // Lê diretamente do storage para confirmar
+      const fresh = await getCheckins(today);
+      setCheckins(fresh);
       setRemoveConfirm(null);
-    } else {
+    } catch {
       alert('Erro ao remover presença. Tente novamente.');
     }
+    setRemoving(false);
   };
 
   return (
