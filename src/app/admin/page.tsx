@@ -5,6 +5,11 @@ import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes } from '@/lib/graduacoes';
 import Link from 'next/link';
 
+interface PresencaCount {
+  student_id: string;
+  count: number;
+}
+
 interface Student {
   id: string;
   nome_completo: string;
@@ -45,9 +50,14 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas'>('alunos');
+  const [presencas, setPresencas] = useState<PresencaCount[]>([]);
+  const [totalTreinos, setTotalTreinos] = useState(0);
+  const [filterPresencaNucleo, setFilterPresencaNucleo] = useState('');
 
   useEffect(() => {
     fetchStudents();
+    fetchPresencas();
   }, []);
 
   const fetchStudents = async () => {
@@ -58,6 +68,27 @@ export default function AdminPage() {
       .order('created_at', { ascending: false });
     if (!error && data) setStudents(data);
     setLoading(false);
+  };
+
+  const fetchPresencas = async () => {
+    // Total de dias de treino distintos
+    const { data: treinos } = await supabase
+      .from('presencas')
+      .select('data_treino');
+    const uniqueDays = new Set((treinos || []).map((t: { data_treino: string }) => t.data_treino));
+    setTotalTreinos(uniqueDays.size);
+
+    // Contagem por aluno
+    const { data: counts } = await supabase
+      .from('presencas')
+      .select('student_id');
+    if (counts) {
+      const map: Record<string, number> = {};
+      counts.forEach((c: { student_id: string }) => {
+        map[c.student_id] = (map[c.student_id] || 0) + 1;
+      });
+      setPresencas(Object.entries(map).map(([student_id, count]) => ({ student_id, count })));
+    }
   };
 
   const filtered = students.filter(s => {
@@ -146,33 +177,64 @@ export default function AdminPage() {
         <div className="admin-header">
           <div>
             <h1 style={{ background: 'linear-gradient(135deg, #fff, var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              Painel de Alunos
+              Painel Administrativo
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
               Associação Cultural de Capoeira Barão de Mauá
             </p>
           </div>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <input
-              className="search-input"
-              placeholder="Buscar por nome, CPF ou graduação..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            <select
-              className="search-input"
-              style={{ width: 160 }}
-              value={filterNucleo}
-              onChange={(e) => setFilterNucleo(e.target.value)}
-            >
-              <option value="">Todos os núcleos</option>
-              <option value="Saracuruna">Saracuruna</option>
-              <option value="Mauá">Mauá</option>
-            </select>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+            <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem' }}>
+              ✓ Registrar Presença
+            </Link>
+            {activeTab === 'alunos' && <>
+              <input
+                className="search-input"
+                placeholder="Buscar por nome, CPF ou graduação..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+              />
+              <select
+                className="search-input"
+                style={{ width: 160 }}
+                value={filterNucleo}
+                onChange={(e) => setFilterNucleo(e.target.value)}
+              >
+                <option value="">Todos os núcleos</option>
+                <option value="Saracuruna">Saracuruna</option>
+                <option value="Mauá">Mauá</option>
+              </select>
+            </>}
           </div>
         </div>
 
-        <div className="admin-stats">
+        {/* Tabs */}
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
+          {(['alunos', 'presencas'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                padding: '10px 24px',
+                background: 'none',
+                border: 'none',
+                borderBottom: activeTab === tab ? '2px solid #dc2626' : '2px solid transparent',
+                marginBottom: -2,
+                color: activeTab === tab ? '#dc2626' : 'var(--text-secondary)',
+                fontWeight: activeTab === tab ? 700 : 500,
+                cursor: 'pointer',
+                fontSize: '0.95rem',
+                transition: 'all 0.2s',
+              }}
+            >
+              {tab === 'alunos' ? '👥 Alunos' : '📊 Presenças'}
+            </button>
+          ))}
+        </div>
+
+        {activeTab === 'alunos' && (
+          <div>
+          <div className="admin-stats">
           <div className="stat-card">
             <div className="stat-value">{students.length}</div>
             <div className="stat-label">Total de Alunos</div>
@@ -280,6 +342,135 @@ export default function AdminPage() {
             </table>
           </div>
         )}
+          </div>
+        )}
+
+        {/* ===== ABA PRESENÇAS ===== */}
+        {activeTab === 'presencas' && (() => {
+          const presencaMap: Record<string, number> = {};
+          presencas.forEach(p => { presencaMap[p.student_id] = p.count; });
+
+          const studentsWithPresenca = students
+            .filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo)
+            .map(s => ({
+              ...s,
+              presencaCount: presencaMap[s.id] || 0,
+              percentual: totalTreinos > 0 ? Math.round(((presencaMap[s.id] || 0) / totalTreinos) * 100) : 0,
+            }))
+            .sort((a, b) => b.percentual - a.percentual);
+
+          return (
+            <div>
+              {/* Stats presenças */}
+              <div className="admin-stats">
+                <div className="stat-card">
+                  <div className="stat-value">{totalTreinos}</div>
+                  <div className="stat-label">Treinos Realizados</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value">{presencas.length}</div>
+                  <div className="stat-label">Alunos com Presença</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value">
+                    {presencas.length > 0 ? Math.round(presencas.reduce((a,p)=>a+p.count,0)/presencas.length) : 0}
+                  </div>
+                  <div className="stat-label">Média de Presenças</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value">
+                    {studentsWithPresenca.filter(s => s.percentual >= 75).length}
+                  </div>
+                  <div className="stat-label">Frequência ≥ 75%</div>
+                </div>
+              </div>
+
+              {/* Filtro */}
+              <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
+                <select
+                  className="search-input"
+                  style={{ width: 200 }}
+                  value={filterPresencaNucleo}
+                  onChange={e => setFilterPresencaNucleo(e.target.value)}
+                >
+                  <option value="">Todos os núcleos</option>
+                  <option value="Saracuruna">Saracuruna</option>
+                  <option value="Mauá">Mauá</option>
+                </select>
+              </div>
+
+              {/* Gráfico / Lista */}
+              {totalTreinos === 0 ? (
+                <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
+                  Nenhuma presença registrada ainda.<br/>
+                  <Link href="/presenca" style={{ color: '#16a34a', fontWeight: 600 }}>Registrar primeira presença →</Link>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {studentsWithPresenca.map(student => {
+                    const pct = student.percentual;
+                    const barColor = pct >= 75 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+                    return (
+                      <div key={student.id} style={{
+                        background: 'var(--bg-card)',
+                        border: '1px solid var(--border)',
+                        borderRadius: 12,
+                        padding: '14px 18px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 14,
+                      }}>
+                        {/* Avatar */}
+                        {student.foto_url ? (
+                          <img src={student.foto_url} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                          </div>
+                        )}
+                        {/* Info + barra */}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                            <div>
+                              <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{student.nome_completo}</span>
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 8 }}>
+                                {student.nucleo || '—'} · {student.graduacao}
+                              </span>
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+                              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                                {student.presencaCount}/{totalTreinos} treinos
+                              </span>
+                              <span style={{
+                                fontWeight: 800,
+                                fontSize: '1rem',
+                                color: barColor,
+                                minWidth: 44,
+                                textAlign: 'right',
+                              }}>
+                                {pct}%
+                              </span>
+                            </div>
+                          </div>
+                          {/* Barra de progresso */}
+                          <div style={{ background: 'var(--bg-input)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
+                            <div style={{
+                              width: `${pct}%`,
+                              height: '100%',
+                              background: barColor,
+                              borderRadius: 6,
+                              transition: 'width 0.6s ease',
+                            }} />
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
       </div>
 
       {/* Detail Modal */}

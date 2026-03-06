@@ -3,6 +3,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors } from '@/lib/graduacoes';
+import Link from 'next/link';
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -221,7 +222,15 @@ export default function Home() {
             }}
           />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
-
+          {/* Nav links */}
+          <div style={{ position: 'absolute', top: 16, right: 16, zIndex: 10, display: 'flex', gap: 8 }}>
+            <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 14px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.8rem' }}>
+              ✓ Registrar Presença
+            </Link>
+            <Link href="/admin" style={{ background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.2)', color: '#fff', padding: '8px 14px', borderRadius: 8, textDecoration: 'none', fontWeight: 600, fontSize: '0.8rem', backdropFilter: 'blur(4px)' }}>
+              Painel Admin
+            </Link>
+          </div>
         </div>
 
         <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
