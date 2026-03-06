@@ -30,6 +30,7 @@ export default function PresencaPage() {
   const [registering, setRegistering] = useState(false);
   const [comprovante, setComprovante] = useState<{ student: Student; presenca: Presenca } | null>(null);
   const [alreadyChecked, setAlreadyChecked] = useState<string | null>(null);
+  const [tableError, setTableError] = useState(false);
   const comprovanteRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -62,12 +63,18 @@ export default function PresencaPage() {
     setAlreadyChecked(null);
 
     // Verifica se já registrou hoje
-    const { data: existing } = await supabase
+    const { data: existing, error: existingError } = await supabase
       .from('presencas')
       .select('id')
       .eq('student_id', student.id)
       .eq('data_treino', hoje())
       .limit(1);
+
+    if (existingError?.message?.includes('relation') || existingError?.message?.includes('does not exist') || existingError?.code === 'PGRST205') {
+      setTableError(true);
+      setRegistering(false);
+      return;
+    }
 
     if (existing && existing.length > 0) {
       setAlreadyChecked(student.id);
@@ -92,6 +99,8 @@ export default function PresencaPage() {
       setSearch('');
       setFiltered([]);
       setComprovante({ student, presenca: data });
+    } else if (error?.code === 'PGRST205' || error?.message?.includes('relation')) {
+      setTableError(true);
     } else {
       alert('Erro ao registrar presença. Tente novamente.');
     }
@@ -211,6 +220,41 @@ export default function PresencaPage() {
             </p>
           )}
         </div>
+
+        {/* Aviso de setup */}
+        {tableError && (
+          <div className="form-section" style={{ background: 'rgba(220,38,38,0.07)', borderColor: 'rgba(220,38,38,0.3)' }}>
+            <h2 className="form-section-title" style={{ color: '#dc2626' }}>⚠ Configuração necessária</h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginBottom: 12 }}>
+              A tabela de presenças ainda não foi criada. Execute o SQL abaixo no <strong>Supabase Dashboard → SQL Editor</strong>:
+            </p>
+            <pre style={{
+              background: 'var(--bg-input)',
+              border: '1px solid var(--border)',
+              borderRadius: 8,
+              padding: 16,
+              fontSize: '0.78rem',
+              color: '#60a5fa',
+              overflowX: 'auto',
+              lineHeight: 1.6,
+              whiteSpace: 'pre-wrap',
+            }}>{`CREATE TABLE presencas (
+  id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
+  data_treino DATE NOT NULL,
+  hora_registro VARCHAR(10) NOT NULL DEFAULT '',
+  nucleo VARCHAR(100) NOT NULL DEFAULT '',
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(student_id, data_treino)
+);
+ALTER TABLE presencas ENABLE ROW LEVEL SECURITY;
+CREATE POLICY allow_all ON presencas FOR ALL
+  TO anon, authenticated USING (true) WITH CHECK (true);`}</pre>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: 10 }}>
+              Após executar, recarregue a página.
+            </p>
+          </div>
+        )}
 
         {/* Instruções */}
         <div className="form-section" style={{ background: 'rgba(22,163,74,0.07)', borderColor: 'rgba(22,163,74,0.2)' }}>
