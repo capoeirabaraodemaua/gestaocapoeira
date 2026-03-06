@@ -497,32 +497,90 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Responsável (menor de idade) */}
+          {/* Termo de Autorização (menor de idade) */}
           {menorDeIdade && (
-            <div className="form-section responsavel-section">
-              <h2 className="form-section-title" style={{ color: 'var(--danger)' }}>
-                Dados do Responsável (Aluno Menor de Idade)
+            <div className="form-section responsavel-section" style={{ border: '2px solid var(--danger)', borderRadius: 14 }}>
+              <h2 className="form-section-title" style={{ color: 'var(--danger)', fontSize: '1rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                ⚠ Termo de Autorização — Menor de Idade
               </h2>
-              <div className="form-grid">
-                <div className="form-group full-width">
-                  <label>Nome do Responsável <span className="required">*</span></label>
-                  <input name="nome_responsavel" value={form.nome_responsavel} onChange={handleChange} required placeholder="Nome completo do responsável" />
+
+              {/* Texto formal do termo */}
+              <div style={{
+                background: 'rgba(220,38,38,0.05)',
+                border: '1px solid rgba(220,38,38,0.2)',
+                borderRadius: 10,
+                padding: '18px 20px',
+                fontSize: '0.9rem',
+                lineHeight: 1.75,
+                color: 'var(--text-primary)',
+                marginBottom: 20,
+                fontFamily: 'Georgia, serif',
+              }}>
+                <p style={{ margin: '0 0 12px', textAlign: 'justify' }}>
+                  Eu, responsável legal pelo menor inscrito, autorizo sua participação nas atividades de capoeira
+                  realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>, estando ciente
+                  das atividades físicas envolvidas.
+                </p>
+                <div className="form-grid" style={{ marginBottom: 0 }}>
+                  <div className="form-group full-width" style={{ marginBottom: 12 }}>
+                    <label style={{ fontFamily: 'var(--font-sans, sans-serif)', fontWeight: 700 }}>
+                      Responsável: <span className="required">*</span>
+                    </label>
+                    <input
+                      name="nome_responsavel"
+                      value={form.nome_responsavel}
+                      onChange={handleChange}
+                      required
+                      placeholder="Nome completo do responsável legal"
+                      style={{ fontFamily: 'var(--font-sans, sans-serif)' }}
+                    />
+                  </div>
+                  <div className="form-group" style={{ marginBottom: 0 }}>
+                    <label style={{ fontFamily: 'var(--font-sans, sans-serif)', fontWeight: 700 }}>
+                      CPF: <span className="required">*</span>
+                    </label>
+                    <input
+                      name="cpf_responsavel"
+                      value={form.cpf_responsavel}
+                      onChange={handleCPFResponsavelChange}
+                      required
+                      placeholder="000.000.000-00"
+                      style={{ fontFamily: 'var(--font-sans, sans-serif)' }}
+                    />
+                  </div>
                 </div>
-                <div className="form-group">
-                  <label>CPF do Responsável <span className="required">*</span></label>
-                  <input name="cpf_responsavel" value={form.cpf_responsavel} onChange={handleCPFResponsavelChange} required placeholder="000.000.000-00" />
-                </div>
-                <div className="form-group">
-                  <label>&nbsp;</label>
-                  <label className="checkbox-group" style={{ margin: 0 }}>
-                    <input type="checkbox" name="assinatura_responsavel" checked={form.assinatura_responsavel} onChange={handleChange} />
-                    <span>
-                      Eu, como responsável legal, autorizo a inscrição deste menor na Associação Cultural de Capoeira
-                      Barão de Mauá e me responsabilizo por todas as atividades realizadas.
+
+                {/* Linha de assinatura visual */}
+                <div style={{ marginTop: 20, paddingTop: 16, borderTop: '1px dashed rgba(220,38,38,0.3)' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 6 }}>
+                    <span style={{ fontSize: '0.85rem', fontFamily: 'var(--font-sans, sans-serif)', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                      Assinatura:
                     </span>
-                  </label>
+                    <div style={{ flex: 1, borderBottom: '1px solid var(--border)', height: 28 }} />
+                  </div>
+                  <p style={{ margin: '6px 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', fontFamily: 'var(--font-sans, sans-serif)', textAlign: 'center' }}>
+                    Ao marcar a caixa abaixo, o responsável legal confirma e assina eletronicamente este termo.
+                  </p>
                 </div>
               </div>
+
+              {/* Checkbox de assinatura eletrônica */}
+              <label className="checkbox-group" style={{ margin: 0, alignItems: 'flex-start', gap: 12, cursor: 'pointer' }}>
+                <input
+                  type="checkbox"
+                  name="assinatura_responsavel"
+                  checked={form.assinatura_responsavel}
+                  onChange={handleChange}
+                  style={{ marginTop: 3, flexShrink: 0 }}
+                />
+                <span style={{ fontSize: '0.85rem', lineHeight: 1.6 }}>
+                  <strong>Assinatura Eletrônica:</strong> Eu,{' '}
+                  <strong>{form.nome_responsavel || '___________'}</strong>
+                  {form.cpf_responsavel ? `, CPF ${form.cpf_responsavel},` : ','}{' '}
+                  declaro que li e concordo com os termos acima, autorizando a participação do menor
+                  nas atividades da Associação Cultural de Capoeira Barão de Mauá. <span className="required">*</span>
+                </span>
+              </label>
             </div>
           )}
 
