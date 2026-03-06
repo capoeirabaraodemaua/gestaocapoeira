@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes } from '@/lib/graduacoes';
-import { getCheckins, CheckinRecord } from '@/lib/checkins';
+import { getCheckins, getHistorico, CheckinRecord } from '@/lib/checkins';
 import Link from 'next/link';
 
 interface PresencaCount {
@@ -60,6 +60,9 @@ export default function AdminPage() {
   const [totalTreinos, setTotalTreinos] = useState(0);
   const [filterPresencaNucleo, setFilterPresencaNucleo] = useState('');
   const [checkins, setCheckins] = useState<CheckinRecord[]>([]);
+  const [historico, setHistorico] = useState<Record<string, string[]>>({});
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [chartStudent, setChartStudent] = useState<Student | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -80,6 +83,13 @@ export default function AdminPage() {
     const today = new Date().toISOString().split('T')[0];
     const records = await getCheckins(today);
     setCheckins(records);
+  };
+
+  const fetchHistorico = async () => {
+    setLoadingHistorico(true);
+    const hist = await getHistorico(30);
+    setHistorico(hist);
+    setLoadingHistorico(false);
   };
 
   const filtered = students.filter(s => {
@@ -317,6 +327,12 @@ export default function AdminPage() {
                             style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                           >
                             Editar
+                          </button>
+                          <button
+                            onClick={() => { setChartStudent(student); fetchHistorico(); }}
+                            style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                          >
+                            📊
                           </button>
                           <button
                             onClick={() => setDeleteConfirm(student)}
@@ -703,6 +719,137 @@ export default function AdminPage() {
                 Sim, Excluir
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Gráfico Individual de Presença */}
+      {chartStudent && (
+        <div className="modal-overlay" onClick={() => setChartStudent(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 560 }}>
+            <h2 style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span style={{ WebkitTextFillColor: 'var(--text-primary)', fontSize: '1.1rem' }}>
+                📊 Frequência Individual
+              </span>
+              <button className="modal-close" onClick={() => setChartStudent(null)}>&times;</button>
+            </h2>
+
+            {/* Cabeçalho aluno */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20, padding: '14px 16px', background: 'var(--bg-input)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              {chartStudent.foto_url
+                ? <img src={chartStudent.foto_url} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover' }} />
+                : <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                  </div>
+              }
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '1rem' }}>{chartStudent.nome_completo}</div>
+                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginTop: 3 }}>
+                  {chartStudent.graduacao} · {chartStudent.nucleo || '—'}
+                </div>
+              </div>
+              {(() => {
+                const dias = historico[chartStudent.id] || [];
+                const pct = 30 > 0 ? Math.round((dias.length / 30) * 100) : 0;
+                const cor = pct >= 75 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+                return (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '1.6rem', fontWeight: 800, color: cor, lineHeight: 1 }}>{pct}%</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>{dias.length}/30 dias</div>
+                  </div>
+                );
+              })()}
+            </div>
+
+            {loadingHistorico ? (
+              <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)' }}>Carregando histórico...</div>
+            ) : (() => {
+              const diasPresente = new Set(historico[chartStudent.id] || []);
+              // Gera os últimos 30 dias
+              const dias: { date: string; label: string; presente: boolean }[] = [];
+              for (let i = 29; i >= 0; i--) {
+                const d = new Date();
+                d.setDate(d.getDate() - i);
+                const iso = d.toISOString().split('T')[0];
+                const label = d.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' });
+                dias.push({ date: iso, label, presente: diasPresente.has(iso) });
+              }
+              const presentes = dias.filter(d => d.presente).length;
+              const cor = presentes / 30 >= 0.75 ? '#16a34a' : presentes / 30 >= 0.5 ? '#d97706' : '#dc2626';
+
+              return (
+                <div>
+                  {/* Calendário de pontos — últimos 30 dias */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 8, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Últimos 30 dias
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 6 }}>
+                      {dias.map(d => (
+                        <div
+                          key={d.date}
+                          title={`${d.label} — ${d.presente ? 'Presente' : 'Ausente'}`}
+                          style={{
+                            aspectRatio: '1',
+                            borderRadius: 6,
+                            background: d.presente ? cor : 'var(--bg-input)',
+                            border: `1px solid ${d.presente ? cor : 'var(--border)'}`,
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            cursor: 'default',
+                            transition: 'transform 0.1s',
+                          }}
+                        >
+                          {d.presente && (
+                            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="3"><path d="M20 6L9 17l-5-5"/></svg>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                      <span>{dias[0].label}</span>
+                      <span>Hoje</span>
+                    </div>
+                  </div>
+
+                  {/* Barra de progresso */}
+                  <div style={{ marginBottom: 16 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: '0.8rem' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>Frequência</span>
+                      <span style={{ fontWeight: 700, color: cor }}>{presentes} presença{presentes !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div style={{ background: 'var(--bg-input)', borderRadius: 8, height: 14, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                      <div style={{ width: `${(presentes / 30) * 100}%`, height: '100%', background: `linear-gradient(90deg, ${cor}, ${cor}cc)`, borderRadius: 8, transition: 'width 0.8s ease' }} />
+                    </div>
+                  </div>
+
+                  {/* Estatísticas */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+                    {[
+                      { label: 'Presenças', value: presentes, color: cor },
+                      { label: 'Faltas', value: 30 - presentes, color: '#dc2626' },
+                      { label: 'Frequência', value: `${Math.round((presentes / 30) * 100)}%`, color: cor },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: s.color }}>{s.value}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>{s.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Legenda */}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 14, justifyContent: 'center' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ width: 12, height: 12, borderRadius: 3, background: cor }} />
+                      Presente
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      <div style={{ width: 12, height: 12, borderRadius: 3, background: 'var(--bg-input)', border: '1px solid var(--border)' }} />
+                      Ausente
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
           </div>
         </div>
       )}
