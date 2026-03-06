@@ -180,8 +180,8 @@ export default function Home() {
       {/* Hero Banner */}
         <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden' }}>
           <img
-            src="/mestres.png"
-            alt="Mestres"
+            src="/banner-maua.png"
+            alt="Barão de Mauá"
             style={{
               position: 'absolute',
               inset: 0,
@@ -192,16 +192,10 @@ export default function Home() {
               zIndex: 0,
             }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.4) 0%, rgba(0,0,0,0.6) 100%)', zIndex: 1 }} />
-          <img
-            src="/logo.jpg"
-            alt="Logo Associação Cultural de Capoeira Barão de Mauá"
-            className="hero-logo"
-            style={{ position: 'absolute', top: 16, left: 16, width: 80, height: 80, objectFit: 'contain', borderRadius: '50%', zIndex: 2 }}
-          />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
           <div className="hero-content" style={{ position: 'relative', zIndex: 2 }}>
             <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
-            <p className="hero-subtitle">Ficha de Inscrição</p>
+            <p className="hero-subtitle" style={{ fontSize: 'inherit', fontWeight: 'inherit' }}>Ficha de Inscrição</p>
           </div>
         </div>
 
