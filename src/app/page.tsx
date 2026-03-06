@@ -15,8 +15,8 @@ export default function Home() {
   const [graduacao, setGraduacao] = useState('');
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string }>({});
-  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean }>({});
+  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string; email?: string }>({});
+  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean; email?: boolean }>({});
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -92,7 +92,7 @@ export default function Home() {
     setForm(prev => ({ ...prev, cpf_responsavel: formatCPF(e.target.value) }));
   };
 
-  const checkDuplicate = async (field: 'cpf' | 'identidade' | 'nome_completo', value: string) => {
+  const checkDuplicate = async (field: 'cpf' | 'identidade' | 'nome_completo' | 'email', value: string) => {
     const cleanValue = value.trim();
     if (!cleanValue) return;
     setCheckingDuplicate(prev => ({ ...prev, [field]: true }));
@@ -104,7 +104,7 @@ export default function Home() {
         .eq(field, cleanValue)
         .limit(1);
       if (data && data.length > 0) {
-        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Identidade (RG)', nome_completo: 'Nome' };
+        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Identidade (RG)', nome_completo: 'Nome', email: 'E-mail' };
         setDuplicateErrors(prev => ({
           ...prev,
           [field]: `${labels[field]} já cadastrado(a): ${data[0].nome_completo}`,
@@ -147,13 +147,32 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo) {
+    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email) {
       alert('Corrija os campos duplicados antes de enviar.');
       return;
     }
     setLoading(true);
 
     try {
+      // Verificação server-side de duplicatas antes de inserir
+      const orFilters = [`nome_completo.eq.${form.nome_completo}`, `cpf.eq.${form.cpf}`];
+      if (form.email) orFilters.push(`email.eq.${form.email}`);
+      const { data: existing } = await supabase
+        .from('students')
+        .select('id, nome_completo, cpf, email')
+        .or(orFilters.join(','))
+        .limit(1);
+      if (existing && existing.length > 0) {
+        const dup = existing[0];
+        const motivo =
+          dup.cpf === form.cpf ? `CPF ${form.cpf}` :
+          dup.nome_completo === form.nome_completo ? `nome "${form.nome_completo}"` :
+          `e-mail ${form.email}`;
+        alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
+        setLoading(false);
+        return;
+      }
+
       let foto_url = null;
       if (photoFile) {
         const ext = photoFile.name.split('.').pop();
@@ -347,7 +366,20 @@ export default function Home() {
                 </div>
                 <div className="form-group">
                   <label>E-mail</label>
-                  <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" />
+                  <input
+                    type="email"
+                    name="email"
+                    value={form.email}
+                    onChange={e => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, email: undefined })); }}
+                    onBlur={() => form.email && checkDuplicate('email', form.email)}
+                    placeholder="seu@email.com"
+                    style={duplicateErrors.email ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
+                  />
+                  {duplicateErrors.email && (
+                    <p style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: 4, fontWeight: 600 }}>
+                      ⚠ {duplicateErrors.email}
+                    </p>
+                  )}
                 </div>
                 <div className="form-group">
                   <label>Nome do Pai</label>
@@ -494,7 +526,7 @@ export default function Home() {
             </div>
           )}
 
-          <button type="submit" className="btn-submit" disabled={loading || (menorDeIdade && !form.assinatura_responsavel) || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo)}>
+          <button type="submit" className="btn-submit" disabled={loading || (menorDeIdade && !form.assinatura_responsavel) || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
             {loading ? 'Enviando...' : 'Realizar Inscrição'}
           </button>
         </form>

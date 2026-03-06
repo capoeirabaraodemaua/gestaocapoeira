@@ -89,7 +89,7 @@ export default function AdminPage() {
 
   const fetchPresencas = async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true);
-    else setLoadingCheckins(true);
+    setLoadingCheckins(true);
     setCheckinsError(null);
     const today = new Date().toISOString().split('T')[0];
     try {
@@ -110,9 +110,10 @@ export default function AdminPage() {
     } catch (e: unknown) {
       setCheckinsError(e instanceof Error ? e.message : 'Erro ao buscar presenças');
       setCheckins([]);
+    } finally {
+      setLoadingCheckins(false);
+      if (showSpinner) setRefreshing(false);
     }
-    if (showSpinner) setRefreshing(false);
-    else setLoadingCheckins(false);
   };
 
   const fetchHistorico = async () => {
