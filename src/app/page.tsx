@@ -193,9 +193,8 @@ export default function Home() {
             }}
           />
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
-          <div className="hero-content" style={{ position: 'relative', zIndex: 2 }}>
-            <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
-            <p className="hero-subtitle">Ficha de Inscrição</p>
+          <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 2 }}>
+            <img src="/logo.jpg" alt="Logo" style={{ width: 80, height: 80, borderRadius: '50%', border: '3px solid #dc2626', objectFit: 'cover', boxShadow: '0 0 20px rgba(220,38,38,0.4)' }} />
           </div>
         </div>
 
