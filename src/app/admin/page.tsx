@@ -414,7 +414,8 @@ export default function AdminPage() {
                           {student.menor_de_idade && (
                             <button
                               onClick={() => {
-                                const url = `${window.location.origin}/termo?id=${student.id}`;
+                                const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+                                const url = `${base}/termo?id=${student.id}`;
                                 const phone = (student.telefone || '').replace(/\D/g, '');
                                 const br = phone.startsWith('55') ? phone : `55${phone}`;
                                 const msg = encodeURIComponent(

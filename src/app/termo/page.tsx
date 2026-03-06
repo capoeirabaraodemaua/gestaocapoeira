@@ -33,9 +33,6 @@ function TermoContent() {
   const [form, setForm] = useState({
     nome_responsavel: '',
     cpf_responsavel: '',
-    assinatura_responsavel: false,
-    assinatura_pai: false,
-    assinatura_mae: false,
   });
 
   useEffect(() => {
@@ -46,7 +43,7 @@ function TermoContent() {
   const loadStudent = async (id: string) => {
     const { data, error } = await supabase
       .from('students')
-      .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,assinatura_pai,assinatura_mae,menor_de_idade')
+      .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,menor_de_idade')
       .eq('id', id)
       .single();
     if (error || !data) { setNotFound(true); setLoading(false); return; }
@@ -55,9 +52,6 @@ function TermoContent() {
     setForm({
       nome_responsavel: s.nome_responsavel || '',
       cpf_responsavel: s.cpf_responsavel || '',
-      assinatura_responsavel: s.assinatura_responsavel || false,
-      assinatura_pai: s.assinatura_pai || false,
-      assinatura_mae: s.assinatura_mae || false,
     });
     setLoading(false);
   };
@@ -72,22 +66,20 @@ function TermoContent() {
 
   const handleSave = async () => {
     if (!student) return;
-    if (!form.assinatura_responsavel) {
-      alert('O responsável legal deve assinar o termo antes de salvar.');
+    if (!form.nome_responsavel.trim()) {
+      alert('Preencha o nome do responsável antes de salvar.');
       return;
     }
     setSaving(true);
     const { error } = await supabase.from('students').update({
       nome_responsavel: form.nome_responsavel,
       cpf_responsavel: form.cpf_responsavel,
-      assinatura_responsavel: form.assinatura_responsavel,
-      assinatura_pai: form.assinatura_pai,
-      assinatura_mae: form.assinatura_mae,
+      assinatura_responsavel: true,
     }).eq('id', student.id);
     setSaving(false);
     if (error) { alert('Erro ao salvar. Tente novamente.'); return; }
     setSaved(true);
-    setStudent(prev => prev ? { ...prev, ...form } : prev);
+    setStudent(prev => prev ? { ...prev, ...form, assinatura_responsavel: true } : prev);
   };
 
   const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
@@ -192,78 +184,6 @@ function TermoContent() {
               </div>
             </div>
 
-            <hr style={{ border: 'none', borderTop: '1px dashed rgba(220,38,38,0.3)', marginBottom: 24 }} />
-
-            {/* Assinatura Pai */}
-            <div style={{ marginBottom: 24, fontFamily: 'sans-serif' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Assinatura do Pai
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Pai:</span>
-                <div style={{ flex: 1, borderBottom: `1px solid ${form.assinatura_pai ? '#16a34a' : 'var(--border)'}`, minHeight: 28, paddingBottom: 2, fontFamily: 'Georgia, serif', fontSize: '0.88rem', color: '#16a34a', transition: 'all 0.2s' }}>
-                  {form.assinatura_pai ? (student.nome_pai || '— não informado —') : ''}
-                </div>
-              </div>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: saved ? 'default' : 'pointer', fontSize: '0.83rem', lineHeight: 1.5 }}>
-                <input type="checkbox" checked={form.assinatura_pai} onChange={e => !saved && setForm(p => ({ ...p, assinatura_pai: e.target.checked }))} disabled={saved} style={{ marginTop: 3, flexShrink: 0, accentColor: '#16a34a' }} />
-                <span>
-                  Eu, <strong>{student.nome_pai || '(nome do pai)'}</strong>, assino eletronicamente e autorizo
-                  a participação do menor nas atividades da Associação Cultural de Capoeira Barão de Mauá.
-                </span>
-              </label>
-            </div>
-
-            {/* Assinatura Mãe */}
-            <div style={{ marginBottom: 28, fontFamily: 'sans-serif' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Assinatura da Mãe
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Mãe:</span>
-                <div style={{ flex: 1, borderBottom: `1px solid ${form.assinatura_mae ? '#16a34a' : 'var(--border)'}`, minHeight: 28, paddingBottom: 2, fontFamily: 'Georgia, serif', fontSize: '0.88rem', color: '#16a34a', transition: 'all 0.2s' }}>
-                  {form.assinatura_mae ? (student.nome_mae || '— não informado —') : ''}
-                </div>
-              </div>
-              <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: saved ? 'default' : 'pointer', fontSize: '0.83rem', lineHeight: 1.5 }}>
-                <input type="checkbox" checked={form.assinatura_mae} onChange={e => !saved && setForm(p => ({ ...p, assinatura_mae: e.target.checked }))} disabled={saved} style={{ marginTop: 3, flexShrink: 0, accentColor: '#16a34a' }} />
-                <span>
-                  Eu, <strong>{student.nome_mae || '(nome da mãe)'}</strong>, assino eletronicamente e autorizo
-                  a participação do menor nas atividades da Associação Cultural de Capoeira Barão de Mauá.
-                </span>
-              </label>
-            </div>
-
-            <hr style={{ border: 'none', borderTop: '1px dashed rgba(220,38,38,0.4)', marginBottom: 20 }} />
-
-            {/* Assinatura Responsável Legal */}
-            <div style={{ fontFamily: 'sans-serif' }}>
-              <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                Assinatura do Responsável Legal <span style={{ color: '#dc2626' }}>*</span>
-              </div>
-              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 12, marginBottom: 10 }}>
-                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Responsável:</span>
-                <div style={{ flex: 1, borderBottom: `2px solid ${form.assinatura_responsavel ? '#16a34a' : '#dc2626'}`, minHeight: 28, paddingBottom: 2, fontFamily: 'Georgia, serif', fontSize: '0.88rem', color: form.assinatura_responsavel ? '#16a34a' : 'transparent', transition: 'all 0.2s' }}>
-                  {form.assinatura_responsavel ? (form.nome_responsavel || '— não informado —') : ''}
-                </div>
-              </div>
-              <label style={{
-                display: 'flex', alignItems: 'flex-start', gap: 10,
-                cursor: saved ? 'default' : 'pointer',
-                background: form.assinatura_responsavel ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.05)',
-                border: `1px solid ${form.assinatura_responsavel ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.2)'}`,
-                borderRadius: 10, padding: '12px 14px', transition: 'all 0.2s', fontSize: '0.83rem', lineHeight: 1.5,
-              }}>
-                <input type="checkbox" checked={form.assinatura_responsavel} onChange={e => !saved && setForm(p => ({ ...p, assinatura_responsavel: e.target.checked }))} disabled={saved} style={{ marginTop: 3, flexShrink: 0, accentColor: '#dc2626' }} />
-                <span>
-                  {form.assinatura_responsavel ? '✅ ' : ''}<strong>Assinatura Eletrônica:</strong> Eu,{' '}
-                  <strong>{form.nome_responsavel || '___________'}</strong>
-                  {form.cpf_responsavel ? `, CPF ${form.cpf_responsavel},` : ','}{' '}
-                  declaro que li e concordo com os termos acima, autorizando a participação do menor
-                  nas atividades da Associação Cultural de Capoeira Barão de Mauá.
-                </span>
-              </label>
-            </div>
           </div>
         </div>
 
@@ -276,19 +196,19 @@ function TermoContent() {
         ) : (
           <button
             onClick={handleSave}
-            disabled={saving || !form.assinatura_responsavel}
+            disabled={saving || !form.nome_responsavel.trim()}
             style={{
               width: '100%', padding: '16px',
-              background: form.assinatura_responsavel ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'var(--bg-input)',
-              border: form.assinatura_responsavel ? 'none' : '1px solid var(--border)',
-              color: form.assinatura_responsavel ? '#fff' : 'var(--text-secondary)',
+              background: form.nome_responsavel.trim() ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'var(--bg-input)',
+              border: form.nome_responsavel.trim() ? 'none' : '1px solid var(--border)',
+              color: form.nome_responsavel.trim() ? '#fff' : 'var(--text-secondary)',
               borderRadius: 12, fontWeight: 700, fontSize: '1rem',
-              cursor: form.assinatura_responsavel ? 'pointer' : 'not-allowed',
+              cursor: form.nome_responsavel.trim() ? 'pointer' : 'not-allowed',
               transition: 'all 0.2s',
-              boxShadow: form.assinatura_responsavel ? '0 4px 16px rgba(220,38,38,0.3)' : 'none',
+              boxShadow: form.nome_responsavel.trim() ? '0 4px 16px rgba(220,38,38,0.3)' : 'none',
             }}
           >
-            {saving ? 'Salvando...' : '✍ Assinar e Salvar Termo'}
+            {saving ? 'Salvando...' : '✍ Confirmar e Salvar Termo'}
           </button>
         )}
       </div>
