@@ -65,6 +65,7 @@ export default function AdminPage() {
   const [chartStudent, setChartStudent] = useState<Student | null>(null);
   const [removeConfirm, setRemoveConfirm] = useState<CheckinRecord | null>(null);
   const [removing, setRemoving] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -81,10 +82,12 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const fetchPresencas = async () => {
+  const fetchPresencas = async (showSpinner = false) => {
+    if (showSpinner) setRefreshing(true);
     const today = new Date().toISOString().split('T')[0];
     const records = await getCheckins(today);
     setCheckins(records);
+    if (showSpinner) setRefreshing(false);
   };
 
   const fetchHistorico = async () => {
@@ -171,16 +174,14 @@ export default function AdminPage() {
     if (!removeConfirm) return;
     setRemoving(true);
     const today = new Date().toISOString().split('T')[0];
-    // Optimistic update: remove immediately from UI
     const studentId = removeConfirm.student_id;
-    setCheckins(prev => prev.filter(c => c.student_id !== studentId));
-    setRemoveConfirm(null);
     const ok = await removeCheckin(today, studentId);
     setRemoving(false);
-    if (!ok) {
-      // Revert: re-fetch from storage if something went wrong
-      alert('Erro ao remover presença. A lista foi recarregada.');
-      fetchPresencas();
+    if (ok) {
+      setCheckins(prev => prev.filter(c => c.student_id !== studentId));
+      setRemoveConfirm(null);
+    } else {
+      alert('Erro ao remover presença. Tente novamente.');
     }
   };
 
@@ -409,9 +410,15 @@ export default function AdminPage() {
                 <option value="Saracuruna">Saracuruna</option>
                 <option value="Mauá">Mauá</option>
               </select>
-              <button onClick={fetchPresencas} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
-                ↻ Atualizar
+              <button
+                onClick={() => fetchPresencas(true)}
+                disabled={refreshing}
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: refreshing ? '#16a34a' : 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: refreshing ? 'default' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
+              >
+                <span style={{ display: 'inline-block', animation: refreshing ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
+                {refreshing ? 'Atualizando...' : 'Atualizar'}
               </button>
+              <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
                 + Registrar Presença
               </Link>
@@ -751,40 +758,47 @@ export default function AdminPage() {
 
       {/* Remove Checkin Confirm Modal */}
       {removeConfirm && (
-        <div className="modal-overlay" onClick={() => setRemoveConfirm(null)}>
+        <div className="modal-overlay" onClick={() => !removing && setRemoveConfirm(null)}>
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
             <div style={{ marginBottom: 16 }}>
-              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" style={{ marginBottom: 12 }}>
-                <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
-              </svg>
+              {removing ? (
+                <div style={{ width: 56, height: 56, margin: '0 auto 12px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <span style={{ fontSize: 32, display: 'inline-block', animation: 'spin 0.7s linear infinite' }}>↻</span>
+                </div>
+              ) : (
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" style={{ marginBottom: 12 }}>
+                  <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+                </svg>
+              )}
               <h2 style={{ fontSize: '1.2rem', marginBottom: 0, display: 'block', WebkitTextFillColor: 'var(--text-primary)' }}>
-                Remover Presença
+                {removing ? 'Removendo...' : 'Remover Presença'}
               </h2>
             </div>
-            <p style={{ color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.6 }}>
-              Tem certeza que deseja remover a presença de
-            </p>
-            <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4, color: '#f87171' }}>
-              {removeConfirm.nome_completo}
-            </p>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24 }}>
-              Registrada às {removeConfirm.hora} de hoje.
-            </p>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setRemoveConfirm(null)}
-                style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={confirmRemoveCheckin}
-                disabled={removing}
-                style={{ flex: 1, padding: '10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', color: '#f87171', borderRadius: 10, cursor: 'pointer', fontWeight: 700, opacity: removing ? 0.6 : 1 }}
-              >
-                {removing ? 'Removendo...' : 'Sim, Remover'}
-              </button>
-            </div>
+            {!removing && <>
+              <p style={{ color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.6 }}>
+                Tem certeza que deseja remover a presença de
+              </p>
+              <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4, color: '#f87171' }}>
+                {removeConfirm.nome_completo}
+              </p>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24 }}>
+                Registrada às {removeConfirm.hora} de hoje.
+              </p>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button
+                  onClick={() => setRemoveConfirm(null)}
+                  style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={confirmRemoveCheckin}
+                  style={{ flex: 1, padding: '10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', color: '#f87171', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}
+                >
+                  Sim, Remover
+                </button>
+              </div>
+            </>}
           </div>
         </div>
       )}
