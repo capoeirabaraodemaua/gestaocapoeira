@@ -199,9 +199,28 @@ export default function Home() {
         </div>
 
         <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
+          {/* Aba Ficha de Inscrição */}
+          <div style={{
+            display: 'inline-block',
+            background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)',
+            borderRadius: '12px 12px 0 0',
+            padding: '12px 32px',
+            marginBottom: 0,
+            marginTop: 8,
+          }}>
+            <span style={{
+              color: '#fff',
+              fontWeight: 800,
+              fontSize: '1.1rem',
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              fontFamily: 'Inter, sans-serif',
+            }}>Ficha de Inscrição</span>
+          </div>
+
           <form onSubmit={handleSubmit}>
             {/* Núcleo */}
-            <div className="form-section">
+            <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
               <h2 className="form-section-title">Núcleo de Treinamento</h2>
               <div className="form-grid">
                 <div className="form-group full-width">
