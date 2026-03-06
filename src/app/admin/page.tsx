@@ -10,6 +10,8 @@ interface PresencaCount {
   count: number;
 }
 
+const hoje = () => new Date().toISOString().split('T')[0];
+
 interface Student {
   id: string;
   nome_completo: string;
@@ -36,6 +38,8 @@ interface Student {
   cpf_responsavel: string | null;
   assinatura_responsavel: boolean;
   created_at: string;
+  ultimo_checkin?: string | null;
+  checkin_nucleo?: string | null;
 }
 
 type EditForm = Partial<Student>;
@@ -66,29 +70,14 @@ export default function AdminPage() {
       .from('students')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setStudents(data);
+    if (!error && data) setStudents(data as Student[]);
     setLoading(false);
   };
 
   const fetchPresencas = async () => {
-    // Total de dias de treino distintos
-    const { data: treinos } = await supabase
-      .from('presencas')
-      .select('data_treino');
-    const uniqueDays = new Set((treinos || []).map((t: { data_treino: string }) => t.data_treino));
-    setTotalTreinos(uniqueDays.size);
-
-    // Contagem por aluno
-    const { data: counts } = await supabase
-      .from('presencas')
-      .select('student_id');
-    if (counts) {
-      const map: Record<string, number> = {};
-      counts.forEach((c: { student_id: string }) => {
-        map[c.student_id] = (map[c.student_id] || 0) + 1;
-      });
-      setPresencas(Object.entries(map).map(([student_id, count]) => ({ student_id, count })));
-    }
+    // Uses ultimo_checkin column on students table — no separate presencas table needed
+    setPresencas([]);
+    setTotalTreinos(0);
   };
 
   const filtered = students.filter(s => {
@@ -347,125 +336,105 @@ export default function AdminPage() {
 
         {/* ===== ABA PRESENÇAS ===== */}
         {activeTab === 'presencas' && (() => {
-          const presencaMap: Record<string, number> = {};
-          presencas.forEach(p => { presencaMap[p.student_id] = p.count; });
-
-          const studentsWithPresenca = students
+          const hojeStr = hoje();
+          const presentes = students
+            .filter(s => s.ultimo_checkin && new Date(s.ultimo_checkin).toISOString().split('T')[0] === hojeStr)
             .filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo)
-            .map(s => ({
-              ...s,
-              presencaCount: presencaMap[s.id] || 0,
-              percentual: totalTreinos > 0 ? Math.round(((presencaMap[s.id] || 0) / totalTreinos) * 100) : 0,
-            }))
-            .sort((a, b) => b.percentual - a.percentual);
+            .sort((a, b) => new Date(b.ultimo_checkin!).getTime() - new Date(a.ultimo_checkin!).getTime());
+
+          const ausentes = students
+            .filter(s => !s.ultimo_checkin || new Date(s.ultimo_checkin).toISOString().split('T')[0] !== hojeStr)
+            .filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo);
+
+          const semColuna = students.length > 0 && students[0].ultimo_checkin === undefined;
 
           return (
             <div>
-              {/* Stats presenças */}
+              {/* Stats */}
               <div className="admin-stats">
                 <div className="stat-card">
-                  <div className="stat-value">{totalTreinos}</div>
-                  <div className="stat-label">Treinos Realizados</div>
+                  <div className="stat-value" style={{ color: '#16a34a' }}>{presentes.length}</div>
+                  <div className="stat-label">Presentes Hoje</div>
                 </div>
                 <div className="stat-card">
-                  <div className="stat-value">{presencas.length}</div>
-                  <div className="stat-label">Alunos com Presença</div>
+                  <div className="stat-value">{students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length}</div>
+                  <div className="stat-label">Total de Alunos</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value" style={{ color: '#dc2626' }}>{ausentes.length}</div>
+                  <div className="stat-label">Ausentes Hoje</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-value">
-                    {presencas.length > 0 ? Math.round(presencas.reduce((a,p)=>a+p.count,0)/presencas.length) : 0}
+                    {students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length > 0
+                      ? Math.round((presentes.length / students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length) * 100)
+                      : 0}%
                   </div>
-                  <div className="stat-label">Média de Presenças</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">
-                    {studentsWithPresenca.filter(s => s.percentual >= 75).length}
-                  </div>
-                  <div className="stat-label">Frequência ≥ 75%</div>
+                  <div className="stat-label">Frequência Hoje</div>
                 </div>
               </div>
 
+              {/* Aviso se colunas não existem */}
+              {semColuna && (
+                <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
+                  <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: 8 }}>⚠ Execute este SQL no Supabase Dashboard → SQL Editor:</div>
+                  <pre style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#60a5fa', margin: 0 }}>
+{`ALTER TABLE students
+  ADD COLUMN IF NOT EXISTS ultimo_checkin TIMESTAMPTZ,
+  ADD COLUMN IF NOT EXISTS checkin_nucleo TEXT;`}
+                  </pre>
+                </div>
+              )}
+
               {/* Filtro */}
               <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                <select
-                  className="search-input"
-                  style={{ width: 200 }}
-                  value={filterPresencaNucleo}
-                  onChange={e => setFilterPresencaNucleo(e.target.value)}
-                >
+                <select className="search-input" style={{ width: 200 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                   <option value="">Todos os núcleos</option>
                   <option value="Saracuruna">Saracuruna</option>
                   <option value="Mauá">Mauá</option>
                 </select>
+                <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
+                  + Registrar Presença
+                </Link>
               </div>
 
-              {/* Gráfico / Lista */}
-              {totalTreinos === 0 ? (
-                <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
-                  Nenhuma presença registrada ainda.<br/>
-                  <Link href="/presenca" style={{ color: '#16a34a', fontWeight: 600 }}>Registrar primeira presença →</Link>
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {studentsWithPresenca.map(student => {
-                    const pct = student.percentual;
-                    const barColor = pct >= 75 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
-                    return (
-                      <div key={student.id} style={{
-                        background: 'var(--bg-card)',
-                        border: '1px solid var(--border)',
-                        borderRadius: 12,
-                        padding: '14px 18px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 14,
-                      }}>
-                        {/* Avatar */}
-                        {student.foto_url ? (
-                          <img src={student.foto_url} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                        ) : (
-                          <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
-                          </div>
-                        )}
-                        {/* Info + barra */}
+              {/* Presentes hoje */}
+              {presentes.length > 0 && (
+                <div style={{ marginBottom: 24 }}>
+                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                    ✓ Presentes Hoje ({presentes.length})
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {presentes.map(s => (
+                      <div key={s.id} style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {s.foto_url
+                          ? <img src={s.foto_url} alt="" style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(22,163,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                            </div>
+                        }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                            <div>
-                              <span style={{ fontWeight: 700, fontSize: '0.9rem' }}>{student.nome_completo}</span>
-                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginLeft: 8 }}>
-                                {student.nucleo || '—'} · {student.graduacao}
-                              </span>
-                            </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexShrink: 0 }}>
-                              <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                                {student.presencaCount}/{totalTreinos} treinos
-                              </span>
-                              <span style={{
-                                fontWeight: 800,
-                                fontSize: '1rem',
-                                color: barColor,
-                                minWidth: 44,
-                                textAlign: 'right',
-                              }}>
-                                {pct}%
-                              </span>
-                            </div>
-                          </div>
-                          {/* Barra de progresso */}
-                          <div style={{ background: 'var(--bg-input)', borderRadius: 6, height: 10, overflow: 'hidden' }}>
-                            <div style={{
-                              width: `${pct}%`,
-                              height: '100%',
-                              background: barColor,
-                              borderRadius: 6,
-                              transition: 'width 0.6s ease',
-                            }} />
+                          <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{s.nome_completo}</div>
+                          <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                            {s.graduacao} · {s.nucleo || '—'}
                           </div>
                         </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 700 }}>
+                            {new Date(s.ultimo_checkin!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>check-in</div>
+                        </div>
                       </div>
-                    );
-                  })}
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {presentes.length === 0 && !semColuna && (
+                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                  Nenhuma presença registrada hoje ainda.<br/>
+                  <Link href="/presenca" style={{ color: '#16a34a', fontWeight: 600 }}>Registrar presença →</Link>
                 </div>
               )}
             </div>
