@@ -171,12 +171,15 @@ export default function AdminPage() {
     if (!removeConfirm) return;
     setRemoving(true);
     const today = new Date().toISOString().split('T')[0];
-    const ok = await removeCheckin(today, removeConfirm.student_id);
+    // Optimistic update: remove immediately from UI
+    const studentId = removeConfirm.student_id;
+    setCheckins(prev => prev.filter(c => c.student_id !== studentId));
+    setRemoveConfirm(null);
+    const ok = await removeCheckin(today, studentId);
     setRemoving(false);
     if (!ok) {
-      alert('Erro ao remover presença. Tente novamente.');
-    } else {
-      setRemoveConfirm(null);
+      // Revert: re-fetch from storage if something went wrong
+      alert('Erro ao remover presença. A lista foi recarregada.');
       fetchPresencas();
     }
   };
