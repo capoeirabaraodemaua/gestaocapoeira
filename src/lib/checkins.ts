@@ -52,6 +52,14 @@ export async function registerCheckin(student: {
   return { success: true, alreadyRegistered: false };
 }
 
+export async function removeCheckin(date: string, studentId: string): Promise<boolean> {
+  const records = await getCheckins(date);
+  const updated = records.filter(r => r.student_id !== studentId);
+  if (updated.length === records.length) return false;
+  await saveCheckins(date, updated);
+  return true;
+}
+
 // Retorna últimos N dias de check-ins agrupados por student_id
 export async function getHistorico(days = 30): Promise<Record<string, string[]>> {
   const dates: string[] = [];

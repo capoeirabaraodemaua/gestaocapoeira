@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes } from '@/lib/graduacoes';
-import { getCheckins, getHistorico, CheckinRecord } from '@/lib/checkins';
+import { getCheckins, getHistorico, removeCheckin, CheckinRecord } from '@/lib/checkins';
 import Link from 'next/link';
 
 interface PresencaCount {
@@ -63,6 +63,8 @@ export default function AdminPage() {
   const [historico, setHistorico] = useState<Record<string, string[]>>({});
   const [loadingHistorico, setLoadingHistorico] = useState(false);
   const [chartStudent, setChartStudent] = useState<Student | null>(null);
+  const [removeConfirm, setRemoveConfirm] = useState<CheckinRecord | null>(null);
+  const [removing, setRemoving] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -162,6 +164,20 @@ export default function AdminPage() {
       setDeleteConfirm(null);
       setSelected(null);
       fetchStudents();
+    }
+  };
+
+  const confirmRemoveCheckin = async () => {
+    if (!removeConfirm) return;
+    setRemoving(true);
+    const today = new Date().toISOString().split('T')[0];
+    const ok = await removeCheckin(today, removeConfirm.student_id);
+    setRemoving(false);
+    if (!ok) {
+      alert('Erro ao remover presença. Tente novamente.');
+    } else {
+      setRemoveConfirm(null);
+      fetchPresencas();
     }
   };
 
@@ -426,6 +442,13 @@ export default function AdminPage() {
                           <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>{c.hora}</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>check-in</div>
                         </div>
+                        <button
+                          onClick={() => setRemoveConfirm(c)}
+                          title="Remover presença"
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}
+                        >
+                          🗑
+                        </button>
                       </div>
                     ))
                   }
@@ -717,6 +740,46 @@ export default function AdminPage() {
                 style={{ flex: 1, padding: '10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', color: '#f87171', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}
               >
                 Sim, Excluir
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Checkin Confirm Modal */}
+      {removeConfirm && (
+        <div className="modal-overlay" onClick={() => setRemoveConfirm(null)}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+            <div style={{ marginBottom: 16 }}>
+              <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="#f87171" strokeWidth="1.5" style={{ marginBottom: 12 }}>
+                <circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/>
+              </svg>
+              <h2 style={{ fontSize: '1.2rem', marginBottom: 0, display: 'block', WebkitTextFillColor: 'var(--text-primary)' }}>
+                Remover Presença
+              </h2>
+            </div>
+            <p style={{ color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.6 }}>
+              Tem certeza que deseja remover a presença de
+            </p>
+            <p style={{ fontWeight: 700, fontSize: '1rem', marginBottom: 4, color: '#f87171' }}>
+              {removeConfirm.nome_completo}
+            </p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24 }}>
+              Registrada às {removeConfirm.hora} de hoje.
+            </p>
+            <div style={{ display: 'flex', gap: 10 }}>
+              <button
+                onClick={() => setRemoveConfirm(null)}
+                style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={confirmRemoveCheckin}
+                disabled={removing}
+                style={{ flex: 1, padding: '10px', background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', color: '#f87171', borderRadius: 10, cursor: 'pointer', fontWeight: 700, opacity: removing ? 0.6 : 1 }}
+              >
+                {removing ? 'Removendo...' : 'Sim, Remover'}
               </button>
             </div>
           </div>
