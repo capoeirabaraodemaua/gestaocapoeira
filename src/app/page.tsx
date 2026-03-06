@@ -502,49 +502,72 @@ export default function Home() {
                   </div>
                 </div>
 
-                <div style={{ borderTop: '1px dashed rgba(220,38,38,0.4)', paddingTop: 18 }}>
-                  <div style={{ fontSize: '0.76rem', fontWeight: 700, color: '#dc2626', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12 }}>
-                    Assinatura Eletrônica do Responsável <span>*</span>
-                  </div>
+                <div style={{ borderTop: '1px dashed rgba(220,38,38,0.4)', paddingTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-                  {/* Linha de assinatura visual */}
-                  <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 14 }}>
-                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Assinatura:</span>
-                    <div style={{
-                      flex: 1,
-                      borderBottom: `2px solid ${form.assinatura_responsavel ? '#16a34a' : '#dc2626'}`,
-                      minHeight: 32, paddingBottom: 2,
-                      fontFamily: 'Georgia, serif', fontSize: '0.92rem', fontStyle: 'italic',
-                      color: form.assinatura_responsavel ? '#16a34a' : 'transparent',
-                      transition: 'all 0.2s',
-                    }}>
-                      {form.assinatura_responsavel ? (form.nome_responsavel || '— não informado —') : ''}
+                  {/* Assinatura do Pai */}
+                  <div>
+                    <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      Assinatura do Pai
                     </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Pai:</span>
+                      <div style={{
+                        flex: 1, borderBottom: `1px solid ${form.assinatura_pai ? '#16a34a' : 'var(--border)'}`,
+                        minHeight: 28, paddingBottom: 2,
+                        fontFamily: 'Georgia, serif', fontSize: '0.9rem', fontStyle: 'italic',
+                        color: form.assinatura_pai ? '#16a34a' : 'transparent', transition: 'all 0.2s',
+                      }}>
+                        {form.assinatura_pai ? (form.nome_pai || '— não informado —') : ''}
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '0.83rem', lineHeight: 1.55 }}>
+                      <input
+                        type="checkbox"
+                        name="assinatura_pai"
+                        checked={form.assinatura_pai}
+                        onChange={handleChange}
+                        style={{ marginTop: 3, flexShrink: 0, accentColor: '#16a34a', width: 17, height: 17 }}
+                      />
+                      <span>
+                        {form.assinatura_pai ? '✅ ' : ''}Eu, <strong>{form.nome_pai || '(nome do pai)'}</strong>,
+                        assino eletronicamente e autorizo a participação do menor nas atividades da
+                        Associação Cultural de Capoeira Barão de Mauá.
+                      </span>
+                    </label>
                   </div>
 
-                  <label style={{
-                    display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer',
-                    background: form.assinatura_responsavel ? 'rgba(22,163,74,0.08)' : 'rgba(220,38,38,0.05)',
-                    border: `1px solid ${form.assinatura_responsavel ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`,
-                    borderRadius: 10, padding: '14px 16px', transition: 'all 0.2s',
-                    fontSize: '0.84rem', lineHeight: 1.55,
-                  }}>
-                    <input
-                      type="checkbox"
-                      name="assinatura_responsavel"
-                      checked={form.assinatura_responsavel}
-                      onChange={handleChange}
-                      style={{ marginTop: 3, flexShrink: 0, accentColor: '#dc2626', width: 18, height: 18 }}
-                    />
-                    <span>
-                      {form.assinatura_responsavel ? '✅ ' : ''}
-                      Eu, <strong>{form.nome_responsavel || '___________'}</strong>
-                      {form.cpf_responsavel ? `, CPF ${form.cpf_responsavel},` : ','}{' '}
-                      declaro que li e concordo com os termos acima, autorizando a participação do menor
-                      nas atividades da Associação Cultural de Capoeira Barão de Mauá.{' '}
-                      <span style={{ color: '#dc2626' }}>*</span>
-                    </span>
-                  </label>
+                  {/* Assinatura da Mãe */}
+                  <div>
+                    <div style={{ fontSize: '0.76rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 8 }}>
+                      Assinatura da Mãe
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 10, marginBottom: 8 }}>
+                      <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Mãe:</span>
+                      <div style={{
+                        flex: 1, borderBottom: `1px solid ${form.assinatura_mae ? '#16a34a' : 'var(--border)'}`,
+                        minHeight: 28, paddingBottom: 2,
+                        fontFamily: 'Georgia, serif', fontSize: '0.9rem', fontStyle: 'italic',
+                        color: form.assinatura_mae ? '#16a34a' : 'transparent', transition: 'all 0.2s',
+                      }}>
+                        {form.assinatura_mae ? (form.nome_mae || '— não informado —') : ''}
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', fontSize: '0.83rem', lineHeight: 1.55 }}>
+                      <input
+                        type="checkbox"
+                        name="assinatura_mae"
+                        checked={form.assinatura_mae}
+                        onChange={handleChange}
+                        style={{ marginTop: 3, flexShrink: 0, accentColor: '#16a34a', width: 17, height: 17 }}
+                      />
+                      <span>
+                        {form.assinatura_mae ? '✅ ' : ''}Eu, <strong>{form.nome_mae || '(nome da mãe)'}</strong>,
+                        assino eletronicamente e autorizo a participação do menor nas atividades da
+                        Associação Cultural de Capoeira Barão de Mauá.
+                      </span>
+                    </label>
+                  </div>
+
                 </div>
               </div>
             </div>
@@ -655,7 +678,7 @@ export default function Home() {
             </div>
           </div>
 
-          <button type="submit" className="btn-submit" disabled={loading || (menorDeIdade && !form.assinatura_responsavel) || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
+          <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
             {loading ? 'Enviando...' : 'Realizar Inscrição'}
           </button>
         </form>
