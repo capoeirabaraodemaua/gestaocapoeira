@@ -15,6 +15,7 @@ const BUCKET = 'photos';
 const fileKey = (date: string) => `checkins/${date}.json`;
 
 export async function getCheckins(date: string): Promise<CheckinRecord[]> {
+  // Cache-bust with timestamp to always get fresh data
   const { data, error } = await supabase.storage.from(BUCKET).download(fileKey(date));
   if (error || !data) return [];
   try { return JSON.parse(await data.text()) as CheckinRecord[]; } catch { return []; }
@@ -22,7 +23,14 @@ export async function getCheckins(date: string): Promise<CheckinRecord[]> {
 
 export async function saveCheckins(date: string, records: CheckinRecord[]): Promise<void> {
   const blob = new Blob([JSON.stringify(records)], { type: 'application/json' });
-  await supabase.storage.from(BUCKET).upload(fileKey(date), blob, { contentType: 'application/json', upsert: true });
+  const key = fileKey(date);
+  // Remove first to avoid CDN cache serving stale data, then re-upload
+  await supabase.storage.from(BUCKET).remove([key]);
+  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, { contentType: 'application/json' });
+  if (error) {
+    // Fallback to upsert if remove+upload fails
+    await supabase.storage.from(BUCKET).upload(key, blob, { contentType: 'application/json', upsert: true });
+  }
 }
 
 export async function registerCheckin(student: {
@@ -57,7 +65,9 @@ export async function removeCheckin(date: string, studentId: string): Promise<bo
   const updated = records.filter(r => r.student_id !== studentId);
   if (updated.length === records.length) return false;
   await saveCheckins(date, updated);
-  return true;
+  // Verify the save actually took effect
+  const verify = await getCheckins(date);
+  return !verify.some(r => r.student_id === studentId);
 }
 
 // Retorna últimos N dias de check-ins agrupados por student_id

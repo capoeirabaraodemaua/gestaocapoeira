@@ -55,7 +55,10 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio'>('alunos');
+  const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
+  const [loadingRelatorio, setLoadingRelatorio] = useState(false);
+  const [relDias, setRelDias] = useState(30);
   const [presencas, setPresencas] = useState<PresencaCount[]>([]);
   const [totalTreinos, setTotalTreinos] = useState(0);
   const [filterPresencaNucleo, setFilterPresencaNucleo] = useState('');
@@ -170,6 +173,13 @@ export default function AdminPage() {
     }
   };
 
+  const fetchRelatorio = async (dias: number) => {
+    setLoadingRelatorio(true);
+    const hist = await getHistorico(dias);
+    setRelatorioHistorico(hist);
+    setLoadingRelatorio(false);
+  };
+
   const confirmRemoveCheckin = async () => {
     if (!removeConfirm) return;
     setRemoving(true);
@@ -230,11 +240,16 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)' }}>
-          {(['alunos', 'presencas'] as const).map(tab => (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
+          {(['alunos', 'presencas', 'relatorio'] as const).map(tab => (
             <button
               key={tab}
-              onClick={() => setActiveTab(tab)}
+              onClick={() => {
+                setActiveTab(tab);
+                if (tab === 'relatorio' && Object.keys(relatorioHistorico).length === 0) {
+                  fetchRelatorio(relDias);
+                }
+              }}
               style={{
                 padding: '10px 24px',
                 background: 'none',
@@ -248,7 +263,7 @@ export default function AdminPage() {
                 transition: 'all 0.2s',
               }}
             >
-              {tab === 'alunos' ? '👥 Alunos' : '📊 Presenças'}
+              {tab === 'alunos' ? '👥 Alunos' : tab === 'presencas' ? '📊 Presenças' : '📋 Relatório'}
             </button>
           ))}
         </div>
@@ -473,6 +488,156 @@ export default function AdminPage() {
             )}
           </div>
         )}
+      {/* ===== ABA RELATÓRIO ===== */}
+      {activeTab === 'relatorio' && (
+        <div>
+          {/* Controles */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+            <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Período:</span>
+            {[7, 15, 30, 60].map(d => (
+              <button
+                key={d}
+                onClick={() => { setRelDias(d); fetchRelatorio(d); }}
+                style={{
+                  padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: relDias === d ? 700 : 500,
+                  background: relDias === d ? 'linear-gradient(135deg,var(--accent),#b0452a)' : 'var(--bg-input)',
+                  border: relDias === d ? 'none' : '1px solid var(--border)',
+                  color: relDias === d ? '#fff' : 'var(--text-secondary)',
+                }}
+              >{d} dias</button>
+            ))}
+            <button
+              onClick={() => fetchRelatorio(relDias)}
+              disabled={loadingRelatorio}
+              style={{ marginLeft: 'auto', background: 'var(--bg-input)', border: '1px solid var(--border)', color: loadingRelatorio ? '#16a34a' : 'var(--text-secondary)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <span style={{ display: 'inline-block', animation: loadingRelatorio ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
+              {loadingRelatorio ? 'Carregando...' : 'Atualizar'}
+            </button>
+            <button
+              onClick={() => window.print()}
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              🖨 Imprimir
+            </button>
+          </div>
+
+          {loadingRelatorio ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando relatório...</div>
+          ) : (
+            <div>
+              {/* Sumário */}
+              <div className="admin-stats" style={{ marginBottom: 20 }}>
+                <div className="stat-card">
+                  <div className="stat-value">{students.length}</div>
+                  <div className="stat-label">Total de Alunos</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value" style={{ color: '#16a34a' }}>
+                    {students.filter(s => (relatorioHistorico[s.id] || []).length > 0).length}
+                  </div>
+                  <div className="stat-label">Com Presença</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value" style={{ color: '#dc2626' }}>
+                    {students.filter(s => (relatorioHistorico[s.id] || []).length === 0).length}
+                  </div>
+                  <div className="stat-label">Sem Presença</div>
+                </div>
+                <div className="stat-card">
+                  <div className="stat-value">
+                    {students.length > 0
+                      ? Math.round((Object.values(relatorioHistorico).reduce((sum, d) => sum + d.length, 0) / (students.length * relDias)) * 100)
+                      : 0}%
+                  </div>
+                  <div className="stat-label">Média Geral</div>
+                </div>
+              </div>
+
+              {/* Tabela */}
+              <div className="table-responsive">
+                <table className="student-table">
+                  <thead>
+                    <tr>
+                      <th style={{ width: 44 }}>Foto</th>
+                      <th>Nome</th>
+                      <th>Núcleo</th>
+                      <th>Graduação</th>
+                      <th style={{ textAlign: 'center' }}>Presenças</th>
+                      <th style={{ textAlign: 'center' }}>Faltas</th>
+                      <th style={{ minWidth: 120 }}>Frequência</th>
+                      <th>Última Presença</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {[...students]
+                      .sort((a, b) => {
+                        const pa = (relatorioHistorico[a.id] || []).length;
+                        const pb = (relatorioHistorico[b.id] || []).length;
+                        return pb - pa;
+                      })
+                      .map(student => {
+                        const dias = relatorioHistorico[student.id] || [];
+                        const presencas = dias.length;
+                        const pct = Math.round((presencas / relDias) * 100);
+                        const cor = pct >= 75 ? '#16a34a' : pct >= 50 ? '#d97706' : '#dc2626';
+                        const ultimaPresenca = dias.sort().reverse()[0];
+                        return (
+                          <tr key={student.id}>
+                            <td>
+                              {student.foto_url
+                                ? <img src={student.foto_url} alt="" className="student-avatar" />
+                                : <div className="student-avatar" style={{ background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                                  </div>
+                              }
+                            </td>
+                            <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
+                            <td>
+                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : ''}`}>
+                                {student.nucleo || '—'}
+                              </span>
+                            </td>
+                            <td style={{ fontSize: '0.85rem' }}>{student.graduacao}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: '#16a34a' }}>{presencas}</td>
+                            <td style={{ textAlign: 'center', fontWeight: 700, color: '#dc2626' }}>{relDias - presencas}</td>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                <div style={{ flex: 1, background: 'var(--bg-input)', borderRadius: 6, height: 8, overflow: 'hidden', border: '1px solid var(--border)', minWidth: 60 }}>
+                                  <div style={{ width: `${pct}%`, height: '100%', background: cor, borderRadius: 6, transition: 'width 0.5s' }} />
+                                </div>
+                                <span style={{ fontSize: '0.82rem', fontWeight: 700, color: cor, minWidth: 36 }}>{pct}%</span>
+                              </div>
+                            </td>
+                            <td style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                              {ultimaPresenca
+                                ? new Date(ultimaPresenca + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })
+                                : '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Legenda */}
+              <div style={{ display: 'flex', gap: 20, marginTop: 16, flexWrap: 'wrap', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: '#16a34a' }} /> ≥ 75% — Ótima frequência
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: '#d97706' }} /> 50–74% — Regular
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <div style={{ width: 12, height: 12, borderRadius: 3, background: '#dc2626' }} /> &lt; 50% — Baixa frequência
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       </div>
 
       {/* Detail Modal */}
