@@ -483,9 +483,9 @@ export default function Home() {
             </div>
           </div>
 
-          {/* Autorizações */}
+          {/* Autorização de Uso de Imagem */}
           <div className="form-section">
-            <h2 className="form-section-title">Autorizações</h2>
+            <h2 className="form-section-title">Autorização de Uso de Imagem</h2>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label className="checkbox-group">
                 <input type="checkbox" name="autoriza_imagem" checked={form.autoriza_imagem} onChange={handleChange} />
