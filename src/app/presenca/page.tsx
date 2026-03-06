@@ -13,7 +13,7 @@ interface Student {
   nucleo: string | null;
   foto_url: string | null;
   telefone: string;
-  email: string;
+  email?: string;
 }
 
 export default function PresencaPage() {
@@ -40,19 +40,31 @@ export default function PresencaPage() {
 
   useEffect(() => {
     if (!search.trim()) { setFiltered([]); return; }
-    const q = search.toLowerCase();
-    setFiltered(students.filter(s =>
-      s.nome_completo.toLowerCase().includes(q) || s.cpf.includes(q)
-    ).slice(0, 8));
+    const q = search.toLowerCase().trim();
+    const qDigits = q.replace(/\D/g, ''); // só números, para comparar CPF sem formatação
+    setFiltered(students.filter(s => {
+      const nomeMatch = s.nome_completo.toLowerCase().includes(q);
+      const cpfDigits = s.cpf.replace(/\D/g, '');
+      const cpfMatch = qDigits.length >= 3 && cpfDigits.includes(qDigits);
+      return nomeMatch || cpfMatch;
+    }).slice(0, 8));
   }, [search, students]);
 
   const fetchStudents = async () => {
     setLoading(true);
-    const { data } = await supabase
+    // Tenta buscar com email; se falhar (coluna não existe ainda), busca sem
+    let { data, error } = await supabase
       .from('students')
       .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone, email')
       .order('nome_completo');
-    if (data) setStudents(data);
+    if (error) {
+      const res = await supabase
+        .from('students')
+        .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone')
+        .order('nome_completo');
+      data = res.data as typeof data;
+    }
+    if (data) setStudents(data as Student[]);
     setLoading(false);
   };
 
@@ -287,7 +299,7 @@ Axé!`
               )}
 
               {/* Email */}
-              {success.student.email ? (
+              {success.student.email && success.student.email.trim() ? (
                 <a
                   href={buildEmailLink(success)}
                   style={{

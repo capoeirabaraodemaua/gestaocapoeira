@@ -167,13 +167,12 @@ export default function Home() {
         }
       }
 
-      const { error } = await supabase.from('students').insert({
+      const payload: Record<string, unknown> = {
         nome_completo: form.nome_completo,
         cpf: form.cpf,
-          identidade: form.identidade,
-          data_nascimento: form.data_nascimento,
-          telefone: form.telefone,
-        email: form.email,
+        identidade: form.identidade,
+        data_nascimento: form.data_nascimento,
+        telefone: form.telefone,
         cep: form.cep,
         endereco: form.endereco,
         numero: form.numero,
@@ -182,9 +181,9 @@ export default function Home() {
         cidade: form.cidade,
         estado: form.estado,
         graduacao,
-          tipo_graduacao: tipoGraduacao,
-          nucleo,
-          foto_url,
+        tipo_graduacao: tipoGraduacao,
+        nucleo,
+        foto_url,
         nome_pai: form.nome_pai,
         nome_mae: form.nome_mae,
         autoriza_imagem: form.autoriza_imagem,
@@ -192,7 +191,16 @@ export default function Home() {
         nome_responsavel: menorDeIdade ? form.nome_responsavel : null,
         cpf_responsavel: menorDeIdade ? form.cpf_responsavel : null,
         assinatura_responsavel: menorDeIdade ? form.assinatura_responsavel : false,
-      });
+      };
+      if (form.email) payload.email = form.email;
+
+      let { error } = await supabase.from('students').insert(payload);
+      // Se falhar por coluna email inexistente, tenta sem email
+      if (error && error.message?.includes('email')) {
+        delete payload.email;
+        const res = await supabase.from('students').insert(payload);
+        error = res.error;
+      }
 
       if (error) throw error;
       setSuccess(true);
