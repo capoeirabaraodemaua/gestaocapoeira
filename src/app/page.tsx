@@ -104,11 +104,16 @@ export default function Home() {
     setCheckingDuplicate(prev => ({ ...prev, [field]: true }));
     setDuplicateErrors(prev => ({ ...prev, [field]: undefined }));
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('students')
         .select('id, nome_completo')
         .eq(field, cleanValue)
         .limit(1);
+      // Se a coluna não existe no banco, ignora silenciosamente
+      if (error && (error.message.includes('column') || error.message.includes('schema'))) {
+        setCheckingDuplicate(prev => ({ ...prev, [field]: false }));
+        return;
+      }
       if (data && data.length > 0) {
         const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Identidade (RG)', nome_completo: 'Nome', email: 'E-mail' };
         setDuplicateErrors(prev => ({
@@ -161,19 +166,15 @@ export default function Home() {
 
     try {
       // Verificação server-side de duplicatas antes de inserir
-      const orFilters = [`nome_completo.eq.${form.nome_completo}`, `cpf.eq.${form.cpf}`];
-      if (form.email) orFilters.push(`email.eq.${form.email}`);
       const { data: existing } = await supabase
         .from('students')
-        .select('id, nome_completo, cpf, email')
-        .or(orFilters.join(','))
+        .select('id, nome_completo, cpf')
+        .or(`nome_completo.eq.${form.nome_completo},cpf.eq.${form.cpf}`)
         .limit(1);
       if (existing && existing.length > 0) {
         const dup = existing[0];
         const motivo =
-          dup.cpf === form.cpf ? `CPF ${form.cpf}` :
-          dup.nome_completo === form.nome_completo ? `nome "${form.nome_completo}"` :
-          `e-mail ${form.email}`;
+          dup.cpf === form.cpf ? `CPF ${form.cpf}` : `nome "${form.nome_completo}"`;
         alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
         setLoading(false);
         return;
@@ -223,22 +224,44 @@ export default function Home() {
 
       let { error } = await supabase.from('students').insert(payload);
 
-      // Retry removendo colunas que ainda não existem no banco
-      if (error) {
+      // Retry removendo colunas que ainda não existem no banco (até 3 tentativas)
+      for (let attempt = 0; attempt < 3 && error; attempt++) {
         const msg = error.message || '';
-        if (msg.includes('assinatura_pai') || msg.includes('assinatura_mae')) {
-          delete payload.assinatura_pai;
-          delete payload.assinatura_mae;
-          const r2 = await supabase.from('students').insert(payload);
-          error = r2.error;
-        } else if (msg.includes('email')) {
-          delete payload.email;
-          const r2 = await supabase.from('students').insert(payload);
-          error = r2.error;
+        const colMatch = msg.match(/column[s]? ['"]?(\w+)['"]? of|Could not find the '(\w+)' column/i);
+        const missingCol = colMatch ? (colMatch[1] || colMatch[2]) : null;
+        if (missingCol && payload[missingCol] !== undefined) {
+          delete payload[missingCol];
+          const r = await supabase.from('students').insert(payload);
+          error = r.error;
+        } else {
+          break;
         }
       }
 
       if (error) throw error;
+
+      // Busca o ID do aluno recém inserido
+      const { data: newStudent } = await supabase
+        .from('students')
+        .select('id')
+        .eq('cpf', form.cpf)
+        .limit(1)
+        .single();
+
+      // Salva dados extras (email, assinaturas pai/mãe) no Storage como JSON backup
+      if (newStudent?.id && (form.email || form.assinatura_pai || form.assinatura_mae)) {
+        const extras = {
+          email: form.email || null,
+          assinatura_pai: form.assinatura_pai,
+          assinatura_mae: form.assinatura_mae,
+          updated_at: new Date().toISOString(),
+        };
+        supabase.storage.from('photos').upload(
+          `extras/${newStudent.id}.json`,
+          new Blob([JSON.stringify(extras)], { type: 'application/json' }),
+          { upsert: true }
+        ).catch(() => {});
+      }
 
       // Envia email de confirmação (não bloqueia, falha silenciosa)
       if (form.email) {

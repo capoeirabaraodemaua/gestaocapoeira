@@ -10,40 +10,32 @@ export async function GET() {
   const projectRef = url.replace('https://', '').replace('.supabase.co', '');
   const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
 
-  // Supabase transaction pooler: postgres://postgres.ref:[password]@aws-0-[region].pooler.supabase.com:6543/postgres
-  // We can try the direct connection
-  const dbUrl = `postgresql://postgres.${projectRef}:${serviceKey}@aws-0-sa-east-1.pooler.supabase.com:6543/postgres`;
+  // Try multiple pooler regions
+  const regions = ['us-east-1', 'us-west-1', 'eu-west-1', 'ap-southeast-1', 'sa-east-1'];
 
-  const pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false } });
+  for (const region of regions) {
+    const dbUrl = `postgresql://postgres.${projectRef}:${serviceKey}@aws-0-${region}.pooler.supabase.com:5432/postgres`;
+    const pool = new Pool({ connectionString: dbUrl, ssl: { rejectUnauthorized: false }, connectionTimeoutMillis: 8000 });
 
-  try {
-    const client = await pool.connect();
-    await client.query(`
-      CREATE TABLE IF NOT EXISTS presencas (
-        id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-        student_id UUID NOT NULL REFERENCES students(id) ON DELETE CASCADE,
-        data_treino DATE NOT NULL,
-        hora_registro VARCHAR(10) NOT NULL DEFAULT '',
-        nucleo VARCHAR(100) NOT NULL DEFAULT '',
-        created_at TIMESTAMPTZ DEFAULT NOW(),
-        UNIQUE(student_id, data_treino)
-      )
-    `);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_presencas_student_id ON presencas(student_id)`);
-    await client.query(`CREATE INDEX IF NOT EXISTS idx_presencas_data_treino ON presencas(data_treino)`);
-    await client.query(`ALTER TABLE presencas ENABLE ROW LEVEL SECURITY`);
-    await client.query(`
-      DO $do$ BEGIN
-        IF NOT EXISTS (SELECT 1 FROM pg_policies WHERE policyname='allow_all_presencas') THEN
-          CREATE POLICY allow_all_presencas ON presencas FOR ALL TO anon, authenticated USING (true) WITH CHECK (true);
-        END IF;
-      END $do$
-    `);
-    client.release();
-    await pool.end();
-    return NextResponse.json({ success: true, message: 'Table presencas created successfully!' });
-  } catch (error) {
-    await pool.end().catch(() => {});
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    try {
+      const client = await pool.connect();
+
+      await client.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT`);
+      await client.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_pai BOOLEAN NOT NULL DEFAULT FALSE`);
+      await client.query(`ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_mae BOOLEAN NOT NULL DEFAULT FALSE`);
+
+      client.release();
+      await pool.end();
+      return NextResponse.json({ success: true, message: `Colunas adicionadas com sucesso! (região: ${region})` });
+    } catch (error) {
+      await pool.end().catch(() => {});
+      const msg = String(error);
+      if (msg.includes('Tenant or user not found') || msg.includes('timeout') || msg.includes('ECONNREFUSED')) {
+        continue; // try next region
+      }
+      return NextResponse.json({ error: msg }, { status: 500 });
+    }
   }
+
+  return NextResponse.json({ error: 'Não foi possível conectar ao banco em nenhuma região. Use o Supabase Dashboard → SQL Editor.' }, { status: 500 });
 }
