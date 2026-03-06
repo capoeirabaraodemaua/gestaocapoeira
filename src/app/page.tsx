@@ -195,7 +195,7 @@ export default function Home() {
           <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
           <div className="hero-content" style={{ position: 'relative', zIndex: 2 }}>
             <h1 className="hero-title">Associação Cultural de Capoeira<br/>Barão de Mauá</h1>
-            <p className="hero-subtitle" style={{ fontSize: 'inherit', fontWeight: 'inherit' }}>Ficha de Inscrição</p>
+            <p className="hero-subtitle">Ficha de Inscrição</p>
           </div>
         </div>
 
