@@ -10,13 +10,29 @@ const BUCKET = 'photos';
 const dir = (date: string) => `checkins/${date}`;
 const key = (date: string, sid: string) => `checkins/${date}/${sid}.json`;
 
+async function ensureBucket() {
+  const { data: buckets } = await admin.storage.listBuckets();
+  const exists = buckets?.some(b => b.name === BUCKET);
+  if (!exists) {
+    await admin.storage.createBucket(BUCKET, { public: false });
+  }
+}
+
 // GET /api/checkins?date=YYYY-MM-DD
 export async function GET(req: Request) {
   const date = new URL(req.url).searchParams.get('date')
     || new Date().toISOString().split('T')[0];
 
+  await ensureBucket();
+
   const { data: files, error } = await admin.storage.from(BUCKET).list(dir(date));
-  if (error || !files || files.length === 0) return NextResponse.json([]);
+
+  if (error) {
+    console.error('[checkins GET] storage error:', error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  if (!files || files.length === 0) return NextResponse.json([]);
 
   const deletedIds = new Set(
     files.filter(f => f.name.endsWith('.deleted')).map(f => f.name.replace('.deleted', ''))
@@ -41,6 +57,8 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   const { student } = await req.json();
   const today = new Date().toISOString().split('T')[0];
+
+  await ensureBucket();
 
   // Verifica duplicata (ignora tombstone — se há tombstone, pode registrar novamente)
   const { data: files } = await admin.storage.from(BUCKET).list(dir(today));
@@ -70,6 +88,9 @@ export async function POST(req: Request) {
     key(today, student.id), blob, { contentType: 'application/json', upsert: true }
   );
 
-  if (error) return NextResponse.json({ success: false, alreadyRegistered: false });
+  if (error) {
+    console.error('[checkins POST] upload error:', error);
+    return NextResponse.json({ success: false, alreadyRegistered: false, error: error.message });
+  }
   return NextResponse.json({ success: true, alreadyRegistered: false, record });
 }

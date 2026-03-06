@@ -69,6 +69,8 @@ export default function AdminPage() {
   const [removeConfirm, setRemoveConfirm] = useState<CheckinRecord | null>(null);
   const [removing, setRemoving] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [loadingCheckins, setLoadingCheckins] = useState(false);
+  const [checkinsError, setCheckinsError] = useState<string | null>(null);
 
   useEffect(() => {
     fetchStudents();
@@ -87,10 +89,30 @@ export default function AdminPage() {
 
   const fetchPresencas = async (showSpinner = false) => {
     if (showSpinner) setRefreshing(true);
+    else setLoadingCheckins(true);
+    setCheckinsError(null);
     const today = new Date().toISOString().split('T')[0];
-    const records = await getCheckins(today);
-    setCheckins(records);
+    try {
+      const res = await fetch(`/api/checkins?date=${today}`, { cache: 'no-store' });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setCheckinsError(body.error || `Erro HTTP ${res.status}`);
+        setCheckins([]);
+      } else {
+        const data = await res.json();
+        if (Array.isArray(data)) {
+          setCheckins(data);
+        } else {
+          setCheckinsError(data.error || 'Resposta inesperada da API');
+          setCheckins([]);
+        }
+      }
+    } catch (e: unknown) {
+      setCheckinsError(e instanceof Error ? e.message : 'Erro ao buscar presenças');
+      setCheckins([]);
+    }
     if (showSpinner) setRefreshing(false);
+    else setLoadingCheckins(false);
   };
 
   const fetchHistorico = async () => {
@@ -250,6 +272,9 @@ export default function AdminPage() {
               key={tab}
               onClick={() => {
                 setActiveTab(tab);
+                if (tab === 'presencas') {
+                  fetchPresencas();
+                }
                 if (tab === 'relatorio' && Object.keys(relatorioHistorico).length === 0) {
                   fetchRelatorio(relDias);
                 }
@@ -444,7 +469,17 @@ export default function AdminPage() {
             </div>
 
             {/* Lista de presentes */}
-            {checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length > 0 ? (
+            {loadingCheckins ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                Carregando presenças...
+              </div>
+            ) : checkinsError ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: '#f87171', background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 12 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Erro ao carregar presenças</div>
+                <div style={{ fontSize: '0.82rem', fontFamily: 'monospace' }}>{checkinsError}</div>
+                <button onClick={() => fetchPresencas()} style={{ marginTop: 14, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>Tentar novamente</button>
+              </div>
+            ) : checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length > 0 ? (
               <div>
                 <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
                   ✓ Presentes Hoje ({checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length})
