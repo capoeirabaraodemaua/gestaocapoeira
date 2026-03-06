@@ -11,7 +11,56 @@ interface PresencaCount {
   count: number;
 }
 
+interface TermoEnviado {
+  sent_at: string;   // ISO timestamp
+  sent_count: number;
+}
+
 const hoje = () => new Date().toISOString().split('T')[0];
+
+const BUCKET = 'photos';
+
+async function registrarTermoEnviado(studentId: string) {
+  const { createClient } = await import('@supabase/supabase-js');
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const key = `termos-enviados/${studentId}.json`;
+  // Lê registro anterior para incrementar contagem
+  let prev: TermoEnviado = { sent_at: '', sent_count: 0 };
+  const { data } = await admin.storage.from(BUCKET).download(key);
+  if (data) {
+    try { prev = JSON.parse(await data.text()); } catch {}
+  }
+  const record: TermoEnviado = {
+    sent_at: new Date().toISOString(),
+    sent_count: (prev.sent_count || 0) + 1,
+  };
+  await admin.storage.from(BUCKET).upload(
+    key,
+    new Blob([JSON.stringify(record)], { type: 'application/json' }),
+    { upsert: true },
+  );
+  return record;
+}
+
+async function carregarTermosEnviados(studentIds: string[]): Promise<Record<string, TermoEnviado>> {
+  if (!studentIds.length) return {};
+  const { createClient } = await import('@supabase/supabase-js');
+  const admin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+  );
+  const result: Record<string, TermoEnviado> = {};
+  await Promise.all(studentIds.map(async (id) => {
+    const { data } = await admin.storage.from(BUCKET).download(`termos-enviados/${id}.json`);
+    if (data) {
+      try { result[id] = JSON.parse(await data.text()); } catch {}
+    }
+  }));
+  return result;
+}
 
 interface Student {
   id: string;
@@ -71,6 +120,7 @@ export default function AdminPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [loadingCheckins, setLoadingCheckins] = useState(false);
   const [checkinsError, setCheckinsError] = useState<string | null>(null);
+  const [termosEnviados, setTermosEnviados] = useState<Record<string, TermoEnviado>>({});
 
   useEffect(() => {
     fetchStudents();
@@ -83,7 +133,15 @@ export default function AdminPage() {
       .from('students')
       .select('*')
       .order('created_at', { ascending: false });
-    if (!error && data) setStudents(data as Student[]);
+    if (!error && data) {
+      const list = data as Student[];
+      setStudents(list);
+      // Carrega registros de termos enviados para alunos menores
+      const menoresIds = list.filter(s => s.menor_de_idade).map(s => s.id);
+      if (menoresIds.length) {
+        carregarTermosEnviados(menoresIds).then(setTermosEnviados);
+      }
+    }
     setLoading(false);
   };
 
@@ -376,16 +434,26 @@ export default function AdminPage() {
                           <span className={`badge ${student.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
                             {student.menor_de_idade ? 'Menor' : 'Adulto'}
                           </span>
-                          {student.menor_de_idade && (
-                            <span style={{
-                              fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4,
-                              background: (student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.12)',
-                              color: (student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? '#16a34a' : '#dc2626',
-                              border: `1px solid ${(student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`,
-                            }}>
-                              {(student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? '✅ Termo assinado' : '⚠ Sem termo'}
-                            </span>
-                          )}
+                          {student.menor_de_idade && (() => {
+                            const assinado = student.assinatura_responsavel;
+                            const enviado = termosEnviados[student.id];
+                            if (assinado) return (
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(22,163,74,0.15)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)' }}>
+                                ✅ Termo assinado
+                              </span>
+                            );
+                            if (enviado) return (
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)' }}
+                                title={`Enviado em ${new Date(enviado.sent_at).toLocaleString('pt-BR')}`}>
+                                📨 Enviado {enviado.sent_count > 1 ? `(${enviado.sent_count}×)` : ''} — aguardando assinatura
+                              </span>
+                            );
+                            return (
+                              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}>
+                                ⚠ Termo não enviado
+                              </span>
+                            );
+                          })()}
                         </div>
                       </td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
@@ -411,9 +479,9 @@ export default function AdminPage() {
                           >
                             📊
                           </button>
-                          {student.menor_de_idade && (
+                          {student.menor_de_idade && !student.assinatura_responsavel && (
                             <button
-                              onClick={() => {
+                              onClick={async () => {
                                 const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
                                 const url = `${base}/termo?id=${student.id}`;
                                 const phone = (student.telefone || '').replace(/\D/g, '');
@@ -430,6 +498,9 @@ Basta acessar o link, preencher os dados e assinar eletronicamente.
 _Associação Cultural de Capoeira Barão de Mauá_`
                                 );
                                 window.open(`https://wa.me/${br}?text=${msg}`, '_blank');
+                                // Registra o envio e atualiza badge
+                                const record = await registrarTermoEnviado(student.id);
+                                setTermosEnviados(prev => ({ ...prev, [student.id]: record }));
                               }}
                               title="Enviar termo pelo WhatsApp"
                               style={{ background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.35)', color: '#25d366', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
