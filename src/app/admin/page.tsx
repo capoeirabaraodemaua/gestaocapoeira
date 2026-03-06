@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes } from '@/lib/graduacoes';
+import { getCheckins, CheckinRecord } from '@/lib/checkins';
 import Link from 'next/link';
 
 interface PresencaCount {
@@ -58,6 +59,7 @@ export default function AdminPage() {
   const [presencas, setPresencas] = useState<PresencaCount[]>([]);
   const [totalTreinos, setTotalTreinos] = useState(0);
   const [filterPresencaNucleo, setFilterPresencaNucleo] = useState('');
+  const [checkins, setCheckins] = useState<CheckinRecord[]>([]);
 
   useEffect(() => {
     fetchStudents();
@@ -75,9 +77,9 @@ export default function AdminPage() {
   };
 
   const fetchPresencas = async () => {
-    // Uses ultimo_checkin column on students table — no separate presencas table needed
-    setPresencas([]);
-    setTotalTreinos(0);
+    const today = new Date().toISOString().split('T')[0];
+    const records = await getCheckins(today);
+    setCheckins(records);
   };
 
   const filtered = students.filter(s => {
@@ -335,111 +337,93 @@ export default function AdminPage() {
         )}
 
         {/* ===== ABA PRESENÇAS ===== */}
-        {activeTab === 'presencas' && (() => {
-          const hojeStr = hoje();
-          const presentes = students
-            .filter(s => s.ultimo_checkin && new Date(s.ultimo_checkin).toISOString().split('T')[0] === hojeStr)
-            .filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo)
-            .sort((a, b) => new Date(b.ultimo_checkin!).getTime() - new Date(a.ultimo_checkin!).getTime());
-
-          const ausentes = students
-            .filter(s => !s.ultimo_checkin || new Date(s.ultimo_checkin).toISOString().split('T')[0] !== hojeStr)
-            .filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo);
-
-          const semColuna = students.length > 0 && students[0].ultimo_checkin === undefined;
-
-          return (
-            <div>
-              {/* Stats */}
-              <div className="admin-stats">
-                <div className="stat-card">
-                  <div className="stat-value" style={{ color: '#16a34a' }}>{presentes.length}</div>
-                  <div className="stat-label">Presentes Hoje</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">{students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length}</div>
-                  <div className="stat-label">Total de Alunos</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value" style={{ color: '#dc2626' }}>{ausentes.length}</div>
-                  <div className="stat-label">Ausentes Hoje</div>
-                </div>
-                <div className="stat-card">
-                  <div className="stat-value">
-                    {students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length > 0
-                      ? Math.round((presentes.length / students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length) * 100)
-                      : 0}%
-                  </div>
-                  <div className="stat-label">Frequência Hoje</div>
-                </div>
+        {activeTab === 'presencas' && (
+          <div>
+            {/* Stats */}
+            <div className="admin-stats">
+              <div className="stat-card">
+                <div className="stat-value" style={{ color: '#16a34a' }}>{checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length}</div>
+                <div className="stat-label">Presentes Hoje</div>
               </div>
-
-              {/* Aviso se colunas não existem */}
-              {semColuna && (
-                <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 12, padding: '16px 20px', marginBottom: 20 }}>
-                  <div style={{ fontWeight: 700, color: '#dc2626', marginBottom: 8 }}>⚠ Execute este SQL no Supabase Dashboard → SQL Editor:</div>
-                  <pre style={{ background: 'var(--bg-input)', borderRadius: 8, padding: '10px 14px', fontSize: '0.82rem', color: '#60a5fa', margin: 0 }}>
-{`ALTER TABLE students
-  ADD COLUMN IF NOT EXISTS ultimo_checkin TIMESTAMPTZ,
-  ADD COLUMN IF NOT EXISTS checkin_nucleo TEXT;`}
-                  </pre>
-                </div>
-              )}
-
-              {/* Filtro */}
-              <div style={{ display: 'flex', gap: 10, marginBottom: 20 }}>
-                <select className="search-input" style={{ width: 200 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
-                  <option value="">Todos os núcleos</option>
-                  <option value="Saracuruna">Saracuruna</option>
-                  <option value="Mauá">Mauá</option>
-                </select>
-                <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
-                  + Registrar Presença
-                </Link>
+              <div className="stat-card">
+                <div className="stat-value">{students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length}</div>
+                <div className="stat-label">Total de Alunos</div>
               </div>
+              <div className="stat-card">
+                <div className="stat-value" style={{ color: '#dc2626' }}>
+                  {students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length -
+                    checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length}
+                </div>
+                <div className="stat-label">Ausentes Hoje</div>
+              </div>
+              <div className="stat-card">
+                <div className="stat-value">
+                  {students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length > 0
+                    ? Math.round((checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length /
+                        students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length) * 100)
+                    : 0}%
+                </div>
+                <div className="stat-label">Frequência Hoje</div>
+              </div>
+            </div>
 
-              {/* Presentes hoje */}
-              {presentes.length > 0 && (
-                <div style={{ marginBottom: 24 }}>
-                  <h3 style={{ fontSize: '0.85rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                    ✓ Presentes Hoje ({presentes.length})
-                  </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {presentes.map(s => (
-                      <div key={s.id} style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
-                        {s.foto_url
-                          ? <img src={s.foto_url} alt="" style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                          : <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(22,163,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            {/* Filtro + botão */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
+              <select className="search-input" style={{ width: 200 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
+                <option value="">Todos os núcleos</option>
+                <option value="Saracuruna">Saracuruna</option>
+                <option value="Mauá">Mauá</option>
+              </select>
+              <button onClick={fetchPresencas} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                ↻ Atualizar
+              </button>
+              <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
+                + Registrar Presença
+              </Link>
+            </div>
+
+            {/* Lista de presentes */}
+            {checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length > 0 ? (
+              <div>
+                <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                  ✓ Presentes Hoje ({checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length})
+                </h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {checkins
+                    .filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo)
+                    .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+                    .map((c, i) => (
+                      <div key={c.student_id + i} style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        {c.foto_url
+                          ? <img src={c.foto_url} alt="" style={{ width: 44, height: 44, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(22,163,74,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
                             </div>
                         }
                         <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{s.nome_completo}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{c.nome_completo}</div>
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                            {s.graduacao} · {s.nucleo || '—'}
+                            {c.graduacao} · {c.nucleo}
                           </div>
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.78rem', color: '#16a34a', fontWeight: 700 }}>
-                            {new Date(s.ultimo_checkin!).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                          </div>
+                          <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>{c.hora}</div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>check-in</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
+                    ))
+                  }
                 </div>
-              )}
-
-              {presentes.length === 0 && !semColuna && (
-                <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
-                  Nenhuma presença registrada hoje ainda.<br/>
-                  <Link href="/presenca" style={{ color: '#16a34a', fontWeight: 600 }}>Registrar presença →</Link>
-                </div>
-              )}
-            </div>
-          );
-        })()}
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
+                Nenhuma presença registrada hoje ainda.
+                <br />
+                <Link href="/presenca" style={{ color: '#16a34a', fontWeight: 600 }}>Registrar presença →</Link>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Detail Modal */}
