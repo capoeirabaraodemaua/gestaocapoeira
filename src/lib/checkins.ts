@@ -1,6 +1,3 @@
-// Todas as operações de storage passam por API routes server-side
-// que usam SUPABASE_SERVICE_ROLE_KEY com permissão total.
-
 export interface CheckinRecord {
   student_id: string;
   nome_completo: string;
@@ -10,13 +7,20 @@ export interface CheckinRecord {
   telefone: string;
   hora: string;
   timestamp: string;
+  local_nome: string | null;
+  local_endereco: string | null;
+  local_map_url: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export async function getCheckins(date: string): Promise<CheckinRecord[]> {
   try {
     const res = await fetch(`/api/checkins?date=${date}`, { cache: 'no-store' });
     if (!res.ok) return [];
-    return await res.json() as CheckinRecord[];
+    const data = await res.json();
+    if (Array.isArray(data)) return data as CheckinRecord[];
+    return [];
   } catch { return []; }
 }
 
@@ -27,6 +31,11 @@ export async function registerCheckin(student: {
   nucleo: string | null;
   foto_url: string | null;
   telefone: string;
+  local_nome?: string | null;
+  local_endereco?: string | null;
+  local_map_url?: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }): Promise<{ success: boolean; alreadyRegistered: boolean }> {
   try {
     const res = await fetch('/api/checkins', {

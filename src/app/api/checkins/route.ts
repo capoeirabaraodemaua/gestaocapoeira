@@ -33,11 +33,9 @@ export async function GET(req: Request) {
   }
   if (!files || files.length === 0) return NextResponse.json([]);
 
-  // Coletar IDs que têm arquivo .deleted
   const deletedIds = new Set(
     files.filter(f => f.name.endsWith('.deleted')).map(f => f.name.replace('.deleted', ''))
   );
-  // Apenas .json que NÃO têm .deleted
   const active = files.filter(
     f => f.name.endsWith('.json') && !deletedIds.has(f.name.replace('.json', ''))
   );
@@ -72,25 +70,30 @@ export async function POST(req: Request) {
     const hasDeleted = names.has(`${student.id}.deleted`);
     const hasJson    = names.has(`${student.id}.json`);
 
-    // Se tem .deleted E .json → já foi removido, pode re-registrar: deleta o .deleted primeiro
     if (hasDeleted) {
+      // Remove tombstone para permitir novo registro
       await admin.storage.from(BUCKET).remove([delKey(today, student.id)]);
     }
-    // Se tem .json e NÃO tinha .deleted → já registrado hoje
     if (hasJson && !hasDeleted) {
       return NextResponse.json({ success: false, alreadyRegistered: true });
     }
   }
 
   const record = {
-    student_id:    student.id,
-    nome_completo: student.nome_completo,
-    graduacao:     student.graduacao || '',
-    nucleo:        student.nucleo || 'Sem núcleo',
-    foto_url:      student.foto_url || null,
-    telefone:      student.telefone || '',
+    student_id:     student.id,
+    nome_completo:  student.nome_completo,
+    graduacao:      student.graduacao || '',
+    nucleo:         student.nucleo || 'Sem núcleo',
+    foto_url:       student.foto_url || null,
+    telefone:       student.telefone || '',
     hora,
-    timestamp:     now.toISOString(),
+    timestamp:      now.toISOString(),
+    // Localização
+    local_nome:     student.local_nome || null,
+    local_endereco: student.local_endereco || null,
+    local_map_url:  student.local_map_url || null,
+    lat:            student.lat ?? null,
+    lng:            student.lng ?? null,
   };
 
   const blob = new Blob([JSON.stringify(record)], { type: 'application/json' });
