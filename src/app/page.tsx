@@ -235,7 +235,7 @@ export default function Home() {
         </div>
 
         <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
-          {/* Abas */}
+          {/* Aba */}
           <div style={{ display: 'flex', gap: 6, marginTop: 8, marginBottom: 0 }}>
             <div style={{
               background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)',
@@ -251,23 +251,6 @@ export default function Home() {
                 fontFamily: 'Inter, sans-serif',
               }}>Ficha de Inscrição</span>
             </div>
-            <Link href="/presenca" style={{
-              background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)',
-              borderRadius: '12px 12px 0 0',
-              padding: '12px 32px',
-              textDecoration: 'none',
-              display: 'flex',
-              alignItems: 'center',
-            }}>
-              <span style={{
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: '1.1rem',
-                letterSpacing: '0.06em',
-                textTransform: 'uppercase',
-                fontFamily: 'Inter, sans-serif',
-              }}>Registrar Presença</span>
-            </Link>
           </div>
 
           <form onSubmit={handleSubmit}>
@@ -505,6 +488,28 @@ export default function Home() {
             {loading ? 'Enviando...' : 'Realizar Inscrição'}
           </button>
         </form>
+
+        {/* Acesso ao Registro de Presença */}
+        <Link href="/presenca" style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 10,
+          marginTop: 16,
+          marginBottom: 32,
+          padding: '16px 24px',
+          background: 'linear-gradient(135deg, #16a34a, #15803d)',
+          borderRadius: 14,
+          textDecoration: 'none',
+          boxShadow: '0 4px 16px rgba(22,163,74,0.3)',
+        }}>
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
+            <path d="M20 6L9 17l-5-5"/>
+          </svg>
+          <span style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
+            Registrar Presença no Treino
+          </span>
+        </Link>
       </div>
 
       {/* Success modal */}

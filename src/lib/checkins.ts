@@ -12,38 +12,33 @@ export interface CheckinRecord {
 }
 
 const BUCKET = 'photos';
-const fileKey = (date: string) => `checkins/${date}.json`;
 
-// Baixa o arquivo JSON ignorando cache CDN (adiciona timestamp na URL)
+// Cada check-in é um arquivo próprio: checkins/YYYY-MM-DD/{student_id}.json
+// Isso garante que deletar é simplesmente remover o arquivo — sem cache stale.
+const checkinKey = (date: string, studentId: string) => `checkins/${date}/${studentId}.json`;
+const checkinDir = (date: string) => `checkins/${date}`;
+
 export async function getCheckins(date: string): Promise<CheckinRecord[]> {
-  const { data: urlData } = supabase.storage.from(BUCKET).getPublicUrl(fileKey(date));
-  if (!urlData?.publicUrl) return [];
-  try {
-    const res = await fetch(`${urlData.publicUrl}?t=${Date.now()}`, {
-      cache: 'no-store',
-      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate', 'Pragma': 'no-cache' },
-    });
-    if (!res.ok) return [];
-    return await res.json() as CheckinRecord[];
-  } catch { return []; }
-}
+  // Lista os arquivos na pasta do dia — esta chamada nunca usa CDN
+  const { data: files, error } = await supabase.storage.from(BUCKET).list(checkinDir(date));
+  if (error || !files || files.length === 0) return [];
 
-// Salva: remove o arquivo antigo e faz novo upload
-export async function saveCheckins(date: string, records: CheckinRecord[]): Promise<void> {
-  const blob = new Blob([JSON.stringify(records)], { type: 'application/json' });
-  const key = fileKey(date);
+  const jsonFiles = files.filter(f => f.name.endsWith('.json'));
+  if (jsonFiles.length === 0) return [];
 
-  // Remove primeiro para forçar novo arquivo sem CDN stale
-  await supabase.storage.from(BUCKET).remove([key]);
+  // Baixa cada arquivo individualmente em paralelo
+  const results = await Promise.all(
+    jsonFiles.map(async f => {
+      const { data } = await supabase.storage
+        .from(BUCKET)
+        .download(`${checkinDir(date)}/${f.name}`);
+      if (!data) return null;
+      try { return JSON.parse(await data.text()) as CheckinRecord; }
+      catch { return null; }
+    })
+  );
 
-  // Aguarda breve instante para o storage propagar a remoção
-  await new Promise(r => setTimeout(r, 300));
-
-  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, {
-    contentType: 'application/json',
-    upsert: true,
-  });
-  if (error) throw new Error(`Erro ao salvar presenças: ${error.message}`);
+  return results.filter(Boolean) as CheckinRecord[];
 }
 
 export async function registerCheckin(student: {
@@ -55,12 +50,16 @@ export async function registerCheckin(student: {
   telefone: string;
 }): Promise<{ success: boolean; alreadyRegistered: boolean }> {
   const today = new Date().toISOString().split('T')[0];
-  const records = await getCheckins(today);
-  if (records.some(r => r.student_id === student.id)) {
+  const key = checkinKey(today, student.id);
+
+  // Verifica se já existe arquivo para este aluno hoje
+  const { data: existing } = await supabase.storage.from(BUCKET).download(key);
+  if (existing) {
     return { success: false, alreadyRegistered: true };
   }
+
   const now = new Date();
-  await saveCheckins(today, [...records, {
+  const record: CheckinRecord = {
     student_id: student.id,
     nome_completo: student.nome_completo,
     graduacao: student.graduacao,
@@ -69,16 +68,31 @@ export async function registerCheckin(student: {
     telefone: student.telefone || '',
     hora: now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
     timestamp: now.toISOString(),
-  }]);
+  };
+
+  const blob = new Blob([JSON.stringify(record)], { type: 'application/json' });
+  const { error } = await supabase.storage.from(BUCKET).upload(key, blob, {
+    contentType: 'application/json',
+    upsert: false, // não deve sobrescrever — protege contra duplo clique
+  });
+
+  if (error) {
+    // Se falhou por já existir (conflict), é presença duplicada
+    if (error.message?.includes('already exists') || error.statusCode === '409') {
+      return { success: false, alreadyRegistered: true };
+    }
+    return { success: false, alreadyRegistered: false };
+  }
+
   return { success: true, alreadyRegistered: false };
 }
 
 export async function removeCheckin(date: string, studentId: string): Promise<boolean> {
-  const records = await getCheckins(date);
-  const updated = records.filter(r => r.student_id !== studentId);
-  if (updated.length === records.length) return false;
-  await saveCheckins(date, updated);
-  return true;
+  // Deleta apenas o arquivo do aluno específico — sem read-modify-write, sem cache
+  const { error } = await supabase.storage
+    .from(BUCKET)
+    .remove([checkinKey(date, studentId)]);
+  return !error;
 }
 
 // Retorna últimos N dias de check-ins agrupados por student_id
@@ -89,7 +103,11 @@ export async function getHistorico(days = 30): Promise<Record<string, string[]>>
     d.setDate(d.getDate() - i);
     dates.push(d.toISOString().split('T')[0]);
   }
-  const results = await Promise.all(dates.map(d => getCheckins(d).then(recs => ({ date: d, recs }))));
+
+  const results = await Promise.all(
+    dates.map(d => getCheckins(d).then(recs => ({ date: d, recs })))
+  );
+
   const map: Record<string, string[]> = {};
   for (const { date, recs } of results) {
     for (const r of recs) {
