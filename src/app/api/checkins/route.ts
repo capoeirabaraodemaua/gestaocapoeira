@@ -8,12 +8,12 @@ const admin = createClient(
 
 const BUCKET = 'photos';
 const dir = (date: string) => `checkins/${date}`;
-const key = (date: string, sid: string) => `checkins/${date}/${sid}.json`;
+const jsonKey = (date: string, sid: string) => `checkins/${date}/${sid}.json`;
+const delKey  = (date: string, sid: string) => `checkins/${date}/${sid}.deleted`;
 
 async function ensureBucket() {
   const { data: buckets } = await admin.storage.listBuckets();
-  const exists = buckets?.some(b => b.name === BUCKET);
-  if (!exists) {
+  if (!buckets?.some(b => b.name === BUCKET)) {
     await admin.storage.createBucket(BUCKET, { public: false });
   }
 }
@@ -31,12 +31,13 @@ export async function GET(req: Request) {
     console.error('[checkins GET] storage error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
-
   if (!files || files.length === 0) return NextResponse.json([]);
 
+  // Coletar IDs que têm arquivo .deleted
   const deletedIds = new Set(
     files.filter(f => f.name.endsWith('.deleted')).map(f => f.name.replace('.deleted', ''))
   );
+  // Apenas .json que NÃO têm .deleted
   const active = files.filter(
     f => f.name.endsWith('.json') && !deletedIds.has(f.name.replace('.json', ''))
   );
@@ -56,36 +57,45 @@ export async function GET(req: Request) {
 // POST /api/checkins  body: { student }
 export async function POST(req: Request) {
   const { student } = await req.json();
-  const today = new Date().toISOString().split('T')[0];
+
+  // Data/hora em horário de Brasília
+  const now = new Date();
+  const brDate = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const today = `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
+  const hora = brDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
 
   await ensureBucket();
 
-  // Verifica duplicata (ignora tombstone — se há tombstone, pode registrar novamente)
   const { data: files } = await admin.storage.from(BUCKET).list(dir(today));
   if (files) {
     const names = new Set(files.map(f => f.name));
-    const hasTombstone = names.has(`${student.id}.deleted`);
-    const hasCheckin   = names.has(`${student.id}.json`);
-    if (hasCheckin && !hasTombstone) {
+    const hasDeleted = names.has(`${student.id}.deleted`);
+    const hasJson    = names.has(`${student.id}.json`);
+
+    // Se tem .deleted E .json → já foi removido, pode re-registrar: deleta o .deleted primeiro
+    if (hasDeleted) {
+      await admin.storage.from(BUCKET).remove([delKey(today, student.id)]);
+    }
+    // Se tem .json e NÃO tinha .deleted → já registrado hoje
+    if (hasJson && !hasDeleted) {
       return NextResponse.json({ success: false, alreadyRegistered: true });
     }
   }
 
-  const now = new Date();
   const record = {
-    student_id:     student.id,
-    nome_completo:  student.nome_completo,
-    graduacao:      student.graduacao,
-    nucleo:         student.nucleo || 'Sem núcleo',
-    foto_url:       student.foto_url,
-    telefone:       student.telefone || '',
-    hora:           now.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }),
-    timestamp:      now.toISOString(),
+    student_id:    student.id,
+    nome_completo: student.nome_completo,
+    graduacao:     student.graduacao || '',
+    nucleo:        student.nucleo || 'Sem núcleo',
+    foto_url:      student.foto_url || null,
+    telefone:      student.telefone || '',
+    hora,
+    timestamp:     now.toISOString(),
   };
 
   const blob = new Blob([JSON.stringify(record)], { type: 'application/json' });
   const { error } = await admin.storage.from(BUCKET).upload(
-    key(today, student.id), blob, { contentType: 'application/json', upsert: true }
+    jsonKey(today, student.id), blob, { contentType: 'application/json', upsert: true }
   );
 
   if (error) {

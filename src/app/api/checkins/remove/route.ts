@@ -15,13 +15,13 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: 'date and studentId required' }, { status: 400 });
   }
 
-  // Cria tombstone — marca como removido sem precisar deletar arquivo
-  const blob = new Blob(['1'], { type: 'text/plain' });
-  const { error } = await admin.storage.from(BUCKET).upload(
-    `checkins/${date}/${studentId}.deleted`,
-    blob,
-    { upsert: true }
-  );
+  // Deleta o arquivo .json diretamente (remoção real, sem tombstone)
+  const { error } = await admin.storage.from(BUCKET).remove([
+    `checkins/${date}/${studentId}.json`,
+  ]);
+
+  // Também remove tombstone se existir (limpeza)
+  await admin.storage.from(BUCKET).remove([`checkins/${date}/${studentId}.deleted`]);
 
   return NextResponse.json({ success: !error, error: error?.message });
 }

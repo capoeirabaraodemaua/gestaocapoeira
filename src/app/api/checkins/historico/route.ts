@@ -7,10 +7,9 @@ const admin = createClient(
 );
 
 const BUCKET = 'photos';
-const dir = (date: string) => `checkins/${date}`;
 
-async function getCheckinsForDate(date: string): Promise<string[]> {
-  const { data: files, error } = await admin.storage.from(BUCKET).list(dir(date));
+async function getActiveIdsForDate(date: string): Promise<string[]> {
+  const { data: files, error } = await admin.storage.from(BUCKET).list(`checkins/${date}`);
   if (error || !files || files.length === 0) return [];
 
   const deletedIds = new Set(
@@ -25,24 +24,30 @@ async function getCheckinsForDate(date: string): Promise<string[]> {
 export async function GET(req: Request) {
   const days = parseInt(new URL(req.url).searchParams.get('days') || '30', 10);
 
-  const dates: string[] = [];
-  for (let i = 0; i < days; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i);
-    dates.push(d.toISOString().split('T')[0]);
-  }
+  // Listar subpastas existentes em checkins/
+  const { data: folders } = await admin.storage.from(BUCKET).list('checkins');
+  if (!folders) return NextResponse.json({});
+
+  // Filtrar apenas pastas de datas (não arquivos .json soltos)
+  const brNow = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  const cutoff = new Date(brNow);
+  cutoff.setDate(cutoff.getDate() - days);
+
+  const dateFolders = folders
+    .filter(f => f.metadata === null && /^\d{4}-\d{2}-\d{2}$/.test(f.name))
+    .filter(f => new Date(f.name) >= cutoff)
+    .map(f => f.name);
 
   const results = await Promise.all(
-    dates.map(async date => {
-      const studentIds = await getCheckinsForDate(date);
-      return { date, studentIds };
+    dateFolders.map(async date => {
+      const ids = await getActiveIdsForDate(date);
+      return { date, ids };
     })
   );
 
-  // Agrupa por student_id → lista de datas
   const map: Record<string, string[]> = {};
-  for (const { date, studentIds } of results) {
-    for (const sid of studentIds) {
+  for (const { date, ids } of results) {
+    for (const sid of ids) {
       if (!map[sid]) map[sid] = [];
       map[sid].push(date);
     }
