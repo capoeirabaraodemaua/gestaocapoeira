@@ -41,18 +41,29 @@ function TermoContent() {
   }, [studentId]);
 
   const loadStudent = async (id: string) => {
-    const { data, error } = await supabase
-      .from('students')
-      .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,menor_de_idade')
-      .eq('id', id)
-      .single();
-    if (error || !data) { setNotFound(true); setLoading(false); return; }
-    const s = data as Student;
-    setStudent(s);
-    setForm({
-      nome_responsavel: s.nome_responsavel || '',
-      cpf_responsavel: s.cpf_responsavel || '',
-    });
+    try {
+      // Tenta via API server-side primeiro (mais confiável)
+      const res = await fetch(`/api/termo?id=${encodeURIComponent(id)}`);
+      if (res.ok) {
+        const s = await res.json() as Student;
+        setStudent(s);
+        setForm({ nome_responsavel: s.nome_responsavel || '', cpf_responsavel: s.cpf_responsavel || '' });
+        setLoading(false);
+        return;
+      }
+      // Fallback: acesso direto ao Supabase
+      const { data, error } = await supabase
+        .from('students')
+        .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,menor_de_idade')
+        .eq('id', id)
+        .single();
+      if (error || !data) throw new Error(error?.message || 'not found');
+      const s = data as Student;
+      setStudent(s);
+      setForm({ nome_responsavel: s.nome_responsavel || '', cpf_responsavel: s.cpf_responsavel || '' });
+    } catch {
+      setNotFound(true);
+    }
     setLoading(false);
   };
 
@@ -71,15 +82,28 @@ function TermoContent() {
       return;
     }
     setSaving(true);
-    const { error } = await supabase.from('students').update({
-      nome_responsavel: form.nome_responsavel,
-      cpf_responsavel: form.cpf_responsavel,
-      assinatura_responsavel: true,
-    }).eq('id', student.id);
+    try {
+      // Salva via API server-side (usa service role, mais confiável)
+      const res = await fetch(`/api/termo?id=${student.id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nome_responsavel: form.nome_responsavel, cpf_responsavel: form.cpf_responsavel }),
+      });
+      if (!res.ok) throw new Error('api error');
+      setSaved(true);
+      setStudent(prev => prev ? { ...prev, ...form, assinatura_responsavel: true } : prev);
+    } catch {
+      // Fallback direto ao Supabase
+      const { error } = await supabase.from('students').update({
+        nome_responsavel: form.nome_responsavel,
+        cpf_responsavel: form.cpf_responsavel,
+        assinatura_responsavel: true,
+      }).eq('id', student.id);
+      if (error) { alert('Erro ao salvar. Tente novamente.'); setSaving(false); return; }
+      setSaved(true);
+      setStudent(prev => prev ? { ...prev, ...form, assinatura_responsavel: true } : prev);
+    }
     setSaving(false);
-    if (error) { alert('Erro ao salvar. Tente novamente.'); return; }
-    setSaved(true);
-    setStudent(prev => prev ? { ...prev, ...form, assinatura_responsavel: true } : prev);
   };
 
   const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
