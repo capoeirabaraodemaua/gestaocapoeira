@@ -23,6 +23,7 @@ export default function Home() {
     cpf: '',
     identidade: '',
     data_nascimento: '',
+    email: '',
     cep: '',
     endereco: '',
     numero: '',
@@ -172,6 +173,7 @@ export default function Home() {
           identidade: form.identidade,
           data_nascimento: form.data_nascimento,
           telefone: form.telefone,
+        email: form.email,
         cep: form.cep,
         endereco: form.endereco,
         numero: form.numero,
@@ -341,6 +343,10 @@ export default function Home() {
                 <div className="form-group">
                   <label>Telefone <span className="required">*</span></label>
                   <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} required placeholder="(00) 00000-0000" />
+                </div>
+                <div className="form-group">
+                  <label>E-mail</label>
+                  <input type="email" name="email" value={form.email} onChange={handleChange} placeholder="seu@email.com" />
                 </div>
                 <div className="form-group">
                   <label>Nome do Pai</label>
