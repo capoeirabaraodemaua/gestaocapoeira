@@ -372,9 +372,21 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${student.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
-                          {student.menor_de_idade ? 'Menor' : 'Adulto'}
-                        </span>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          <span className={`badge ${student.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
+                            {student.menor_de_idade ? 'Menor' : 'Adulto'}
+                          </span>
+                          {student.menor_de_idade && (
+                            <span style={{
+                              fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4,
+                              background: (student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.12)',
+                              color: (student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? '#16a34a' : '#dc2626',
+                              border: `1px solid ${(student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`,
+                            }}>
+                              {(student as Student & { assinatura_responsavel?: boolean }).assinatura_responsavel ? '✅ Termo assinado' : '⚠ Sem termo'}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         {new Date(student.created_at).toLocaleDateString('pt-BR')}
@@ -399,6 +411,31 @@ export default function AdminPage() {
                           >
                             📊
                           </button>
+                          {student.menor_de_idade && (
+                            <button
+                              onClick={() => {
+                                const url = `${window.location.origin}/termo?id=${student.id}`;
+                                const phone = (student.telefone || '').replace(/\D/g, '');
+                                const br = phone.startsWith('55') ? phone : `55${phone}`;
+                                const msg = encodeURIComponent(
+`📋 *Termo de Autorização — Capoeira Barão de Mauá*
+
+Olá! Para concluir a inscrição de *${student.nome_completo}*, pedimos que o responsável legal assine o Termo de Autorização pelo link abaixo:
+
+🔗 ${url}
+
+Basta acessar o link, preencher os dados e assinar eletronicamente.
+
+_Associação Cultural de Capoeira Barão de Mauá_`
+                                );
+                                window.open(`https://wa.me/${br}?text=${msg}`, '_blank');
+                              }}
+                              title="Enviar termo pelo WhatsApp"
+                              style={{ background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.35)', color: '#25d366', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                            >
+                              📋
+                            </button>
+                          )}
                           <button
                             onClick={() => setDeleteConfirm(student)}
                             style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
