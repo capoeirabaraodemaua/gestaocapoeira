@@ -12,16 +12,16 @@ export const LOCAIS: Local[] = [
   {
     id: 'poliesportivo-edson-alves',
     nome: 'Poliesportivo Edson Alves',
-    endereco: 'Praia do Anil — Mauá, Nova Iguaçu - RJ',
+    endereco: 'Praia do Anil — Mauá, Magé - RJ',
     nucleo: 'Mauá',
-    lat: -22.7576,
-    lng: -43.3744,
-    mapUrl: 'https://maps.google.com/?q=Poliesportivo+Edson+Alves,+Praia+do+Anil,+Nova+Iguacu+RJ',
+    lat: -22.6591,
+    lng: -43.1782,
+    mapUrl: 'https://maps.google.com/?q=Poliesportivo+Edson+Alves,+Praia+do+Anil,+Maua,+Mage+RJ',
   },
   {
     id: 'poliesportivo-ipiranga',
     nome: 'Poliesportivo do Ipiranga',
-    endereco: 'Av. Nossa Sra. da Guia, 202-260 — Parque Baia Branca, Magé - RJ',
+    endereco: 'Av. Nossa Sra. da Guia, 202 — Parque Baia Branca, Magé - RJ',
     nucleo: 'Mauá',
     lat: -22.6573,
     lng: -43.0372,
@@ -42,9 +42,9 @@ function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-/** Distância em km entre dois pontos (Haversine) */
-function distKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371;
+/** Distância em metros entre dois pontos (Haversine) */
+export function distMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371000;
   const dLat = deg2rad(lat2 - lat1);
   const dLng = deg2rad(lng2 - lng1);
   const a =
@@ -56,27 +56,28 @@ function distKm(lat1: number, lng1: number, lat2: number, lng2: number): number 
 
 export interface LocalDetectado {
   local: Local;
-  distKm: number;
+  distMetros: number;
 }
 
 /**
- * Dado lat/lng do usuário, retorna o local mais próximo e a distância.
- * Retorna null se nenhum local estiver dentro de maxKm.
+ * Dado lat/lng do usuário, retorna o local mais próximo.
+ * Retorna null se nenhum local estiver dentro de maxMetros.
+ * maxMetros = 200 → precisa estar dentro de 200m do local.
  */
-export function detectarLocal(lat: number, lng: number, maxKm = 5): LocalDetectado | null {
+export function detectarLocal(lat: number, lng: number, maxMetros = 200): LocalDetectado | null {
   let melhor: LocalDetectado | null = null;
   for (const local of LOCAIS) {
-    const d = distKm(lat, lng, local.lat, local.lng);
-    if (!melhor || d < melhor.distKm) {
-      melhor = { local, distKm: d };
+    const d = distMetros(lat, lng, local.lat, local.lng);
+    if (!melhor || d < melhor.distMetros) {
+      melhor = { local, distMetros: d };
     }
   }
-  if (melhor && melhor.distKm <= maxKm) return melhor;
+  if (melhor && melhor.distMetros <= maxMetros) return melhor;
   return null;
 }
 
-/** Captura posição GPS via browser. Promise rejeita se não autorizado. */
-export function capturarGPS(timeoutMs = 8000): Promise<GeolocationPosition> {
+/** Captura posição GPS de alta precisão via browser. */
+export function capturarGPS(timeoutMs = 12000): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocalização não suportada'));
@@ -85,7 +86,7 @@ export function capturarGPS(timeoutMs = 8000): Promise<GeolocationPosition> {
     navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
       timeout: timeoutMs,
-      maximumAge: 60000,
+      maximumAge: 0, // sempre posição fresca
     });
   });
 }

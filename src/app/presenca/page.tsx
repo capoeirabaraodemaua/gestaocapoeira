@@ -127,9 +127,22 @@ export default function PresencaPage() {
     if (!s) return '';
     const phone = s.student.telefone.replace(/\D/g, '');
     const br = phone.startsWith('55') ? phone : `55${phone}`;
-    const localInfo = s.localDetectado
-      ? `\n📍 *Local:* ${s.localDetectado.local.nome}\n🗺 ${s.localDetectado.local.endereco}`
-      : '';
+
+    let localInfo = '';
+    if (s.localDetectado && coordsRaw) {
+      const mapsLink = `https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+      localInfo =
+        `\n🏟 *Local:* ${s.localDetectado.local.nome}` +
+        `\n🗺 *Endereço:* ${s.localDetectado.local.endereco}` +
+        `\n📡 *GPS:* ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\n🔗 ${mapsLink}`;
+    } else if (coordsRaw) {
+      const mapsLink = `https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+      localInfo =
+        `\n📡 *GPS em tempo real:* ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\n🔗 ${mapsLink}`;
+    }
+
     const msg = encodeURIComponent(
 `✅ *Presença Registrada!*
 Associação Cultural de Capoeira Barão de Mauá
@@ -148,8 +161,15 @@ _Axé! 🤸_`
   const buildEmailLink = (s: typeof success) => {
     if (!s) return '';
     const subject = encodeURIComponent('Comprovante de Presença — Capoeira Barão de Mauá');
-    const localInfo = s.localDetectado
-      ? `\nLocal: ${s.localDetectado.local.nome} — ${s.localDetectado.local.endereco}` : '';
+    let localInfo = '';
+    if (s.localDetectado && coordsRaw) {
+      localInfo = `\nLocal: ${s.localDetectado.local.nome} — ${s.localDetectado.local.endereco}` +
+        `\nGPS: ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\nMapa: https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+    } else if (coordsRaw) {
+      localInfo = `\nGPS: ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\nMapa: https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+    }
     const body = encodeURIComponent(
 `Presença Registrada!
 Associação Cultural de Capoeira Barão de Mauá
@@ -178,10 +198,10 @@ Axé!`
       </div>
     );
     if (gpsStatus === 'ok' && localDetectado) return (
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#16a34a' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#16a34a', flexWrap: 'wrap' }}>
         <span>📍</span>
         <span><strong>{localDetectado.local.nome}</strong> — {localDetectado.local.endereco}</span>
-        <span style={{ color: 'var(--text-secondary)' }}>({(localDetectado.distKm * 1000).toFixed(0)}m)</span>
+        <span style={{ color: 'var(--text-secondary)' }}>({Math.round(localDetectado.distMetros)}m de distância)</span>
       </div>
     );
     if (gpsStatus === 'ok' && !localDetectado) return (
