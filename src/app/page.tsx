@@ -367,11 +367,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       <html><head><meta charset="utf-8"><title>Carteirinha — ${nome}</title>
       <style>
         * { margin:0; padding:0; box-sizing:border-box; }
-        @page { size: A6 portrait; margin: 8mm; }
-        body { background:#fff; display:flex; justify-content:center; align-items:flex-start; font-family:Inter,Arial,sans-serif; }
+        @page { size: A6 landscape; margin: 6mm; }
+        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }
         @media print { body { padding:0; } }
       </style>
-      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000);}<\/script></body></html>
+      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500);}<\/script></body></html>
     `);
     printWin.document.close();
   };

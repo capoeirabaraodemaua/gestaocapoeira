@@ -138,8 +138,8 @@ export default function AdminPage() {
     const pw = window.open('', '_blank');
     if (!pw) return;
     pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Carteirinha — ${nome}</title>
-    <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A6 portrait; margin: 8mm; } body { background:#fff; display:flex; justify-content:center; font-family:Inter,Arial,sans-serif; }</style>
-    </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1000);}<\/script></body></html>`);
+    <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A6 landscape; margin: 6mm; } html,body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }</style>
+    </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script></body></html>`);
     pw.document.close();
   };
 
