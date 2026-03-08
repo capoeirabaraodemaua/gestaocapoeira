@@ -16,7 +16,11 @@ interface TermoEnviado {
   sent_count: number;
 }
 
-const hoje = () => new Date().toISOString().split('T')[0];
+const hoje = () => {
+  const now = new Date();
+  const br = new Date(now.toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  return `${br.getFullYear()}-${String(br.getMonth()+1).padStart(2,'0')}-${String(br.getDate()).padStart(2,'0')}`;
+};
 
 const BUCKET = 'photos';
 
@@ -121,6 +125,9 @@ export default function AdminPage() {
   const [loadingCheckins, setLoadingCheckins] = useState(false);
   const [checkinsError, setCheckinsError] = useState<string | null>(null);
   const [termosEnviados, setTermosEnviados] = useState<Record<string, TermoEnviado>>({});
+  const [presencaDate, setPresencaDate] = useState(hoje());
+  const [undoStack, setUndoStack] = useState<CheckinRecord[]>([]);
+  const [undoVisible, setUndoVisible] = useState(false);
 
   useEffect(() => {
     fetchStudents();
@@ -145,13 +152,13 @@ export default function AdminPage() {
     setLoading(false);
   };
 
-  const fetchPresencas = async (showSpinner = false) => {
+  const fetchPresencas = async (showSpinner = false, dateOverride?: string) => {
     if (showSpinner) setRefreshing(true);
     setLoadingCheckins(true);
     setCheckinsError(null);
-    const today = new Date().toISOString().split('T')[0];
+    const fetchDate = dateOverride || presencaDate;
     try {
-      const res = await fetch(`/api/checkins?date=${today}`, { cache: 'no-store' });
+      const res = await fetch(`/api/checkins?date=${fetchDate}`, { cache: 'no-store' });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setCheckinsError(body.error || `Erro HTTP ${res.status}`);
@@ -264,20 +271,38 @@ export default function AdminPage() {
   const confirmRemoveCheckin = async () => {
     if (!removeConfirm) return;
     setRemoving(true);
-    const today = new Date().toISOString().split('T')[0];
     const studentId = removeConfirm.student_id;
+    const removedRecord = removeConfirm;
     try {
-      await removeCheckin(today, studentId);
-      // Aguarda o storage propagar antes de recarregar
+      await removeCheckin(presencaDate, studentId);
       await new Promise(r => setTimeout(r, 600));
-      // Lê diretamente do storage para confirmar
-      const fresh = await getCheckins(today);
+      const fresh = await getCheckins(presencaDate);
       setCheckins(fresh);
       setRemoveConfirm(null);
+      // push to undo stack
+      setUndoStack(prev => [...prev, removedRecord]);
+      setUndoVisible(true);
+      setTimeout(() => setUndoVisible(false), 8000);
     } catch {
       alert('Erro ao remover presença. Tente novamente.');
     }
     setRemoving(false);
+  };
+
+  const handleUndoCheckin = async (record: CheckinRecord) => {
+    try {
+      const res = await fetch('/api/checkins', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student: { id: record.student_id, ...record }, date: presencaDate }),
+      });
+      if (res.ok) {
+        await new Promise(r => setTimeout(r, 600));
+        const fresh = await getCheckins(presencaDate);
+        setCheckins(fresh);
+        setUndoStack(prev => prev.filter(r => r.student_id !== record.student_id));
+      }
+    } catch {}
   };
 
   return (
@@ -533,7 +558,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div className="admin-stats">
               <div className="stat-card">
                 <div className="stat-value" style={{ color: '#16a34a' }}>{checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length}</div>
-                <div className="stat-label">Presentes Hoje</div>
+                <div className="stat-label">Presentes {presencaDate === hoje() ? 'Hoje' : new Date(presencaDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value">{students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length}</div>
@@ -544,7 +569,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   {students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length -
                     checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length}
                 </div>
-                <div className="stat-label">Ausentes Hoje</div>
+                <div className="stat-label">Ausentes {presencaDate === hoje() ? 'Hoje' : new Date(presencaDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value">
@@ -553,13 +578,25 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length) * 100)
                     : 0}%
                 </div>
-                <div className="stat-label">Frequência Hoje</div>
+                <div className="stat-label">Frequência {presencaDate === hoje() ? 'Hoje' : new Date(presencaDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })}</div>
               </div>
             </div>
 
-            {/* Filtro + botão */}
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap' }}>
-              <select className="search-input" style={{ width: 200 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
+            {/* Filtro + data + botão */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+              <input
+                type="date"
+                className="search-input"
+                style={{ width: 170 }}
+                value={presencaDate}
+                max={hoje()}
+                onChange={e => {
+                  const d = e.target.value;
+                  setPresencaDate(d);
+                  fetchPresencas(false, d);
+                }}
+              />
+              <select className="search-input" style={{ width: 180 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                 <option value="">Todos os núcleos</option>
                 <option value="Saracuruna">Saracuruna</option>
                 <option value="Mauá">Mauá</option>
@@ -578,6 +615,25 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </Link>
             </div>
 
+            {/* Undo toast */}
+            {undoVisible && undoStack.length > 0 && (
+              <div style={{ background: 'rgba(30,30,40,0.97)', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 12, padding: '12px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '0.85rem', color: '#e2e8f0' }}>
+                  Presença de <strong>{undoStack[undoStack.length-1].nome_completo}</strong> removida.
+                </span>
+                <button
+                  onClick={() => handleUndoCheckin(undoStack[undoStack.length-1])}
+                  style={{ background: 'rgba(139,92,246,0.2)', border: '1px solid rgba(139,92,246,0.5)', color: '#a78bfa', padding: '5px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}
+                >
+                  ↩ Desfazer
+                </button>
+                <button
+                  onClick={() => setUndoVisible(false)}
+                  style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '1rem', marginLeft: 'auto' }}
+                >×</button>
+              </div>
+            )}
+
             {/* Lista de presentes */}
             {loadingCheckins ? (
               <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)' }}>
@@ -592,7 +648,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             ) : checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length > 0 ? (
               <div>
                 <h3 style={{ fontSize: '0.82rem', fontWeight: 700, color: '#16a34a', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
-                  ✓ Presentes Hoje ({checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length})
+                  ✓ Presentes {presencaDate === hoje() ? 'Hoje' : new Date(presencaDate + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })} ({checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo).length})
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {checkins
