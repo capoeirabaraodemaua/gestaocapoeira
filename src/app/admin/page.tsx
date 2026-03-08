@@ -99,18 +99,39 @@ interface Student {
 
 type EditForm = Partial<Student>;
 
-const CREDS_KEY = 'accbm_admin_creds';
-const DEFAULT_USER = 'admin';
-const DEFAULT_PASS = 'accbm2025';
+// ─── Auth helpers ────────────────────────────────────────────────────────────
+type NucleoKey = 'maua' | 'saracuruna' | 'geral';
+interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; }
+
+const PROFILES_KEY = 'accbm_admin_profiles';
+const DEFAULT_PROFILES: Profile[] = [
+  { nucleo: 'maua',        label: 'Núcleo Mauá',        color: '#dc2626', user: 'maua',        pass: 'maua2025'        },
+  { nucleo: 'saracuruna',  label: 'Núcleo Saracuruna',  color: '#16a34a', user: 'saracuruna',  pass: 'sara2025'        },
+  { nucleo: 'geral',       label: 'Admin Geral',         color: '#1d4ed8', user: 'admin',       pass: 'accbm2025'       },
+];
+
+function getProfiles(): Profile[] {
+  try {
+    const raw = localStorage.getItem(PROFILES_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return DEFAULT_PROFILES;
+}
+function saveProfiles(profiles: Profile[]) {
+  localStorage.setItem(PROFILES_KEY, JSON.stringify(profiles));
+}
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
+  const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPass, setShowPass] = useState(false);
   // Change-credentials modal
   const [showChangeCreds, setShowChangeCreds] = useState(false);
+  const [editingProfile, setEditingProfile] = useState<NucleoKey>('maua');
   const [newUser, setNewUser] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newPassConfirm, setNewPassConfirm] = useState('');
@@ -118,25 +139,20 @@ export default function AdminPage() {
   const [changeError, setChangeError] = useState('');
   const [changeDone, setChangeDone] = useState(false);
 
-  const getCreds = (): { user: string; pass: string } => {
-    try {
-      const raw = localStorage.getItem(CREDS_KEY);
-      if (raw) return JSON.parse(raw);
-    } catch {}
-    return { user: DEFAULT_USER, pass: DEFAULT_PASS };
-  };
-
   // Check session on mount
   useEffect(() => {
-    if (sessionStorage.getItem('admin_auth') === '1') setAuthed(true);
+    const saved = sessionStorage.getItem('admin_auth');
+    if (saved) { setAuthed(true); setActiveNucleo(saved as NucleoKey); }
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    const creds = getCreds();
-    if (loginUser.trim() === creds.user && loginPass === creds.pass) {
-      sessionStorage.setItem('admin_auth', '1');
+    const profiles = getProfiles();
+    const match = profiles.find(p => p.user === loginUser.trim() && p.pass === loginPass);
+    if (match) {
+      sessionStorage.setItem('admin_auth', match.nucleo);
       setAuthed(true);
+      setActiveNucleo(match.nucleo);
       setLoginError('');
     } else {
       setLoginError('Usuário ou senha incorretos.');
@@ -148,13 +164,17 @@ export default function AdminPage() {
     if (!newUser.trim()) { setChangeError('Informe o novo usuário.'); return; }
     if (newPass.length < 6) { setChangeError('Senha deve ter ao menos 6 caracteres.'); return; }
     if (newPass !== newPassConfirm) { setChangeError('As senhas não coincidem.'); return; }
-    localStorage.setItem(CREDS_KEY, JSON.stringify({ user: newUser.trim(), pass: newPass }));
+    const profiles = getProfiles();
+    const updated = profiles.map(p => p.nucleo === editingProfile ? { ...p, user: newUser.trim(), pass: newPass } : p);
+    saveProfiles(updated);
     setChangeDone(true);
     setTimeout(() => {
       setChangeDone(false); setShowChangeCreds(false);
       setNewUser(''); setNewPass(''); setNewPassConfirm(''); setChangeError('');
     }, 2000);
   };
+
+  const currentProfile = getProfiles().find(p => p.nucleo === activeNucleo);
 
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -258,13 +278,16 @@ export default function AdminPage() {
     setLoadingHistorico(false);
   };
 
+  // Restrict students by login profile (Mauá or Saracuruna see only their own)
+  const nucleoFilter = activeNucleo === 'maua' ? 'Mauá' : activeNucleo === 'saracuruna' ? 'Saracuruna' : null;
   const filtered = students.filter(s => {
     const matchSearch =
       s.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
       s.cpf.includes(search) ||
       (s.graduacao || '').toLowerCase().includes(search.toLowerCase());
     const matchNucleo = !filterNucleo || s.nucleo === filterNucleo;
-    return matchSearch && matchNucleo;
+    const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter;
+    return matchSearch && matchNucleo && matchProfile;
   });
 
   const menores = students.filter(s => s.menor_de_idade).length;
@@ -375,151 +398,110 @@ export default function AdminPage() {
     } catch {}
   };
 
-  if (!authed) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 50%,#1e40af 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, sans-serif' }}>
-        <div style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 18, boxShadow: '0 8px 40px rgba(29,78,216,0.25)', overflow: 'hidden' }}>
-          <div style={{ height: 5, display: 'flex' }}>
-            <div style={{ flex: 1, background: '#dc2626' }} />
-            <div style={{ flex: 1, background: '#1d4ed8' }} />
-            <div style={{ flex: 1, background: '#16a34a' }} />
-          </div>
-          <div style={{ padding: '32px 28px' }}>
-            <div style={{ textAlign: 'center', marginBottom: 28 }}>
-              <img src="/logo-maua.png" alt="ACCBM" style={{ width: 64, height: 64, objectFit: 'contain', marginBottom: 12 }} />
-              <div style={{ background: 'linear-gradient(90deg,#dc2626,#1d4ed8,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>
-                Painel Administrativo
-              </div>
-              <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
-            </div>
-            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-              <div>
-                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Usuário</label>
-                <input
-                  value={loginUser}
-                  onChange={e => setLoginUser(e.target.value)}
-                  placeholder="admin"
-                  autoFocus
-                  style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
-                />
-              </div>
-              <div>
-                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Senha</label>
-                <div style={{ position: 'relative' }}>
-                  <input
-                    type={showPass ? 'text' : 'password'}
-                    value={loginPass}
-                    onChange={e => setLoginPass(e.target.value)}
-                    placeholder="••••••••"
-                    style={{ width: '100%', padding: '11px 40px 11px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
-                  />
-                  <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-                    {showPass
-                      ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                      : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                    }
+  // ── Change-creds modal (shared between login screen and panel) ──────────────
+  const ChangeCrendsModal = () => (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+      <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+        <h3 style={{ margin: '0 0 16px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
+        {changeDone ? (
+          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>✅ Credenciais salvas!</div>
+        ) : (
+          <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Profile selector */}
+            <div>
+              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>Perfil a alterar</label>
+              <div style={{ display: 'flex', gap: 6 }}>
+                {getProfiles().map(p => (
+                  <button key={p.nucleo} type="button" onClick={() => setEditingProfile(p.nucleo)}
+                    style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: `2px solid ${editingProfile === p.nucleo ? p.color : '#e2e8f0'}`, background: editingProfile === p.nucleo ? p.color : '#f8fafc', color: editingProfile === p.nucleo ? '#fff' : '#64748b', fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer', transition: 'all .15s' }}>
+                    {p.label}
                   </button>
-                </div>
+                ))}
               </div>
-              {loginError && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.82rem', fontWeight: 600 }}>
-                  ⚠ {loginError}
-                </div>
-              )}
-              <button
-                type="submit"
-                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', letterSpacing: '0.03em', marginTop: 4 }}
-              >
-                Entrar
-              </button>
-            </form>
-            <div style={{ textAlign: 'center', marginTop: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <p style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Acesso restrito — ACCBM</p>
-              <button
-                type="button"
-                onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); }}
-                style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
-              >
-                Cadastrar / alterar login e senha
-              </button>
             </div>
-
-            {/* Change credentials modal */}
-            {showChangeCreds && (
-              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-                <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 360, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
-                  <h3 style={{ margin: '0 0 18px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
-                  {changeDone ? (
-                    <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>
-                      ✅ Credenciais salvas com sucesso!
-                    </div>
-                  ) : (
-                    <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                      <div>
-                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
-                        <input
-                          value={newUser}
-                          onChange={e => setNewUser(e.target.value)}
-                          placeholder="ex: admin"
-                          autoFocus
-                          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
-                        <div style={{ position: 'relative' }}>
-                          <input
-                            type={showNewPass ? 'text' : 'password'}
-                            value={newPass}
-                            onChange={e => setNewPass(e.target.value)}
-                            placeholder="••••••••"
-                            style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                          />
-                          <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-                            {showNewPass
-                              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                            }
-                          </button>
-                        </div>
-                      </div>
-                      <div>
-                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
-                        <input
-                          type="password"
-                          value={newPassConfirm}
-                          onChange={e => setNewPassConfirm(e.target.value)}
-                          placeholder="••••••••"
-                          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
-                        />
-                      </div>
-                      {changeError && (
-                        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>
-                          ⚠ {changeError}
-                        </div>
-                      )}
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                        <button
-                          type="button"
-                          onClick={() => setShowChangeCreds(false)}
-                          style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}
-                        >
-                          Cancelar
-                        </button>
-                        <button
-                          type="submit"
-                          style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}
-                        >
-                          Salvar
-                        </button>
-                      </div>
-                    </form>
-                  )}
-                </div>
+            <div>
+              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
+              <input value={newUser} onChange={e => setNewUser(e.target.value)} placeholder={`ex: ${editingProfile}`} autoFocus
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••"
+                  style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                  {showNewPass ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                </button>
               </div>
-            )}
+            </div>
+            <div>
+              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
+              <input type="password" value={newPassConfirm} onChange={e => setNewPassConfirm(e.target.value)} placeholder="••••••••"
+                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+            </div>
+            {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
+            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+              <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>Cancelar</button>
+              <button type="submit" style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>Salvar</button>
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!authed) {
+    const profiles = getProfiles();
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, sans-serif' }}>
+        {/* Logo + title */}
+        <div style={{ textAlign: 'center', marginBottom: 28 }}>
+          <img src="/logo-maua.png" alt="ACCBM" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
+          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.3rem', fontWeight: 900, letterSpacing: '0.03em' }}>Painel Administrativo</div>
+          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
+        </div>
+
+        {/* Profile cards */}
+        <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
+          {profiles.map(p => (
+            <div key={p.nucleo} style={{ background: 'rgba(255,255,255,0.07)', border: `2px solid ${p.color}44`, borderRadius: 12, padding: '14px 20px', textAlign: 'center', minWidth: 110 }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, margin: '0 auto 6px' }} />
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem' }}>{p.label}</div>
+              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', marginTop: 2 }}>usuário: {p.user}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Login form */}
+        <div style={{ width: '100%', maxWidth: 360, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.12)', padding: '28px 24px' }}>
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div>
+              <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Usuário</label>
+              <input value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="Digite seu usuário" autoFocus
+                style={{ width: '100%', padding: '11px 14px', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Senha</label>
+              <div style={{ position: 'relative' }}>
+                <input type={showPass ? 'text' : 'password'} value={loginPass} onChange={e => setLoginPass(e.target.value)} placeholder="••••••••"
+                  style={{ width: '100%', padding: '11px 40px 11px 14px', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box' }} />
+                <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.4)', padding: 0 }}>
+                  {showPass ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                </button>
+              </div>
+            </div>
+            {loginError && <div style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: '0.82rem', fontWeight: 600 }}>⚠ {loginError}</div>}
+            <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', marginTop: 4 }}>Entrar</button>
+          </form>
+          <div style={{ textAlign: 'center', marginTop: 16 }}>
+            <button type="button" onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile('maua'); }}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
+              Alterar login / senha
+            </button>
           </div>
         </div>
+
+        {showChangeCreds && <ChangeCrendsModal />}
       </div>
     );
   }
@@ -533,60 +515,28 @@ export default function AdminPage() {
             Voltar ao formulário
           </Link>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            {/* Current profile badge */}
+            {currentProfile && (
+              <div style={{ padding: '4px 10px', borderRadius: 20, background: `${currentProfile.color}22`, border: `1px solid ${currentProfile.color}55`, color: currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
+                {currentProfile.label}
+              </div>
+            )}
             <button
-              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
+              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile(activeNucleo || 'maua'); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
               style={{ background: 'rgba(29,78,216,0.1)', border: '1px solid rgba(29,78,216,0.3)', color: '#1d4ed8', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
               Alterar senha
             </button>
             <button
-              onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); }}
+              onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); setActiveNucleo(null); }}
               style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
               Sair
             </button>
           </div>
-
-          {/* Change credentials modal (also accessible when logged in) */}
-          {showChangeCreds && (
-            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
-              <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 360, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
-                <h3 style={{ margin: '0 0 18px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
-                {changeDone ? (
-                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>
-                    ✅ Credenciais salvas com sucesso!
-                  </div>
-                ) : (
-                  <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                    <div>
-                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
-                      <input value={newUser} onChange={e => setNewUser(e.target.value)} placeholder="ex: admin" autoFocus style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
-                      <div style={{ position: 'relative' }}>
-                        <input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-                        <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-                          {showNewPass ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
-                        </button>
-                      </div>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
-                      <input type="password" value={newPassConfirm} onChange={e => setNewPassConfirm(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-                    </div>
-                    {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
-                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-                      <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>Cancelar</button>
-                      <button type="submit" style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>Salvar</button>
-                    </div>
-                  </form>
-                )}
-              </div>
-            </div>
-          )}
+          {showChangeCreds && <ChangeCrendsModal />}
         </div>
 
         <div className="admin-header">
