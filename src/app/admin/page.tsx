@@ -99,7 +99,34 @@ interface Student {
 
 type EditForm = Partial<Student>;
 
+const ADMIN_USER = process.env.NEXT_PUBLIC_ADMIN_USER || 'admin';
+const ADMIN_PASS = process.env.NEXT_PUBLIC_ADMIN_PASS || 'accbm2025';
+
 export default function AdminPage() {
+  const [authed, setAuthed] = useState(false);
+  const [loginUser, setLoginUser] = useState('');
+  const [loginPass, setLoginPass] = useState('');
+  const [loginError, setLoginError] = useState('');
+  const [showPass, setShowPass] = useState(false);
+
+  // Check session on mount
+  useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('admin_auth') === '1') {
+      setAuthed(true);
+    }
+  }, []);
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (loginUser.trim() === ADMIN_USER && loginPass === ADMIN_PASS) {
+      sessionStorage.setItem('admin_auth', '1');
+      setAuthed(true);
+      setLoginError('');
+    } else {
+      setLoginError('Usuário ou senha incorretos.');
+    }
+  };
+
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -319,19 +346,101 @@ export default function AdminPage() {
     } catch {}
   };
 
+  if (!authed) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#1e3a8a 0%,#1d4ed8 50%,#1e40af 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, sans-serif' }}>
+        <div style={{ width: '100%', maxWidth: 380, background: '#fff', borderRadius: 18, boxShadow: '0 8px 40px rgba(29,78,216,0.25)', overflow: 'hidden' }}>
+          <div style={{ height: 5, display: 'flex' }}>
+            <div style={{ flex: 1, background: '#dc2626' }} />
+            <div style={{ flex: 1, background: '#1d4ed8' }} />
+            <div style={{ flex: 1, background: '#16a34a' }} />
+          </div>
+          <div style={{ padding: '32px 28px' }}>
+            <div style={{ textAlign: 'center', marginBottom: 28 }}>
+              <img src="/logo-maua.png" alt="ACCBM" style={{ width: 64, height: 64, objectFit: 'contain', marginBottom: 12 }} />
+              <div style={{ background: 'linear-gradient(90deg,#dc2626,#1d4ed8,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>
+                Painel Administrativo
+              </div>
+              <div style={{ color: '#64748b', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
+            </div>
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Usuário</label>
+                <input
+                  value={loginUser}
+                  onChange={e => setLoginUser(e.target.value)}
+                  placeholder="admin"
+                  autoFocus
+                  style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Senha</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={showPass ? 'text' : 'password'}
+                    value={loginPass}
+                    onChange={e => setLoginPass(e.target.value)}
+                    placeholder="••••••••"
+                    style={{ width: '100%', padding: '11px 40px 11px 14px', border: '1.5px solid #e2e8f0', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#1e293b', background: '#f8fafc', boxSizing: 'border-box' }}
+                  />
+                  <button type="button" onClick={() => setShowPass(p => !p)} style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                    {showPass
+                      ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                      : <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    }
+                  </button>
+                </div>
+              </div>
+              {loginError && (
+                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.82rem', fontWeight: 600 }}>
+                  ⚠ {loginError}
+                </div>
+              )}
+              <button
+                type="submit"
+                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', letterSpacing: '0.03em', marginTop: 4 }}
+              >
+                Entrar
+              </button>
+            </form>
+            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.72rem', marginTop: 20 }}>Acesso restrito — ACCBM</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div style={{ minHeight: '100vh' }}>
       <div className="container-wide">
-        <div style={{ padding: '20px 0' }}>
+        <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Link href="/" className="back-link">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Voltar ao formulário
           </Link>
+          <button
+            onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); }}
+            style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            Sair
+          </button>
         </div>
 
         <div className="admin-header">
           <div>
-            <h1 style={{ background: 'linear-gradient(135deg, #fff, var(--accent))', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+            <h1 style={{
+              background: 'linear-gradient(90deg, #dc2626 0%, #2563eb 45%, #16a34a 100%)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+              fontSize: '1.9rem',
+              fontWeight: 900,
+              letterSpacing: '0.03em',
+              textShadow: 'none',
+              filter: 'drop-shadow(0 2px 8px rgba(37,99,235,0.25))',
+            }}>
               Painel Administrativo
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
@@ -494,11 +603,7 @@ export default function AdminPage() {
                                 📨 Enviado {enviado.sent_count > 1 ? `(${enviado.sent_count}×)` : ''} — aguardando assinatura
                               </span>
                             );
-                            return (
-                              <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.25)' }}>
-                                ⚠ Termo não enviado
-                              </span>
-                            );
+                            return null;
                           })()}
                         </div>
                       </td>
