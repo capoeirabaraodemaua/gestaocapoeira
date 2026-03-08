@@ -4,21 +4,9 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors } from '@/lib/graduacoes';
 import Link from 'next/link';
+import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 
-interface SuccessData {
-  nome: string;
-  cpf: string;
-  identidade: string;
-  nucleo: string;
-  graduacao: string;
-  tipo_graduacao: string;
-  foto_url: string | null;
-  menor_de_idade: boolean;
-  nome_pai: string;
-  nome_mae: string;
-  nome_responsavel: string | null;
-  cpf_responsavel: string | null;
-}
+type SuccessData = CarteirinhaData;
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -30,6 +18,7 @@ export default function Home() {
   const [cardData, setCardData] = useState<SuccessData | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState('');
+  const [activeSection, setActiveSection] = useState<'ficha' | 'carteirinha'>('ficha');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [menorDeIdade, setMenorDeIdade] = useState(false);
@@ -262,10 +251,10 @@ export default function Home() {
 
       if (error) throw error;
 
-      // Busca o ID do aluno recém inserido
+      // Busca o ID e número de inscrição do aluno recém inserido
       const { data: newStudent } = await supabase
         .from('students')
-        .select('id')
+        .select('id, ordem_inscricao')
         .eq('cpf', form.cpf)
         .limit(1)
         .single();
@@ -308,6 +297,7 @@ export default function Home() {
         nome_mae: form.nome_mae,
         nome_responsavel: menorDeIdade ? form.nome_responsavel : null,
         cpf_responsavel: menorDeIdade ? form.cpf_responsavel : null,
+        inscricao_numero: (newStudent as any)?.ordem_inscricao ?? null,
       });
     } catch (err) {
       console.error(err);
@@ -338,6 +328,7 @@ export default function Home() {
           nome_mae: data.nome_mae || '',
           nome_responsavel: data.nome_responsavel || null,
           cpf_responsavel: data.cpf_responsavel || null,
+          inscricao_numero: (data as any).ordem_inscricao ?? null,
         });
       }
     } catch { setCardError('Erro ao buscar dados.'); }
@@ -349,10 +340,15 @@ export default function Home() {
     if (!el) return;
     const printWin = window.open('', '_blank');
     if (!printWin) return;
-    printWin.document.write(`
-      <html><head><title>Carteirinha — ${nome}</title>
-      <style>* { margin:0; padding:0; box-sizing:border-box; } body { background:#fff; display:flex; justify-content:center; padding:20px; font-family:Inter,sans-serif; }</style>
-      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();window.close();}<\/script></body></html>
+    printWin.document.write(`<!DOCTYPE html>
+      <html><head><meta charset="utf-8"><title>Carteirinha — ${nome}</title>
+      <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        @page { size: A6 portrait; margin: 8mm; }
+        body { background:#fff; display:flex; justify-content:center; align-items:flex-start; font-family:Inter,Arial,sans-serif; }
+        @media print { body { padding:0; } }
+      </style>
+      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1000);}<\/script></body></html>
     `);
     printWin.document.close();
   };
@@ -380,24 +376,76 @@ export default function Home() {
         </div>
 
         <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
-          {/* Aba */}
-          <div style={{ display: 'flex', gap: 6, marginTop: 8, marginBottom: 0 }}>
-            <div style={{
-              background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)',
-              borderRadius: '12px 12px 0 0',
-              padding: '12px 32px',
-            }}>
-              <span style={{
+          {/* Action tabs */}
+          <div style={{ display: 'flex', gap: 4, marginTop: 8, marginBottom: 0, flexWrap: 'wrap' }}>
+            <button
+              type="button"
+              onClick={() => setActiveSection('ficha')}
+              style={{
+                background: activeSection === 'ficha' ? 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)' : 'rgba(30,30,50,0.85)',
+                border: 'none',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 22px',
                 color: '#fff',
                 fontWeight: 800,
-                fontSize: '1.1rem',
-                letterSpacing: '0.06em',
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
                 textTransform: 'uppercase',
-                fontFamily: 'Inter, sans-serif',
-              }}>Ficha de Inscrição</span>
-            </div>
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              Ficha de Inscrição
+            </button>
+            <a
+              href="/presenca"
+              style={{
+                background: 'rgba(22,163,74,0.85)',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 22px',
+                color: '#fff',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+              Registrar Presença
+            </a>
+            <button
+              type="button"
+              onClick={() => setActiveSection('carteirinha')}
+              style={{
+                background: activeSection === 'carteirinha' ? 'linear-gradient(135deg, #1a1a2e, #0f3460)' : 'rgba(30,30,50,0.85)',
+                border: activeSection === 'carteirinha' ? '1px solid rgba(220,38,38,0.6)' : 'none',
+                borderBottom: 'none',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 22px',
+                color: activeSection === 'carteirinha' ? '#fbbf24' : '#fff',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              Gerar Carteirinha
+            </button>
           </div>
 
+          {activeSection === 'ficha' && (
           <form onSubmit={handleSubmit}>
             {/* Núcleo */}
             <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
@@ -691,245 +739,83 @@ export default function Home() {
             {loading ? 'Enviando...' : 'Realizar Inscrição'}
           </button>
         </form>
+        )}
 
-        {/* Acesso ao Registro de Presença */}
-        <Link href="/presenca" style={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 10,
-          marginTop: 16,
-          marginBottom: 16,
-          padding: '16px 24px',
-          background: 'linear-gradient(135deg, #16a34a, #15803d)',
-          borderRadius: 14,
-          textDecoration: 'none',
-          boxShadow: '0 4px 16px rgba(22,163,74,0.3)',
-        }}>
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5">
-            <path d="M20 6L9 17l-5-5"/>
-          </svg>
-          <span style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', letterSpacing: '0.04em', textTransform: 'uppercase' }}>
-            Registrar Presença no Treino
-          </span>
-        </Link>
-
-        {/* Gerar Carteirinha */}
-        <div className="form-section" style={{ marginBottom: 32 }}>
-          <h2 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="3"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-            Gerar Carteirinha
-          </h2>
-          <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16, marginTop: -4 }}>
-            Já possui cadastro? Informe seu CPF para gerar e imprimir sua carteirinha.
-          </p>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-            <input
-              placeholder="CPF (000.000.000-00)"
-              value={cardCpf}
-              onChange={e => setCardCpf(formatCPF(e.target.value))}
-              onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
-              style={{ flex: 1, minWidth: 200 }}
-            />
-            <button
-              type="button"
-              onClick={buscarCarteirinha}
-              disabled={cardLoading}
-              style={{ background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.5)', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
-            >
-              {cardLoading ? 'Buscando...' : '🪪 Buscar'}
-            </button>
-          </div>
-          {cardError && <p style={{ color: '#f87171', fontSize: '0.82rem', marginTop: 8, fontWeight: 600 }}>⚠ {cardError}</p>}
-
-          {cardData && (
-            <div style={{ marginTop: 20 }}>
-              <div ref={cardRef}>
-                <div style={{
-                  background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-                  borderRadius: 16,
-                  padding: '20px',
-                  border: '2px solid rgba(220,38,38,0.5)',
-                  position: 'relative',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #dc2626, #7c3aed, #dc2626)' }} />
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                    <img src="/logo-maua.png" alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <div>
-                      <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.2 }}>Assoc. Cultural de Capoeira</div>
-                      <div style={{ color: '#dc2626', fontWeight: 900, fontSize: '0.85rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Barão de Mauá</div>
-                    </div>
-                    <div style={{ marginLeft: 'auto', background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 6, padding: '2px 8px' }}>
-                      <span style={{ color: '#f87171', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Carteirinha</span>
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                    <div style={{ flexShrink: 0 }}>
-                      {cardData.foto_url ? (
-                        <img src={cardData.foto_url} alt="" style={{ width: 80, height: 96, objectFit: 'cover', borderRadius: 8, border: '2px solid rgba(255,255,255,0.2)' }} />
-                      ) : (
-                        <div style={{ width: 80, height: 96, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '2px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
-                        </div>
-                      )}
-                      <div style={{ marginTop: 8, display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', width: 80 }}>
-                        {getCordaColors(cardData.graduacao).map((c, i) => (
-                          <div key={i} style={{ flex: 1, background: c }} />
-                        ))}
-                      </div>
-                    </div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem', marginBottom: 4, lineHeight: 1.3 }}>{cardData.nome}</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-                        {[['CPF', cardData.cpf], ['RG', cardData.identidade], ['Núcleo', cardData.nucleo], ['Corda', `${cardData.graduacao} (${cardData.tipo_graduacao})`]].map(([label, val]) => val ? (
-                          <div key={label} style={{ display: 'flex', gap: 6 }}>
-                            <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>{label}</span>
-                            <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{val}</span>
-                          </div>
-                        ) : null)}
-                        {cardData.nome_pai && <div style={{ display: 'flex', gap: 6 }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Pai</span><span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{cardData.nome_pai}</span></div>}
-                        {cardData.nome_mae && <div style={{ display: 'flex', gap: 6 }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Mãe</span><span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{cardData.nome_mae}</span></div>}
-                        {cardData.menor_de_idade && cardData.nome_responsavel && <div style={{ display: 'flex', gap: 6 }}><span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Resp.</span><span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{cardData.nome_responsavel}</span></div>}
-                      </div>
-                    </div>
-                  </div>
-                  <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Emitido em {new Date().toLocaleDateString('pt-BR')}</span>
-                    <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem' }}>Capoeira Barão de Mauá</span>
-                  </div>
-                </div>
-              </div>
+        {/* ===== ABA CARTEIRINHA ===== */}
+        {activeSection === 'carteirinha' && (
+          <div className="form-section" style={{ borderTopLeftRadius: 0, marginBottom: 32 }}>
+            <h2 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+              Gerar Carteirinha
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16, marginTop: -4 }}>
+              Informe seu CPF para gerar e imprimir sua carteirinha de associado.
+            </p>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <input
+                placeholder="CPF (000.000.000-00)"
+                value={cardCpf}
+                onChange={e => setCardCpf(formatCPF(e.target.value))}
+                onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
+                style={{ flex: 1, minWidth: 200 }}
+              />
               <button
                 type="button"
-                onClick={() => printCard(cardRef, cardData.nome)}
-                style={{ width: '100%', marginTop: 12, padding: '12px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+                onClick={buscarCarteirinha}
+                disabled={cardLoading}
+                style={{ background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.5)', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
               >
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                Imprimir / Salvar PDF
+                {cardLoading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-          )}
-        </div>
+            {cardError && <p style={{ color: '#f87171', fontSize: '0.82rem', marginTop: 8, fontWeight: 600 }}>⚠ {cardError}</p>}
+
+            {cardData && (
+              <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
+                <div ref={cardRef}>
+                  <Carteirinha data={cardData} />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => printCard(cardRef, cardData.nome)}
+                  style={{ padding: '12px 32px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 8 }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                  Imprimir / Salvar PDF
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Success modal */}
       {success && successData && (
         <div className="success-overlay" style={{ overflowY: 'auto', padding: '20px 0' }}>
-          <div className="success-card" style={{ maxWidth: 520, width: '95%', padding: '32px 28px' }} onClick={(e) => e.stopPropagation()}>
+          <div className="success-card" style={{ maxWidth: 420, width: '95%', padding: '28px 24px' }} onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div style={{ textAlign: 'center', marginBottom: 24 }}>
-              <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'linear-gradient(135deg,#16a34a,#15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
+            <div style={{ textAlign: 'center', marginBottom: 20 }}>
+              <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#16a34a,#15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
               </div>
-              <h2 style={{ fontSize: '1.5rem', fontWeight: 800, color: '#16a34a', margin: '0 0 8px' }}>Cadastro Realizado com Sucesso!</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.92rem', margin: 0 }}>
-                Bem-vindo(a) à Associação Cultural de Capoeira Barão de Mauá, <strong style={{ color: 'var(--text-primary)' }}>{successData.nome.split(' ')[0]}</strong>!
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a', margin: '0 0 6px' }}>Cadastro Realizado com Sucesso!</h2>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+                Bem-vindo(a), <strong style={{ color: 'var(--text-primary)' }}>{successData.nome.split(' ')[0]}</strong>! Sua carteirinha está pronta.
               </p>
             </div>
 
             {/* Carteirinha */}
-            <div ref={carteirinhaRef}>
-              <div style={{
-                background: 'linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%)',
-                borderRadius: 16,
-                padding: '20px',
-                border: '2px solid rgba(220,38,38,0.5)',
-                position: 'relative',
-                overflow: 'hidden',
-                marginBottom: 16,
-              }}>
-                {/* Decorative stripes */}
-                <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 4, background: 'linear-gradient(90deg, #dc2626, #7c3aed, #dc2626)' }} />
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                  <img src="/logo-maua.png" alt="Logo" style={{ width: 36, height: 36, objectFit: 'contain' }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                  <div>
-                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.7rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.2 }}>Assoc. Cultural de Capoeira</div>
-                    <div style={{ color: '#dc2626', fontWeight: 900, fontSize: '0.85rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Barão de Mauá</div>
-                  </div>
-                  <div style={{ marginLeft: 'auto', background: 'rgba(220,38,38,0.2)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 6, padding: '2px 8px' }}>
-                    <span style={{ color: '#f87171', fontSize: '0.65rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em' }}>Carteirinha</span>
-                  </div>
-                </div>
-
-                {/* Content */}
-                <div style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
-                  {/* Photo */}
-                  <div style={{ flexShrink: 0 }}>
-                    {successData.foto_url ? (
-                      <img src={successData.foto_url} alt="" style={{ width: 80, height: 96, objectFit: 'cover', borderRadius: 8, border: '2px solid rgba(255,255,255,0.2)' }} />
-                    ) : (
-                      <div style={{ width: 80, height: 96, borderRadius: 8, background: 'rgba(255,255,255,0.08)', border: '2px solid rgba(255,255,255,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
-                      </div>
-                    )}
-                    {/* Cord visual */}
-                    <div style={{ marginTop: 8, display: 'flex', height: 6, borderRadius: 3, overflow: 'hidden', width: 80 }}>
-                      {getCordaColors(successData.graduacao).map((c, i) => (
-                        <div key={i} style={{ flex: 1, background: c }} />
-                      ))}
-                    </div>
-                  </div>
-
-                  {/* Info */}
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem', marginBottom: 4, lineHeight: 1.3 }}>{successData.nome}</div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 8 }}>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>CPF</span>
-                        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.cpf}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>RG</span>
-                        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.identidade}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Núcleo</span>
-                        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.nucleo}</span>
-                      </div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Corda</span>
-                        <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.graduacao} ({successData.tipo_graduacao})</span>
-                      </div>
-                      {successData.nome_pai && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Pai</span>
-                          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.nome_pai}</span>
-                        </div>
-                      )}
-                      {successData.nome_mae && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Mãe</span>
-                          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.nome_mae}</span>
-                        </div>
-                      )}
-                      {successData.menor_de_idade && successData.nome_responsavel && (
-                        <div style={{ display: 'flex', gap: 6 }}>
-                          <span style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.65rem', textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 60 }}>Resp.</span>
-                          <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 600 }}>{successData.nome_responsavel}</span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Bottom bar */}
-                <div style={{ marginTop: 14, paddingTop: 12, borderTop: '1px solid rgba(255,255,255,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                    Emitido em {new Date().toLocaleDateString('pt-BR')}
-                  </span>
-                  <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.6rem' }}>www.baraomaua.com.br</span>
-                </div>
-              </div>
+            <div ref={carteirinhaRef} style={{ marginBottom: 16 }}>
+              <Carteirinha data={successData} />
             </div>
 
             {/* Action buttons */}
             <button
               onClick={() => printCard(carteirinhaRef, successData.nome)}
-              style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}
+              style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 10 }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
               Imprimir / Salvar PDF
             </button>
             <button
@@ -942,7 +828,6 @@ export default function Home() {
           </div>
         </div>
       )}
-
 
       </>
     );

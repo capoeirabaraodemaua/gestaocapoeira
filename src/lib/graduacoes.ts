@@ -1,20 +1,13 @@
 export const graduacoes = [
-  'Crua',
+  // Infantil
   'Crua ponta Cinza',
   'Crua ponta Amarela',
   'Crua ponta Laranja',
   'Crua ponta Verde',
   'Crua ponta Azul',
-  'Crua ponta Roxa',
-  'Crua e Cinza',
-  'Crua e Laranja',
-  'Crua e Verde',
-  'Crua e Azul',
-  'Crua e Roxa',
-  'Cinza',
-  'Cinza e Amarela',
-  'Verde e Amarela',
   'Amarela e Azul',
+  // Adulto
+  'Crua',
   'Crua e Amarela',
   'Amarela',
   'Amarela e Laranja',
@@ -32,6 +25,35 @@ export const graduacoes = [
   'Branca e Vermelha',
   'Branca Mor',
 ];
+
+// Nomenclatura oficial de cada graduação
+export const nomenclaturaGraduacao: Record<string, string> = {
+  // Infantil
+  'Crua ponta Cinza':    'Graduação Infantil',
+  'Crua ponta Amarela':  'Graduação Infantil',
+  'Crua ponta Laranja':  'Graduação Infantil',
+  'Crua ponta Verde':    'Graduação Infantil',
+  'Crua ponta Azul':     'Graduação Infantil',
+  'Amarela e Azul':      'Graduação Infantil',
+  // Adulto
+  'Crua':                'Aluno',
+  'Crua e Amarela':      'Aluno',
+  'Amarela':             'Aluno',
+  'Amarela e Laranja':   'Aluno',
+  'Laranja':             'Aluno',
+  'Laranja e Azul':      'Aluno',
+  'Azul':                'Aluno Graduado 1º Grau',
+  'Verde e Azul':        'Aluno Graduado 2º Grau',
+  'Verde':               'Monitor',
+  'Verde e Roxa':        'Instrutor de 1º Grau',
+  'Roxa':                'Instrutor de 2º Grau',
+  'Roxa e Marrom':       'Professor de 1º Grau',
+  'Marrom':              'Professor de 2º Grau',
+  'Marrom e Vermelha':   'Mestrando',
+  'Vermelha':            'Mestre de 1º Grau',
+  'Branca e Vermelha':   'Mestre de 2º Grau',
+  'Branca Mor':          'Mestre Fundador',
+};
 
 export function getCordaColors(name: string): string[] {
   const map: Record<string, string[]> = {

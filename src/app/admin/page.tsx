@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes } from '@/lib/graduacoes';
 import { getCheckins, getHistorico, removeCheckin, CheckinRecord } from '@/lib/checkins';
 import Link from 'next/link';
+import Carteirinha from '@/components/Carteirinha';
 
 interface PresencaCount {
   student_id: string;
@@ -128,6 +129,19 @@ export default function AdminPage() {
   const [presencaDate, setPresencaDate] = useState(hoje());
   const [undoStack, setUndoStack] = useState<CheckinRecord[]>([]);
   const [undoVisible, setUndoVisible] = useState(false);
+  const [showCarteirinha, setShowCarteirinha] = useState(false);
+  const adminCardRef = useRef<HTMLDivElement>(null);
+
+  const printAdminCard = (nome: string) => {
+    const el = adminCardRef.current;
+    if (!el) return;
+    const pw = window.open('', '_blank');
+    if (!pw) return;
+    pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Carteirinha — ${nome}</title>
+    <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A6 portrait; margin: 8mm; } body { background:#fff; display:flex; justify-content:center; font-family:Inter,Arial,sans-serif; }</style>
+    </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1000);}<\/script></body></html>`);
+    pw.document.close();
+  };
 
   useEffect(() => {
     fetchStudents();
@@ -873,11 +887,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* Detail Modal */}
       {selected && (
-        <div className="modal-overlay" onClick={() => setSelected(null)}>
+        <div className="modal-overlay" onClick={() => { setSelected(null); setShowCarteirinha(false); }}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <h2>
               Detalhes do Aluno
-              <button className="modal-close" onClick={() => setSelected(null)}>&times;</button>
+              <button className="modal-close" onClick={() => { setSelected(null); setShowCarteirinha(false); }}>&times;</button>
             </h2>
 
             <div style={{ display: 'flex', gap: 20, marginBottom: 24, alignItems: 'center' }}>
@@ -967,7 +981,46 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>
+            {/* Carteirinha toggle */}
+            <div style={{ marginTop: 20 }}>
+              <button
+                onClick={() => setShowCarteirinha(v => !v)}
+                style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fbbf24', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                {showCarteirinha ? 'Ocultar Carteirinha' : 'Gerar Carteirinha'}
+              </button>
+              {showCarteirinha && (
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
+                  <div ref={adminCardRef}>
+                    <Carteirinha data={{
+                      nome: selected.nome_completo,
+                      cpf: selected.cpf,
+                      identidade: selected.identidade,
+                      nucleo: selected.nucleo || '',
+                      graduacao: selected.graduacao,
+                      tipo_graduacao: selected.tipo_graduacao,
+                      foto_url: selected.foto_url,
+                      menor_de_idade: selected.menor_de_idade,
+                      nome_pai: selected.nome_pai || '',
+                      nome_mae: selected.nome_mae || '',
+                      nome_responsavel: selected.nome_responsavel,
+                      cpf_responsavel: selected.cpf_responsavel,
+                      inscricao_numero: (selected as any).ordem_inscricao ?? null,
+                    }} />
+                  </div>
+                  <button
+                    onClick={() => printAdminCard(selected.nome_completo)}
+                    style={{ padding: '10px 28px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: 7 }}
+                  >
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                    Imprimir / Salvar PDF
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 16 }}>
               <button
                 onClick={() => openEdit(selected)}
                 style={{ flex: 1, padding: '10px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.4)', color: '#a78bfa', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}

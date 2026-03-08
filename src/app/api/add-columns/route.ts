@@ -11,6 +11,8 @@ export async function GET() {
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT`,
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_pai BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_mae BOOLEAN NOT NULL DEFAULT FALSE`,
+    `CREATE SEQUENCE IF NOT EXISTS students_inscricao_seq START 1`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS ordem_inscricao INTEGER DEFAULT nextval('students_inscricao_seq')`,
   ];
 
   const results: { sql: string; ok: boolean; error?: string }[] = [];
