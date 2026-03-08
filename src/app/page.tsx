@@ -381,21 +381,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
   return (
     <>
       {/* Hero Banner */}
-        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden' }}>
+        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 220 }}>
           <img
-            src="/banner-maua.png"
-            alt="Barão de Mauá"
+            src="/wallpaper-capoeira.jpg"
+            alt="Capoeira Barão de Mauá"
             style={{
               position: 'absolute',
               inset: 0,
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              opacity: 1,
+              objectPosition: 'center top',
               zIndex: 0,
             }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.2) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 100%)', zIndex: 1 }} />
         </div>
 
         <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
@@ -405,11 +405,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               type="button"
               onClick={() => setActiveSection('ficha')}
               style={{
-                background: activeSection === 'ficha' ? 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)' : 'rgba(30,30,50,0.85)',
+                background: activeSection === 'ficha' ? 'linear-gradient(135deg, #b45309 0%, #78350f 100%)' : 'rgba(180,83,9,0.12)',
                 border: 'none',
                 borderRadius: '10px 10px 0 0',
                 padding: '11px 22px',
-                color: '#fff',
+                color: activeSection === 'ficha' ? '#fff' : '#78350f',
                 fontWeight: 800,
                 fontSize: '0.88rem',
                 letterSpacing: '0.04em',
@@ -421,7 +421,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Ficha de Inscrição
+              Fazer Cadastro
             </button>
             <a
               href="/presenca"
@@ -447,12 +447,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               type="button"
               onClick={() => setActiveSection('carteirinha')}
               style={{
-                background: activeSection === 'carteirinha' ? 'linear-gradient(135deg, #1a1a2e, #0f3460)' : 'rgba(30,30,50,0.85)',
-                border: activeSection === 'carteirinha' ? '1px solid rgba(220,38,38,0.6)' : 'none',
+                background: activeSection === 'carteirinha' ? '#ffffff' : 'rgba(180,83,9,0.08)',
+                border: activeSection === 'carteirinha' ? '1px solid rgba(180,83,9,0.4)' : '1px solid transparent',
                 borderBottom: 'none',
                 borderRadius: '10px 10px 0 0',
                 padding: '11px 22px',
-                color: activeSection === 'carteirinha' ? '#fbbf24' : '#fff',
+                color: activeSection === 'carteirinha' ? '#78350f' : '#6b6045',
                 fontWeight: 800,
                 fontSize: '0.88rem',
                 letterSpacing: '0.04em',
@@ -793,12 +793,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 type="button"
                 onClick={buscarCarteirinha}
                 disabled={cardLoading}
-                style={{ background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.5)', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+                style={{ background: 'linear-gradient(135deg,#b45309,#78350f)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
               >
                 {cardLoading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-            {cardError && <p style={{ color: '#f87171', fontSize: '0.82rem', marginTop: 8, fontWeight: 600 }}>⚠ {cardError}</p>}
+            {cardError && <p style={{ color: '#dc2626', fontSize: '0.82rem', marginTop: 8, fontWeight: 600 }}>⚠ {cardError}</p>}
 
             {cardData && (
               <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>

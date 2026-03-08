@@ -70,9 +70,9 @@ export default function Carteirinha({ data }: Props) {
         </div>
         {data.inscricao_numero != null && (
           <div style={{ textAlign: 'right', flexShrink: 0 }}>
-            <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.5rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Nº</div>
-            <div style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 900, letterSpacing: '0.04em' }}>
-              {String(data.inscricao_numero).padStart(4, '0')}
+            <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.48rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Matrícula</div>
+            <div style={{ color: '#fbbf24', fontSize: '0.75rem', fontWeight: 900, letterSpacing: '0.04em' }}>
+              ACCBM-{String(data.inscricao_numero).padStart(6, '0')}
             </div>
           </div>
         )}
@@ -113,6 +113,12 @@ export default function Carteirinha({ data }: Props) {
           )}
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+            {data.inscricao_numero != null && (
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 5 }}>
+                <span style={{ color: '#6b7280', fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', minWidth: 44, flexShrink: 0 }}>Matr.</span>
+                <span style={{ color: '#b45309', fontSize: '0.72rem', fontWeight: 800 }}>ACCBM-{String(data.inscricao_numero).padStart(6, '0')}</span>
+              </div>
+            )}
             {[
               ['CPF', data.cpf],
               ['RG', data.identidade],
@@ -180,7 +186,7 @@ export default function Carteirinha({ data }: Props) {
         </span>
         {data.inscricao_numero != null && (
           <span style={{ color: '#fbbf24', fontSize: '0.55rem', fontWeight: 700 }}>
-            Inscrição #{String(data.inscricao_numero).padStart(4, '0')}
+            Matr. ACCBM-{String(data.inscricao_numero).padStart(6, '0')}
           </span>
         )}
       </div>

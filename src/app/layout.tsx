@@ -21,40 +21,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
-        {/* System title bar */}
-        <div style={{
-          background: 'linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)',
-          borderBottom: '2px solid #b91c1c',
-          padding: '8px 20px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-          position: 'sticky',
-          top: 0,
-          zIndex: 100,
-        }}>
-          <img src="/logo-maua.png" alt="ACCBM" style={{ width: 28, height: 28, objectFit: 'contain', flexShrink: 0 }} />
-          <span style={{
-            color: '#f1f5f9',
-            fontWeight: 700,
-            fontSize: '0.82rem',
-            letterSpacing: '0.04em',
-            fontFamily: 'Inter, sans-serif',
-            textTransform: 'uppercase',
-          }}>
-            Sistema de Gestão de Alunos
-          </span>
-          <span style={{
-            color: '#f87171',
-            fontWeight: 900,
-            fontSize: '0.82rem',
-            letterSpacing: '0.08em',
-            fontFamily: 'Inter, sans-serif',
-            textTransform: 'uppercase',
-          }}>
-            – ACCBM
-          </span>
-        </div>
         {children}
         <script
           dangerouslySetInnerHTML={{
