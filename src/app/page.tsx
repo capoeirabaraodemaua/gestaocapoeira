@@ -447,12 +447,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               type="button"
               onClick={() => setActiveSection('carteirinha')}
               style={{
-                background: activeSection === 'carteirinha' ? '#ffffff' : 'rgba(180,83,9,0.08)',
-                border: activeSection === 'carteirinha' ? '1px solid rgba(180,83,9,0.4)' : '1px solid transparent',
+                background: activeSection === 'carteirinha' ? '#1d4ed8' : 'rgba(29,78,216,0.1)',
+                border: 'none',
                 borderBottom: 'none',
                 borderRadius: '10px 10px 0 0',
                 padding: '11px 22px',
-                color: activeSection === 'carteirinha' ? '#78350f' : '#6b6045',
+                color: activeSection === 'carteirinha' ? '#ffffff' : '#1d4ed8',
                 fontWeight: 800,
                 fontSize: '0.88rem',
                 letterSpacing: '0.04em',
@@ -766,7 +766,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
 
           <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
-            {loading ? 'Enviando...' : 'Realizar Inscrição'}
+            {loading ? 'Enviando...' : 'Finalizar Cadastro'}
           </button>
         </form>
         )}
@@ -838,9 +838,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
               </div>
               <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a', margin: '0 0 6px' }}>Cadastro Realizado com Sucesso!</h2>
-              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: 0 }}>
+              <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 10px' }}>
                 Bem-vindo(a), <strong style={{ color: 'var(--text-primary)' }}>{successData.nome.split(' ')[0]}</strong>! Sua carteirinha está pronta.
               </p>
+              {successData.inscricao_numero != null && (
+                <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', borderRadius: 8, padding: '6px 16px' }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                  <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Matrícula</span>
+                  <span style={{ color: '#fbbf24', fontSize: '0.95rem', fontWeight: 900, letterSpacing: '0.06em' }}>
+                    ACCBM-{String(successData.inscricao_numero).padStart(6, '0')}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Carteirinha */}
