@@ -1030,12 +1030,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </button>
                   <button
                     onClick={() => {
-                      const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
-                      const url = `${base}/carteirinha`;
+                      const base = window.location.origin;
+                      const cpfEnc = encodeURIComponent(selected.cpf || '');
+                      const url = `${base}/carteirinha${cpfEnc ? `?cpf=${cpfEnc}` : ''}`;
                       const phone = (selected.telefone || '').replace(/\D/g, '');
                       const br = phone.startsWith('55') ? phone : `55${phone}`;
                       const msg = encodeURIComponent(
-`🎖️ *Carteirinha ACCBM — Capoeira Barão de Mauá*\n\nOlá, *${selected.nome_completo}*! Sua carteirinha de associado está disponível. Acesse o link abaixo para visualizar e imprimir:\n\n🔗 ${url}\n\n_Associação Cultural de Capoeira Barão de Mauá_`
+`🎖️ *Carteirinha ACCBM — Capoeira Barão de Mauá*\n\nOlá, *${selected.nome_completo}*! Sua carteirinha de associado está disponível. Toque no link abaixo para visualizar e imprimir:\n\n🔗 ${url}\n\n_Associação Cultural de Capoeira Barão de Mauá_`
                       );
                       window.open(phone.length >= 10 ? `https://wa.me/${br}?text=${msg}` : `https://wa.me/?text=${msg}`, '_blank');
                     }}
