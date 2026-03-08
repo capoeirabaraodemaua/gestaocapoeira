@@ -15,6 +15,7 @@ export interface CarteirinhaData {
   nome_responsavel: string | null;
   cpf_responsavel: string | null;
   inscricao_numero?: number | null;
+  telefone?: string | null;
 }
 
 interface Props {
@@ -147,47 +148,23 @@ export default function Carteirinha({ data }: Props) {
 
       {/* Signature area */}
       <div style={{ background: '#ffffff', padding: '12px 16px', borderTop: '1px solid #e5e7eb' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-around', gap: 10 }}>
-          {/* Signature block — always show both, highlight active nucleo */}
-          {[
-            {
-              key: 'maua',
-              active: isMaua,
-              imgSrc: '/assinatura-frazao.png',
-              nome: 'Mestre Márcio da Silva Frazão',
-              cargo: 'Presidente — ACCBM',
-              nucleo: 'Núcleo Mauá',
-            },
-            {
-              key: 'sara',
-              active: !isMaua,
-              imgSrc: '/assinatura-naldo.png',
-              nome: 'Mestre Elionaldo Pontes de Lima',
-              cargo: 'Vice-Presidente — ACCBM',
-              nucleo: 'Núcleo Saracuruna',
-            },
-          ].map(sig => (
-            <div
-              key={sig.key}
-              style={{
-                flex: 1,
-                textAlign: 'center',
-                opacity: sig.active ? 1 : 0.3,
-                borderTop: sig.active ? '2px solid #b91c1c' : '2px solid #e5e7eb',
-                paddingTop: 8,
-              }}
-            >
+        {(() => {
+          const sig = isMaua
+            ? { imgSrc: '/assinatura-frazao.png', nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM', nucleo: 'Núcleo Mauá' }
+            : { imgSrc: '/assinatura-naldo.png', nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM', nucleo: 'Núcleo Saracuruna' };
+          return (
+            <div style={{ textAlign: 'center', borderTop: '2px solid #b91c1c', paddingTop: 10 }}>
               <img
                 src={sig.imgSrc}
                 alt={`Assinatura ${sig.nome}`}
-                style={{ height: 36, maxWidth: '100%', objectFit: 'contain', marginBottom: 4 }}
+                style={{ height: 40, maxWidth: '80%', objectFit: 'contain', display: 'block', margin: '0 auto 6px' }}
               />
               <div style={{ fontSize: '0.55rem', fontWeight: 700, color: '#1f2937', lineHeight: 1.4 }}>{sig.nome}</div>
               <div style={{ fontSize: '0.52rem', color: '#6b7280' }}>{sig.cargo}</div>
               <div style={{ fontSize: '0.52rem', color: '#9ca3af' }}>{sig.nucleo}</div>
             </div>
-          ))}
-        </div>
+          );
+        })()}
       </div>
 
       {/* Footer */}
