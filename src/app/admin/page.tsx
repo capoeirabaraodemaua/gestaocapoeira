@@ -185,7 +185,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -207,6 +207,19 @@ export default function AdminPage() {
   const [undoVisible, setUndoVisible] = useState(false);
   const [showCarteirinha, setShowCarteirinha] = useState(false);
   const adminCardRef = useRef<HTMLDivElement>(null);
+  const certRef = useRef<HTMLDivElement>(null);
+
+  // ── Certificado state ─────────────────────────────────────────────────────
+  const [certStudent, setCertStudent] = useState<Student | null>(null);
+  const [certGraduacao, setCertGraduacao] = useState('');
+  const [certEvento, setCertEvento] = useState('');
+  const [certLocal, setCertLocal] = useState('');
+  const [certData, setCertData] = useState(() => {
+    const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+  });
+  const [certSearch, setCertSearch] = useState('');
+  const [certFilteredStudents, setCertFilteredStudents] = useState<Student[]>([]);
 
   const printAdminCard = (nome: string) => {
     const el = adminCardRef.current;
@@ -585,20 +598,16 @@ export default function AdminPage() {
 
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
-          {(['alunos', 'presencas', 'relatorio'] as const).map(tab => (
+          {(['alunos', 'presencas', 'relatorio', 'ranking', 'certificado'] as const).map(tab => (
             <button
               key={tab}
               onClick={() => {
                 setActiveTab(tab);
-                if (tab === 'presencas') {
-                  fetchPresencas();
-                }
-                if (tab === 'relatorio' && Object.keys(relatorioHistorico).length === 0) {
-                  fetchRelatorio(relDias);
-                }
+                if (tab === 'presencas') fetchPresencas();
+                if ((tab === 'relatorio' || tab === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
               }}
               style={{
-                padding: '10px 24px',
+                padding: '10px 20px',
                 background: 'none',
                 border: 'none',
                 borderBottom: activeTab === tab ? '2px solid #dc2626' : '2px solid transparent',
@@ -606,11 +615,11 @@ export default function AdminPage() {
                 color: activeTab === tab ? '#dc2626' : 'var(--text-secondary)',
                 fontWeight: activeTab === tab ? 700 : 500,
                 cursor: 'pointer',
-                fontSize: '0.95rem',
+                fontSize: '0.9rem',
                 transition: 'all 0.2s',
               }}
             >
-              {tab === 'alunos' ? '👥 Alunos' : tab === 'presencas' ? '📊 Presenças' : '📋 Relatório'}
+              {tab === 'alunos' ? '👥 Alunos' : tab === 'presencas' ? '📊 Presenças' : tab === 'relatorio' ? '📋 Relatório' : tab === 'ranking' ? '🏆 Ranking' : '🎓 Certificado'}
             </button>
           ))}
         </div>
@@ -956,6 +965,361 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             )}
           </div>
         )}
+      {/* ===== ABA RANKING ===== */}
+      {activeTab === 'ranking' && (() => {
+        // Build ranking data from relatorioHistorico
+        const rankData = students.map(s => {
+          const dias = relatorioHistorico[s.id] || [];
+          return { student: s, presencas: dias.length, pct: Math.round((dias.length / relDias) * 100) };
+        });
+        const topPresentes = [...rankData].sort((a,b) => b.presencas - a.presencas).slice(0, 15);
+        const topFaltas = [...rankData].sort((a,b) => a.presencas - b.presencas).slice(0, 15);
+        const medalColors = ['#fbbf24','#94a3b8','#b45309'];
+        const medal = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}º`;
+        return (
+          <div>
+            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+              <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Período:</span>
+              {[7, 15, 30, 60].map(d => (
+                <button key={d} onClick={() => { setRelDias(d); fetchRelatorio(d); }}
+                  style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: relDias === d ? 700 : 500,
+                    background: relDias === d ? 'linear-gradient(135deg,var(--accent),#b0452a)' : 'var(--bg-input)',
+                    border: relDias === d ? 'none' : '1px solid var(--border)',
+                    color: relDias === d ? '#fff' : 'var(--text-secondary)' }}
+                >{d} dias</button>
+              ))}
+              <button onClick={() => fetchRelatorio(relDias)} disabled={loadingRelatorio}
+                style={{ marginLeft: 'auto', background: 'var(--bg-input)', border: '1px solid var(--border)', color: loadingRelatorio ? '#16a34a' : 'var(--text-secondary)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ display: 'inline-block', animation: loadingRelatorio ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
+                {loadingRelatorio ? 'Carregando...' : 'Atualizar'}
+              </button>
+            </div>
+
+            {loadingRelatorio ? (
+              <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando ranking...</div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
+
+                {/* Mais Presentes */}
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#16a34a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    🏆 Mais Presentes — últimos {relDias} dias
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {topPresentes.map((item, i) => (
+                      <div key={item.student.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
+                        background: i < 3 ? `${['rgba(251,191,36,0.1)','rgba(148,163,184,0.1)','rgba(180,83,9,0.08)'][i]}` : 'var(--bg-input)',
+                        border: `1px solid ${i < 3 ? ['rgba(251,191,36,0.35)','rgba(148,163,184,0.3)','rgba(180,83,9,0.25)'][i] : 'var(--border)'}`,
+                      }}>
+                        <div style={{ fontSize: i < 3 ? '1.4rem' : '0.9rem', fontWeight: 700, minWidth: 32, textAlign: 'center', color: i < 3 ? medalColors[i] : 'var(--text-secondary)' }}>
+                          {medal(i)}
+                        </div>
+                        {item.student.foto_url
+                          ? <img src={item.student.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                            </div>
+                        }
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
+                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>{item.student.graduacao} · {item.student.nucleo || '—'}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#16a34a' }}>{item.presencas}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{item.pct}%</div>
+                        </div>
+                      </div>
+                    ))}
+                    {topPresentes.length === 0 && <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>Sem dados.</div>}
+                  </div>
+                </div>
+
+                {/* Mais Faltas */}
+                <div>
+                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#dc2626', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                    ⚠ Mais Faltas — últimos {relDias} dias
+                  </h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {topFaltas.map((item, i) => (
+                      <div key={item.student.id} style={{
+                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
+                        background: 'var(--bg-input)', border: '1px solid var(--border)',
+                      }}>
+                        <div style={{ fontSize: '0.9rem', fontWeight: 700, minWidth: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
+                          {i+1}º
+                        </div>
+                        {item.student.foto_url
+                          ? <img src={item.student.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                            </div>
+                        }
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
+                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>{item.student.graduacao} · {item.student.nucleo || '—'}</div>
+                        </div>
+                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#dc2626' }}>{relDias - item.presencas}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{item.presencas} pres.</div>
+                        </div>
+                      </div>
+                    ))}
+                    {topFaltas.length === 0 && <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>Sem dados.</div>}
+                  </div>
+                </div>
+
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ===== ABA CERTIFICADO ===== */}
+      {activeTab === 'certificado' && (() => {
+        const profiles = getProfiles();
+        const currentProf = profiles.find(p => p.nucleo === activeNucleo);
+        const sig = certStudent
+          ? (certStudent.nucleo === 'Mauá'
+            ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM', img: '/assinatura-frazao.png' }
+            : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM', img: '/assinatura-naldo.png' })
+          : null;
+
+        const printCertificado = () => {
+          const el = certRef.current;
+          if (!el || !certStudent) return;
+          const pw = window.open('', '_blank');
+          if (!pw) return;
+          pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Certificado — ${certStudent.nome_completo}</title>
+            <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A4 landscape; margin: 10mm; } html,body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }</style>
+            </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script></body></html>`);
+          pw.document.close();
+        };
+
+        const sendCertWhatsApp = () => {
+          if (!certStudent) return;
+          const phone = (certStudent.telefone || '').replace(/\D/g, '');
+          const br = phone.startsWith('55') ? phone : `55${phone}`;
+          const dataFmt = certData ? new Date(certData + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+          const msg = encodeURIComponent(`🎓 *Certificado — Capoeira Barão de Mauá*\n\nOlá, *${certStudent.nome_completo}*!\n\nParabéns pela sua graduação em *${certGraduacao || certStudent.graduacao}*!\n\n📅 Data: ${dataFmt}\n📍 Local: ${certLocal || 'ACCBM'}\n🎉 Evento: ${certEvento || 'Batizado / Troca de Cordas'}\n\n_Associação Cultural de Capoeira Barão de Mauá_\nAxé! 🤸`);
+          window.open(`https://wa.me/${br}?text=${msg}`, '_blank');
+        };
+
+        const sendCertEmail = () => {
+          if (!certStudent) return;
+          const dataFmt = certData ? new Date(certData + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' }) : '';
+          const subject = encodeURIComponent(`Certificado — ${certGraduacao || certStudent.graduacao} — Capoeira Barão de Mauá`);
+          const body = encodeURIComponent(`Certificado de Graduação — Capoeira Barão de Mauá\n\nAluno(a): ${certStudent.nome_completo}\nGraduação: ${certGraduacao || certStudent.graduacao}\nEvento: ${certEvento || 'Batizado / Troca de Cordas'}\nData: ${dataFmt}\nLocal: ${certLocal || 'ACCBM'}\n\nParabéns pelo desempenho!\nAssociação Cultural de Capoeira Barão de Mauá\nAxé!`);
+          window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+        };
+
+        return (
+          <div>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
+
+              {/* Left: form */}
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>1. Selecionar Aluno</h3>
+                <div style={{ position: 'relative', marginBottom: 12 }}>
+                  <input
+                    placeholder="Buscar aluno por nome..."
+                    value={certSearch}
+                    onChange={e => {
+                      const q = e.target.value;
+                      setCertSearch(q);
+                      if (!q.trim()) { setCertFilteredStudents([]); return; }
+                      const lower = q.toLowerCase();
+                      setCertFilteredStudents(students.filter(s => s.nome_completo.toLowerCase().includes(lower) || s.cpf.includes(q)).slice(0, 6));
+                    }}
+                    style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: '0.9rem', outline: 'none', background: 'var(--bg-input)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                  />
+                  {certFilteredStudents.length > 0 && (
+                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, zIndex: 50, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', maxHeight: 220, overflowY: 'auto', marginTop: 4 }}>
+                      {certFilteredStudents.map(s => (
+                        <button key={s.id} onClick={() => {
+                          setCertStudent(s);
+                          setCertGraduacao(s.graduacao);
+                          setCertSearch(s.nome_completo);
+                          setCertFilteredStudents([]);
+                        }} style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', padding: '10px 14px', background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', borderBottom: '1px solid var(--border)' }}>
+                          {s.foto_url
+                            ? <img src={s.foto_url} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                            : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                              </div>
+                          }
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--text-primary)' }}>{s.nome_completo}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.graduacao} · {s.nucleo}</div>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {certStudent && (
+                  <div style={{ background: 'rgba(29,78,216,0.07)', border: '1px solid rgba(29,78,216,0.2)', borderRadius: 10, padding: '10px 14px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {certStudent.foto_url
+                      ? <img src={certStudent.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover' }} />
+                      : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                        </div>
+                    }
+                    <div>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{certStudent.nome_completo}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{certStudent.nucleo}</div>
+                    </div>
+                  </div>
+                )}
+
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>2. Detalhes do Certificado</h3>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Graduação (editável)</label>
+                    <select value={certGraduacao} onChange={e => setCertGraduacao(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none' }}>
+                      <option value="">— Selecionar graduação —</option>
+                      {graduacoes.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Evento</label>
+                    <input value={certEvento} onChange={e => setCertEvento(e.target.value)} placeholder="ex: Batizado e Troca de Cordas 2025"
+                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Local</label>
+                    <input value={certLocal} onChange={e => setCertLocal(e.target.value)} placeholder="ex: Poliesportivo Edson Alves, Mauá"
+                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Data do Evento</label>
+                    <input type="date" value={certData} onChange={e => setCertData(e.target.value)}
+                      style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                </div>
+
+                {certStudent && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 20 }}>
+                    <button onClick={printCertificado}
+                      style={{ padding: '12px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      Imprimir / Salvar PDF
+                    </button>
+                    <button onClick={sendCertWhatsApp}
+                      style={{ padding: '12px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.4)', color: '#25d366', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                      Enviar via WhatsApp
+                    </button>
+                    <button onClick={sendCertEmail}
+                      style={{ padding: '12px', background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.4)', color: '#3b82f6', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                      Enviar por E-mail
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Right: preview */}
+              <div>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>3. Pré-visualização</h3>
+                <div ref={certRef} style={{
+                  background: 'linear-gradient(145deg, #fffef5 0%, #fefce8 100%)',
+                  border: '3px solid #b45309',
+                  borderRadius: 8,
+                  padding: '32px 28px',
+                  fontFamily: 'Georgia, serif',
+                  minHeight: 360,
+                  position: 'relative',
+                  overflow: 'hidden',
+                }}>
+                  {/* Corner ornaments */}
+                  {['top-left','top-right','bottom-left','bottom-right'].map(pos => (
+                    <div key={pos} style={{
+                      position: 'absolute',
+                      [pos.includes('top') ? 'top' : 'bottom']: 8,
+                      [pos.includes('left') ? 'left' : 'right']: 8,
+                      width: 32, height: 32,
+                      borderTop: pos.includes('top') ? '3px solid #b45309' : 'none',
+                      borderBottom: pos.includes('bottom') ? '3px solid #b45309' : 'none',
+                      borderLeft: pos.includes('left') ? '3px solid #b45309' : 'none',
+                      borderRight: pos.includes('right') ? '3px solid #b45309' : 'none',
+                    }} />
+                  ))}
+                  {/* Tricolor top stripe */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 5, display: 'flex' }}>
+                    <div style={{ flex: 1, background: '#dc2626' }} />
+                    <div style={{ flex: 1, background: '#1d4ed8' }} />
+                    <div style={{ flex: 1, background: '#16a34a' }} />
+                  </div>
+                  <div style={{ textAlign: 'center' }}>
+                    {/* Logo + org name */}
+                    <img src="/logo-maua.png" alt="ACCBM" style={{ width: 52, height: 52, objectFit: 'contain', marginBottom: 4 }} />
+                    <div style={{ fontSize: '0.58rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.14em', color: '#92400e' }}>
+                      Associação Cultural de Capoeira Barão de Mauá
+                    </div>
+                    <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,#b45309,transparent)', margin: '10px 0' }} />
+                    <div style={{ fontSize: '1.5rem', fontWeight: 700, color: '#78350f', letterSpacing: '0.08em', textTransform: 'uppercase', lineHeight: 1.2 }}>
+                      Certificado
+                    </div>
+                    <div style={{ fontSize: '0.65rem', color: '#92400e', letterSpacing: '0.12em', textTransform: 'uppercase', marginTop: 2 }}>
+                      {certEvento || 'Batizado e Troca de Cordas'}
+                    </div>
+                    <div style={{ height: 1, background: 'linear-gradient(90deg,transparent,#b45309,transparent)', margin: '10px 0' }} />
+                    <div style={{ fontSize: '0.62rem', color: '#78350f', marginBottom: 6 }}>Certificamos que</div>
+                    <div style={{ fontSize: '1.15rem', fontWeight: 700, color: '#1a1a1a', fontFamily: 'Georgia, serif', marginBottom: 6, minHeight: 28 }}>
+                      {certStudent ? certStudent.nome_completo : <span style={{ color: '#d4b896', fontStyle: 'italic' }}>Nome do Aluno</span>}
+                    </div>
+                    <div style={{ fontSize: '0.6rem', color: '#78350f', marginBottom: 4 }}>
+                      concluiu com êxito a graduação em Capoeira, recebendo a
+                    </div>
+                    <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(180,83,9,0.08)', border: '1px solid rgba(180,83,9,0.3)', borderRadius: 6, padding: '5px 14px', marginBottom: 6 }}>
+                      {certGraduacao && (() => {
+                        const colors = getCordaColors(certGraduacao);
+                        return (
+                          <div style={{ display: 'flex', width: 28, height: 6, borderRadius: 3, overflow: 'hidden', flexShrink: 0 }}>
+                            {colors.map((c: string, i: number) => <div key={i} style={{ flex: 1, background: c === '#FFFFFF' ? '#e5e7eb' : c }} />)}
+                          </div>
+                        );
+                      })()}
+                      <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#78350f' }}>
+                        {certGraduacao || <span style={{ color: '#d4b896', fontStyle: 'italic' }}>graduação</span>}
+                      </span>
+                      {certGraduacao && nomenclaturaGraduacao[certGraduacao] && (
+                        <span style={{ fontSize: '0.62rem', color: '#92400e' }}>— {nomenclaturaGraduacao[certGraduacao]}</span>
+                      )}
+                    </div>
+                    <div style={{ fontSize: '0.58rem', color: '#92400e', marginBottom: 10 }}>
+                      {certLocal || <span style={{ color: '#d4b896', fontStyle: 'italic' }}>Local do evento</span>}
+                      {certData && <span> · {new Date(certData + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}</span>}
+                    </div>
+                    {sig && (
+                      <div style={{ marginTop: 8 }}>
+                        <img src={sig.img} alt="Assinatura" style={{ height: 36, maxWidth: 120, objectFit: 'contain' }} />
+                        <div style={{ fontSize: '0.54rem', fontWeight: 700, color: '#1e3a8a' }}>{sig.nome}</div>
+                        <div style={{ fontSize: '0.48rem', color: '#3b82f6' }}>{sig.cargo}</div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Bottom stripe */}
+                  <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 5, display: 'flex' }}>
+                    <div style={{ flex: 1, background: '#16a34a' }} />
+                    <div style={{ flex: 1, background: '#1d4ed8' }} />
+                    <div style={{ flex: 1, background: '#dc2626' }} />
+                  </div>
+                </div>
+                {!certStudent && (
+                  <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: 10 }}>
+                    Selecione um aluno para ver a pré-visualização
+                  </p>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ===== ABA RELATÓRIO ===== */}
       {activeTab === 'relatorio' && (
         <div>

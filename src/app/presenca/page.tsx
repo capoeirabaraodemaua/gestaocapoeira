@@ -25,16 +25,34 @@ export default function PresencaPage() {
   const [registering, setRegistering] = useState(false);
   const [success, setSuccess] = useState<{ student: Student; hora: string; data: string; localDetectado: LocalDetectado | null } | null>(null);
   const [registeredToday, setRegisteredToday] = useState<Set<string>>(new Set());
+  const [isOnline, setIsOnline] = useState(true);
+  const [offlineQueue, setOfflineQueue] = useState<Array<{ student: Student; date: string; hora: string; localNome: string | null; lat: number | null; lng: number | null; localEndereco: string | null; localMapUrl: string | null }>>([]);
+  const [syncing, setSyncing] = useState(false);
+  const [syncResult, setSyncResult] = useState<{ ok: number; fail: number } | null>(null);
 
   // Localização
   const [localDetectado, setLocalDetectado] = useState<LocalDetectado | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'buscando' | 'ok' | 'erro' | 'negado'>('idle');
   const [coordsRaw, setCoordsRaw] = useState<{ lat: number; lng: number } | null>(null);
 
+  const OFFLINE_QUEUE_KEY = 'accbm_offline_checkins';
+
   useEffect(() => {
     fetchStudents();
     loadTodayCheckins();
     iniciarGPS();
+    // Load offline queue from localStorage
+    try {
+      const saved = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (saved) setOfflineQueue(JSON.parse(saved));
+    } catch {}
+    // Listen for online/offline events
+    const handleOnline = () => { setIsOnline(true); };
+    const handleOffline = () => setIsOnline(false);
+    setIsOnline(navigator.onLine);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
   }, []);
 
   const iniciarGPS = async () => {
@@ -94,9 +112,62 @@ export default function PresencaPage() {
     setLoading(false);
   };
 
+  const syncOfflineQueue = async (queue: typeof offlineQueue) => {
+    if (!queue.length) return;
+    setSyncing(true);
+    let ok = 0; let fail = 0;
+    const remaining: typeof offlineQueue = [];
+    for (const item of queue) {
+      try {
+        const res = await fetch('/api/checkins', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            student: { id: item.student.id, nome_completo: item.student.nome_completo, graduacao: item.student.graduacao, nucleo: item.student.nucleo, foto_url: item.student.foto_url, local_nome: item.localNome, local_endereco: item.localEndereco, local_map_url: item.localMapUrl, lat: item.lat, lng: item.lng },
+            date: item.date,
+          }),
+        });
+        if (res.ok) { ok++; } else { fail++; remaining.push(item); }
+      } catch { fail++; remaining.push(item); }
+    }
+    setOfflineQueue(remaining);
+    try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining)); } catch {}
+    setSyncing(false);
+    setSyncResult({ ok, fail });
+    setTimeout(() => setSyncResult(null), 5000);
+    if (ok > 0) loadTodayCheckins();
+  };
+
+  // Auto-sync when going back online
+  useEffect(() => {
+    if (isOnline && offlineQueue.length > 0) {
+      syncOfflineQueue(offlineQueue);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOnline]);
+
   const handleRegistrar = async (student: Student) => {
     if (registering) return;
     setRegistering(true);
+    const brDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+    const hora = brDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const dataStr = brDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
+    const dateKey = `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
+
+    if (!navigator.onLine) {
+      // Save to offline queue
+      const entry = { student, date: dateKey, hora, localNome: localDetectado?.local.nome ?? null, localEndereco: localDetectado?.local.endereco ?? null, localMapUrl: localDetectado?.local.mapUrl ?? null, lat: coordsRaw?.lat ?? null, lng: coordsRaw?.lng ?? null };
+      const newQueue = [...offlineQueue.filter(q => !(q.student.id === student.id && q.date === dateKey)), entry];
+      setOfflineQueue(newQueue);
+      try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(newQueue)); } catch {}
+      setRegistering(false);
+      setRegisteredToday(prev => new Set([...prev, student.id]));
+      setSearch('');
+      setFiltered([]);
+      setSuccess({ student, hora, data: dataStr, localDetectado });
+      return;
+    }
+
     const result = await registerCheckin({
       ...student,
       local_nome: localDetectado?.local.nome ?? null,
@@ -111,13 +182,10 @@ export default function PresencaPage() {
       return;
     }
     if (result.success) {
-      const brDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-      const hora = brDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
-      const data = brDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
       setRegisteredToday(prev => new Set([...prev, student.id]));
       setSearch('');
       setFiltered([]);
-      setSuccess({ student, hora, data, localDetectado });
+      setSuccess({ student, hora, data: dataStr, localDetectado });
     } else {
       alert('Erro ao registrar presença. Tente novamente.');
     }
@@ -241,6 +309,40 @@ Axé!`
       </div>
 
       <div className="container" style={{ maxWidth: 580, marginTop: 28 }}>
+
+        {/* Offline banner */}
+        {!isOnline && (
+          <div style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.5)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📶</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#b45309' }}>Sem conexão com internet</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Presenças serão salvas localmente e sincronizadas automaticamente quando a conexão for restaurada.</div>
+            </div>
+          </div>
+        )}
+
+        {/* Pending offline queue banner */}
+        {offlineQueue.length > 0 && isOnline && (
+          <div style={{ background: 'rgba(59,130,246,0.08)', border: '1px solid rgba(59,130,246,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span>☁️</span>
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1d4ed8' }}>{syncing ? 'Sincronizando...' : `${offlineQueue.length} presença(s) pendente(s) de sync`}</div>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Registradas offline e aguardando envio ao servidor.</div>
+            </div>
+            {!syncing && (
+              <button onClick={() => syncOfflineQueue(offlineQueue)} style={{ background: 'rgba(59,130,246,0.15)', border: '1px solid rgba(59,130,246,0.4)', color: '#1d4ed8', padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}>
+                Sincronizar
+              </button>
+            )}
+          </div>
+        )}
+
+        {/* Sync result toast */}
+        {syncResult && (
+          <div style={{ background: syncResult.fail === 0 ? 'rgba(22,163,74,0.1)' : 'rgba(251,191,36,0.1)', border: `1px solid ${syncResult.fail === 0 ? 'rgba(22,163,74,0.4)' : 'rgba(251,191,36,0.4)'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: '0.85rem', fontWeight: 700, color: syncResult.fail === 0 ? '#16a34a' : '#b45309' }}>
+            {syncResult.fail === 0 ? `✅ ${syncResult.ok} presença(s) sincronizada(s) com sucesso!` : `⚠ ${syncResult.ok} sincronizada(s), ${syncResult.fail} falhou. Tente novamente.`}
+          </div>
+        )}
 
         {/* Banner de localização */}
         {gpsStatus !== 'idle' && (
@@ -372,7 +474,12 @@ Axé!`
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
             </div>
             <h2 style={{ fontSize: '1.25rem', marginBottom: 4, display: 'block', WebkitTextFillColor: 'var(--text-primary)' }}>Presença Registrada!</h2>
-            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20 }}>Comprovante de Treino</p>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: !isOnline ? 8 : 20 }}>Comprovante de Treino</p>
+            {!isOnline && (
+              <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 8, padding: '7px 12px', marginBottom: 16, fontSize: '0.78rem', color: '#b45309', fontWeight: 600 }}>
+                📶 Salva offline — será sincronizada automaticamente quando a internet retornar
+              </div>
+            )}
 
             <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: 18, textAlign: 'left', marginBottom: 20 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, paddingBottom: 14, borderBottom: '1px solid var(--border)' }}>
