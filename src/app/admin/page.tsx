@@ -99,8 +99,9 @@ interface Student {
 
 type EditForm = Partial<Student>;
 
-const ADMIN_USER = process.env.NEXT_PUBLIC_ADMIN_USER || 'admin';
-const ADMIN_PASS = process.env.NEXT_PUBLIC_ADMIN_PASS || 'accbm2025';
+const CREDS_KEY = 'accbm_admin_creds';
+const DEFAULT_USER = 'admin';
+const DEFAULT_PASS = 'accbm2025';
 
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
@@ -108,23 +109,51 @@ export default function AdminPage() {
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
   const [showPass, setShowPass] = useState(false);
+  // Change-credentials modal
+  const [showChangeCreds, setShowChangeCreds] = useState(false);
+  const [newUser, setNewUser] = useState('');
+  const [newPass, setNewPass] = useState('');
+  const [newPassConfirm, setNewPassConfirm] = useState('');
+  const [showNewPass, setShowNewPass] = useState(false);
+  const [changeError, setChangeError] = useState('');
+  const [changeDone, setChangeDone] = useState(false);
+
+  const getCreds = (): { user: string; pass: string } => {
+    try {
+      const raw = localStorage.getItem(CREDS_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return { user: DEFAULT_USER, pass: DEFAULT_PASS };
+  };
 
   // Check session on mount
   useEffect(() => {
-    if (typeof window !== 'undefined' && sessionStorage.getItem('admin_auth') === '1') {
-      setAuthed(true);
-    }
+    if (sessionStorage.getItem('admin_auth') === '1') setAuthed(true);
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (loginUser.trim() === ADMIN_USER && loginPass === ADMIN_PASS) {
+    const creds = getCreds();
+    if (loginUser.trim() === creds.user && loginPass === creds.pass) {
       sessionStorage.setItem('admin_auth', '1');
       setAuthed(true);
       setLoginError('');
     } else {
       setLoginError('Usuário ou senha incorretos.');
     }
+  };
+
+  const handleChangeCreds = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newUser.trim()) { setChangeError('Informe o novo usuário.'); return; }
+    if (newPass.length < 6) { setChangeError('Senha deve ter ao menos 6 caracteres.'); return; }
+    if (newPass !== newPassConfirm) { setChangeError('As senhas não coincidem.'); return; }
+    localStorage.setItem(CREDS_KEY, JSON.stringify({ user: newUser.trim(), pass: newPass }));
+    setChangeDone(true);
+    setTimeout(() => {
+      setChangeDone(false); setShowChangeCreds(false);
+      setNewUser(''); setNewPass(''); setNewPassConfirm(''); setChangeError('');
+    }, 2000);
   };
 
   const [students, setStudents] = useState<Student[]>([]);
@@ -404,7 +433,91 @@ export default function AdminPage() {
                 Entrar
               </button>
             </form>
-            <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.72rem', marginTop: 20 }}>Acesso restrito — ACCBM</p>
+            <div style={{ textAlign: 'center', marginTop: 18, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <p style={{ color: '#94a3b8', fontSize: '0.72rem' }}>Acesso restrito — ACCBM</p>
+              <button
+                type="button"
+                onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); }}
+                style={{ background: 'none', border: 'none', color: '#3b82f6', fontSize: '0.78rem', cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+              >
+                Cadastrar / alterar login e senha
+              </button>
+            </div>
+
+            {/* Change credentials modal */}
+            {showChangeCreds && (
+              <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+                <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 360, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+                  <h3 style={{ margin: '0 0 18px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
+                  {changeDone ? (
+                    <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>
+                      ✅ Credenciais salvas com sucesso!
+                    </div>
+                  ) : (
+                    <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                      <div>
+                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
+                        <input
+                          value={newUser}
+                          onChange={e => setNewUser(e.target.value)}
+                          placeholder="ex: admin"
+                          autoFocus
+                          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
+                        <div style={{ position: 'relative' }}>
+                          <input
+                            type={showNewPass ? 'text' : 'password'}
+                            value={newPass}
+                            onChange={e => setNewPass(e.target.value)}
+                            placeholder="••••••••"
+                            style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                          />
+                          <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                            {showNewPass
+                              ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                              : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            }
+                          </button>
+                        </div>
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
+                        <input
+                          type="password"
+                          value={newPassConfirm}
+                          onChange={e => setNewPassConfirm(e.target.value)}
+                          placeholder="••••••••"
+                          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                        />
+                      </div>
+                      {changeError && (
+                        <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>
+                          ⚠ {changeError}
+                        </div>
+                      )}
+                      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                        <button
+                          type="button"
+                          onClick={() => setShowChangeCreds(false)}
+                          style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}
+                        >
+                          Cancelar
+                        </button>
+                        <button
+                          type="submit"
+                          style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}
+                        >
+                          Salvar
+                        </button>
+                      </div>
+                    </form>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -419,13 +532,61 @@ export default function AdminPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Voltar ao formulário
           </Link>
-          <button
-            onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); }}
-            style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            Sair
-          </button>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button
+              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
+              style={{ background: 'rgba(29,78,216,0.1)', border: '1px solid rgba(29,78,216,0.3)', color: '#1d4ed8', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+              Alterar senha
+            </button>
+            <button
+              onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); }}
+              style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+              Sair
+            </button>
+          </div>
+
+          {/* Change credentials modal (also accessible when logged in) */}
+          {showChangeCreds && (
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 360, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+                <h3 style={{ margin: '0 0 18px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
+                {changeDone ? (
+                  <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>
+                    ✅ Credenciais salvas com sucesso!
+                  </div>
+                ) : (
+                  <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
+                      <input value={newUser} onChange={e => setNewUser(e.target.value)} placeholder="ex: admin" autoFocus style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                        <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                          {showNewPass ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
+                      <input type="password" value={newPassConfirm} onChange={e => setNewPassConfirm(e.target.value)} placeholder="••••••••" style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
+                    <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                      <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>Cancelar</button>
+                      <button type="submit" style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>Salvar</button>
+                    </div>
+                  </form>
+                )}
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="admin-header">
