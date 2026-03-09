@@ -77,27 +77,34 @@ export function detectarLocal(lat: number, lng: number, maxMetros = 200): LocalD
 }
 
 /** Captura posição GPS de alta precisão via browser.
- *  Funciona online e offline — GPS é recurso do dispositivo, não da internet.
- *  Aceita cache de até 30s para resposta imediata, com fallback de 20s timeout.
+ *  Sempre força leitura fresca do sensor (maximumAge: 0).
+ *  Funciona online e offline — GPS é recurso do dispositivo.
  */
-export function capturarGPS(timeoutMs = 20000): Promise<GeolocationPosition> {
+export function capturarGPS(timeoutMs = 30000): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocalização não suportada'));
       return;
     }
-    // Tenta primeiro com cache recente (≤30s) para resposta rápida
-    navigator.geolocation.getCurrentPosition(resolve, () => {
-      // Se cache falhar, força posição fresca com timeout maior
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: timeoutMs,
-        maximumAge: 0,
-      });
-    }, {
+    navigator.geolocation.getCurrentPosition(resolve, reject, {
       enableHighAccuracy: true,
-      timeout: 5000,
-      maximumAge: 30000, // aceita posição de até 30s atrás
+      timeout: timeoutMs,
+      maximumAge: 0, // sempre leitura fresca — sem cache
     });
+  });
+}
+
+/** Inicia watchPosition para atualização contínua de GPS.
+ *  Retorna o watchId para cancelamento posterior via clearWatch.
+ */
+export function iniciarWatchGPS(
+  onUpdate: (pos: GeolocationPosition) => void,
+  onError?: (err: GeolocationPositionError) => void,
+): number {
+  if (!navigator.geolocation) return -1;
+  return navigator.geolocation.watchPosition(onUpdate, onError ?? (() => {}), {
+    enableHighAccuracy: true,
+    timeout: 20000,
+    maximumAge: 0,
   });
 }

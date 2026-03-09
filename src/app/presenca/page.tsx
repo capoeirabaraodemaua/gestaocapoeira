@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { registerCheckin, getCheckins } from '@/lib/checkins';
-import { capturarGPS, detectarLocal, LocalDetectado, LOCAIS } from '@/lib/locais';
+import { capturarGPS, iniciarWatchGPS, detectarLocal, LocalDetectado, LOCAIS } from '@/lib/locais';
 import Link from 'next/link';
 
 interface Student {
@@ -23,7 +23,7 @@ export default function PresencaPage() {
   const [filtered, setFiltered] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [success, setSuccess] = useState<{ student: Student; hora: string; data: string; localDetectado: LocalDetectado | null; coords: { lat: number; lng: number } | null } | null>(null);
+  const [success, setSuccess] = useState<{ student: Student; hora: string; data: string; localDetectado: LocalDetectado | null; coords: { lat: number; lng: number; accuracy: number } | null } | null>(null);
   const [registeredToday, setRegisteredToday] = useState<Set<string>>(new Set());
   const [isOnline, setIsOnline] = useState(true);
   const [offlineQueue, setOfflineQueue] = useState<Array<{ student: Student; date: string; hora: string; localNome: string | null; lat: number | null; lng: number | null; localEndereco: string | null; localMapUrl: string | null }>>([]);
@@ -33,8 +33,9 @@ export default function PresencaPage() {
   // Localização
   const [localDetectado, setLocalDetectado] = useState<LocalDetectado | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'buscando' | 'ok' | 'erro' | 'negado'>('idle');
-  const [coordsRaw, setCoordsRaw] = useState<{ lat: number; lng: number } | null>(null);
+  const [coordsRaw, setCoordsRaw] = useState<{ lat: number; lng: number; accuracy: number } | null>(null);
   const [manualLocal, setManualLocal] = useState<typeof LOCAIS[0] | null>(null);
+  const watchIdRef = useRef<number>(-1);
 
   const OFFLINE_QUEUE_KEY   = 'accbm_offline_checkins';
   const STUDENTS_CACHE_KEY  = 'accbm_students_cache';
@@ -70,26 +71,50 @@ export default function PresencaPage() {
     setIsOnline(navigator.onLine);
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
-    return () => { window.removeEventListener('online', handleOnline); window.removeEventListener('offline', handleOffline); };
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+      // Para o watch GPS ao desmontar
+      if (watchIdRef.current >= 0) navigator.geolocation?.clearWatch(watchIdRef.current);
+    };
   }, []);
+
+  const atualizarGPS = (pos: GeolocationPosition) => {
+    const { latitude: lat, longitude: lng, accuracy } = pos.coords;
+    setCoordsRaw({ lat, lng, accuracy });
+    const det = detectarLocal(lat, lng);
+    setLocalDetectado(det);
+    setGpsStatus('ok');
+  };
 
   const iniciarGPS = async () => {
     setGpsStatus('buscando');
+    // Para qualquer watch anterior
+    if (watchIdRef.current >= 0) navigator.geolocation?.clearWatch(watchIdRef.current);
+
     try {
-      const pos = await capturarGPS();
-      const { latitude: lat, longitude: lng } = pos.coords;
-      setCoordsRaw({ lat, lng });
-      const det = detectarLocal(lat, lng);
-      setLocalDetectado(det);
-      setGpsStatus('ok');
+      // Primeira leitura imediata para exibir o local rápido
+      const pos = await capturarGPS(30000);
+      atualizarGPS(pos);
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : '';
-      if (msg.includes('denied') || msg.toLowerCase().includes('negar') || (e as GeolocationPositionError)?.code === 1) {
+      const err = e as GeolocationPositionError;
+      if (err?.code === 1) {
         setGpsStatus('negado');
       } else {
         setGpsStatus('erro');
       }
+      return;
     }
+
+    // Inicia atualização contínua — GPS será sempre o mais preciso disponível
+    const wid = iniciarWatchGPS(
+      atualizarGPS,
+      (err) => {
+        if (err.code === 1) setGpsStatus('negado');
+        // Em caso de outros erros no watch, mantém a última leitura válida
+      },
+    );
+    watchIdRef.current = wid;
   };
 
   const getTodayKey = () => {
@@ -199,34 +224,38 @@ export default function PresencaPage() {
     const dataStr = brDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
     const dateKey = `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
 
-    // ── Captura GPS no ato do registro (funciona online E offline) ──────────
-    let coords = coordsRaw; // usa o que já foi capturado na abertura da página
+    // ── Captura GPS fresco no ato do registro ──────────────────────────────
+    let coords: { lat: number; lng: number; accuracy: number } | null = null;
     let local = localDetectado;
 
-    // Se GPS foi bloqueado mas o aluno selecionou manualmente o local, usa as coords fixas do local
-    if (!coords && manualLocal) {
-      coords = { lat: manualLocal.lat, lng: manualLocal.lng };
-      const det = detectarLocal(coords.lat, coords.lng, 5000);
-      local = det ?? null;
-    }
-
-    if (!coords) {
-      // Tenta capturar agora se ainda não tiver — com timeout generoso
+    // Se GPS está habilitado, tenta captura fresca no momento exato do registro
+    if (gpsStatus !== 'negado') {
       try {
-        const pos = await Promise.race([
-          capturarGPS(15000),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 15000)),
-        ]);
-        coords = { lat: (pos as GeolocationPosition).coords.latitude, lng: (pos as GeolocationPosition).coords.longitude };
-        local = detectarLocal(coords.lat, coords.lng);
+        const pos = await capturarGPS(20000);
+        coords = {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+          accuracy: pos.coords.accuracy,
+        };
+        const det = detectarLocal(coords.lat, coords.lng);
+        local = det;
         setCoordsRaw(coords);
         setLocalDetectado(local);
         setGpsStatus('ok');
       } catch {
-        // GPS não disponível — continua sem localização
+        // GPS indisponível — usa última leitura do watchPosition se disponível
+        coords = coordsRaw;
       }
     }
-    // Even if no venue matched, try nearest venue within 1km for display purposes
+
+    // Se GPS foi bloqueado mas o aluno selecionou manualmente o local, usa as coords fixas do local
+    if (!coords && manualLocal) {
+      coords = { lat: manualLocal.lat, lng: manualLocal.lng, accuracy: 0 };
+      const det = detectarLocal(coords.lat, coords.lng, 5000);
+      local = det ?? null;
+    }
+
+    // Se tem coords mas nenhum local dentro de 200m, tenta ampliar para 1km para exibição
     if (coords && !local) {
       local = detectarLocal(coords.lat, coords.lng, 1000) ?? null;
     }
@@ -363,14 +392,32 @@ Axé!`
     if (gpsStatus === 'ok' && localDetectado) return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: '#16a34a', flexWrap: 'wrap' }}>
         <span>📍</span>
-        <span><strong>{localDetectado.local.nome}</strong> — {localDetectado.local.endereco}</span>
-        <span style={{ color: 'var(--text-secondary)' }}>({Math.round(localDetectado.distMetros)}m de distância)</span>
+        <div>
+          <span><strong>{localDetectado.local.nome}</strong> — {localDetectado.local.endereco}</span>
+          <div style={{ display: 'flex', gap: 8, marginTop: 2, flexWrap: 'wrap' }}>
+            <span style={{ color: 'var(--text-secondary)' }}>{Math.round(localDetectado.distMetros)}m do local</span>
+            {coordsRaw && (
+              <span style={{ color: '#3b82f6' }}>
+                precisão ±{Math.round(coordsRaw.accuracy)}m
+                {coordsRaw.accuracy <= 20 ? ' ✓ excelente' : coordsRaw.accuracy <= 50 ? ' ✓ boa' : coordsRaw.accuracy <= 100 ? ' razoável' : ' baixa'}
+              </span>
+            )}
+          </div>
+        </div>
       </div>
     );
     if (gpsStatus === 'ok' && !localDetectado) return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-        <span>📍</span> GPS detectado — local não identificado
-        <button onClick={iniciarGPS} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline' }}>Tentar novamente</button>
+        <span>📍</span>
+        <div>
+          <span>GPS detectado — fora do raio dos locais cadastrados</span>
+          {coordsRaw && (
+            <div style={{ fontSize: '0.72rem', color: '#3b82f6', marginTop: 2 }}>
+              {coordsRaw.lat.toFixed(6)}, {coordsRaw.lng.toFixed(6)} · precisão ±{Math.round(coordsRaw.accuracy)}m
+            </div>
+          )}
+        </div>
+        <button onClick={iniciarGPS} style={{ background: 'none', border: 'none', color: '#3b82f6', cursor: 'pointer', fontSize: '0.75rem', textDecoration: 'underline', flexShrink: 0 }}>Atualizar</button>
       </div>
     );
     if (gpsStatus === 'negado') return (
