@@ -1161,30 +1161,41 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 2 }}>
                             {c.graduacao} · {c.nucleo}
                           </div>
-                          {c.local_nome && (
-                            <a
-                              href={c.local_map_url || '#'}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.74rem', color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}
-                            >
-                              📍 {c.local_nome}
-                              {c.local_endereco && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>— {c.local_endereco}</span>}
-                            </a>
-                          )}
-                          {!c.local_nome && c.lat && c.lng && (
+                          {/* Location display — always show GPS link when coords exist */}
+                          {c.local_nome ? (
+                            <div style={{ marginTop: 4 }}>
+                              <a
+                                href={c.lat && c.lng ? `https://maps.google.com/?q=${c.lat},${c.lng}` : (c.local_map_url || '#')}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.74rem', color: '#3b82f6', textDecoration: 'none', fontWeight: 600 }}
+                              >
+                                📍 {c.local_nome}
+                                {c.local_endereco && <span style={{ fontWeight: 400, color: 'var(--text-secondary)' }}>— {c.local_endereco}</span>}
+                              </a>
+                              {c.lat && c.lng && (
+                                <a
+                                  href={`https://maps.google.com/?q=${c.lat},${c.lng}`}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  style={{ display: 'block', fontSize: '0.68rem', color: '#0ea5e9', marginTop: 2, textDecoration: 'none' }}
+                                >
+                                  📡 GPS: {c.lat.toFixed(5)}, {c.lng.toFixed(5)} · Ver exato →
+                                </a>
+                              )}
+                            </div>
+                          ) : c.lat && c.lng ? (
                             <a
                               href={`https://maps.google.com/?q=${c.lat},${c.lng}`}
                               target="_blank"
                               rel="noopener noreferrer"
-                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.74rem', color: '#f59e0b', textDecoration: 'none' }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.74rem', color: '#0ea5e9', textDecoration: 'none', fontWeight: 600 }}
                             >
-                              📍 Ver no mapa ({c.lat?.toFixed(4)}, {c.lng?.toFixed(4)})
+                              📡 Ver GPS no mapa ({c.lat.toFixed(4)}, {c.lng.toFixed(4)}) →
                             </a>
-                          )}
-                          {!c.local_nome && !c.lat && (
+                          ) : (
                             <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 4, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                              📍 Localização não disponível
+                              📍 GPS não disponível
                             </span>
                           )}
                         </div>

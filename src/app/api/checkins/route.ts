@@ -79,6 +79,13 @@ export async function POST(req: Request) {
     }
   }
 
+  // Build fallback Google Maps URL from GPS coords if no venue URL was provided
+  const lat = student.lat ?? null;
+  const lng = student.lng ?? null;
+  const fallbackMapUrl = (lat !== null && lng !== null)
+    ? `https://maps.google.com/?q=${lat},${lng}`
+    : null;
+
   const record = {
     student_id:     student.id,
     nome_completo:  student.nome_completo,
@@ -91,9 +98,9 @@ export async function POST(req: Request) {
     // Localização
     local_nome:     student.local_nome || null,
     local_endereco: student.local_endereco || null,
-    local_map_url:  student.local_map_url || null,
-    lat:            student.lat ?? null,
-    lng:            student.lng ?? null,
+    local_map_url:  student.local_map_url || fallbackMapUrl,
+    lat,
+    lng,
   };
 
   const blob = new Blob([JSON.stringify(record)], { type: 'application/json' });

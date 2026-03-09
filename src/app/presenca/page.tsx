@@ -202,10 +202,13 @@ export default function PresencaPage() {
     let coords = coordsRaw; // usa o que já foi capturado na abertura da página
     let local = localDetectado;
     if (!coords) {
-      // Tenta capturar agora se ainda não tiver
+      // Tenta capturar agora se ainda não tiver — com timeout generoso
       try {
-        const pos = await capturarGPS();
-        coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        const pos = await Promise.race([
+          capturarGPS(15000),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('GPS timeout')), 15000)),
+        ]);
+        coords = { lat: (pos as GeolocationPosition).coords.latitude, lng: (pos as GeolocationPosition).coords.longitude };
         local = detectarLocal(coords.lat, coords.lng);
         setCoordsRaw(coords);
         setLocalDetectado(local);
@@ -214,14 +217,21 @@ export default function PresencaPage() {
         // GPS não disponível — continua sem localização
       }
     }
+    // Even if no venue matched, try nearest venue within 1km for display purposes
+    if (coords && !local) {
+      local = detectarLocal(coords.lat, coords.lng, 1000) ?? null;
+    }
 
     if (!navigator.onLine) {
       // Salva na fila offline com as coordenadas capturadas
+      const gpsMapUrlOffline = coords
+        ? `https://maps.google.com/?q=${coords.lat},${coords.lng}`
+        : null;
       const entry = {
         student, date: dateKey, hora,
         localNome: local?.local.nome ?? null,
         localEndereco: local?.local.endereco ?? null,
-        localMapUrl: local?.local.mapUrl ?? null,
+        localMapUrl: local?.local.mapUrl ?? gpsMapUrlOffline,
         lat: coords?.lat ?? null,
         lng: coords?.lng ?? null,
       };
@@ -236,11 +246,17 @@ export default function PresencaPage() {
       return;
     }
 
+    // Build Google Maps URL from real GPS coords when available
+    const gpsMapUrl = coords
+      ? `https://maps.google.com/?q=${coords.lat},${coords.lng}`
+      : null;
+
     const result = await registerCheckin({
       ...student,
       local_nome: local?.local.nome ?? null,
       local_endereco: local?.local.endereco ?? null,
-      local_map_url: local?.local.mapUrl ?? null,
+      // Prefer venue map URL; fall back to real GPS coords map URL
+      local_map_url: local?.local.mapUrl ?? gpsMapUrl,
       lat: coords?.lat ?? null,
       lng: coords?.lng ?? null,
     });
@@ -585,21 +601,45 @@ Axé!`
               </div>
 
               {/* Local */}
-              {success.localDetectado && (
+              {(success.localDetectado || success.coords) && (
                 <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Local do Treino</div>
-                  <a
-                    href={success.localDetectado.local.mapUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
-                  >
-                    <span>📍</span>
-                    <div>
-                      <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{success.localDetectado.local.nome}</div>
-                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{success.localDetectado.local.endereco}</div>
-                    </div>
-                  </a>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Localização GPS</div>
+                  {success.localDetectado ? (
+                    <a
+                      href={success.coords
+                        ? `https://maps.google.com/?q=${success.coords.lat},${success.coords.lng}`
+                        : success.localDetectado.local.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
+                    >
+                      <span>📍</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{success.localDetectado.local.nome}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{success.localDetectado.local.endereco}</div>
+                        {success.coords && (
+                          <div style={{ fontSize: '0.72rem', color: '#3b82f6', marginTop: 2 }}>
+                            📡 {success.coords.lat.toFixed(6)}, {success.coords.lng.toFixed(6)} · Ver no Google Maps →
+                          </div>
+                        )}
+                      </div>
+                    </a>
+                  ) : success.coords ? (
+                    <a
+                      href={`https://maps.google.com/?q=${success.coords.lat},${success.coords.lng}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
+                    >
+                      <span>📡</span>
+                      <div>
+                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Localização capturada</div>
+                        <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>
+                          {success.coords.lat.toFixed(6)}, {success.coords.lng.toFixed(6)} · Ver no Google Maps →
+                        </div>
+                      </div>
+                    </a>
+                  ) : null}
                 </div>
               )}
 
