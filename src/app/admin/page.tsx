@@ -1788,7 +1788,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fbbf24', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                {showCarteirinha ? 'Ocultar Carteirinha' : 'Gerar Carteirinha'}
+                {showCarteirinha ? 'Ocultar Credencial' : 'Credencial do Aluno'}
               </button>
               {showCarteirinha && (
                 <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12 }}>
