@@ -317,20 +317,24 @@ export default function PresencaPage() {
     if (!s) return '';
     const phone = s.student.telefone.replace(/\D/g, '');
     const br = phone.startsWith('55') ? phone : `55${phone}`;
-    const c = s.coords; // usa coordenadas capturadas no momento do registro
+
+    // Prioriza as coordenadas FIXAS do local de treino confirmado (preciso e correto)
+    // Usa GPS bruto só como fallback quando não há local de treino identificado
+    const loc = s.localDetectado?.local ?? null;
+    const mapsLat = loc ? loc.lat : s.coords?.lat;
+    const mapsLng = loc ? loc.lng : s.coords?.lng;
 
     let localInfo = '';
-    if (s.localDetectado && c) {
-      const mapsLink = `https://maps.google.com/?q=${c.lat},${c.lng}`;
+    if (loc && mapsLat !== undefined && mapsLng !== undefined) {
+      const mapsLink = `https://maps.google.com/?q=${mapsLat},${mapsLng}`;
       localInfo =
-        `\n🏟 *Local:* ${s.localDetectado.local.nome}` +
-        `\n🗺 *Endereço:* ${s.localDetectado.local.endereco}` +
-        `\n📡 *GPS:* ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
+        `\n🏟 *Local:* ${loc.nome}` +
+        `\n🗺 *Endereço:* ${loc.endereco}` +
         `\n🔗 ${mapsLink}`;
-    } else if (c) {
-      const mapsLink = `https://maps.google.com/?q=${c.lat},${c.lng}`;
+    } else if (s.coords) {
+      const mapsLink = `https://maps.google.com/?q=${s.coords.lat},${s.coords.lng}`;
       localInfo =
-        `\n📡 *GPS em tempo real:* ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
+        `\n📡 *GPS:* ${s.coords.lat.toFixed(6)}, ${s.coords.lng.toFixed(6)}` +
         `\n🔗 ${mapsLink}`;
     }
 
@@ -352,15 +356,15 @@ _Axé! 🤸_`
   const buildEmailLink = (s: typeof success) => {
     if (!s) return '';
     const subject = encodeURIComponent('Comprovante de Presença — Capoeira Barão de Mauá');
-    const c = s.coords;
+    const loc = s.localDetectado?.local ?? null;
     let localInfo = '';
-    if (s.localDetectado && c) {
-      localInfo = `\nLocal: ${s.localDetectado.local.nome} — ${s.localDetectado.local.endereco}` +
-        `\nGPS: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
-        `\nMapa: https://maps.google.com/?q=${c.lat},${c.lng}`;
-    } else if (c) {
-      localInfo = `\nGPS: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
-        `\nMapa: https://maps.google.com/?q=${c.lat},${c.lng}`;
+    if (loc) {
+      const mapsLink = `https://maps.google.com/?q=${loc.lat},${loc.lng}`;
+      localInfo = `\nLocal: ${loc.nome} — ${loc.endereco}` +
+        `\nMapa: ${mapsLink}`;
+    } else if (s.coords) {
+      localInfo = `\nGPS: ${s.coords.lat.toFixed(6)}, ${s.coords.lng.toFixed(6)}` +
+        `\nMapa: https://maps.google.com/?q=${s.coords.lat},${s.coords.lng}`;
     }
     const body = encodeURIComponent(
 `Presença Registrada!
