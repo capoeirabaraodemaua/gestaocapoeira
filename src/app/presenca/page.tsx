@@ -705,47 +705,50 @@ Axé!`
               </div>
 
               {/* Local */}
-              {(success.localDetectado || success.coords) && (
-                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
-                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Localização GPS</div>
-                  {success.localDetectado ? (
-                    <a
-                      href={success.coords
-                        ? `https://maps.google.com/?q=${success.coords.lat},${success.coords.lng}`
-                        : success.localDetectado.local.mapUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
-                    >
-                      <span>📍</span>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{success.localDetectado.local.nome}</div>
-                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{success.localDetectado.local.endereco}</div>
-                        {success.coords && (
-                          <div style={{ fontSize: '0.72rem', color: '#3b82f6', marginTop: 2 }}>
-                            📡 {success.coords.lat.toFixed(6)}, {success.coords.lng.toFixed(6)} · Ver no Google Maps →
-                          </div>
-                        )}
-                      </div>
-                    </a>
-                  ) : success.coords ? (
-                    <a
-                      href={`https://maps.google.com/?q=${success.coords.lat},${success.coords.lng}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
-                    >
-                      <span>📡</span>
-                      <div>
-                        <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Localização capturada</div>
-                        <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>
-                          {success.coords.lat.toFixed(6)}, {success.coords.lng.toFixed(6)} · Ver no Google Maps →
+              {(success.localDetectado || success.coords) && (() => {
+                const loc = success.localDetectado?.local ?? null;
+                // Sempre usa as coords fixas do local de treino para o mapa — são precisas e corretas
+                const mapLat = loc ? loc.lat : success.coords?.lat;
+                const mapLng = loc ? loc.lng : success.coords?.lng;
+                const mapsHref = mapLat !== undefined && mapLng !== undefined
+                  ? `https://maps.google.com/?q=${mapLat},${mapLng}`
+                  : null;
+                return (
+                  <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Local do Treino</div>
+                    {loc ? (
+                      <a
+                        href={mapsHref ?? loc.mapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        <span>📍</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>{loc.nome}</div>
+                          <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{loc.endereco}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#3b82f6', marginTop: 2 }}>Ver no Google Maps →</div>
                         </div>
-                      </div>
-                    </a>
-                  ) : null}
-                </div>
-              )}
+                      </a>
+                    ) : success.coords ? (
+                      <a
+                        href={mapsHref!}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 7, color: '#3b82f6', textDecoration: 'none' }}
+                      >
+                        <span>📡</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Localização capturada</div>
+                          <div style={{ fontSize: '0.75rem', color: '#3b82f6' }}>
+                            {success.coords.lat.toFixed(6)}, {success.coords.lng.toFixed(6)} · Ver no Google Maps →
+                          </div>
+                        </div>
+                      </a>
+                    ) : null}
+                  </div>
+                );
+              })()}
 
               <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid var(--border)', textAlign: 'center', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
                 Associação Cultural de Capoeira Barão de Mauá · Axé!
