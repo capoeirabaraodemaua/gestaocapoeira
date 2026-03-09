@@ -151,10 +151,16 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
     setSentSet(new Set()); setSendModal({tab, text});
   };
 
+  const hasPhone = (s: SimpleStudent) => !!(s.telefone && s.telefone.replace(/\D/g,'').length >= 8);
+  const normalNucleo = (n: string | null | undefined) =>
+    (n || '').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().trim();
+
   const studentsFor = (tab: NucleoTab): SimpleStudent[] => {
-    if (!students.length) return studentPhone ? [{id:'single',nome_completo:studentName||'Aluno',telefone:studentPhone,nucleo:null}] : [];
-    if (tab === 'geral') return students.filter(s=>s.telefone);
-    return students.filter(s=>s.nucleo===(tab==='maua'?'Mauá':'Saracuruna') && s.telefone);
+    if (!students.length) return (studentPhone && studentPhone.replace(/\D/g,'').length >= 8)
+      ? [{id:'single',nome_completo:studentName||'Aluno',telefone:studentPhone,nucleo:null}] : [];
+    if (tab === 'geral') return students.filter(hasPhone);
+    const target = tab === 'maua' ? 'maua' : 'saracuruna';
+    return students.filter(s => normalNucleo(s.nucleo) === target && hasPhone(s));
   };
 
   const waLink = (phone: string, text: string) => {
@@ -208,22 +214,22 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
             {downloading==='estatuto' ? 'Baixando...' : 'Estatuto Social'}
             {downloading!=='estatuto' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          {/* Upload — protegido por CPF */}
-          {unlocked && (
-            <>
-              <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
-                {uploading==='estatuto' ? (
-                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-                ) : upOk==='estatuto' ? (
-                  <>✓ Arquivo salvo com sucesso!</>
-                ) : (
-                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-                )}
-              </button>
-              <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
-            </>
-          )}
+          {/* Upload — sempre visível; protegido por CPF se não desbloqueado */}
+          <>
+            <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
+              {uploading==='estatuto' ? (
+                <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+              ) : upOk==='estatuto' ? (
+                <>✓ Arquivo salvo com sucesso!</>
+              ) : unlocked ? (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+              ) : (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{estName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
+              )}
+            </button>
+            <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+              onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
+          </>
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
             {estName ? <span style={{color:'#dc262688'}}>📄 {estName}{estSize?` · ${fmt(estSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
@@ -240,21 +246,22 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
             {downloading==='regimento' ? 'Baixando...' : 'Regimento Interno'}
             {downloading!=='regimento' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          {unlocked && (
-            <>
-              <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
-                {uploading==='regimento' ? (
-                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-                ) : upOk==='regimento' ? (
-                  <>✓ Arquivo salvo com sucesso!</>
-                ) : (
-                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-                )}
-              </button>
-              <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
-            </>
-          )}
+          {/* Upload — sempre visível; protegido por CPF se não desbloqueado */}
+          <>
+            <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
+              {uploading==='regimento' ? (
+                <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+              ) : upOk==='regimento' ? (
+                <>✓ Arquivo salvo com sucesso!</>
+              ) : unlocked ? (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+              ) : (
+                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{regName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
+              )}
+            </button>
+            <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+              onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
+          </>
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
             {regName ? <span style={{color:'#1d4ed888'}}>📄 {regName}{regSize?` · ${fmt(regSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
