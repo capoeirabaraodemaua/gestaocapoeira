@@ -29,6 +29,19 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string; email?: string }>({});
   const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean; email?: boolean }>({});
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [adminSenha, setAdminSenha] = useState('');
+  const [adminErro, setAdminErro] = useState('');
+  const ADMIN_SENHA = '09856925703';
+
+  function handleAdminAccess() {
+    if (adminSenha === ADMIN_SENHA) {
+      window.location.href = '/admin';
+    } else {
+      setAdminErro('Senha incorreta. Acesso negado.');
+      setAdminSenha('');
+    }
+  }
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -961,6 +974,94 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </a>
         </div>
       </footer>
+
+      {/* Botão Painel Administrativo */}
+      <button
+        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminSenha(''); }}
+        style={{
+          position: 'fixed',
+          bottom: '20px',
+          left: '20px',
+          background: 'rgba(0,0,0,0.6)',
+          color: '#ccc',
+          border: '1px solid rgba(255,255,255,0.15)',
+          borderRadius: '8px',
+          padding: '8px 14px',
+          fontSize: '11px',
+          cursor: 'pointer',
+          zIndex: 9999,
+          backdropFilter: 'blur(4px)',
+          letterSpacing: '0.03em',
+        }}
+      >
+        🔒 Painel Administrativo
+      </button>
+
+      {/* Modal de senha */}
+      {adminModalOpen && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 10000,
+          }}
+          onClick={(e) => { if (e.target === e.currentTarget) setAdminModalOpen(false); }}
+        >
+          <div style={{
+            background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)',
+            borderRadius: '12px', padding: '32px', width: '320px',
+            display: 'flex', flexDirection: 'column', gap: '16px',
+          }}>
+            <div style={{ textAlign: 'center', fontSize: '28px' }}>🔐</div>
+            <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '16px', fontWeight: 600 }}>
+              Painel Administrativo
+            </h2>
+            <p style={{ color: '#aaa', textAlign: 'center', margin: 0, fontSize: '13px' }}>
+              Digite a senha para acessar
+            </p>
+            <input
+              type="password"
+              value={adminSenha}
+              onChange={e => { setAdminSenha(e.target.value); setAdminErro(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
+              placeholder="Senha"
+              autoFocus
+              style={{
+                background: '#111', border: '1px solid rgba(255,255,255,0.2)',
+                borderRadius: '8px', padding: '10px 14px', color: '#fff',
+                fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box',
+              }}
+            />
+            {adminErro && (
+              <p style={{ color: '#f87171', textAlign: 'center', margin: 0, fontSize: '13px' }}>
+                {adminErro}
+              </p>
+            )}
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={() => setAdminModalOpen(false)}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px',
+                  background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
+                  color: '#aaa', cursor: 'pointer', fontSize: '14px',
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                onClick={handleAdminAccess}
+                style={{
+                  flex: 1, padding: '10px', borderRadius: '8px',
+                  background: '#2563eb', border: 'none',
+                  color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
+                }}
+              >
+                Entrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </>
     );
