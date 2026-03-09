@@ -153,7 +153,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
   };
 
   // ── Download handler (from Supabase — works for ALL users) ───────────────
-  const doDownload = async (key: string, which: 'estatuto'|'regimento') => {
+  const doDownload = async (key: string, which: 'estatuto'|'regimento'|'bio_frazao'|'bio_naldo') => {
     setDownloading(which);
     try {
       await downloadDocFile(key);

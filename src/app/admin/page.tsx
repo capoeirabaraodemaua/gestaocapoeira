@@ -126,7 +126,7 @@ function saveProfiles(profiles: Profile[]) {
 // ── GPS Map component (Leaflet, loaded dynamically) ──────────────────────────
 function GpsMap({ checkins, containerRef, leafletMapRef }: {
   checkins: CheckinRecord[];
-  containerRef: React.RefObject<HTMLDivElement>;
+  containerRef: React.RefObject<HTMLDivElement | null>;
   leafletMapRef: React.MutableRefObject<any>;
 }) {
   const withGps = checkins.filter(c => c.lat && c.lng);
