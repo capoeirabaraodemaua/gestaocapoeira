@@ -68,22 +68,67 @@ function CarteirinhaContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const imprimir = () => {
+  const [generating, setGenerating] = useState(false);
+
+  const captureCanvas = async () => {
     const el = cardRef.current;
-    if (!el || !data) return;
-    const win = window.open('', '_blank');
-    if (!win) return;
-    win.document.write(`<!DOCTYPE html>
-      <html><head><meta charset="utf-8"><title>Carteirinha — ${data.nome}</title>
-      <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
-        @page { size: A6 landscape; margin: 6mm; }
-        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }
-        @media print { body { padding:0; } }
-      </style>
-      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500);}<\/script></body></html>
-    `);
-    win.document.close();
+    if (!el || !data) return null;
+    const html2canvas = (await import('html2canvas')).default;
+    return html2canvas(el, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+  };
+
+  const imprimir = async () => {
+    setGenerating(true);
+    try {
+      const canvas = await captureCanvas();
+      if (!canvas) return;
+      const imgData = canvas.toDataURL('image/png');
+      const win = window.open('', '_blank');
+      if (!win) {
+        // fallback: download direto
+        const a = document.createElement('a');
+        a.href = imgData;
+        a.download = `credencial-${data!.nome.split(' ')[0].toLowerCase()}.png`;
+        a.click();
+        return;
+      }
+      win.document.write(`<!DOCTYPE html>
+        <html><head><meta charset="utf-8"><title>Credencial — ${data!.nome}</title>
+        <style>
+          * { margin:0; padding:0; box-sizing:border-box; }
+          @page { size: A6 landscape; margin: 4mm; }
+          html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; }
+          img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+          @media print { html,body { margin:0; padding:0; } }
+        </style>
+        </head><body><img src="${imgData}" /><script>window.onload=()=>{window.print();setTimeout(()=>window.close(),2500);}<\/script></body></html>
+      `);
+      win.document.close();
+    } finally {
+      setGenerating(false);
+    }
+  };
+
+  const baixarPng = async () => {
+    setGenerating(true);
+    try {
+      const canvas = await captureCanvas();
+      if (!canvas) return;
+      const a = document.createElement('a');
+      a.href = canvas.toDataURL('image/png');
+      a.download = `credencial-accbm-${data!.nome.split(' ')[0].toLowerCase()}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+    } finally {
+      setGenerating(false);
+    }
   };
 
   return (
@@ -139,12 +184,23 @@ function CarteirinhaContent() {
             <Carteirinha data={data} />
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {/* Imprimir / PDF */}
             <button
               onClick={imprimir}
-              style={{ padding: '11px 28px', background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: 8 }}
+              disabled={generating}
+              style={{ padding: '11px 22px', background: generating ? 'rgba(255,255,255,0.06)' : 'rgba(255,255,255,0.14)', border: '1px solid rgba(255,255,255,0.25)', color: '#fff', borderRadius: 10, cursor: generating ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: 8, opacity: generating ? 0.7 : 1 }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              Imprimir / Salvar PDF
+              {generating ? 'Gerando...' : 'Imprimir / Salvar PDF'}
+            </button>
+            {/* Download PNG — alternativa para mobile */}
+            <button
+              onClick={baixarPng}
+              disabled={generating}
+              style={{ padding: '11px 22px', background: generating ? 'rgba(29,78,216,0.1)' : 'rgba(29,78,216,0.25)', border: '1px solid rgba(29,78,216,0.5)', color: '#93c5fd', borderRadius: 10, cursor: generating ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: 8, opacity: generating ? 0.7 : 1 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              {generating ? 'Gerando...' : 'Salvar Imagem'}
             </button>
             <button
               onClick={() => { setData(null); setCpf(''); setError(''); }}
