@@ -220,6 +220,16 @@ export default function AdminPage() {
   });
   const [certSearch, setCertSearch] = useState('');
   const [certFilteredStudents, setCertFilteredStudents] = useState<Student[]>([]);
+  const [certTemplateUrl, setCertTemplateUrl] = useState<string | null>(null);
+  const [certTemplateName, setCertTemplateName] = useState<string | null>(null);
+  const certTemplateInputRef = useRef<HTMLInputElement>(null);
+
+  // ── Offline sync validation state ──────────────────────────────────────────
+  const OFFLINE_QUEUE_KEY = 'accbm_offline_checkins';
+  const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
+  const [syncingOffline, setSyncingOffline] = useState(false);
+  const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'maua' | 'saracuruna'>('todos');
 
   const printAdminCard = (nome: string) => {
     const el = adminCardRef.current;
@@ -235,6 +245,11 @@ export default function AdminPage() {
   useEffect(() => {
     fetchStudents();
     fetchPresencas();
+    // Load offline queue for admin validation
+    try {
+      const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
+      if (raw) setOfflinePending(JSON.parse(raw));
+    } catch {}
   }, []);
 
   const fetchStudents = async () => {
@@ -372,6 +387,29 @@ export default function AdminPage() {
     const hist = await getHistorico(dias);
     setRelatorioHistorico(hist);
     setLoadingRelatorio(false);
+  };
+
+  const syncAllOfflineNow = async () => {
+    if (!offlinePending.length) return;
+    setSyncingOffline(true);
+    let ok = 0; let fail = 0;
+    const remaining: typeof offlinePending = [];
+    for (const item of offlinePending) {
+      try {
+        const res = await fetch('/api/checkins', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ student: item.student, date: item.date }),
+        });
+        if (res.ok) { ok++; } else { fail++; remaining.push(item); }
+      } catch { fail++; remaining.push(item); }
+    }
+    setOfflinePending(remaining);
+    try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(remaining)); } catch {}
+    setSyncingOffline(false);
+    setSyncOfflineResult({ ok, fail });
+    setTimeout(() => setSyncOfflineResult(null), 6000);
+    if (ok > 0) fetchPresencas(false, offlinePending[0]?.date);
   };
 
   const confirmRemoveCheckin = async () => {
@@ -967,108 +1005,132 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         )}
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
-        // Build ranking data from relatorioHistorico
-        const rankData = students.map(s => {
+        // Núcleo filter
+        const rankNucleoLabel = rankingNucleoTab === 'maua' ? 'Mauá' : rankingNucleoTab === 'saracuruna' ? 'Saracuruna' : null;
+        const rankStudents = rankNucleoLabel ? students.filter(s => s.nucleo === rankNucleoLabel) : students;
+
+        const rankData = rankStudents.map(s => {
           const dias = relatorioHistorico[s.id] || [];
-          return { student: s, presencas: dias.length, pct: Math.round((dias.length / relDias) * 100) };
+          return { student: s, presencas: dias.length, pct: Math.round((dias.length / Math.max(relDias, 1)) * 100) };
         });
         const topPresentes = [...rankData].sort((a,b) => b.presencas - a.presencas).slice(0, 15);
         const topFaltas = [...rankData].sort((a,b) => a.presencas - b.presencas).slice(0, 15);
         const medalColors = ['#fbbf24','#94a3b8','#b45309'];
         const medal = (i: number) => i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `${i+1}º`;
+
+        const RankItem = ({ item, i, mode }: { item: typeof rankData[0]; i: number; mode: 'presenca' | 'falta' }) => (
+          <div style={{
+            display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
+            background: mode === 'presenca' && i < 3 ? ['rgba(251,191,36,0.1)','rgba(148,163,184,0.1)','rgba(180,83,9,0.08)'][i] : 'var(--bg-input)',
+            border: `1px solid ${mode === 'presenca' && i < 3 ? ['rgba(251,191,36,0.35)','rgba(148,163,184,0.3)','rgba(180,83,9,0.25)'][i] : 'var(--border)'}`,
+          }}>
+            <div style={{ fontSize: mode === 'presenca' && i < 3 ? '1.3rem' : '0.85rem', fontWeight: 700, minWidth: 30, textAlign: 'center', color: mode === 'presenca' && i < 3 ? medalColors[i] : 'var(--text-secondary)' }}>
+              {mode === 'presenca' ? medal(i) : `${i+1}º`}
+            </div>
+            {item.student.foto_url
+              ? <img src={item.student.foto_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+              : <div style={{ width: 34, height: 34, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                </div>
+            }
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
+              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                {item.student.graduacao}
+                {rankingNucleoTab === 'todos' && <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: item.student.nucleo === 'Mauá' ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)', color: item.student.nucleo === 'Mauá' ? '#dc2626' : '#16a34a' }}>{item.student.nucleo || '—'}</span>}
+              </div>
+            </div>
+            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: mode === 'presenca' ? '#16a34a' : '#dc2626' }}>
+                {mode === 'presenca' ? item.presencas : relDias - item.presencas}
+              </div>
+              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>{mode === 'presenca' ? `${item.pct}%` : `${item.presencas} pres.`}</div>
+            </div>
+          </div>
+        );
+
         return (
           <div>
-            <div style={{ display: 'flex', gap: 10, marginBottom: 20, flexWrap: 'wrap', alignItems: 'center' }}>
-              <span style={{ color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Período:</span>
-              {[7, 15, 30, 60].map(d => (
-                <button key={d} onClick={() => { setRelDias(d); fetchRelatorio(d); }}
-                  style={{ padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: relDias === d ? 700 : 500,
-                    background: relDias === d ? 'linear-gradient(135deg,var(--accent),#b0452a)' : 'var(--bg-input)',
-                    border: relDias === d ? 'none' : '1px solid var(--border)',
-                    color: relDias === d ? '#fff' : 'var(--text-secondary)' }}
-                >{d} dias</button>
-              ))}
-              <button onClick={() => fetchRelatorio(relDias)} disabled={loadingRelatorio}
-                style={{ marginLeft: 'auto', background: 'var(--bg-input)', border: '1px solid var(--border)', color: loadingRelatorio ? '#16a34a' : 'var(--text-secondary)', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                <span style={{ display: 'inline-block', animation: loadingRelatorio ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
-                {loadingRelatorio ? 'Carregando...' : 'Atualizar'}
-              </button>
+            {/* Offline pending alert */}
+            {offlinePending.length > 0 && (
+              <div style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.45)', borderRadius: 12, padding: '12px 16px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                <span style={{ fontSize: '1.2rem' }}>☁️</span>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#b45309' }}>
+                    {offlinePending.length} presença(s) offline pendentes de validação
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                    Registradas sem internet pelos alunos. Clique em "Validar e Sincronizar" para computar no painel.
+                  </div>
+                  {syncOfflineResult && (
+                    <div style={{ marginTop: 6, fontSize: '0.8rem', fontWeight: 700, color: syncOfflineResult.fail === 0 ? '#16a34a' : '#b45309' }}>
+                      {syncOfflineResult.fail === 0 ? `✅ ${syncOfflineResult.ok} sincronizada(s) com sucesso!` : `⚠ ${syncOfflineResult.ok} ok, ${syncOfflineResult.fail} falhou.`}
+                    </div>
+                  )}
+                </div>
+                <button onClick={syncAllOfflineNow} disabled={syncingOffline}
+                  style={{ padding: '9px 16px', background: '#b45309', border: 'none', color: '#fff', borderRadius: 8, cursor: syncingOffline ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: syncingOffline ? 0.7 : 1 }}>
+                  {syncingOffline ? '⏳ Sincronizando...' : '✓ Validar e Sincronizar'}
+                </button>
+              </div>
+            )}
+
+            {/* Controls row */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              {/* Núcleo tabs */}
+              <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)' }}>
+                {([['todos', '🌐 Todos'], ['maua', '🔴 Mauá'], ['saracuruna', '🟢 Saracuruna']] as const).map(([key, label]) => (
+                  <button key={key} onClick={() => setRankingNucleoTab(key)}
+                    style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
+                      background: rankingNucleoTab === key ? (key === 'maua' ? '#dc2626' : key === 'saracuruna' ? '#16a34a' : '#1d4ed8') : 'transparent',
+                      color: rankingNucleoTab === key ? '#fff' : 'var(--text-secondary)',
+                      transition: 'all 0.15s' }}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+              {/* Period */}
+              <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
+                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Período:</span>
+                {[7, 15, 30, 60].map(d => (
+                  <button key={d} onClick={() => { setRelDias(d); fetchRelatorio(d); }}
+                    style={{ padding: '5px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.8rem', fontWeight: relDias === d ? 700 : 500,
+                      background: relDias === d ? 'var(--accent)' : 'var(--bg-input)',
+                      border: relDias === d ? 'none' : '1px solid var(--border)',
+                      color: relDias === d ? '#fff' : 'var(--text-secondary)' }}
+                  >{d}d</button>
+                ))}
+                <button onClick={() => fetchRelatorio(relDias)} disabled={loadingRelatorio}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: loadingRelatorio ? '#16a34a' : 'var(--text-secondary)', padding: '5px 10px', borderRadius: 8, cursor: 'pointer', fontSize: '0.8rem' }}>
+                  <span style={{ display: 'inline-block', animation: loadingRelatorio ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
+                </button>
+              </div>
             </div>
 
             {loadingRelatorio ? (
               <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando ranking...</div>
             ) : (
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 24 }}>
-
-                {/* Mais Presentes */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 24 }}>
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#16a34a', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    🏆 Mais Presentes — últimos {relDias} dias
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#16a34a', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    🏆 Mais Presentes — {relDias} dias
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>({rankStudents.length} alunos)</span>
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {topPresentes.map((item, i) => (
-                      <div key={item.student.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
-                        background: i < 3 ? `${['rgba(251,191,36,0.1)','rgba(148,163,184,0.1)','rgba(180,83,9,0.08)'][i]}` : 'var(--bg-input)',
-                        border: `1px solid ${i < 3 ? ['rgba(251,191,36,0.35)','rgba(148,163,184,0.3)','rgba(180,83,9,0.25)'][i] : 'var(--border)'}`,
-                      }}>
-                        <div style={{ fontSize: i < 3 ? '1.4rem' : '0.9rem', fontWeight: 700, minWidth: 32, textAlign: 'center', color: i < 3 ? medalColors[i] : 'var(--text-secondary)' }}>
-                          {medal(i)}
-                        </div>
-                        {item.student.foto_url
-                          ? <img src={item.student.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                          : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
-                            </div>
-                        }
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
-                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>{item.student.graduacao} · {item.student.nucleo || '—'}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#16a34a' }}>{item.presencas}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{item.pct}%</div>
-                        </div>
-                      </div>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {topPresentes.map((item, i) => <RankItem key={item.student.id} item={item} i={i} mode="presenca" />)}
                     {topPresentes.length === 0 && <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>Sem dados.</div>}
                   </div>
                 </div>
-
-                {/* Mais Faltas */}
                 <div>
-                  <h3 style={{ fontSize: '1rem', fontWeight: 800, color: '#dc2626', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-                    ⚠ Mais Faltas — últimos {relDias} dias
+                  <h3 style={{ fontSize: '0.95rem', fontWeight: 800, color: '#dc2626', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ⚠ Mais Faltas — {relDias} dias
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 500 }}>({rankStudents.length} alunos)</span>
                   </h3>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                    {topFaltas.map((item, i) => (
-                      <div key={item.student.id} style={{
-                        display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', borderRadius: 12,
-                        background: 'var(--bg-input)', border: '1px solid var(--border)',
-                      }}>
-                        <div style={{ fontSize: '0.9rem', fontWeight: 700, minWidth: 32, textAlign: 'center', color: 'var(--text-secondary)' }}>
-                          {i+1}º
-                        </div>
-                        {item.student.foto_url
-                          ? <img src={item.student.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                          : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-card)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
-                            </div>
-                        }
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
-                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>{item.student.graduacao} · {item.student.nucleo || '—'}</div>
-                        </div>
-                        <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#dc2626' }}>{relDias - item.presencas}</div>
-                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)' }}>{item.presencas} pres.</div>
-                        </div>
-                      </div>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+                    {topFaltas.map((item, i) => <RankItem key={item.student.id} item={item} i={i} mode="falta" />)}
                     {topFaltas.length === 0 && <div style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: 20 }}>Sem dados.</div>}
                   </div>
                 </div>
-
               </div>
             )}
           </div>
@@ -1085,14 +1147,28 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM', img: '/assinatura-naldo.png' })
           : null;
 
-        const printCertificado = () => {
+        const printCertificado = async () => {
           const el = certRef.current;
           if (!el || !certStudent) return;
           const pw = window.open('', '_blank');
           if (!pw) return;
+          // Embed template image as base64 if needed
+          let templateStyle = '';
+          if (certTemplateUrl && certTemplateName?.match(/\.(jpg|jpeg|png|webp|gif)$/i)) {
+            try {
+              const resp = await fetch(certTemplateUrl);
+              const blob = await resp.blob();
+              const b64 = await new Promise<string>(resolve => {
+                const reader = new FileReader();
+                reader.onload = () => resolve(reader.result as string);
+                reader.readAsDataURL(blob);
+              });
+              templateStyle = `background: url('${b64}') center/cover no-repeat !important;`;
+            } catch {}
+          }
           pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Certificado — ${certStudent.nome_completo}</title>
-            <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A4 landscape; margin: 10mm; } html,body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }</style>
-            </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script></body></html>`);
+            <style>* { margin:0; padding:0; box-sizing:border-box; } @page { size: A4 landscape; margin: 0; } html,body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Georgia,serif; } .cert-wrap { ${templateStyle} }</style>
+            </head><body><div class="cert-wrap">${el.innerHTML}</div><script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script></body></html>`);
           pw.document.close();
         };
 
@@ -1173,7 +1249,98 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 )}
 
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>2. Detalhes do Certificado</h3>
+                {/* Template import section */}
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>2. Modelo de Certificado (Opcional)</h3>
+                <div style={{ background: 'var(--bg-input)', border: '1.5px dashed var(--border)', borderRadius: 10, padding: '14px', marginBottom: 16 }}>
+                  <input ref={certTemplateInputRef} type="file" accept="image/*,.pdf" style={{ display: 'none' }}
+                    onChange={e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const url = URL.createObjectURL(file);
+                      setCertTemplateUrl(url);
+                      setCertTemplateName(file.name);
+                    }}
+                  />
+                  {certTemplateUrl ? (
+                    <div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                        <span style={{ fontSize: '1.2rem' }}>📄</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{certTemplateName}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Modelo carregado — será usado como fundo do certificado</div>
+                        </div>
+                        <button onClick={() => { setCertTemplateUrl(null); setCertTemplateName(null); if (certTemplateInputRef.current) certTemplateInputRef.current.value = ''; }}
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                          Remover
+                        </button>
+                      </div>
+                      {certTemplateUrl.startsWith('blob:') && (certTemplateName?.match(/\.(jpg|jpeg|png|webp|gif)$/i)) && (
+                        <img src={certTemplateUrl} alt="Template" style={{ width: '100%', maxHeight: 120, objectFit: 'contain', borderRadius: 6, border: '1px solid var(--border)' }} />
+                      )}
+                    </div>
+                  ) : (
+                    <div style={{ textAlign: 'center' }}>
+                      <div style={{ fontSize: '2rem', marginBottom: 6 }}>📂</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)', marginBottom: 4 }}>Importar modelo de certificado</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 10 }}>Imagem (JPG, PNG) ou PDF — será usado como fundo</div>
+                      <button onClick={() => certTemplateInputRef.current?.click()}
+                        style={{ padding: '9px 20px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                        Escolher Arquivo
+                      </button>
+                    </div>
+                  )}
+                  {/* Download blank template button */}
+                  <div style={{ marginTop: 12, paddingTop: 10, borderTop: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 8, justifyContent: 'center' }}>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Não tem um modelo?</span>
+                    <button onClick={() => {
+                      // Generate and download a blank A4 certificate template as SVG/HTML
+                      const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" width="297mm" height="210mm" viewBox="0 0 1122 794">
+                        <defs><linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="#fffef5"/><stop offset="100%" stop-color="#fefce8"/></linearGradient></defs>
+                        <rect width="1122" height="794" fill="url(#bg)"/>
+                        <rect x="0" y="0" width="1122" height="8" fill="#dc2626"/>
+                        <rect x="374" y="0" width="374" height="8" fill="#1d4ed8"/>
+                        <rect x="748" y="0" width="374" height="8" fill="#16a34a"/>
+                        <rect x="0" y="786" width="1122" height="8" fill="#16a34a"/>
+                        <rect x="374" y="786" width="374" height="8" fill="#1d4ed8"/>
+                        <rect x="748" y="786" width="374" height="8" fill="#dc2626"/>
+                        <rect x="30" y="20" width="50" height="50" fill="none" stroke="#b45309" stroke-width="3"/>
+                        <rect x="1042" y="20" width="50" height="50" fill="none" stroke="#b45309" stroke-width="3"/>
+                        <rect x="30" y="724" width="50" height="50" fill="none" stroke="#b45309" stroke-width="3"/>
+                        <rect x="1042" y="724" width="50" height="50" fill="none" stroke="#b45309" stroke-width="3"/>
+                        <rect x="50" y="50" width="1022" height="694" fill="none" stroke="#d6cfc3" stroke-width="1" stroke-dasharray="4,4"/>
+                        <text x="561" y="130" text-anchor="middle" font-family="Georgia" font-size="11" font-weight="bold" fill="#92400e" letter-spacing="3">ASSOCIAÇÃO CULTURAL DE CAPOEIRA BARÃO DE MAUÁ</text>
+                        <line x1="200" y1="155" x2="922" y2="155" stroke="#b45309" stroke-width="1"/>
+                        <text x="561" y="220" text-anchor="middle" font-family="Georgia" font-size="54" font-weight="bold" fill="#78350f" letter-spacing="6">CERTIFICADO</text>
+                        <text x="561" y="260" text-anchor="middle" font-family="Georgia" font-size="14" fill="#92400e" letter-spacing="3">EVENTO / NOME DO EVENTO AQUI</text>
+                        <line x1="200" y1="285" x2="922" y2="285" stroke="#b45309" stroke-width="1"/>
+                        <text x="561" y="330" text-anchor="middle" font-family="Georgia" font-size="14" fill="#78350f">Certificamos que</text>
+                        <text x="561" y="390" text-anchor="middle" font-family="Georgia" font-size="32" font-weight="bold" fill="#1a1a1a">NOME DO ALUNO</text>
+                        <text x="561" y="440" text-anchor="middle" font-family="Georgia" font-size="13" fill="#78350f">concluiu com êxito a graduação em Capoeira, recebendo a</text>
+                        <rect x="461" y="460" width="200" height="36" rx="6" fill="none" stroke="#b45309" stroke-width="1.5"/>
+                        <text x="561" y="483" text-anchor="middle" font-family="Georgia" font-size="14" font-weight="bold" fill="#78350f">GRADUAÇÃO / CORDA</text>
+                        <text x="561" y="540" text-anchor="middle" font-family="Georgia" font-size="12" fill="#92400e">LOCAL — DATA DO EVENTO</text>
+                        <line x1="361" y1="660" x2="561" y2="660" stroke="#1e3a8a" stroke-width="1.5"/>
+                        <text x="461" y="680" text-anchor="middle" font-family="Georgia" font-size="10" font-weight="bold" fill="#1e3a8a">ASSINATURA DO MESTRE</text>
+                        <text x="461" y="694" text-anchor="middle" font-family="Georgia" font-size="9" fill="#3b82f6">Presidente / Vice-Presidente — ACCBM</text>
+                      </svg>`;
+                      const blob = new Blob([svgContent], { type: 'image/svg+xml' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'modelo-certificado-ACCBM.svg';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '5px 12px', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                      Baixar modelo em branco
+                    </button>
+                  </div>
+                </div>
+
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>3. Detalhes do Certificado</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Graduação (editável)</label>
@@ -1223,9 +1390,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
               {/* Right: preview */}
               <div>
-                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>3. Pré-visualização</h3>
+                <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14 }}>4. Pré-visualização</h3>
                 <div ref={certRef} style={{
-                  background: 'linear-gradient(145deg, #fffef5 0%, #fefce8 100%)',
+                  background: certTemplateUrl && certTemplateName?.match(/\.(jpg|jpeg|png|webp|gif)$/i)
+                    ? `url("${certTemplateUrl}") center/cover no-repeat`
+                    : 'linear-gradient(145deg, #fffef5 0%, #fefce8 100%)',
                   border: '3px solid #b45309',
                   borderRadius: 8,
                   padding: '32px 28px',
