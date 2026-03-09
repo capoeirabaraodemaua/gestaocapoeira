@@ -70,9 +70,7 @@ function CarteirinhaContent() {
 
   const [generating, setGenerating] = useState(false);
 
-  const captureCanvas = async () => {
-    const el = cardRef.current;
-    if (!el || !data) return null;
+  const captureCanvas = async (el: HTMLElement) => {
     const html2canvas = (await import('html2canvas')).default;
     return html2canvas(el, {
       scale: 3,
@@ -84,22 +82,26 @@ function CarteirinhaContent() {
   };
 
   const imprimir = async () => {
+    const el = cardRef.current;
+    if (!el || !data) return;
     setGenerating(true);
     try {
-      const canvas = await captureCanvas();
-      if (!canvas) return;
+      const canvas = await captureCanvas(el);
       const imgData = canvas.toDataURL('image/png');
+      const nome = data.nome;
+      // Abre nova janela — se bloqueada pelo navegador, faz download direto
       const win = window.open('', '_blank');
       if (!win) {
-        // fallback: download direto
         const a = document.createElement('a');
         a.href = imgData;
-        a.download = `credencial-${data!.nome.split(' ')[0].toLowerCase()}.png`;
+        a.download = `credencial-accbm.png`;
+        document.body.appendChild(a);
         a.click();
+        document.body.removeChild(a);
         return;
       }
       win.document.write(`<!DOCTYPE html>
-        <html><head><meta charset="utf-8"><title>Credencial — ${data!.nome}</title>
+        <html><head><meta charset="utf-8"><title>Credencial — ${nome}</title>
         <style>
           * { margin:0; padding:0; box-sizing:border-box; }
           @page { size: A6 landscape; margin: 4mm; }
@@ -116,13 +118,14 @@ function CarteirinhaContent() {
   };
 
   const baixarPng = async () => {
+    const el = cardRef.current;
+    if (!el || !data) return;
     setGenerating(true);
     try {
-      const canvas = await captureCanvas();
-      if (!canvas) return;
+      const canvas = await captureCanvas(el);
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
-      a.download = `credencial-accbm-${data!.nome.split(' ')[0].toLowerCase()}.png`;
+      a.download = `credencial-accbm-${data.nome.split(' ')[0].toLowerCase()}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
