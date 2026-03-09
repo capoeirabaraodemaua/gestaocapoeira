@@ -366,12 +366,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
     const printWin = window.open('', '_blank');
     if (!printWin) return;
     printWin.document.write(`<!DOCTYPE html>
-      <html><head><meta charset="utf-8"><title>Carteirinha — ${nome}</title>
+      <html><head><meta charset="utf-8"><title>Credencial — ${nome}</title>
       <style>
-        * { margin:0; padding:0; box-sizing:border-box; }
+        * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
         @page { size: A6 landscape; margin: 6mm; }
-        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; }
-        @media print { body { padding:0; } }
+        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+        @media print { body { padding:0; } * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; } }
       </style>
       </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500);}<\/script></body></html>
     `);
