@@ -663,8 +663,11 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* ── Documentos ACCBM — after tabs ───────────────────────────────── */}
-        <DocumentsBar students={students.map(s => ({ id: s.id, nome_completo: s.nome_completo, telefone: s.telefone, nucleo: s.nucleo, email: (s as any).email }))} />
+        {/* ── Documentos ACCBM — after tabs (admin always unlocked) ────── */}
+        <DocumentsBar
+          adminAlwaysUnlocked
+          students={students.map(s => ({ id: s.id, nome_completo: s.nome_completo, telefone: s.telefone, nucleo: s.nucleo, email: (s as any).email }))}
+        />
 
         {activeTab === 'alunos' && (
           <div>
@@ -1828,6 +1831,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Documents bar for this student — single-student context */}
             <DocumentsBar
+              adminAlwaysUnlocked
               studentPhone={selected.telefone}
               studentName={selected.nome_completo.split(' ')[0]}
               students={[{ id: selected.id, nome_completo: selected.nome_completo, telefone: selected.telefone, nucleo: selected.nucleo, email: (selected as any).email }]}
