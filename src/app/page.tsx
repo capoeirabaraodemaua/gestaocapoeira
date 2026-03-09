@@ -370,8 +370,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       <style>
         * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
         @page { size: A6 landscape; margin: 6mm; }
-        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-        @media print { body { padding:0; } * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; } }
+        html, body { width:100%; height:100%; background:#1a1a2e; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+        @media print {
+          html, body { background:#1a1a2e !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+          * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
+          [style*="background"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+        }
+        div[style*="linear-gradient"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+        div[style*="background:"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
       </style>
       </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500);}<\/script></body></html>
     `);
