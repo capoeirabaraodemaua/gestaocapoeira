@@ -123,6 +123,131 @@ function saveProfiles(profiles: Profile[]) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── GPS Map component (Leaflet, loaded dynamically) ──────────────────────────
+function GpsMap({ checkins, containerRef, leafletMapRef }: {
+  checkins: CheckinRecord[];
+  containerRef: React.RefObject<HTMLDivElement>;
+  leafletMapRef: React.MutableRefObject<any>;
+}) {
+  const withGps = checkins.filter(c => c.lat && c.lng);
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+
+    // Load Leaflet CSS
+    if (!document.getElementById('leaflet-css')) {
+      const link = document.createElement('link');
+      link.id = 'leaflet-css';
+      link.rel = 'stylesheet';
+      link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css';
+      document.head.appendChild(link);
+    }
+
+    let destroyed = false;
+
+    import('leaflet').then(({ default: L }) => {
+      if (destroyed || !containerRef.current) return;
+
+      // Destroy previous map instance
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+
+      // Fix default icon paths for Next.js
+      // @ts-ignore
+      delete L.Icon.Default.prototype._getIconUrl;
+      L.Icon.Default.mergeOptions({
+        iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
+        iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+        shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+      });
+
+      const center: [number, number] = withGps.length > 0
+        ? [withGps[0].lat!, withGps[0].lng!]
+        : [-22.655, -43.1];
+
+      const map = L.map(containerRef.current, { zoomControl: true, scrollWheelZoom: false });
+      leafletMapRef.current = map;
+
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>',
+        maxZoom: 19,
+      }).addTo(map);
+
+      if (withGps.length === 0) {
+        map.setView(center, 13);
+        return;
+      }
+
+      const bounds: [number, number][] = [];
+
+      withGps.forEach(c => {
+        const isPending = (c as any)._offline_pending;
+        const color = isPending ? '#f59e0b' : '#16a34a';
+        const icon = L.divIcon({
+          className: '',
+          html: `<div style="width:34px;height:34px;border-radius:50%;background:${color};border:3px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.35);display:flex;align-items:center;justify-content:center;overflow:hidden;">${c.foto_url
+            ? `<img src="${c.foto_url}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"/>`
+            : `<svg xmlns='http://www.w3.org/2000/svg' width='18' height='18' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='2'><circle cx='12' cy='8' r='4'/><path d='M6 21v-2a6 6 0 0112 0v2'/></svg>`
+          }</div>`,
+          iconSize: [34, 34],
+          iconAnchor: [17, 34],
+        });
+
+        const localLine = c.local_nome ? `<br/>📍 ${c.local_nome}` : '';
+        const pendingLine = isPending ? '<br/><span style="color:#f59e0b;font-weight:700">⏳ Pendente sync</span>' : '';
+        L.marker([c.lat!, c.lng!], { icon })
+          .bindPopup(`<div style="font-family:Inter,sans-serif;min-width:160px"><div style="font-weight:700;font-size:0.92rem">${c.nome_completo}</div><div style="color:#64748b;font-size:0.78rem">${c.graduacao} · ${c.nucleo}</div><div style="font-size:0.8rem;margin-top:4px">🕐 ${c.hora}${localLine}${pendingLine}</div><a href="https://maps.google.com/?q=${c.lat},${c.lng}" target="_blank" style="display:inline-block;margin-top:6px;font-size:0.75rem;color:#3b82f6">Ver no Google Maps →</a></div>`)
+          .addTo(map);
+        bounds.push([c.lat!, c.lng!]);
+      });
+
+      if (bounds.length === 1) {
+        map.setView(bounds[0], 16);
+      } else {
+        map.fitBounds(bounds as any, { padding: [30, 30] });
+      }
+    }).catch(() => {});
+
+    return () => {
+      destroyed = true;
+      if (leafletMapRef.current) {
+        leafletMapRef.current.remove();
+        leafletMapRef.current = null;
+      }
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [checkins]);
+
+  const offlineCount = withGps.filter(c => (c as any)._offline_pending).length;
+  const onlineCount  = withGps.length - offlineCount;
+
+  return (
+    <div style={{ marginBottom: 20, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+      <div style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <span style={{ color: '#fff', fontWeight: 800, fontSize: '0.9rem' }}>🗺 Localização GPS em Tempo Real</span>
+          <span style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginLeft: 10 }}>
+            {withGps.length} de {checkins.length} alunos com GPS
+          </span>
+        </div>
+        <div style={{ display: 'flex', gap: 8, fontSize: '0.72rem' }}>
+          {onlineCount > 0 && <span style={{ background: 'rgba(22,163,74,0.25)', border: '1px solid rgba(22,163,74,0.5)', color: '#86efac', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>● {onlineCount} sincronizado{onlineCount !== 1 ? 's' : ''}</span>}
+          {offlineCount > 0 && <span style={{ background: 'rgba(245,158,11,0.25)', border: '1px solid rgba(245,158,11,0.5)', color: '#fcd34d', padding: '3px 8px', borderRadius: 6, fontWeight: 700 }}>⏳ {offlineCount} pendente{offlineCount !== 1 ? 's' : ''}</span>}
+        </div>
+      </div>
+      {withGps.length === 0 ? (
+        <div style={{ padding: '32px 20px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+          Nenhum check-in com GPS registrado ainda.
+        </div>
+      ) : (
+        <div ref={containerRef} style={{ height: 380, width: '100%' }} />
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
@@ -206,6 +331,9 @@ export default function AdminPage() {
   const [presencaDate, setPresencaDate] = useState(hoje());
   const [undoStack, setUndoStack] = useState<CheckinRecord[]>([]);
   const [undoVisible, setUndoVisible] = useState(false);
+  const [showGpsMap, setShowGpsMap] = useState(false);
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const leafletMapRef = useRef<any>(null);
   const [showCarteirinha, setShowCarteirinha] = useState(false);
   const adminCardRef = useRef<HTMLDivElement>(null);
   const certRef = useRef<HTMLDivElement>(null);
@@ -267,6 +395,14 @@ export default function AdminPage() {
       if (raw) setOfflinePending(JSON.parse(raw));
     } catch {}
   }, []);
+
+  // Auto-refresh presencas every 30s when GPS map is visible
+  useEffect(() => {
+    if (!showGpsMap) return;
+    const timer = setInterval(() => fetchPresencas(false), 30000);
+    return () => clearInterval(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showGpsMap]);
 
   const fetchStudents = async () => {
     setLoading(true);
@@ -956,7 +1092,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
                 + Registrar Presença
               </Link>
+              <button
+                onClick={() => setShowGpsMap(v => !v)}
+                style={{ background: showGpsMap ? 'linear-gradient(135deg,#0ea5e9,#0284c7)' : 'var(--bg-input)', border: showGpsMap ? 'none' : '1px solid var(--border)', color: showGpsMap ? '#fff' : 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                🗺 {showGpsMap ? 'Ocultar Mapa' : 'Ver Mapa GPS'}
+              </button>
             </div>
+
+            {/* GPS Map */}
+            {showGpsMap && (
+              <GpsMap
+                checkins={checkins.filter(c => !filterPresencaNucleo || c.nucleo === filterPresencaNucleo)}
+                containerRef={mapContainerRef}
+                leafletMapRef={leafletMapRef}
+              />
+            )}
 
             {/* Undo toast */}
             {undoVisible && undoStack.length > 0 && (
