@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import {
-  saveDocFile, getDocFile, downloadDocFile,
+  saveDocFile, downloadDocFile, getDocMeta,
   cacheFileName, getCachedFileName,
 } from '@/lib/docStorage';
 
@@ -48,7 +48,6 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
     if (adminAlwaysUnlocked) return true;
     try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; }
   });
-  // Which upload action is pending while the CPF modal is open
   const [pendingAction, setPendingAction] = useState<null|'estatuto'|'regimento'|'info'>(null);
   const [cpfInput, setCpfInput]     = useState('');
   const [cpfError, setCpfError]     = useState('');
@@ -64,6 +63,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
   const [uploading, setUploading] = useState<'estatuto'|'regimento'|null>(null);
   const [upOk,      setUpOk]     = useState<'estatuto'|'regimento'|null>(null);
   const [upErr,     setUpErr]    = useState<string|null>(null);
+  const [downloading, setDownloading] = useState<'estatuto'|'regimento'|null>(null);
 
   // ── Info state ────────────────────────────────────────────────────────────
   const [showInfo,   setShowInfo]   = useState(false);
@@ -77,10 +77,14 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
   const estRef = useRef<HTMLInputElement>(null);
   const regRef = useRef<HTMLInputElement>(null);
 
-  // Load IndexedDB sizes + info texts
+  // Load file metadata from Supabase + info texts from localStorage
   useEffect(() => {
-    getDocFile(KEY_ESTATUTO).then(f => { if(f){setEstName(f.name);setEstSize(f.size);cacheFileName(KEY_ESTATUTO,f.name);} }).catch(()=>{});
-    getDocFile(KEY_REGIMENTO).then(f => { if(f){setRegName(f.name);setRegSize(f.size);cacheFileName(KEY_REGIMENTO,f.name);} }).catch(()=>{});
+    getDocMeta(KEY_ESTATUTO).then(m => {
+      if (m) { setEstName(m.name); setEstSize(m.size); cacheFileName(KEY_ESTATUTO, m.name); }
+    }).catch(() => {});
+    getDocMeta(KEY_REGIMENTO).then(m => {
+      if (m) { setRegName(m.name); setRegSize(m.size); cacheFileName(KEY_REGIMENTO, m.name); }
+    }).catch(() => {});
     const t: Record<NucleoTab,string> = { geral:'', maua:'', saracuruna:'' };
     (['geral','maua','saracuruna'] as NucleoTab[]).forEach(n => { try { t[n]=localStorage.getItem(INFO_KEY(n))||''; } catch {} });
     setTexts(t);
@@ -89,7 +93,6 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
   // ── CPF modal flow ────────────────────────────────────────────────────────
   const requireUpload = (which: 'estatuto'|'regimento') => {
     if (unlocked) {
-      // Already unlocked — go straight to file picker
       which === 'estatuto' ? estRef.current?.click() : regRef.current?.click();
     } else {
       setPendingAction(which);
@@ -104,7 +107,6 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
       setUnlocked(true);
       try { sessionStorage.setItem(SESSION_KEY,'1'); } catch {}
       setShowCpfModal(false);
-      // Proceed to file picker after unlock
       setTimeout(() => {
         if (pendingAction === 'estatuto') estRef.current?.click();
         if (pendingAction === 'regimento') regRef.current?.click();
@@ -123,19 +125,20 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
     try {
       await saveDocFile(key, file);
       setName(file.name); setSize(file.size);
-      cacheFileName(key, file.name);
       setUpOk(which); setTimeout(()=>setUpOk(null), 3000);
     } catch(e:unknown) { setUpErr(e instanceof Error ? e.message : 'Erro ao salvar arquivo.'); }
     setUploading(null);
   };
 
-  // ── Download handler ──────────────────────────────────────────────────────
-  const doDownload = async (key: string, fallback: string) => {
+  // ── Download handler (from Supabase — works for ALL users) ───────────────
+  const doDownload = async (key: string, which: 'estatuto'|'regimento') => {
+    setDownloading(which);
     try {
-      const f = await getDocFile(key);
-      if (!f) { alert('Nenhum arquivo carregado ainda.\nClique em "⬆ Inserir arquivo" para fazer o upload.'); return; }
-      downloadDocFile(f);
-    } catch { alert('Erro ao fazer download.'); }
+      await downloadDocFile(key);
+    } catch (e: unknown) {
+      alert(e instanceof Error ? e.message : 'Nenhum arquivo carregado ainda.\nClique em "⬆ Inserir arquivo" para fazer o upload.');
+    }
+    setDownloading(null);
   };
 
   // ── Info helpers ──────────────────────────────────────────────────────────
@@ -160,12 +163,13 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
   };
 
   // ── Shared styles ─────────────────────────────────────────────────────────
-  const mainBtn = (color: string, active: boolean): React.CSSProperties => ({
+  const mainBtn = (color: string, active: boolean, busy = false): React.CSSProperties => ({
     display:'flex', alignItems:'center', justifyContent:'center', gap:7,
-    padding:'11px 12px', borderRadius:10, cursor:'pointer', fontWeight:700,
+    padding:'11px 12px', borderRadius:10, cursor: busy ? 'wait' : 'pointer', fontWeight:700,
     fontSize:'0.82rem', border:'none', width:'100%', color:'#fff', transition:'all .15s',
     background: active ? `linear-gradient(135deg,${color},${color}cc)` : `linear-gradient(135deg,${color}88,${color}55)`,
     boxShadow: active ? `0 3px 12px ${color}44` : 'none',
+    opacity: busy ? 0.7 : 1,
   });
 
   const upBtn = (color: string, isUploading: boolean, isOk: boolean): React.CSSProperties => ({
@@ -195,48 +199,64 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
 
         {/* ── Estatuto Social ──────────────────────────────────────────────── */}
         <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
-          <button onClick={()=>doDownload(KEY_ESTATUTO,'Estatuto-Social-ACCBM.pdf')} style={mainBtn('#dc2626',!!estName)}>
+          <button
+            onClick={()=>doDownload(KEY_ESTATUTO,'estatuto')}
+            disabled={downloading==='estatuto'}
+            style={mainBtn('#dc2626', !!estName, downloading==='estatuto')}
+          >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-            Estatuto Social
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {downloading==='estatuto' ? 'Baixando...' : 'Estatuto Social'}
+            {downloading!=='estatuto' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          {/* Upload button — always visible, protected by CPF on first use */}
-          <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
-            {uploading==='estatuto' ? (
-              <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-            ) : upOk==='estatuto' ? (
-              <>✓ Arquivo salvo com sucesso!</>
-            ) : (
-              <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-            )}
-          </button>
-          <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-            onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
+          {/* Upload — protegido por CPF */}
+          {unlocked && (
+            <>
+              <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
+                {uploading==='estatuto' ? (
+                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                ) : upOk==='estatuto' ? (
+                  <>✓ Arquivo salvo com sucesso!</>
+                ) : (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+                )}
+              </button>
+              <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
+            </>
+          )}
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
-            {estName ? <span style={{color:'#dc262688'}}>📄 {estName}{estSize?` · ${fmt(estSize)}`:''}</span> : 'Suporte até 50 MB · PDF, DOC, imagem'}
+            {estName ? <span style={{color:'#dc262688'}}>📄 {estName}{estSize?` · ${fmt(estSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
         </div>
 
         {/* ── Regimento Interno ────────────────────────────────────────────── */}
         <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
-          <button onClick={()=>doDownload(KEY_REGIMENTO,'Regimento-Interno-ACCBM.pdf')} style={mainBtn('#1d4ed8',!!regName)}>
+          <button
+            onClick={()=>doDownload(KEY_REGIMENTO,'regimento')}
+            disabled={downloading==='regimento'}
+            style={mainBtn('#1d4ed8', !!regName, downloading==='regimento')}
+          >
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
-            Regimento Interno
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {downloading==='regimento' ? 'Baixando...' : 'Regimento Interno'}
+            {downloading!=='regimento' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
-            {uploading==='regimento' ? (
-              <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-            ) : upOk==='regimento' ? (
-              <>✓ Arquivo salvo com sucesso!</>
-            ) : (
-              <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-            )}
-          </button>
-          <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-            onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
+          {unlocked && (
+            <>
+              <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
+                {uploading==='regimento' ? (
+                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                ) : upOk==='regimento' ? (
+                  <>✓ Arquivo salvo com sucesso!</>
+                ) : (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+                )}
+              </button>
+              <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
+            </>
+          )}
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
-            {regName ? <span style={{color:'#1d4ed888'}}>📄 {regName}{regSize?` · ${fmt(regSize)}`:''}</span> : 'Suporte até 50 MB · PDF, DOC, imagem'}
+            {regName ? <span style={{color:'#1d4ed888'}}>📄 {regName}{regSize?` · ${fmt(regSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
         </div>
 
@@ -312,8 +332,8 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
           <div style={{background:'#fff',borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:340,boxShadow:'0 12px 40px rgba(0,0,0,0.35)'}}>
             <div style={{textAlign:'center',marginBottom:20}}>
               <div style={{fontSize:'2.2rem',marginBottom:8}}>🔒</div>
-              <div style={{fontWeight:800,fontSize:'1.05rem',color:'#1e3a8a'}}>Inserir Documento</div>
-              <div style={{fontSize:'0.78rem',color:'#64748b',marginTop:5}}>Digite sua identificação para liberar o upload</div>
+              <div style={{fontWeight:800,fontSize:'1.05rem',color:'#1e3a8a'}}>Acesso Restrito</div>
+              <div style={{fontSize:'0.78rem',color:'#64748b',marginTop:5}}>Digite sua identificação para continuar</div>
             </div>
             <form onSubmit={handleCpfSubmit} style={{display:'flex',flexDirection:'column',gap:12}}>
               <input type="password" value={cpfInput} onChange={e=>{setCpfInput(e.target.value);setCpfError('');}}
