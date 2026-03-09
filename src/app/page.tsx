@@ -360,26 +360,30 @@ _Associação Cultural de Capoeira Barão de Mauá_`
     }
   };
 
-  const printCard = (ref: React.RefObject<HTMLDivElement | null>, nome: string) => {
+  const printCard = async (ref: React.RefObject<HTMLDivElement | null>, nome: string) => {
     const el = ref.current;
     if (!el) return;
+    const html2canvas = (await import('html2canvas')).default;
+    const canvas = await html2canvas(el, {
+      scale: 3,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: null,
+      logging: false,
+    });
+    const imgData = canvas.toDataURL('image/png');
     const printWin = window.open('', '_blank');
     if (!printWin) return;
     printWin.document.write(`<!DOCTYPE html>
       <html><head><meta charset="utf-8"><title>Credencial — ${nome}</title>
       <style>
-        * { margin:0; padding:0; box-sizing:border-box; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
-        @page { size: A6 landscape; margin: 6mm; }
-        html, body { width:100%; height:100%; background:#1a1a2e; display:flex; justify-content:center; align-items:center; font-family:Inter,Arial,sans-serif; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-        @media print {
-          html, body { background:#1a1a2e !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-          * { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important; }
-          [style*="background"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-        }
-        div[style*="linear-gradient"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
-        div[style*="background:"] { -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        @page { size: A6 landscape; margin: 4mm; }
+        html, body { width:100%; height:100%; background:#fff; display:flex; justify-content:center; align-items:center; }
+        img { max-width:100%; max-height:100%; object-fit:contain; display:block; }
+        @media print { html,body { margin:0; padding:0; } }
       </style>
-      </head><body>${el.innerHTML}<script>window.onload=()=>{window.print();setTimeout(()=>window.close(),1500);}<\/script></body></html>
+      </head><body><img src="${imgData}" /><script>window.onload=()=>{window.print();setTimeout(()=>window.close(),2000);}<\/script></body></html>
     `);
     printWin.document.close();
   };
