@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
 import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
+import DocumentsBar from '@/components/DocumentsBar';
 
 type SuccessData = CarteirinhaData;
 
@@ -765,6 +766,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </label>
             </div>
           </div>
+
+          {/* Documentos ACCBM */}
+          <DocumentsBar mode="public" />
 
           <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
             {loading ? 'Enviando...' : 'Finalizar Cadastro'}
