@@ -34,6 +34,7 @@ export default function PresencaPage() {
   const [localDetectado, setLocalDetectado] = useState<LocalDetectado | null>(null);
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'buscando' | 'ok' | 'erro' | 'negado'>('idle');
   const [coordsRaw, setCoordsRaw] = useState<{ lat: number; lng: number } | null>(null);
+  const [manualLocal, setManualLocal] = useState<typeof LOCAIS[0] | null>(null);
 
   const OFFLINE_QUEUE_KEY   = 'accbm_offline_checkins';
   const STUDENTS_CACHE_KEY  = 'accbm_students_cache';
@@ -201,6 +202,14 @@ export default function PresencaPage() {
     // ── Captura GPS no ato do registro (funciona online E offline) ──────────
     let coords = coordsRaw; // usa o que já foi capturado na abertura da página
     let local = localDetectado;
+
+    // Se GPS foi bloqueado mas o aluno selecionou manualmente o local, usa as coords fixas do local
+    if (!coords && manualLocal) {
+      coords = { lat: manualLocal.lat, lng: manualLocal.lng };
+      const det = detectarLocal(coords.lat, coords.lng, 5000);
+      local = det ?? null;
+    }
+
     if (!coords) {
       // Tenta capturar agora se ainda não tiver — com timeout generoso
       try {
@@ -443,32 +452,76 @@ Axé!`
 
         {/* Locais disponíveis */}
         <div className="form-section" style={{ marginBottom: 16 }}>
-          <h2 className="form-section-title" style={{ marginBottom: 10 }}>Locais de Treino</h2>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {LOCAIS.map(local => (
-              <a
-                key={local.id}
-                href={local.mapUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 10,
-                  background: localDetectado?.local.id === local.id ? 'rgba(22,163,74,0.1)' : 'var(--bg-input)',
-                  border: `1px solid ${localDetectado?.local.id === local.id ? 'rgba(22,163,74,0.4)' : 'var(--border)'}`,
-                  borderRadius: 10, padding: '10px 14px', textDecoration: 'none', color: 'inherit',
-                  transition: 'all 0.15s',
-                }}
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+            <h2 className="form-section-title" style={{ margin: 0 }}>Locais de Treino</h2>
+            {(gpsStatus === 'negado' || gpsStatus === 'erro') && !manualLocal && (
+              <span style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>
+                👇 Selecione seu local abaixo
+              </span>
+            )}
+            {manualLocal && (
+              <button
+                onClick={() => setManualLocal(null)}
+                style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', fontSize: '0.72rem', cursor: 'pointer', textDecoration: 'underline' }}
               >
-                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
-                  {localDetectado?.local.id === local.id ? '✅' : '📍'}
-                </span>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{local.nome}</div>
-                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 1 }}>{local.endereco}</div>
+                Limpar seleção
+              </button>
+            )}
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {LOCAIS.map(loc => {
+              const isAutoDetected = localDetectado?.local.id === loc.id;
+              const isManualSelected = manualLocal?.id === loc.id;
+              const isActive = isAutoDetected || isManualSelected;
+              const showSelectBtn = (gpsStatus === 'negado' || gpsStatus === 'erro') && !isAutoDetected;
+              return (
+                <div
+                  key={loc.id}
+                  style={{
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    background: isActive ? 'rgba(22,163,74,0.1)' : 'var(--bg-input)',
+                    border: `1px solid ${isActive ? 'rgba(22,163,74,0.4)' : 'var(--border)'}`,
+                    borderRadius: 10, padding: '10px 14px',
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
+                    {isActive ? '✅' : '📍'}
+                  </span>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{loc.nome}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 1 }}>{loc.endereco}</div>
+                    {isManualSelected && !isAutoDetected && (
+                      <div style={{ fontSize: '0.72rem', color: '#16a34a', fontWeight: 600, marginTop: 2 }}>✓ Local selecionado manualmente</div>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 5, alignItems: 'flex-end', flexShrink: 0 }}>
+                    <a
+                      href={loc.mapUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      style={{ fontSize: '0.7rem', color: '#3b82f6', textDecoration: 'none' }}
+                    >
+                      Ver mapa →
+                    </a>
+                    {showSelectBtn && (
+                      <button
+                        onClick={() => setManualLocal(isManualSelected ? null : loc)}
+                        style={{
+                          background: isManualSelected ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.15)',
+                          border: `1px solid ${isManualSelected ? 'rgba(220,38,38,0.4)' : 'rgba(22,163,74,0.4)'}`,
+                          color: isManualSelected ? '#f87171' : '#16a34a',
+                          padding: '4px 10px', borderRadius: 6, cursor: 'pointer',
+                          fontWeight: 700, fontSize: '0.72rem',
+                        }}
+                      >
+                        {isManualSelected ? 'Desmarcar' : 'Estou aqui'}
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <span style={{ fontSize: '0.7rem', color: '#3b82f6', flexShrink: 0 }}>Ver mapa →</span>
-              </a>
-            ))}
+              );
+            })}
           </div>
         </div>
 
