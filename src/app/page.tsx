@@ -392,9 +392,39 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
   return (
     <>
-      {/* ── Hero Banner — imagem completa + conteúdo centralizado ── */}
-      <div className="hero-banner" style={{ minHeight: 420, position: 'relative', overflow: 'hidden' }}>
-        {/* Imagem de fundo */}
+      {/* ── Topbar: logo + nome no canto superior esquerdo ── */}
+      <div style={{
+        position: 'relative', zIndex: 10,
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '10px 18px',
+        background: 'linear-gradient(90deg, rgba(10,10,30,0.92) 0%, rgba(10,10,30,0.75) 100%)',
+        borderBottom: '2px solid rgba(245,158,11,0.35)',
+      }}>
+        <img
+          src="/logo-maua.png"
+          alt="Logo ACCBM"
+          style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid #f59e0b', objectFit: 'contain', flexShrink: 0 }}
+        />
+        <div>
+          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: 1.3 }}>
+            Associação Cultural de Capoeira
+          </div>
+          <div style={{ color: '#fbbf24', fontSize: '0.88rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.2 }}>
+            Barão de Mauá
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.55rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.3 }}>
+            Duque de Caxias &amp; Magé — RJ
+          </div>
+        </div>
+        {/* Sistema de Gestão — à direita */}
+        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sistema de</div>
+          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Gestão de Alunos</div>
+        </div>
+      </div>
+
+      {/* ── Hero Banner — imagem de fundo limpa, sem texto ── */}
+      <div className="hero-banner" style={{ minHeight: 400, position: 'relative', overflow: 'hidden' }}>
         <img
           src="/wallpaper-capoeira.jpg"
           alt="Capoeira Barão de Mauá"
@@ -405,31 +435,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             zIndex: 0,
           }}
         />
-        {/* Overlay escuro suave */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.62) 100%)', zIndex: 1 }} />
-
-        {/* Conteúdo centralizado sobre a imagem */}
-        <div className="hero-content" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px 48px' }}>
-          <img
-            src="/logo-maua.png"
-            alt="Logo ACCBM"
-            className="hero-logo"
-            style={{ width: 110, height: 110, borderRadius: '50%', border: '3px solid #f59e0b', boxShadow: '0 0 40px rgba(220,38,38,0.4)', marginBottom: 16, objectFit: 'contain', background: 'rgba(255,255,255,0.12)' }}
-          />
-          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 6 }}>
-            Associação Cultural de Capoeira
-          </div>
-          <div className="hero-title" style={{ fontSize: '1.9rem', fontWeight: 900, textAlign: 'center', letterSpacing: '-0.01em', lineHeight: 1.15, marginBottom: 4, background: 'linear-gradient(135deg,#ffffff,#fbbf24)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            Barão de Mauá
-          </div>
-          <div style={{ width: 48, height: 3, borderRadius: 2, background: 'linear-gradient(90deg,#dc2626,#fbbf24,#16a34a)', margin: '8px auto 12px' }} />
-          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
-            Sistema de Gestão de Alunos
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', marginTop: 6, letterSpacing: '0.1em', textAlign: 'center' }}>
-            Duque de Caxias &amp; Magé — Rio de Janeiro
-          </div>
-        </div>
+        {/* Overlay mínimo apenas nas bordas */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.22) 100%)', zIndex: 1 }} />
       </div>
 
       <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>

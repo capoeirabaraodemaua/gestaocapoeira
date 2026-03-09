@@ -42,33 +42,8 @@ html, body {
   position: relative;
   width: 100%;
   min-height: 400px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-direction: column;
-  background: var(--bg-primary);
-  background-size: cover;
-  background-position: center;
   overflow: hidden;
-  border-bottom: 1px solid var(--border);
-}
-
-.hero-banner::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: radial-gradient(ellipse at center, rgba(220,38,38,0.03) 0%, transparent 70%);
-  pointer-events: none;
-}
-
-.hero-banner::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  height: 0;
-  pointer-events: none;
+  display: block;
 }
 
 .hero-content {
