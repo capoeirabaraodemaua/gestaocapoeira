@@ -14,9 +14,9 @@ export const LOCAIS: Local[] = [
     nome: 'Poliesportivo Edson Alves',
     endereco: '7VR3+VW Magé, RJ',
     nucleo: 'Mauá',
-    lat: -22.6621382,
-    lng: -43.0444966,
-    mapUrl: 'https://maps.google.com/?q=-22.6621382,-43.0444966',
+    lat: -22.7077527,
+    lng: -43.1451925,
+    mapUrl: 'https://maps.google.com/?q=-22.7077527,-43.1451925',
   },
   {
     id: 'poliesportivo-ipiranga',
