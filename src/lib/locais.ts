@@ -76,17 +76,28 @@ export function detectarLocal(lat: number, lng: number, maxMetros = 200): LocalD
   return null;
 }
 
-/** Captura posição GPS de alta precisão via browser. */
-export function capturarGPS(timeoutMs = 12000): Promise<GeolocationPosition> {
+/** Captura posição GPS de alta precisão via browser.
+ *  Funciona online e offline — GPS é recurso do dispositivo, não da internet.
+ *  Aceita cache de até 30s para resposta imediata, com fallback de 20s timeout.
+ */
+export function capturarGPS(timeoutMs = 20000): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
       reject(new Error('Geolocalização não suportada'));
       return;
     }
-    navigator.geolocation.getCurrentPosition(resolve, reject, {
+    // Tenta primeiro com cache recente (≤30s) para resposta rápida
+    navigator.geolocation.getCurrentPosition(resolve, () => {
+      // Se cache falhar, força posição fresca com timeout maior
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        enableHighAccuracy: true,
+        timeout: timeoutMs,
+        maximumAge: 0,
+      });
+    }, {
       enableHighAccuracy: true,
-      timeout: timeoutMs,
-      maximumAge: 0, // sempre posição fresca
+      timeout: 5000,
+      maximumAge: 30000, // aceita posição de até 30s atrás
     });
   });
 }

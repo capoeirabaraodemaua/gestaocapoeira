@@ -23,7 +23,7 @@ export default function PresencaPage() {
   const [filtered, setFiltered] = useState<Student[]>([]);
   const [loading, setLoading] = useState(false);
   const [registering, setRegistering] = useState(false);
-  const [success, setSuccess] = useState<{ student: Student; hora: string; data: string; localDetectado: LocalDetectado | null } | null>(null);
+  const [success, setSuccess] = useState<{ student: Student; hora: string; data: string; localDetectado: LocalDetectado | null; coords: { lat: number; lng: number } | null } | null>(null);
   const [registeredToday, setRegisteredToday] = useState<Set<string>>(new Set());
   const [isOnline, setIsOnline] = useState(true);
   const [offlineQueue, setOfflineQueue] = useState<Array<{ student: Student; date: string; hora: string; localNome: string | null; lat: number | null; lng: number | null; localEndereco: string | null; localMapUrl: string | null }>>([]);
@@ -192,14 +192,39 @@ export default function PresencaPage() {
   const handleRegistrar = async (student: Student) => {
     if (registering) return;
     setRegistering(true);
+
     const brDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const hora = brDate.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const dataStr = brDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' });
     const dateKey = `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
 
+    // ── Captura GPS no ato do registro (funciona online E offline) ──────────
+    let coords = coordsRaw; // usa o que já foi capturado na abertura da página
+    let local = localDetectado;
+    if (!coords) {
+      // Tenta capturar agora se ainda não tiver
+      try {
+        const pos = await capturarGPS();
+        coords = { lat: pos.coords.latitude, lng: pos.coords.longitude };
+        local = detectarLocal(coords.lat, coords.lng);
+        setCoordsRaw(coords);
+        setLocalDetectado(local);
+        setGpsStatus('ok');
+      } catch {
+        // GPS não disponível — continua sem localização
+      }
+    }
+
     if (!navigator.onLine) {
-      // Save to offline queue
-      const entry = { student, date: dateKey, hora, localNome: localDetectado?.local.nome ?? null, localEndereco: localDetectado?.local.endereco ?? null, localMapUrl: localDetectado?.local.mapUrl ?? null, lat: coordsRaw?.lat ?? null, lng: coordsRaw?.lng ?? null };
+      // Salva na fila offline com as coordenadas capturadas
+      const entry = {
+        student, date: dateKey, hora,
+        localNome: local?.local.nome ?? null,
+        localEndereco: local?.local.endereco ?? null,
+        localMapUrl: local?.local.mapUrl ?? null,
+        lat: coords?.lat ?? null,
+        lng: coords?.lng ?? null,
+      };
       const newQueue = [...offlineQueue.filter(q => !(q.student.id === student.id && q.date === dateKey)), entry];
       setOfflineQueue(newQueue);
       try { localStorage.setItem(OFFLINE_QUEUE_KEY, JSON.stringify(newQueue)); } catch {}
@@ -207,17 +232,17 @@ export default function PresencaPage() {
       setRegisteredToday(prev => new Set([...prev, student.id]));
       setSearch('');
       setFiltered([]);
-      setSuccess({ student, hora, data: dataStr, localDetectado });
+      setSuccess({ student, hora, data: dataStr, localDetectado: local, coords });
       return;
     }
 
     const result = await registerCheckin({
       ...student,
-      local_nome: localDetectado?.local.nome ?? null,
-      local_endereco: localDetectado?.local.endereco ?? null,
-      local_map_url: localDetectado?.local.mapUrl ?? null,
-      lat: coordsRaw?.lat ?? null,
-      lng: coordsRaw?.lng ?? null,
+      local_nome: local?.local.nome ?? null,
+      local_endereco: local?.local.endereco ?? null,
+      local_map_url: local?.local.mapUrl ?? null,
+      lat: coords?.lat ?? null,
+      lng: coords?.lng ?? null,
     });
     setRegistering(false);
     if (result.alreadyRegistered) {
@@ -228,7 +253,7 @@ export default function PresencaPage() {
       setRegisteredToday(prev => new Set([...prev, student.id]));
       setSearch('');
       setFiltered([]);
-      setSuccess({ student, hora, data: dataStr, localDetectado });
+      setSuccess({ student, hora, data: dataStr, localDetectado: local, coords });
     } else {
       alert('Erro ao registrar presença. Tente novamente.');
     }
@@ -238,19 +263,20 @@ export default function PresencaPage() {
     if (!s) return '';
     const phone = s.student.telefone.replace(/\D/g, '');
     const br = phone.startsWith('55') ? phone : `55${phone}`;
+    const c = s.coords; // usa coordenadas capturadas no momento do registro
 
     let localInfo = '';
-    if (s.localDetectado && coordsRaw) {
-      const mapsLink = `https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+    if (s.localDetectado && c) {
+      const mapsLink = `https://maps.google.com/?q=${c.lat},${c.lng}`;
       localInfo =
         `\n🏟 *Local:* ${s.localDetectado.local.nome}` +
         `\n🗺 *Endereço:* ${s.localDetectado.local.endereco}` +
-        `\n📡 *GPS:* ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\n📡 *GPS:* ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
         `\n🔗 ${mapsLink}`;
-    } else if (coordsRaw) {
-      const mapsLink = `https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+    } else if (c) {
+      const mapsLink = `https://maps.google.com/?q=${c.lat},${c.lng}`;
       localInfo =
-        `\n📡 *GPS em tempo real:* ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
+        `\n📡 *GPS em tempo real:* ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
         `\n🔗 ${mapsLink}`;
     }
 
@@ -272,14 +298,15 @@ _Axé! 🤸_`
   const buildEmailLink = (s: typeof success) => {
     if (!s) return '';
     const subject = encodeURIComponent('Comprovante de Presença — Capoeira Barão de Mauá');
+    const c = s.coords;
     let localInfo = '';
-    if (s.localDetectado && coordsRaw) {
+    if (s.localDetectado && c) {
       localInfo = `\nLocal: ${s.localDetectado.local.nome} — ${s.localDetectado.local.endereco}` +
-        `\nGPS: ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
-        `\nMapa: https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
-    } else if (coordsRaw) {
-      localInfo = `\nGPS: ${coordsRaw.lat.toFixed(6)}, ${coordsRaw.lng.toFixed(6)}` +
-        `\nMapa: https://maps.google.com/?q=${coordsRaw.lat},${coordsRaw.lng}`;
+        `\nGPS: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
+        `\nMapa: https://maps.google.com/?q=${c.lat},${c.lng}`;
+    } else if (c) {
+      localInfo = `\nGPS: ${c.lat.toFixed(6)}, ${c.lng.toFixed(6)}` +
+        `\nMapa: https://maps.google.com/?q=${c.lat},${c.lng}`;
     }
     const body = encodeURIComponent(
 `Presença Registrada!
