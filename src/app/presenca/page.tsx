@@ -35,17 +35,34 @@ export default function PresencaPage() {
   const [gpsStatus, setGpsStatus] = useState<'idle' | 'buscando' | 'ok' | 'erro' | 'negado'>('idle');
   const [coordsRaw, setCoordsRaw] = useState<{ lat: number; lng: number } | null>(null);
 
-  const OFFLINE_QUEUE_KEY = 'accbm_offline_checkins';
+  const OFFLINE_QUEUE_KEY   = 'accbm_offline_checkins';
+  const STUDENTS_CACHE_KEY  = 'accbm_students_cache';
+  const CHECKINS_CACHE_KEY  = 'accbm_checkins_today_cache';
 
   useEffect(() => {
-    fetchStudents();
-    loadTodayCheckins();
-    iniciarGPS();
-    // Load offline queue from localStorage
+    // Load offline queue from localStorage immediately (before network)
     try {
       const saved = localStorage.getItem(OFFLINE_QUEUE_KEY);
       if (saved) setOfflineQueue(JSON.parse(saved));
     } catch {}
+    // Load cached students immediately so offline users can search right away
+    try {
+      const cached = localStorage.getItem(STUDENTS_CACHE_KEY);
+      if (cached) setStudents(JSON.parse(cached));
+    } catch {}
+    // Load cached today checkins
+    try {
+      const cachedCheckins = localStorage.getItem(CHECKINS_CACHE_KEY);
+      if (cachedCheckins) {
+        const ids: string[] = JSON.parse(cachedCheckins);
+        setRegisteredToday(new Set(ids));
+      }
+    } catch {}
+
+    fetchStudents();
+    loadTodayCheckins();
+    iniciarGPS();
+
     // Listen for online/offline events
     const handleOnline = () => { setIsOnline(true); };
     const handleOffline = () => setIsOnline(false);
@@ -74,12 +91,30 @@ export default function PresencaPage() {
     }
   };
 
-  const loadTodayCheckins = async () => {
+  const getTodayKey = () => {
     const brDate = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-    const today = `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
-    const records = await getCheckins(today);
-    if (records.length > 0) {
-      setRegisteredToday(new Set(records.map(r => r.student_id)));
+    return `${brDate.getFullYear()}-${String(brDate.getMonth()+1).padStart(2,'0')}-${String(brDate.getDate()).padStart(2,'0')}`;
+  };
+
+  const loadTodayCheckins = async () => {
+    const today = getTodayKey();
+    try {
+      const records = await getCheckins(today);
+      // Merge server records with offline queue for today
+      const serverIds = records.map((r: { student_id: string }) => r.student_id);
+      let offlineIds: string[] = [];
+      try {
+        const saved = localStorage.getItem(OFFLINE_QUEUE_KEY);
+        if (saved) {
+          const queue: Array<{ student: Student; date: string }> = JSON.parse(saved);
+          offlineIds = queue.filter(q => q.date === today).map(q => q.student.id);
+        }
+      } catch {}
+      const allIds = [...new Set([...serverIds, ...offlineIds])];
+      setRegisteredToday(new Set(allIds));
+      try { localStorage.setItem(CHECKINS_CACHE_KEY, JSON.stringify(allIds)); } catch {}
+    } catch {
+      // Offline: keep whatever is in state from cache + queue
     }
   };
 
