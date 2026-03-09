@@ -424,22 +424,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       </div>
 
       {/* ── Hero Banner — imagem de fundo limpa, sem texto ── */}
-      <div className="hero-banner" style={{ minHeight: 400, position: 'relative', overflow: 'hidden' }}>
+      <div className="hero-banner">
         <img
           src="/wallpaper-capoeira.jpg"
           alt="Capoeira Barão de Mauá"
           style={{
-            position: 'absolute', inset: 0,
+            position: 'absolute', top: 0, left: 0,
             width: '100%', height: '100%',
-            objectFit: 'cover', objectPosition: 'center center',
-            zIndex: 0,
+            objectFit: 'cover', objectPosition: 'center 30%',
+            display: 'block',
           }}
         />
-        {/* Overlay mínimo apenas nas bordas */}
-        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.08) 0%, rgba(0,0,0,0.22) 100%)', zIndex: 1 }} />
       </div>
 
-      <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>
+      <div className="container" style={{ marginTop: 0 }}>
           {/* Action tabs */}
           <div style={{ display: 'flex', gap: 4, marginTop: 8, marginBottom: 0, flexWrap: 'wrap' }}>
             <button

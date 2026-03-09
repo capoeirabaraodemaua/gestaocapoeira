@@ -41,9 +41,10 @@ html, body {
 .hero-banner {
   position: relative;
   width: 100%;
-  min-height: 400px;
+  height: 420px;
   overflow: hidden;
   display: block;
+  background: #0a0a1e;
 }
 
 .hero-content {
@@ -639,7 +640,7 @@ html, body {
     font-size: 1.4rem;
   }
   .hero-banner {
-    min-height: 320px;
+    height: 280px;
   }
   .form-section {
     padding: 20px;
