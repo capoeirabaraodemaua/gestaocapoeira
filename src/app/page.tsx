@@ -392,8 +392,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
   return (
     <>
-      {/* Hero Banner */}
-        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 220 }}>
+      {/* Hero Banner — altura total, sem sobreposição */}
+        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 340 }}>
           <img
             src="/wallpaper-capoeira.jpg"
             alt="Capoeira Barão de Mauá"
@@ -407,10 +407,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               zIndex: 0,
             }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,0.45) 100%)', zIndex: 1 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
         </div>
 
-        <div className="container" style={{ marginTop: '-30px', position: 'relative', zIndex: 3 }}>
+        <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>
           {/* Action tabs */}
           <div style={{ display: 'flex', gap: 4, marginTop: 8, marginBottom: 0, flexWrap: 'wrap' }}>
             <button
@@ -479,9 +479,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               Credencial do Aluno
             </button>
           </div>
-
-          {/* ── Documentos ACCBM (Estatuto, Regimento, Informações Gerais) ── */}
-          <DocumentsBar />
 
           {activeSection === 'ficha' && (
           <form onSubmit={handleSubmit}>
@@ -898,8 +895,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
+      {/* ── Documentos ACCBM — parte inferior da página ── */}
+      <div className="container" style={{ marginTop: 8 }}>
+        <DocumentsBar />
+      </div>
+
       {/* ── Rodapé ── */}
-      <footer style={{ marginTop:32, paddingBottom:24, display:'flex', justifyContent:'flex-end', paddingRight:4 }}>
+      <footer style={{ marginTop:24, paddingBottom:24, display:'flex', justifyContent:'flex-end', paddingRight:4 }}>
         <div style={{
           display:'flex', alignItems:'center', gap:8,
           background:'rgba(37,211,102,0.07)', border:'1px solid rgba(37,211,102,0.25)',
