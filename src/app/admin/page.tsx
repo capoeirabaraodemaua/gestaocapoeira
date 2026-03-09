@@ -286,6 +286,38 @@ export default function AdminPage() {
     setLoading(false);
   };
 
+  // Builds synthetic checkin records from the offline queue stored in localStorage
+  const getOfflineCheckins = (date: string): CheckinRecord[] => {
+    try {
+      const raw = localStorage.getItem('accbm_offline_checkins');
+      if (!raw) return [];
+      const queue: Array<{
+        student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null };
+        date: string; hora: string;
+        localNome: string | null; localEndereco: string | null; localMapUrl: string | null;
+        lat: number | null; lng: number | null;
+      }> = JSON.parse(raw);
+      return queue
+        .filter(q => q.date === date)
+        .map(q => ({
+          student_id:     q.student.id,
+          nome_completo:  q.student.nome_completo,
+          graduacao:      q.student.graduacao || '',
+          nucleo:         q.student.nucleo || '',
+          foto_url:       q.student.foto_url || null,
+          telefone:       '',
+          hora:           q.hora,
+          timestamp:      new Date().toISOString(),
+          local_nome:     q.localNome || null,
+          local_endereco: q.localEndereco || null,
+          local_map_url:  q.localMapUrl || null,
+          lat:            q.lat ?? null,
+          lng:            q.lng ?? null,
+          _offline_pending: true,
+        } as CheckinRecord & { _offline_pending: boolean }));
+    } catch { return []; }
+  };
+
   const fetchPresencas = async (showSpinner = false, dateOverride?: string) => {
     if (showSpinner) setRefreshing(true);
     setLoadingCheckins(true);
@@ -296,19 +328,24 @@ export default function AdminPage() {
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         setCheckinsError(body.error || `Erro HTTP ${res.status}`);
-        setCheckins([]);
+        // Still show offline pending records so admin can see them
+        setCheckins(getOfflineCheckins(fetchDate));
       } else {
         const data = await res.json();
         if (Array.isArray(data)) {
-          setCheckins(data);
+          // Merge server records with offline pending (avoid duplicates by student_id)
+          const serverIds = new Set(data.map((r: CheckinRecord) => r.student_id));
+          const offlinePending = getOfflineCheckins(fetchDate).filter(r => !serverIds.has(r.student_id));
+          setCheckins([...data, ...offlinePending]);
         } else {
           setCheckinsError(data.error || 'Resposta inesperada da API');
-          setCheckins([]);
+          setCheckins(getOfflineCheckins(fetchDate));
         }
       }
     } catch (e: unknown) {
+      // Network error — show offline pending records
       setCheckinsError(e instanceof Error ? e.message : 'Erro ao buscar presenças');
-      setCheckins([]);
+      setCheckins(getOfflineCheckins(fetchDate));
     } finally {
       setLoadingCheckins(false);
       if (showSpinner) setRefreshing(false);
@@ -1001,9 +1038,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           )}
                         </div>
                         <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                          <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>{c.hora}</div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>check-in</div>
+                          <div style={{ fontSize: '0.82rem', color: (c as any)._offline_pending ? '#f59e0b' : '#16a34a', fontWeight: 700 }}>{c.hora}</div>
+                          {(c as any)._offline_pending
+                            ? <div style={{ fontSize: '0.68rem', color: '#f59e0b', fontWeight: 700, background: 'rgba(245,158,11,0.12)', borderRadius: 4, padding: '1px 5px', marginTop: 2 }}>⏳ Pendente sync</div>
+                            : <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>check-in</div>
+                          }
                         </div>
+                        {!(c as any)._offline_pending && (
                         <button
                           onClick={() => setRemoveConfirm(c)}
                           title="Remover presença"
@@ -1011,6 +1052,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         >
                           🗑
                         </button>
+                        )}
                       </div>
                     ))
                   }

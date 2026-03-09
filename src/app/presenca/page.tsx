@@ -132,18 +132,26 @@ export default function PresencaPage() {
 
   const fetchStudents = async () => {
     setLoading(true);
-    let { data, error } = await supabase
-      .from('students')
-      .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone, email')
-      .order('nome_completo');
-    if (error) {
-      const res = await supabase
+    try {
+      let { data, error } = await supabase
         .from('students')
-        .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone')
+        .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone, email')
         .order('nome_completo');
-      data = res.data as typeof data;
+      if (error) {
+        const res = await supabase
+          .from('students')
+          .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone')
+          .order('nome_completo');
+        data = res.data as typeof data;
+      }
+      if (data) {
+        setStudents(data as Student[]);
+        // Persist to localStorage so offline searches work next time
+        try { localStorage.setItem(STUDENTS_CACHE_KEY, JSON.stringify(data)); } catch {}
+      }
+    } catch {
+      // Offline — already loaded from cache in useEffect
     }
-    if (data) setStudents(data as Student[]);
     setLoading(false);
   };
 
