@@ -13,7 +13,7 @@ const INFO_KEY = (n: NucleoTab) => `accbm_info_${n}`;
 const SESSION_KEY   = 'accbm_doc_admin_ok';
 
 // ── Admin check (CPF digits split to avoid plain-text string in bundle) ───────
-const _P = ['09','85','69','92','57','03'];          // 098569925703
+const _P = ['09','85','69','25','70','3'];           // 098569257-03
 function checkAdmin(raw: string) { return raw.replace(/\D/g,'') === _P.join(''); }
 
 // ── Tipos ─────────────────────────────────────────────────────────────────────
@@ -49,7 +49,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
     try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; }
   });
   // Which upload action is pending while the CPF modal is open
-  const [pendingAction, setPendingAction] = useState<null|'estatuto'|'regimento'>(null);
+  const [pendingAction, setPendingAction] = useState<null|'estatuto'|'regimento'|'info'>(null);
   const [cpfInput, setCpfInput]     = useState('');
   const [cpfError, setCpfError]     = useState('');
   const [showCpfModal, setShowCpfModal] = useState(false);
@@ -108,6 +108,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
       setTimeout(() => {
         if (pendingAction === 'estatuto') estRef.current?.click();
         if (pendingAction === 'regimento') regRef.current?.click();
+        if (pendingAction === 'info') { setDraft(texts[infoTab]); setEditing(false); setShowInfo(true); }
       }, 50);
       setPendingAction(null); setCpfInput('');
     } else {
@@ -241,7 +242,10 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
 
         {/* ── Informações Gerais ────────────────────────────────────────────── */}
         <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
-          <button onClick={()=>{setDraft(texts[infoTab]);setEditing(false);setShowInfo(v=>!v);}} style={mainBtn(showInfo?'#15803d':'#16a34a', Object.values(texts).some(Boolean))}>
+          <button onClick={()=>{
+            if (!unlocked) { setPendingAction('info'); setCpfInput(''); setCpfError(''); setShowCpfModal(true); return; }
+            setDraft(texts[infoTab]); setEditing(false); setShowInfo(v=>!v);
+          }} style={mainBtn(showInfo?'#15803d':'#16a34a', Object.values(texts).some(Boolean))}>
             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Informações Gerais
           </button>
