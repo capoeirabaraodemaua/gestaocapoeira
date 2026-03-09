@@ -10,414 +10,291 @@ import {
 const KEY_ESTATUTO  = 'accbm_estatuto';
 const KEY_REGIMENTO = 'accbm_regimento';
 const INFO_KEY = (n: NucleoTab) => `accbm_info_${n}`;
-const SESSION_ADMIN_KEY = 'accbm_doc_admin_unlocked';
+const SESSION_KEY   = 'accbm_doc_admin_ok';
 
-// ── Admin auth — obfuscated check (client-side guard) ─────────────────────────
-// CPF digits are split + reversed so they don't appear as a plain string.
-const _A = ['3','0'].reverse().join('');                // "03"
-const _B = ['7','5','2'].reverse().join('');            // "257" → wait need "752"... let me be precise
-// CPF provided: 098.5699.257-03 → digits: 098569925703
-// Split into segments to obfuscate:
-const _SEG = ['098','5699','257','03'];
-const _ADMIN_DIGITS = _SEG.join(''); // "098569925703"
+// ── Admin check (CPF digits split to avoid plain-text string in bundle) ───────
+const _P = ['09','85','69','92','57','03'];          // 098569925703
+function checkAdmin(raw: string) { return raw.replace(/\D/g,'') === _P.join(''); }
 
-function checkAdminCPF(input: string): boolean {
-  const d = input.replace(/\D/g, '');
-  return d === _ADMIN_DIGITS;
-}
-
-// ── Núcleo ────────────────────────────────────────────────────────────────────
+// ── Tipos ─────────────────────────────────────────────────────────────────────
 type NucleoTab = 'geral' | 'maua' | 'saracuruna';
-const NUCLEO_LABELS: Record<NucleoTab, string> = {
-  geral: '🌐 Geral', maua: '🔴 Mauá', saracuruna: '🟢 Saracuruna',
-};
-const NUCLEO_COLORS: Record<NucleoTab, string> = {
-  geral: '#1d4ed8', maua: '#dc2626', saracuruna: '#16a34a',
-};
+const NUCLEO_LABELS: Record<NucleoTab,string> = { geral:'🌐 Geral', maua:'🔴 Mauá', saracuruna:'🟢 Saracuruna' };
+const NUCLEO_COLORS: Record<NucleoTab,string> = { geral:'#1d4ed8', maua:'#dc2626', saracuruna:'#16a34a' };
 
 export interface SimpleStudent {
-  id: string;
-  nome_completo: string;
-  telefone: string;
-  nucleo: string | null;
-  email?: string;
+  id: string; nome_completo: string; telefone: string; nucleo: string | null; email?: string;
 }
-
-interface DocumentsBarProps {
+interface Props {
   students?: SimpleStudent[];
   studentPhone?: string;
   studentName?: string;
-  /** Pass true on admin panel where login already proves identity */
   adminAlwaysUnlocked?: boolean;
 }
 
-function fmtSize(bytes: number) {
-  if (bytes >= 1_048_576) return `${(bytes / 1_048_576).toFixed(1)} MB`;
-  return `${(bytes / 1024).toFixed(0)} KB`;
+function fmt(bytes: number) {
+  return bytes >= 1_048_576 ? `${(bytes/1_048_576).toFixed(1)} MB` : `${(bytes/1024).toFixed(0)} KB`;
 }
 
-const WAIcon = ({ size = 14 }: { size?: number }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor">
+const WA = ({s=14}:{s?:number}) => (
+  <svg width={s} height={s} viewBox="0 0 24 24" fill="currentColor">
     <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
   </svg>
 );
 
-export default function DocumentsBar({
-  students = [], studentPhone, studentName, adminAlwaysUnlocked = false,
-}: DocumentsBarProps) {
+export default function DocumentsBar({ students=[], studentPhone, studentName, adminAlwaysUnlocked=false }: Props) {
 
-  // ── Admin unlock state ────────────────────────────────────────────────────
-  const [uploadUnlocked, setUploadUnlocked] = useState(() => {
+  // ── Unlock state ──────────────────────────────────────────────────────────
+  const [unlocked, setUnlocked] = useState(() => {
     if (adminAlwaysUnlocked) return true;
-    try { return sessionStorage.getItem(SESSION_ADMIN_KEY) === '1'; } catch { return false; }
+    try { return sessionStorage.getItem(SESSION_KEY) === '1'; } catch { return false; }
   });
-  const [showLockModal, setShowLockModal] = useState(false);
-  const [lockInput,     setLockInput]     = useState('');
-  const [lockError,     setLockError]     = useState('');
-  const [lockClickCount, setLockClickCount] = useState(0);
+  // Which upload action is pending while the CPF modal is open
+  const [pendingAction, setPendingAction] = useState<null|'estatuto'|'regimento'>(null);
+  const [cpfInput, setCpfInput]     = useState('');
+  const [cpfError, setCpfError]     = useState('');
+  const [showCpfModal, setShowCpfModal] = useState(false);
+
+  useEffect(() => { if (adminAlwaysUnlocked) setUnlocked(true); }, [adminAlwaysUnlocked]);
 
   // ── File state ────────────────────────────────────────────────────────────
-  const [estatutoName,  setEstatutoName]  = useState<string | null>(() => getCachedFileName(KEY_ESTATUTO));
-  const [regimentoName, setRegimentoName] = useState<string | null>(() => getCachedFileName(KEY_REGIMENTO));
-  const [estatutoSize,  setEstatutoSize]  = useState<number | null>(null);
-  const [regimentoSize, setRegimentoSize] = useState<number | null>(null);
-  const [uploading,     setUploading]     = useState<'estatuto' | 'regimento' | null>(null);
-  const [uploadError,   setUploadError]   = useState<string | null>(null);
-  const [uploadSuccess, setUploadSuccess] = useState<'estatuto' | 'regimento' | null>(null);
+  const [estName,  setEstName]  = useState<string|null>(() => getCachedFileName(KEY_ESTATUTO));
+  const [regName,  setRegName]  = useState<string|null>(() => getCachedFileName(KEY_REGIMENTO));
+  const [estSize,  setEstSize]  = useState<number|null>(null);
+  const [regSize,  setRegSize]  = useState<number|null>(null);
+  const [uploading, setUploading] = useState<'estatuto'|'regimento'|null>(null);
+  const [upOk,      setUpOk]     = useState<'estatuto'|'regimento'|null>(null);
+  const [upErr,     setUpErr]    = useState<string|null>(null);
 
-  // ── Info panel state ──────────────────────────────────────────────────────
-  const [showInfo,    setShowInfo]    = useState(false);
-  const [infoTab,     setInfoTab]     = useState<NucleoTab>('geral');
-  const [infoTexts,   setInfoTexts]   = useState<Record<NucleoTab, string>>({ geral: '', maua: '', saracuruna: '' });
-  const [infoDraft,   setInfoDraft]   = useState('');
-  const [infoEditing, setInfoEditing] = useState(false);
-  const [sendModal,   setSendModal]   = useState<{ tab: NucleoTab; text: string } | null>(null);
-  const [sentSet,     setSentSet]     = useState<Set<string>>(new Set());
+  // ── Info state ────────────────────────────────────────────────────────────
+  const [showInfo,   setShowInfo]   = useState(false);
+  const [infoTab,    setInfoTab]    = useState<NucleoTab>('geral');
+  const [texts,      setTexts]      = useState<Record<NucleoTab,string>>({ geral:'', maua:'', saracuruna:'' });
+  const [draft,      setDraft]      = useState('');
+  const [editing,    setEditing]    = useState(false);
+  const [sendModal,  setSendModal]  = useState<{tab:NucleoTab;text:string}|null>(null);
+  const [sentSet,    setSentSet]    = useState<Set<string>>(new Set());
 
-  const estatutoRef  = useRef<HTMLInputElement>(null);
-  const regimentoRef = useRef<HTMLInputElement>(null);
+  const estRef = useRef<HTMLInputElement>(null);
+  const regRef = useRef<HTMLInputElement>(null);
 
-  // Update unlock when prop changes (e.g. admin panel always unlocked)
+  // Load IndexedDB sizes + info texts
   useEffect(() => {
-    if (adminAlwaysUnlocked) setUploadUnlocked(true);
-  }, [adminAlwaysUnlocked]);
-
-  useEffect(() => {
-    getDocFile(KEY_ESTATUTO).then(f => {
-      if (f) { setEstatutoName(f.name); setEstatutoSize(f.size); cacheFileName(KEY_ESTATUTO, f.name); }
-    }).catch(() => {});
-    getDocFile(KEY_REGIMENTO).then(f => {
-      if (f) { setRegimentoName(f.name); setRegimentoSize(f.size); cacheFileName(KEY_REGIMENTO, f.name); }
-    }).catch(() => {});
-    const loaded: Record<NucleoTab, string> = { geral: '', maua: '', saracuruna: '' };
-    (['geral', 'maua', 'saracuruna'] as NucleoTab[]).forEach(n => {
-      try { loaded[n] = localStorage.getItem(INFO_KEY(n)) || ''; } catch {}
-    });
-    setInfoTexts(loaded);
+    getDocFile(KEY_ESTATUTO).then(f => { if(f){setEstName(f.name);setEstSize(f.size);cacheFileName(KEY_ESTATUTO,f.name);} }).catch(()=>{});
+    getDocFile(KEY_REGIMENTO).then(f => { if(f){setRegName(f.name);setRegSize(f.size);cacheFileName(KEY_REGIMENTO,f.name);} }).catch(()=>{});
+    const t: Record<NucleoTab,string> = { geral:'', maua:'', saracuruna:'' };
+    (['geral','maua','saracuruna'] as NucleoTab[]).forEach(n => { try { t[n]=localStorage.getItem(INFO_KEY(n))||''; } catch {} });
+    setTexts(t);
   }, []);
 
-  // ── Hidden lock trigger (triple-click on the "Estatuto" label area) ────────
-  const handleHiddenTrigger = () => {
-    if (uploadUnlocked) return; // already unlocked
-    const next = lockClickCount + 1;
-    setLockClickCount(next);
-    if (next >= 3) {
-      setLockClickCount(0);
-      setLockInput('');
-      setLockError('');
-      setShowLockModal(true);
-    }
-  };
-
-  const handleLockSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (checkAdminCPF(lockInput)) {
-      setUploadUnlocked(true);
-      try { sessionStorage.setItem(SESSION_ADMIN_KEY, '1'); } catch {}
-      setShowLockModal(false);
-      setLockInput('');
-      setLockError('');
+  // ── CPF modal flow ────────────────────────────────────────────────────────
+  const requireUpload = (which: 'estatuto'|'regimento') => {
+    if (unlocked) {
+      // Already unlocked — go straight to file picker
+      which === 'estatuto' ? estRef.current?.click() : regRef.current?.click();
     } else {
-      setLockError('Acesso negado.');
-      setLockInput('');
+      setPendingAction(which);
+      setCpfInput(''); setCpfError('');
+      setShowCpfModal(true);
     }
   };
 
-  // ── Upload ────────────────────────────────────────────────────────────────
-  const handleUpload = async (
-    key: string, file: File,
-    setName: (s: string) => void, setSize: (n: number) => void,
-    which: 'estatuto' | 'regimento',
-  ) => {
-    setUploading(which);
-    setUploadError(null);
+  const handleCpfSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (checkAdmin(cpfInput)) {
+      setUnlocked(true);
+      try { sessionStorage.setItem(SESSION_KEY,'1'); } catch {}
+      setShowCpfModal(false);
+      // Proceed to file picker after unlock
+      setTimeout(() => {
+        if (pendingAction === 'estatuto') estRef.current?.click();
+        if (pendingAction === 'regimento') regRef.current?.click();
+      }, 50);
+      setPendingAction(null); setCpfInput('');
+    } else {
+      setCpfError('Identificação incorreta. Tente novamente.');
+      setCpfInput('');
+    }
+  };
+
+  // ── Upload handler ────────────────────────────────────────────────────────
+  const doUpload = async (key: string, file: File, setName:(s:string)=>void, setSize:(n:number)=>void, which:'estatuto'|'regimento') => {
+    setUploading(which); setUpErr(null);
     try {
       await saveDocFile(key, file);
-      setName(file.name);
-      setSize(file.size);
+      setName(file.name); setSize(file.size);
       cacheFileName(key, file.name);
-      setUploadSuccess(which);
-      setTimeout(() => setUploadSuccess(null), 3000);
-    } catch (e: unknown) {
-      setUploadError(e instanceof Error ? e.message : 'Erro ao salvar arquivo.');
-    }
+      setUpOk(which); setTimeout(()=>setUpOk(null), 3000);
+    } catch(e:unknown) { setUpErr(e instanceof Error ? e.message : 'Erro ao salvar arquivo.'); }
     setUploading(null);
   };
 
-  // ── Download ──────────────────────────────────────────────────────────────
-  const handleDownload = async (key: string, fallback: string) => {
+  // ── Download handler ──────────────────────────────────────────────────────
+  const doDownload = async (key: string, fallback: string) => {
     try {
       const f = await getDocFile(key);
-      if (!f) { alert('Nenhum arquivo carregado ainda.'); return; }
+      if (!f) { alert('Nenhum arquivo carregado ainda.\nClique em "⬆ Inserir arquivo" para fazer o upload.'); return; }
       downloadDocFile(f);
     } catch { alert('Erro ao fazer download.'); }
   };
 
   // ── Info helpers ──────────────────────────────────────────────────────────
   const saveAndSend = (tab: NucleoTab, text: string) => {
-    setInfoTexts(prev => ({ ...prev, [tab]: text }));
+    setTexts(p => ({...p,[tab]:text}));
     try { localStorage.setItem(INFO_KEY(tab), text); } catch {}
-    setInfoEditing(false);
-    // Auto-open send modal immediately
-    const list = studentsForTab(tab);
-    if (!list.length && studentPhone) {
-      window.open(buildWALink(studentPhone, text), '_blank');
-    } else {
-      setSentSet(new Set());
-      setSendModal({ tab, text });
-    }
+    setEditing(false);
+    const list = studentsFor(tab);
+    if (!list.length && studentPhone) { window.open(waLink(studentPhone,text),'_blank'); return; }
+    setSentSet(new Set()); setSendModal({tab, text});
   };
 
-  const studentsForTab = (tab: NucleoTab): SimpleStudent[] => {
-    if (!students.length) return studentPhone
-      ? [{ id: 'single', nome_completo: studentName || 'Aluno', telefone: studentPhone, nucleo: null }]
-      : [];
-    if (tab === 'geral') return students.filter(s => s.telefone);
-    const label = tab === 'maua' ? 'Mauá' : 'Saracuruna';
-    return students.filter(s => s.nucleo === label && s.telefone);
+  const studentsFor = (tab: NucleoTab): SimpleStudent[] => {
+    if (!students.length) return studentPhone ? [{id:'single',nome_completo:studentName||'Aluno',telefone:studentPhone,nucleo:null}] : [];
+    if (tab === 'geral') return students.filter(s=>s.telefone);
+    return students.filter(s=>s.nucleo===(tab==='maua'?'Mauá':'Saracuruna') && s.telefone);
   };
 
-  const buildWALink = (phone: string, text: string) => {
-    const p = phone.replace(/\D/g, '');
-    const br = p.startsWith('55') ? p : `55${p}`;
-    const msg = encodeURIComponent(`ℹ️ *Informações — Capoeira Barão de Mauá*\n\n${text}\n\n_Associação Cultural de Capoeira Barão de Mauá_`);
-    return `https://wa.me/${br}?text=${msg}`;
+  const waLink = (phone: string, text: string) => {
+    const p = phone.replace(/\D/g,''); const br = p.startsWith('55')?p:`55${p}`;
+    return `https://wa.me/${br}?text=${encodeURIComponent(`ℹ️ *Informações — Capoeira Barão de Mauá*\n\n${text}\n\n_Associação Cultural de Capoeira Barão de Mauá_`)}`;
   };
 
-  // ── Styles ────────────────────────────────────────────────────────────────
-  const docBtn = (color: string, hasFile: boolean): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
-    padding: '11px 12px', borderRadius: 10, cursor: 'pointer', fontWeight: 700,
-    fontSize: '0.82rem', border: 'none', width: '100%',
-    background: hasFile
-      ? `linear-gradient(135deg,${color},${color}cc)`
-      : `linear-gradient(135deg,${color}88,${color}66)`,
-    color: '#fff',
-    boxShadow: hasFile ? `0 3px 12px ${color}44` : 'none',
-    transition: 'all .15s',
+  // ── Shared styles ─────────────────────────────────────────────────────────
+  const mainBtn = (color: string, active: boolean): React.CSSProperties => ({
+    display:'flex', alignItems:'center', justifyContent:'center', gap:7,
+    padding:'11px 12px', borderRadius:10, cursor:'pointer', fontWeight:700,
+    fontSize:'0.82rem', border:'none', width:'100%', color:'#fff', transition:'all .15s',
+    background: active ? `linear-gradient(135deg,${color},${color}cc)` : `linear-gradient(135deg,${color}88,${color}55)`,
+    boxShadow: active ? `0 3px 12px ${color}44` : 'none',
   });
 
-  const uploadBtn = (color: string): React.CSSProperties => ({
-    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 5,
-    background: `${color}11`, border: `1.5px dashed ${color}66`,
-    color, padding: '5px 8px', borderRadius: 8,
-    cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, width: '100%',
+  const upBtn = (color: string, isUploading: boolean, isOk: boolean): React.CSSProperties => ({
+    display:'flex', alignItems:'center', justifyContent:'center', gap:5,
+    padding:'7px 10px', borderRadius:8, cursor:'pointer', width:'100%', fontWeight:700, fontSize:'0.72rem',
+    background: isOk ? 'rgba(22,163,74,0.12)' : `${color}10`,
+    border: isOk ? '1.5px solid rgba(22,163,74,0.5)' : `1.5px dashed ${color}70`,
+    color: isOk ? '#16a34a' : color,
+    opacity: isUploading ? 0.6 : 1,
   });
 
-  const currentText = infoTexts[infoTab];
-  const tabStudents = sendModal ? studentsForTab(sendModal.tab) : [];
+  const cur = texts[infoTab];
+  const tabList = sendModal ? studentsFor(sendModal.tab) : [];
 
   return (
-    <div style={{ margin: '12px 0 18px' }}>
+    <div style={{ margin:'12px 0 18px' }}>
 
       {/* ── Upload error toast ─────────────────────────────────────────────── */}
-      {uploadError && (
-        <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 8, padding: '8px 12px', marginBottom: 10, fontSize: '0.82rem', color: '#dc2626', fontWeight: 600, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          ⚠ {uploadError}
-          <button onClick={() => setUploadError(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#dc2626', fontWeight: 800 }}>✕</button>
+      {upErr && (
+        <div style={{ background:'rgba(220,38,38,0.1)',border:'1px solid rgba(220,38,38,0.4)',borderRadius:8,padding:'8px 12px',marginBottom:10,fontSize:'0.82rem',color:'#dc2626',fontWeight:600,display:'flex',justifyContent:'space-between',alignItems:'center' }}>
+          ⚠ {upErr}
+          <button onClick={()=>setUpErr(null)} style={{ background:'none',border:'none',cursor:'pointer',color:'#dc2626',fontWeight:800,fontSize:'1rem' }}>✕</button>
         </div>
       )}
 
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+      <div style={{ display:'flex', gap:8, flexWrap:'wrap' }}>
 
         {/* ── Estatuto Social ──────────────────────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 145, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          {/* Triple-click hidden trigger on main button */}
-          <button onClick={() => { handleDownload(KEY_ESTATUTO, 'Estatuto-Social-ACCBM.pdf'); handleHiddenTrigger(); }}
-            style={docBtn('#dc2626', !!estatutoName)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
-              <polyline points="14 2 14 8 20 8"/>
-            </svg>
+        <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
+          <button onClick={()=>doDownload(KEY_ESTATUTO,'Estatuto-Social-ACCBM.pdf')} style={mainBtn('#dc2626',!!estName)}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
             Estatuto Social
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
-
-          {/* Upload button — only visible to admin */}
-          {uploadUnlocked && (
-            <button onClick={() => { setUploadError(null); estatutoRef.current?.click(); }}
-              disabled={uploading === 'estatuto'} style={uploadBtn('#dc2626')}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              {uploading === 'estatuto' ? 'Salvando...' : uploadSuccess === 'estatuto' ? '✓ Salvo!' : estatutoName ? '✓ Substituir' : '⬆ Inserir arquivo'}
-            </button>
-          )}
-          <input ref={estatutoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(KEY_ESTATUTO, f, setEstatutoName, setEstatutoSize, 'estatuto'); e.target.value = ''; }} />
-          <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 2 }}>
-            {estatutoName
-              ? <span style={{ color: '#dc262688' }}>📄 {estatutoName}{estatutoSize ? ` · ${fmtSize(estatutoSize)}` : ''}</span>
-              : 'Suporte até 50 MB'}
+          {/* Upload button — always visible, protected by CPF on first use */}
+          <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
+            {uploading==='estatuto' ? (
+              <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+            ) : upOk==='estatuto' ? (
+              <>✓ Arquivo salvo com sucesso!</>
+            ) : (
+              <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+            )}
+          </button>
+          <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+            onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
+          <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
+            {estName ? <span style={{color:'#dc262688'}}>📄 {estName}{estSize?` · ${fmt(estSize)}`:''}</span> : 'Suporte até 50 MB · PDF, DOC, imagem'}
           </div>
         </div>
 
         {/* ── Regimento Interno ────────────────────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 145, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <button onClick={() => handleDownload(KEY_REGIMENTO, 'Regimento-Interno-ACCBM.pdf')}
-            style={docBtn('#1d4ed8', !!regimentoName)}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M9 11l3 3L22 4"/>
-              <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>
-            </svg>
+        <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
+          <button onClick={()=>doDownload(KEY_REGIMENTO,'Regimento-Interno-ACCBM.pdf')} style={mainBtn('#1d4ed8',!!regName)}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
             Regimento Interno
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-              <polyline points="7 10 12 15 17 10"/>
-              <line x1="12" y1="15" x2="12" y2="3"/>
-            </svg>
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           </button>
-          {uploadUnlocked && (
-            <button onClick={() => { setUploadError(null); regimentoRef.current?.click(); }}
-              disabled={uploading === 'regimento'} style={uploadBtn('#1d4ed8')}>
-              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              {uploading === 'regimento' ? 'Salvando...' : uploadSuccess === 'regimento' ? '✓ Salvo!' : regimentoName ? '✓ Substituir' : '⬆ Inserir arquivo'}
-            </button>
-          )}
-          <input ref={regimentoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{ display: 'none' }}
-            onChange={e => { const f = e.target.files?.[0]; if (f) handleUpload(KEY_REGIMENTO, f, setRegimentoName, setRegimentoSize, 'regimento'); e.target.value = ''; }} />
-          <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textAlign: 'center', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', paddingInline: 2 }}>
-            {regimentoName
-              ? <span style={{ color: '#1d4ed888' }}>📄 {regimentoName}{regimentoSize ? ` · ${fmtSize(regimentoSize)}` : ''}</span>
-              : 'Suporte até 50 MB'}
+          <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
+            {uploading==='regimento' ? (
+              <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+            ) : upOk==='regimento' ? (
+              <>✓ Arquivo salvo com sucesso!</>
+            ) : (
+              <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+            )}
+          </button>
+          <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+            onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
+          <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
+            {regName ? <span style={{color:'#1d4ed888'}}>📄 {regName}{regSize?` · ${fmt(regSize)}`:''}</span> : 'Suporte até 50 MB · PDF, DOC, imagem'}
           </div>
         </div>
 
         {/* ── Informações Gerais ────────────────────────────────────────────── */}
-        <div style={{ flex: 1, minWidth: 145, display: 'flex', flexDirection: 'column', gap: 4 }}>
-          <button onClick={() => { setInfoDraft(infoTexts[infoTab]); setInfoEditing(false); setShowInfo(v => !v); }}
-            style={docBtn(showInfo ? '#15803d' : '#16a34a', Object.values(infoTexts).some(Boolean))}>
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-              <circle cx="12" cy="12" r="10"/>
-              <line x1="12" y1="8" x2="12" y2="12"/>
-              <line x1="12" y1="16" x2="12.01" y2="16"/>
-            </svg>
+        <div style={{ flex:1, minWidth:145, display:'flex', flexDirection:'column', gap:4 }}>
+          <button onClick={()=>{setDraft(texts[infoTab]);setEditing(false);setShowInfo(v=>!v);}} style={mainBtn(showInfo?'#15803d':'#16a34a', Object.values(texts).some(Boolean))}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             Informações Gerais
           </button>
-          <div style={{ fontSize: '0.62rem', color: 'var(--text-secondary)', textAlign: 'center' }}>
-            {Object.entries(infoTexts).filter(([, v]) => v).map(([k]) => NUCLEO_LABELS[k as NucleoTab]).join(' · ') || 'Clique para ver / editar'}
+          <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center'}}>
+            {Object.entries(texts).filter(([,v])=>v).map(([k])=>NUCLEO_LABELS[k as NucleoTab]).join(' · ') || 'Clique para ver / editar'}
           </div>
         </div>
       </div>
 
       {/* ── Informações panel ────────────────────────────────────────────────── */}
       {showInfo && (
-        <div style={{ marginTop: 10, background: 'var(--bg-card)', border: '1.5px solid rgba(22,163,74,0.35)', borderRadius: 12, overflow: 'hidden', boxShadow: '0 4px 20px rgba(0,0,0,0.1)' }}>
-          {/* Header */}
-          <div style={{ background: 'linear-gradient(90deg,#16a34a,#15803d)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <span style={{ color: '#fff', fontWeight: 800, fontSize: '0.88rem' }}>ℹ️ Informações Gerais — ACCBM</span>
-            <button onClick={() => { setShowInfo(false); setInfoEditing(false); }}
-              style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', width: 26, height: 26, borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}>✕</button>
+        <div style={{ marginTop:10, background:'var(--bg-card)', border:'1.5px solid rgba(22,163,74,0.35)', borderRadius:12, overflow:'hidden', boxShadow:'0 4px 20px rgba(0,0,0,0.1)' }}>
+          <div style={{ background:'linear-gradient(90deg,#16a34a,#15803d)', padding:'10px 16px', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+            <span style={{color:'#fff',fontWeight:800,fontSize:'0.88rem'}}>ℹ️ Informações Gerais — ACCBM</span>
+            <button onClick={()=>{setShowInfo(false);setEditing(false);}} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'#fff',width:26,height:26,borderRadius:6,cursor:'pointer',fontWeight:700}}>✕</button>
           </div>
-
           {/* Núcleo tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid var(--border)', background: 'var(--bg-input)' }}>
-            {(['geral', 'maua', 'saracuruna'] as NucleoTab[]).map(tab => (
-              <button key={tab} onClick={() => { setInfoTab(tab); setInfoDraft(infoTexts[tab]); setInfoEditing(false); }}
-                style={{
-                  flex: 1, padding: '9px 8px', border: 'none',
-                  borderBottom: infoTab === tab ? `2.5px solid ${NUCLEO_COLORS[tab]}` : '2.5px solid transparent',
-                  background: 'none', cursor: 'pointer',
-                  fontWeight: infoTab === tab ? 700 : 500,
-                  fontSize: '0.8rem', color: infoTab === tab ? NUCLEO_COLORS[tab] : 'var(--text-secondary)',
-                  transition: 'all .15s',
-                }}>
+          <div style={{display:'flex',borderBottom:'1px solid var(--border)',background:'var(--bg-input)'}}>
+            {(['geral','maua','saracuruna'] as NucleoTab[]).map(tab=>(
+              <button key={tab} onClick={()=>{setInfoTab(tab);setDraft(texts[tab]);setEditing(false);}}
+                style={{ flex:1, padding:'9px 8px', border:'none', borderBottom:infoTab===tab?`2.5px solid ${NUCLEO_COLORS[tab]}`:'2.5px solid transparent', background:'none', cursor:'pointer', fontWeight:infoTab===tab?700:500, fontSize:'0.8rem', color:infoTab===tab?NUCLEO_COLORS[tab]:'var(--text-secondary)', transition:'all .15s' }}>
                 {NUCLEO_LABELS[tab]}
-                {infoTexts[tab] && (
-                  <span style={{ marginLeft: 4, width: 6, height: 6, borderRadius: '50%', background: NUCLEO_COLORS[tab], display: 'inline-block', verticalAlign: 'middle' }} />
-                )}
+                {texts[tab]&&<span style={{marginLeft:4,width:6,height:6,borderRadius:'50%',background:NUCLEO_COLORS[tab],display:'inline-block',verticalAlign:'middle'}}/>}
               </button>
             ))}
           </div>
-
-          <div style={{ padding: '14px 16px' }}>
-            {infoEditing ? (
+          <div style={{padding:'14px 16px'}}>
+            {editing ? (
               <>
-                <textarea
-                  value={infoDraft}
-                  onChange={e => setInfoDraft(e.target.value)}
+                <textarea value={draft} onChange={e=>setDraft(e.target.value)} autoFocus rows={6}
                   placeholder={`Informações para ${NUCLEO_LABELS[infoTab]} (horários, avisos, eventos, mensalidades...)...`}
-                  rows={6}
-                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.88rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit', lineHeight: 1.65 }}
-                  autoFocus
-                />
-                <div style={{ display: 'flex', gap: 8, marginTop: 10, flexWrap: 'wrap' }}>
-                  <button onClick={() => setInfoEditing(false)}
-                    style={{ padding: '9px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>
-                    Cancelar
-                  </button>
-                  {/* Save only */}
-                  <button onClick={() => {
-                    setInfoTexts(prev => ({ ...prev, [infoTab]: infoDraft }));
-                    try { localStorage.setItem(INFO_KEY(infoTab), infoDraft); } catch {}
-                    setInfoEditing(false);
-                  }}
-                    style={{ flex: 1, padding: '9px 14px', background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem' }}>
-                    ✓ Salvar
-                  </button>
-                  {/* Save + auto-open send */}
-                  {infoDraft.trim() && (
-                    <button onClick={() => saveAndSend(infoTab, infoDraft)}
-                      style={{ flex: 1, padding: '9px 14px', background: 'linear-gradient(135deg,#25d366,#128c7e)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <WAIcon size={13} />
-                      Salvar e Enviar
-                    </button>
-                  )}
+                  style={{width:'100%',padding:'10px 12px',border:'1.5px solid var(--border)',borderRadius:8,fontSize:'0.88rem',background:'var(--bg-input)',color:'var(--text-primary)',outline:'none',resize:'vertical',boxSizing:'border-box',fontFamily:'inherit',lineHeight:1.65}} />
+                <div style={{display:'flex',gap:8,marginTop:10,flexWrap:'wrap'}}>
+                  <button onClick={()=>setEditing(false)} style={{padding:'9px 14px',background:'var(--bg-input)',border:'1px solid var(--border)',color:'var(--text-secondary)',borderRadius:8,cursor:'pointer',fontWeight:600,fontSize:'0.85rem'}}>Cancelar</button>
+                  <button onClick={()=>{setTexts(p=>({...p,[infoTab]:draft}));try{localStorage.setItem(INFO_KEY(infoTab),draft);}catch{}setEditing(false);}}
+                    style={{flex:1,padding:'9px 14px',background:'linear-gradient(135deg,#16a34a,#15803d)',border:'none',color:'#fff',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:'0.88rem'}}>✓ Salvar</button>
+                  {draft.trim()&&<button onClick={()=>saveAndSend(infoTab,draft)}
+                    style={{flex:1,padding:'9px 14px',background:'linear-gradient(135deg,#25d366,#128c7e)',border:'none',color:'#fff',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:'0.85rem',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                    <WA s={13}/>Salvar e Enviar</button>}
                 </div>
               </>
             ) : (
               <>
-                {currentText ? (
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.75, whiteSpace: 'pre-wrap', marginBottom: 12, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '10px 12px' }}>
-                    {currentText}
-                  </div>
+                {cur ? (
+                  <div style={{fontSize:'0.9rem',color:'var(--text-primary)',lineHeight:1.75,whiteSpace:'pre-wrap',marginBottom:12,background:'var(--bg-input)',border:'1px solid var(--border)',borderRadius:8,padding:'10px 12px'}}>{cur}</div>
                 ) : (
-                  <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', fontStyle: 'italic', textAlign: 'center', padding: '14px 0' }}>
-                    Nenhuma informação para {NUCLEO_LABELS[infoTab]}.
-                  </p>
+                  <p style={{color:'var(--text-secondary)',fontSize:'0.88rem',fontStyle:'italic',textAlign:'center',padding:'14px 0'}}>Nenhuma informação para {NUCLEO_LABELS[infoTab]}.</p>
                 )}
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={() => { setInfoDraft(currentText); setInfoEditing(true); }}
-                    style={{ padding: '9px 16px', background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.35)', color: '#16a34a', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
-                    ✏️ Editar
-                  </button>
-                  {currentText && (
-                    <button onClick={() => { setSentSet(new Set()); setSendModal({ tab: infoTab, text: currentText }); }}
-                      style={{ flex: 1, padding: '9px 14px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.4)', color: '#25d366', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
-                      <WAIcon size={13} />
-                      {studentPhone ? `Enviar p/ ${studentName || 'aluno'}` : `Enviar para ${NUCLEO_LABELS[infoTab]}`}
-                    </button>
-                  )}
+                <div style={{display:'flex',gap:8,flexWrap:'wrap'}}>
+                  <button onClick={()=>{setDraft(cur);setEditing(true);}} style={{padding:'9px 16px',background:'rgba(22,163,74,0.1)',border:'1px solid rgba(22,163,74,0.35)',color:'#16a34a',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:'0.85rem'}}>✏️ Editar</button>
+                  {cur&&<button onClick={()=>{setSentSet(new Set());setSendModal({tab:infoTab,text:cur});}}
+                    style={{flex:1,padding:'9px 14px',background:'rgba(37,211,102,0.1)',border:'1px solid rgba(37,211,102,0.4)',color:'#25d366',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:'0.85rem',display:'flex',alignItems:'center',justifyContent:'center',gap:6}}>
+                    <WA s={13}/>{studentPhone?`Enviar p/ ${studentName||'aluno'}`:`Enviar para ${NUCLEO_LABELS[infoTab]}`}</button>}
                 </div>
               </>
             )}
@@ -425,38 +302,25 @@ export default function DocumentsBar({
         </div>
       )}
 
-      {/* ── Admin lock modal (hidden — triggered by triple-click) ─────────────── */}
-      {showLockModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 500, padding: 20 }}>
-          <div style={{ background: '#fff', borderRadius: 14, padding: '28px 24px', width: '100%', maxWidth: 340, boxShadow: '0 12px 40px rgba(0,0,0,0.35)' }}>
-            <div style={{ textAlign: 'center', marginBottom: 18 }}>
-              <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔒</div>
-              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1e3a8a' }}>Acesso Restrito</div>
-              <div style={{ fontSize: '0.78rem', color: '#64748b', marginTop: 4 }}>Identificação necessária para continuar</div>
+      {/* ── CPF / Identificação modal ─────────────────────────────────────────── */}
+      {showCpfModal && (
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.65)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:500,padding:20}}>
+          <div style={{background:'#fff',borderRadius:16,padding:'28px 24px',width:'100%',maxWidth:340,boxShadow:'0 12px 40px rgba(0,0,0,0.35)'}}>
+            <div style={{textAlign:'center',marginBottom:20}}>
+              <div style={{fontSize:'2.2rem',marginBottom:8}}>🔒</div>
+              <div style={{fontWeight:800,fontSize:'1.05rem',color:'#1e3a8a'}}>Inserir Documento</div>
+              <div style={{fontSize:'0.78rem',color:'#64748b',marginTop:5}}>Digite sua identificação para liberar o upload</div>
             </div>
-            <form onSubmit={handleLockSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <input
-                type="password"
-                value={lockInput}
-                onChange={e => { setLockInput(e.target.value); setLockError(''); }}
-                placeholder="Digite sua identificação"
-                autoFocus
-                style={{ width: '100%', padding: '11px 14px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.95rem', outline: 'none', boxSizing: 'border-box' }}
-              />
-              {lockError && (
-                <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 7, padding: '7px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>
-                  ⚠ {lockError}
-                </div>
-              )}
-              <div style={{ display: 'flex', gap: 8 }}>
-                <button type="button" onClick={() => { setShowLockModal(false); setLockInput(''); setLockError(''); setLockClickCount(0); }}
-                  style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>
-                  Cancelar
-                </button>
+            <form onSubmit={handleCpfSubmit} style={{display:'flex',flexDirection:'column',gap:12}}>
+              <input type="password" value={cpfInput} onChange={e=>{setCpfInput(e.target.value);setCpfError('');}}
+                placeholder="Sua identificação (CPF)" autoFocus
+                style={{width:'100%',padding:'12px 14px',border:'1.5px solid #e2e8f0',borderRadius:9,fontSize:'1rem',outline:'none',boxSizing:'border-box',textAlign:'center',letterSpacing:'0.1em'}} />
+              {cpfError&&<div style={{background:'#fef2f2',border:'1px solid #fecaca',borderRadius:7,padding:'8px 12px',color:'#dc2626',fontSize:'0.8rem',fontWeight:600,textAlign:'center'}}>⚠ {cpfError}</div>}
+              <div style={{display:'flex',gap:8}}>
+                <button type="button" onClick={()=>{setShowCpfModal(false);setPendingAction(null);setCpfInput('');setCpfError('');}}
+                  style={{flex:1,padding:'11px',background:'#f1f5f9',border:'1px solid #e2e8f0',borderRadius:8,cursor:'pointer',fontWeight:600,fontSize:'0.9rem',color:'#64748b'}}>Cancelar</button>
                 <button type="submit"
-                  style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>
-                  Confirmar
-                </button>
+                  style={{flex:2,padding:'11px',background:'linear-gradient(135deg,#1d4ed8,#1e40af)',border:'none',borderRadius:8,cursor:'pointer',fontWeight:700,fontSize:'0.9rem',color:'#fff'}}>Confirmar</button>
               </div>
             </form>
           </div>
@@ -465,55 +329,38 @@ export default function DocumentsBar({
 
       {/* ── Bulk send modal ───────────────────────────────────────────────────── */}
       {sendModal && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 400, padding: 16 }}>
-          <div style={{ background: 'var(--bg-card)', borderRadius: 16, width: '100%', maxWidth: 480, maxHeight: '85vh', display: 'flex', flexDirection: 'column', boxShadow: '0 12px 40px rgba(0,0,0,0.3)', overflow: 'hidden' }}>
-            {/* Header */}
-            <div style={{ background: `linear-gradient(135deg,${NUCLEO_COLORS[sendModal.tab]},${NUCLEO_COLORS[sendModal.tab]}cc)`, padding: '14px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:400,padding:16}}>
+          <div style={{background:'var(--bg-card)',borderRadius:16,width:'100%',maxWidth:480,maxHeight:'85vh',display:'flex',flexDirection:'column',boxShadow:'0 12px 40px rgba(0,0,0,0.3)',overflow:'hidden'}}>
+            <div style={{background:`linear-gradient(135deg,${NUCLEO_COLORS[sendModal.tab]},${NUCLEO_COLORS[sendModal.tab]}cc)`,padding:'14px 18px',display:'flex',alignItems:'center',justifyContent:'space-between',flexShrink:0}}>
               <div>
-                <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>
-                  📲 Enviar — {NUCLEO_LABELS[sendModal.tab]}
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.75rem', marginTop: 2 }}>
-                  {tabStudents.length} aluno(s) com telefone · clique em Enviar para cada um
-                </div>
+                <div style={{color:'#fff',fontWeight:800,fontSize:'0.95rem'}}>📲 Enviar — {NUCLEO_LABELS[sendModal.tab]}</div>
+                <div style={{color:'rgba(255,255,255,0.85)',fontSize:'0.75rem',marginTop:2}}>{tabList.length} aluno(s) com telefone cadastrado</div>
               </div>
-              <button onClick={() => { setSendModal(null); setSentSet(new Set()); }}
-                style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', width: 30, height: 30, borderRadius: 8, cursor: 'pointer', fontWeight: 800, fontSize: '1rem' }}>✕</button>
+              <button onClick={()=>{setSendModal(null);setSentSet(new Set());}} style={{background:'rgba(255,255,255,0.2)',border:'none',color:'#fff',width:30,height:30,borderRadius:8,cursor:'pointer',fontWeight:800,fontSize:'1rem'}}>✕</button>
             </div>
-
-            {/* Message preview */}
-            <div style={{ padding: '10px 18px', borderBottom: '1px solid var(--border)', flexShrink: 0, background: 'var(--bg-input)' }}>
-              <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Mensagem:</div>
-              <div style={{ fontSize: '0.82rem', color: 'var(--text-primary)', whiteSpace: 'pre-wrap', lineHeight: 1.5, maxHeight: 70, overflowY: 'auto' }}>
-                {sendModal.text.slice(0, 220)}{sendModal.text.length > 220 ? '…' : ''}
-              </div>
+            <div style={{padding:'10px 18px',borderBottom:'1px solid var(--border)',flexShrink:0,background:'var(--bg-input)'}}>
+              <div style={{fontSize:'0.7rem',color:'var(--text-secondary)',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.06em',marginBottom:4}}>Mensagem:</div>
+              <div style={{fontSize:'0.82rem',color:'var(--text-primary)',whiteSpace:'pre-wrap',lineHeight:1.5,maxHeight:70,overflowY:'auto'}}>{sendModal.text.slice(0,220)}{sendModal.text.length>220?'…':''}</div>
             </div>
-
-            {/* Students list */}
-            <div style={{ flex: 1, overflowY: 'auto', padding: '10px 14px' }}>
-              {tabStudents.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                  Nenhum aluno com telefone cadastrado neste núcleo.
-                </div>
+            <div style={{flex:1,overflowY:'auto',padding:'10px 14px'}}>
+              {tabList.length===0 ? (
+                <div style={{textAlign:'center',padding:30,color:'var(--text-secondary)',fontSize:'0.88rem'}}>Nenhum aluno com telefone cadastrado neste núcleo.</div>
               ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                  {tabStudents.map(s => {
-                    const sent = sentSet.has(s.id);
+                <div style={{display:'flex',flexDirection:'column',gap:6}}>
+                  {tabList.map(s=>{
+                    const sent=sentSet.has(s.id);
                     return (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: sent ? 'rgba(22,163,74,0.07)' : 'var(--bg-input)', border: `1px solid ${sent ? 'rgba(22,163,74,0.3)' : 'var(--border)'}`, borderRadius: 10, transition: 'all .15s' }}>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome_completo}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{s.telefone}{s.nucleo ? ` · ${s.nucleo}` : ''}</div>
+                      <div key={s.id} style={{display:'flex',alignItems:'center',gap:10,padding:'8px 10px',background:sent?'rgba(22,163,74,0.07)':'var(--bg-input)',border:`1px solid ${sent?'rgba(22,163,74,0.3)':'var(--border)'}`,borderRadius:10,transition:'all .15s'}}>
+                        <div style={{flex:1,minWidth:0}}>
+                          <div style={{fontWeight:700,fontSize:'0.85rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.nome_completo}</div>
+                          <div style={{fontSize:'0.7rem',color:'var(--text-secondary)'}}>{s.telefone}{s.nucleo?` · ${s.nucleo}`:''}</div>
                         </div>
-                        <a href={buildWALink(s.telefone, sendModal.text)} target="_blank" rel="noopener noreferrer"
-                          onClick={() => setSentSet(prev => new Set([...prev, s.id]))}
-                          style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '7px 12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.78rem', flexShrink: 0, transition: 'all .15s',
-                            background: sent ? 'rgba(22,163,74,0.15)' : 'linear-gradient(135deg,#25d366,#128c7e)',
-                            color: sent ? '#16a34a' : '#fff',
-                            border: sent ? '1px solid rgba(22,163,74,0.4)' : 'none',
-                          }}>
-                          <WAIcon size={13} />
-                          {sent ? '✓ Enviado' : 'Enviar'}
+                        <a href={waLink(s.telefone,sendModal.text)} target="_blank" rel="noopener noreferrer"
+                          onClick={()=>setSentSet(p=>new Set([...p,s.id]))}
+                          style={{display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,textDecoration:'none',fontWeight:700,fontSize:'0.78rem',flexShrink:0,transition:'all .15s',
+                            background:sent?'rgba(22,163,74,0.15)':'linear-gradient(135deg,#25d366,#128c7e)',
+                            color:sent?'#16a34a':'#fff', border:sent?'1px solid rgba(22,163,74,0.4)':'none'}}>
+                          <WA s={13}/>{sent?'✓ Enviado':'Enviar'}
                         </a>
                       </div>
                     );
@@ -521,18 +368,9 @@ export default function DocumentsBar({
                 </div>
               )}
             </div>
-
-            {/* Footer */}
-            <div style={{ padding: '12px 18px', borderTop: '1px solid var(--border)', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
-              {sentSet.size > 0 && (
-                <span style={{ flex: 1, color: '#16a34a', fontWeight: 700, fontSize: '0.8rem' }}>
-                  ✓ {sentSet.size}/{tabStudents.length} enviados
-                </span>
-              )}
-              <button onClick={() => { setSendModal(null); setSentSet(new Set()); }}
-                style={{ marginLeft: 'auto', padding: '9px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem' }}>
-                Fechar
-              </button>
+            <div style={{padding:'12px 18px',borderTop:'1px solid var(--border)',flexShrink:0,display:'flex',alignItems:'center',gap:8}}>
+              {sentSet.size>0&&<span style={{flex:1,color:'#16a34a',fontWeight:700,fontSize:'0.8rem'}}>✓ {sentSet.size}/{tabList.length} enviados</span>}
+              <button onClick={()=>{setSendModal(null);setSentSet(new Set());}} style={{marginLeft:'auto',padding:'9px 20px',background:'var(--bg-input)',border:'1px solid var(--border)',color:'var(--text-secondary)',borderRadius:8,cursor:'pointer',fontWeight:600,fontSize:'0.88rem'}}>Fechar</button>
             </div>
           </div>
         </div>
