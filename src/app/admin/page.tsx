@@ -635,11 +635,8 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Documents bar — admin mode with upload controls */}
-        <DocumentsBar mode="admin" />
-
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
           {(['alunos', 'presencas', 'relatorio', 'ranking', 'certificado'] as const).map(tab => (
             <button
               key={tab}
@@ -665,6 +662,9 @@ export default function AdminPage() {
             </button>
           ))}
         </div>
+
+        {/* ── Documentos ACCBM — after tabs ───────────────────────────────── */}
+        <DocumentsBar />
 
         {activeTab === 'alunos' && (
           <div>
@@ -1828,7 +1828,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Documents bar for this student */}
             <DocumentsBar
-              mode="admin"
               studentPhone={selected.telefone}
               studentName={selected.nome_completo.split(' ')[0]}
             />

@@ -470,6 +470,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </button>
           </div>
 
+          {/* ── Documentos ACCBM (Estatuto, Regimento, Informações Gerais) ── */}
+          <DocumentsBar />
+
           {activeSection === 'ficha' && (
           <form onSubmit={handleSubmit}>
             {/* Núcleo */}
@@ -766,9 +769,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </label>
             </div>
           </div>
-
-          {/* Documentos ACCBM */}
-          <DocumentsBar mode="public" />
 
           <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
             {loading ? 'Enviando...' : 'Finalizar Cadastro'}
