@@ -392,25 +392,47 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
   return (
     <>
-      {/* Hero Banner — altura total, sem sobreposição */}
-        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 400 }}>
-          <img
-            src="/wallpaper-capoeira.jpg"
-            alt="Capoeira Barão de Mauá"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              objectPosition: 'center center',
-              zIndex: 0,
-            }}
-          />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 100%)', zIndex: 1 }} />
-        </div>
+      {/* ── Hero Banner — imagem completa + conteúdo centralizado ── */}
+      <div className="hero-banner" style={{ minHeight: 420, position: 'relative', overflow: 'hidden' }}>
+        {/* Imagem de fundo */}
+        <img
+          src="/wallpaper-capoeira.jpg"
+          alt="Capoeira Barão de Mauá"
+          style={{
+            position: 'absolute', inset: 0,
+            width: '100%', height: '100%',
+            objectFit: 'cover', objectPosition: 'center center',
+            zIndex: 0,
+          }}
+        />
+        {/* Overlay escuro suave */}
+        <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.18) 0%, rgba(0,0,0,0.62) 100%)', zIndex: 1 }} />
 
-        <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>
+        {/* Conteúdo centralizado sobre a imagem */}
+        <div className="hero-content" style={{ position: 'relative', zIndex: 2, display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '40px 20px 48px' }}>
+          <img
+            src="/logo-maua.png"
+            alt="Logo ACCBM"
+            className="hero-logo"
+            style={{ width: 110, height: 110, borderRadius: '50%', border: '3px solid #f59e0b', boxShadow: '0 0 40px rgba(220,38,38,0.4)', marginBottom: 16, objectFit: 'contain', background: 'rgba(255,255,255,0.12)' }}
+          />
+          <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.18em', textTransform: 'uppercase', marginBottom: 6 }}>
+            Associação Cultural de Capoeira
+          </div>
+          <div className="hero-title" style={{ fontSize: '1.9rem', fontWeight: 900, textAlign: 'center', letterSpacing: '-0.01em', lineHeight: 1.15, marginBottom: 4, background: 'linear-gradient(135deg,#ffffff,#fbbf24)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+            Barão de Mauá
+          </div>
+          <div style={{ width: 48, height: 3, borderRadius: 2, background: 'linear-gradient(90deg,#dc2626,#fbbf24,#16a34a)', margin: '8px auto 12px' }} />
+          <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '1rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textAlign: 'center', textShadow: '0 2px 8px rgba(0,0,0,0.5)' }}>
+            Sistema de Gestão de Alunos
+          </div>
+          <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', marginTop: 6, letterSpacing: '0.1em', textAlign: 'center' }}>
+            Duque de Caxias &amp; Magé — Rio de Janeiro
+          </div>
+        </div>
+      </div>
+
+      <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>
           {/* Action tabs */}
           <div style={{ display: 'flex', gap: 4, marginTop: 8, marginBottom: 0, flexWrap: 'wrap' }}>
             <button
