@@ -393,7 +393,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
   return (
     <>
       {/* Hero Banner — altura total, sem sobreposição */}
-        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 340 }}>
+        <div className="hero-banner" style={{ position: 'relative', overflow: 'hidden', minHeight: 400 }}>
           <img
             src="/wallpaper-capoeira.jpg"
             alt="Capoeira Barão de Mauá"
@@ -403,11 +403,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               width: '100%',
               height: '100%',
               objectFit: 'cover',
-              objectPosition: 'center top',
+              objectPosition: 'center center',
               zIndex: 0,
             }}
           />
-          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.5) 100%)', zIndex: 1 }} />
+          <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to bottom, rgba(0,0,0,0.05) 0%, rgba(0,0,0,0.35) 100%)', zIndex: 1 }} />
         </div>
 
         <div className="container" style={{ marginTop: 0, position: 'relative', zIndex: 3 }}>

@@ -41,7 +41,7 @@ html, body {
 .hero-banner {
   position: relative;
   width: 100%;
-  min-height: 320px;
+  min-height: 400px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -57,7 +57,7 @@ html, body {
   content: '';
   position: absolute;
   inset: 0;
-  background: radial-gradient(ellipse at center, rgba(220,38,38,0.06) 0%, transparent 70%);
+  background: radial-gradient(ellipse at center, rgba(220,38,38,0.03) 0%, transparent 70%);
   pointer-events: none;
 }
 
@@ -67,8 +67,8 @@ html, body {
   bottom: 0;
   left: 0;
   right: 0;
-  height: 80px;
-  background: linear-gradient(transparent, #f5f3ef);
+  height: 40px;
+  background: linear-gradient(transparent, rgba(0,0,0,0.15));
   pointer-events: none;
 }
 
@@ -665,7 +665,7 @@ html, body {
     font-size: 1.4rem;
   }
   .hero-banner {
-    min-height: 260px;
+    min-height: 320px;
   }
   .form-section {
     padding: 20px;
