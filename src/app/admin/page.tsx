@@ -1916,6 +1916,192 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando relatório...</div>
           ) : (
             <div>
+
+              {/* ── Gráfico Mensal de Presenças e Faltas ── */}
+              {(() => {
+                // Collect all unique dates from historico
+                const allDates = new Set<string>();
+                Object.values(relatorioHistorico).forEach(dias => dias.forEach(d => allDates.add(d)));
+
+                // Group check-in counts by YYYY-MM
+                const monthMap: Record<string, number> = {};
+                allDates.forEach(d => {
+                  const ym = d.slice(0, 7);
+                  monthMap[ym] = (monthMap[ym] || 0) + 1;
+                });
+
+                // Also calculate per-student monthly presence for avg%
+                const months = Object.keys(monthMap).sort();
+                if (months.length === 0) return null;
+
+                // Per month: how many students had ≥1 check-in (unique student-days / total students)
+                const monthStudentCount: Record<string, Set<string>> = {};
+                Object.entries(relatorioHistorico).forEach(([sid, dias]) => {
+                  dias.forEach(d => {
+                    const ym = d.slice(0, 7);
+                    if (!monthStudentCount[ym]) monthStudentCount[ym] = new Set();
+                    monthStudentCount[ym].add(sid);
+                  });
+                });
+
+                // Days in each month actually recorded (unique training days)
+                const monthTrainingDays: Record<string, Set<string>> = {};
+                allDates.forEach(d => {
+                  const ym = d.slice(0, 7);
+                  if (!monthTrainingDays[ym]) monthTrainingDays[ym] = new Set();
+                  monthTrainingDays[ym].add(d);
+                });
+
+                const total = students.length || 1;
+                const maxBar = 260;
+                const barW = Math.max(28, Math.min(60, Math.floor((maxBar - months.length * 6) / months.length)));
+
+                const monthLabel = (ym: string) => {
+                  const [y, m] = ym.split('-');
+                  const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                  return `${names[parseInt(m)-1]}/${y.slice(2)}`;
+                };
+
+                const printGrafico = () => {
+                  const pw = window.open('', '_blank');
+                  if (!pw) return;
+                  const svgEl = document.getElementById('grafico-mensal-svg');
+                  const svgHtml = svgEl ? svgEl.outerHTML : '';
+                  const now = new Date(new Date().toLocaleString('en-US',{timeZone:'America/Sao_Paulo'}));
+                  const dateStr = now.toLocaleDateString('pt-BR',{day:'2-digit',month:'long',year:'numeric'});
+                  pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Relatório Mensal — ACCBM</title>
+                    <style>*{margin:0;padding:0;box-sizing:border-box;} @page{size:A4 landscape;margin:15mm} body{font-family:Arial,sans-serif;padding:20px;} h1{font-size:16px;color:#1e3a8a;margin-bottom:4px;} .sub{font-size:11px;color:#64748b;margin-bottom:16px;} svg{width:100%;}</style>
+                    </head><body>
+                    <h1>📊 Relatório Mensal de Presenças — Capoeira Barão de Mauá</h1>
+                    <div class="sub">Gerado em ${dateStr} · ${total} alunos · Período: últimos ${relDias} dias</div>
+                    ${svgHtml}
+                    <script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script>
+                    </body></html>`);
+                  pw.document.close();
+                };
+
+                const svgH = 320;
+                const svgW = Math.max(500, months.length * (barW + 10) + 120);
+                const chartBottom = svgH - 60;
+                const chartTop = 40;
+                const chartH = chartBottom - chartTop;
+
+                return (
+                  <div style={{ marginBottom: 28, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                    {/* Header */}
+                    <div style={{ background: 'linear-gradient(135deg,#1e3a8a,#1d4ed8)', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>📊 Gráfico Mensal de Presenças e Faltas</div>
+                        <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.72rem', marginTop: 2 }}>Presenças registradas por mês · {total} alunos no total</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={printGrafico}
+                          style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                          Imprimir
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Legenda */}
+                    <div style={{ display: 'flex', gap: 18, padding: '10px 18px', flexWrap: 'wrap', borderBottom: '1px solid var(--border)' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, background: '#16a34a' }} /> Presenças
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, background: '#dc2626' }} /> Faltas
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                        <div style={{ width: 14, height: 14, borderRadius: 3, background: '#3b82f6' }} /> Alunos presentes (únicos)
+                      </div>
+                    </div>
+
+                    {/* SVG Chart */}
+                    <div style={{ overflowX: 'auto', padding: '0 8px' }}>
+                      <svg id="grafico-mensal-svg" width={svgW} height={svgH} style={{ display: 'block', minWidth: '100%' }}>
+                        {/* Grid lines */}
+                        {[0, 25, 50, 75, 100].map(pct => {
+                          const y = chartBottom - (pct / 100) * chartH;
+                          return (
+                            <g key={pct}>
+                              <line x1={60} y1={y} x2={svgW - 20} y2={y} stroke="var(--border)" strokeDasharray="4,3" strokeWidth={0.8} />
+                              <text x={54} y={y + 4} textAnchor="end" fill="var(--text-secondary)" fontSize={10}>{pct}%</text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Bars per month */}
+                        {months.map((ym, i) => {
+                          const x0 = 70 + i * (barW * 2 + 18);
+                          const trainDays = monthTrainingDays[ym]?.size || 1;
+                          const presentStudents = monthStudentCount[ym]?.size || 0;
+                          // presence% = students with ≥1 check-in that month / total
+                          const presencePct = Math.min(100, Math.round((presentStudents / total) * 100));
+                          const absencePct = 100 - presencePct;
+                          const presH = (presencePct / 100) * chartH;
+                          const absH = (absencePct / 100) * chartH;
+
+                          return (
+                            <g key={ym}>
+                              {/* Presence bar */}
+                              <rect x={x0} y={chartBottom - presH} width={barW} height={presH}
+                                fill="#16a34a" rx={4} opacity={0.9} />
+                              <text x={x0 + barW / 2} y={chartBottom - presH - 4} textAnchor="middle"
+                                fill="#16a34a" fontSize={10} fontWeight="700">{presencePct}%</text>
+
+                              {/* Absence bar */}
+                              <rect x={x0 + barW + 4} y={chartBottom - absH} width={barW} height={absH}
+                                fill="#dc2626" rx={4} opacity={0.85} />
+                              <text x={x0 + barW + 4 + barW / 2} y={chartBottom - absH - 4} textAnchor="middle"
+                                fill="#dc2626" fontSize={10} fontWeight="700">{absencePct}%</text>
+
+                              {/* Month label */}
+                              <text x={x0 + barW + 2} y={chartBottom + 16} textAnchor="middle"
+                                fill="var(--text-secondary)" fontSize={10} fontWeight="600">{monthLabel(ym)}</text>
+
+                              {/* Training days badge */}
+                              <text x={x0 + barW + 2} y={chartBottom + 28} textAnchor="middle"
+                                fill="var(--text-secondary)" fontSize={9}>{trainDays} treino{trainDays !== 1 ? 's' : ''}</text>
+
+                              {/* Unique present students */}
+                              <text x={x0 + barW + 2} y={chartBottom + 40} textAnchor="middle"
+                                fill="#3b82f6" fontSize={9} fontWeight="600">{presentStudents} aluno{presentStudents !== 1 ? 's' : ''}</text>
+                            </g>
+                          );
+                        })}
+
+                        {/* Axis */}
+                        <line x1={60} y1={chartTop} x2={60} y2={chartBottom} stroke="var(--border)" strokeWidth={1} />
+                        <line x1={60} y1={chartBottom} x2={svgW - 20} y2={chartBottom} stroke="var(--border)" strokeWidth={1} />
+                      </svg>
+                    </div>
+
+                    {/* Monthly summary cards */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: 10, padding: '14px 18px', borderTop: '1px solid var(--border)' }}>
+                      {months.map(ym => {
+                        const presentStudents = monthStudentCount[ym]?.size || 0;
+                        const trainDays = monthTrainingDays[ym]?.size || 0;
+                        const totalCheckins = monthMap[ym] || 0;
+                        const presencePct = Math.round((presentStudents / total) * 100);
+                        const cor = presencePct >= 75 ? '#16a34a' : presencePct >= 50 ? '#d97706' : '#dc2626';
+                        return (
+                          <div key={ym} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', borderTop: `3px solid ${cor}` }}>
+                            <div style={{ fontWeight: 800, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 4 }}>{monthLabel(ym)}</div>
+                            <div style={{ fontSize: '0.75rem', color: '#16a34a', fontWeight: 700 }}>✓ {presentStudents} alunos presentes</div>
+                            <div style={{ fontSize: '0.75rem', color: '#dc2626', fontWeight: 700 }}>✗ {total - presentStudents} ausentes</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 4 }}>{totalCheckins} check-ins · {trainDays} treino{trainDays !== 1 ? 's' : ''}</div>
+                            <div style={{ marginTop: 6, height: 5, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${presencePct}%`, background: cor, borderRadius: 3, transition: 'width 0.4s' }} />
+                            </div>
+                            <div style={{ fontSize: '0.68rem', color: cor, fontWeight: 700, marginTop: 2 }}>{presencePct}% frequência</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Sumário */}
               <div className="admin-stats" style={{ marginBottom: 20 }}>
                 <div className="stat-card">
