@@ -495,6 +495,8 @@ export default function AdminPage() {
     } catch {}
     // Load financial alerts on mount so badge counts are always visible
     fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); }).catch(() => {});
+    // Pre-load responsáveis config for geral admin to prevent accidental empty saves
+    fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); }).catch(() => {});
   }, []);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -3538,10 +3540,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             {hasData && (
                               <button onClick={async () => {
                                 if (!confirm(`Remover responsável do ${n.label}?`)) return;
-                                const updated = responsaveis.filter(r => r.nucleo_key !== n.key);
+                                // Busca lista atual da API antes de remover para não perder dados não carregados
+                                const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                                const currentList: typeof responsaveis = cfg.responsaveis || [];
+                                const updated = currentList.filter((r: { nucleo_key: string }) => r.nucleo_key !== n.key);
                                 setResponsaveis(updated);
-                                await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                                setResponsaveisMsg('✓ Responsável removido!');
+                                const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                if (res.ok) { setResponsaveisMsg('✓ Responsável removido!'); } else { setResponsaveisMsg('Erro ao remover. Tente novamente.'); }
                                 setTimeout(() => setResponsaveisMsg(''), 3000);
                               }}
                                 style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
@@ -3583,6 +3588,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div style={{ marginTop: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
                       <button onClick={async () => {
                         setResponsaveisMsg('');
+                        // Só salva se o estado local foi carregado (tem pelo menos 1 núcleo editado ou lista foi buscada)
+                        if (responsaveis.length === 0 && !loadingResponsaveis) {
+                          setResponsaveisMsg('⚠ Clique em "Editar Responsáveis" antes de salvar.');
+                          setTimeout(() => setResponsaveisMsg(''), 4000);
+                          return;
+                        }
                         const filtered = responsaveis.filter(r => r.nome.trim() && r.cpf.trim());
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
                         if (res.ok) { setResponsaveisMsg('✓ Responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
