@@ -805,7 +805,7 @@ export default function AdminPage() {
         {/* Logo + title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img src="/logo-maua.png" alt="ACCBM" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
-          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.3rem', fontWeight: 900, letterSpacing: '0.03em' }}>Painel Administrativo</div>
+          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestão de Alunos ACCBM</div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
         </div>
 
@@ -900,7 +900,7 @@ export default function AdminPage() {
               textShadow: 'none',
               filter: 'drop-shadow(0 2px 8px rgba(37,99,235,0.25))',
             }}>
-              Painel Administrativo
+              Sistema de Gestão de Alunos ACCBM
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
               Associação Cultural de Capoeira Barão de Mauá
