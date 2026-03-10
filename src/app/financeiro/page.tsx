@@ -503,7 +503,18 @@ export default function FinanceiroPage() {
                     <div key={m.mes} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                         <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{label} — {formatMoeda(m.valor)}</span>
-                        {statusBadge(m.status)}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          {statusBadge(m.status)}
+                          {m.status !== 'pago' && !m.admin_confirmado && (
+                            <button onClick={async () => {
+                              if (!confirm(`Excluir mensalidade de ${label}?`)) return;
+                              const updated = { ...ficha, mensalidades: ficha.mensalidades.filter(x => x.mes !== m.mes) };
+                              setFicha(updated); await saveFicha(updated);
+                            }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                              🗑
+                            </button>
+                          )}
+                        </div>
                       </div>
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
                         {METODOS.map(mt => (
@@ -569,7 +580,18 @@ export default function FinanceiroPage() {
                           <div key={m.mes} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
                               <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y} — {formatMoeda(m.valor)}</span>
-                              {statusBadge(m.status)}
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                {statusBadge(m.status)}
+                                {m.status !== 'pago' && !m.admin_confirmado && (
+                                  <button onClick={async () => {
+                                    if (!confirm(`Excluir contribuição de ${names[parseInt(mo)-1]}/${y}?`)) return;
+                                    const updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.filter(x => x.mes !== m.mes) } };
+                                    setFicha(updated); await saveFicha(updated);
+                                  }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
                             </div>
                             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                               {METODOS.map(mt => (
@@ -635,7 +657,18 @@ export default function FinanceiroPage() {
                   <div key={u.id} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 4 }}>
                       <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{u.descricao}{u.tamanho ? ` (${u.tamanho})` : ''}</span>
-                      {statusBadge(u.status)}
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        {statusBadge(u.status)}
+                        {u.status === 'solicitado' && (
+                          <button onClick={async () => {
+                            if (!confirm(`Cancelar solicitação de "${u.descricao}"?`)) return;
+                            const updated = { ...ficha, uniformes: ficha.uniformes.filter(x => x.id !== u.id) };
+                            setFicha(updated); await saveFicha(updated);
+                          }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                            🗑
+                          </button>
+                        )}
+                      </div>
                     </div>
                     <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>
                       {u.quantidade}× {formatMoeda(u.valor_unitario)} · Total: {formatMoeda(u.quantidade * u.valor_unitario)} · Solicitado em {formatDate(u.data_solicitacao)}

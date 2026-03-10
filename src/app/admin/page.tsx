@@ -1120,6 +1120,16 @@ export default function AdminPage() {
           {nucleoFilter ? (
             // Responsável de núcleo: mostra apenas dados do seu núcleo
             <>
+            {(() => {
+              const ncColor = activeNucleo === 'edson-alves' ? '#dc2626' : activeNucleo === 'ipiranga' ? '#ea580c' : activeNucleo === 'saracuruna' ? '#16a34a' : activeNucleo === 'vila-urussai' ? '#9333ea' : activeNucleo === 'jayme-fichman' ? '#0891b2' : '#1d4ed8';
+              const ncLabel = activeNucleo === 'saracuruna' ? 'CIEP 318 — Saracuruna' : nucleoFilter;
+              return (
+                <div className="stat-card" style={{ borderTop: `3px solid ${ncColor}` }}>
+                  <div className="stat-value" style={{ color: ncColor }}>📍</div>
+                  <div className="stat-label" style={{ fontWeight: 700 }}>{ncLabel}</div>
+                </div>
+              );
+            })()}
             <div className="stat-card">
               <div className="stat-value">{visibleStudents.filter(s => s.menor_de_idade).length}</div>
               <div className="stat-label">Menores de Idade</div>
