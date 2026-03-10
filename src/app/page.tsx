@@ -19,7 +19,7 @@ export default function Home() {
   const [cardData, setCardData] = useState<SuccessData | null>(null);
   const [cardLoading, setCardLoading] = useState(false);
   const [cardError, setCardError] = useState('');
-  const [activeSection, setActiveSection] = useState<'ficha' | 'carteirinha'>('ficha');
+  const [activeSection, setActiveSection] = useState<'ficha' | 'carteirinha' | 'financeiro'>('ficha');
   const [photoPreview, setPhotoPreview] = useState<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [menorDeIdade, setMenorDeIdade] = useState(false);
@@ -483,6 +483,29 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
               Credencial do Aluno
             </button>
+            <button
+              type="button"
+              onClick={() => setActiveSection('financeiro')}
+              style={{
+                background: activeSection === 'financeiro' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'rgba(22,163,74,0.1)',
+                border: 'none',
+                borderBottom: 'none',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 22px',
+                color: activeSection === 'financeiro' ? '#ffffff' : '#16a34a',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              Ficha Financeira
+            </button>
           </div>
 
           {activeSection === 'ficha' && (
@@ -846,6 +869,79 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
         )}
 
+        {/* ── Ficha Financeira tab ── */}
+        {activeSection === 'financeiro' && (
+          <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
+            <h2 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+              Ficha Financeira
+            </h2>
+            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20, marginTop: -4 }}>
+              Acesse sua ficha financeira individual. A senha de acesso é o seu CPF cadastrado na associação.
+            </p>
+
+            {/* If we already have a student from credencial search, show their card */}
+            {cardData ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 14, background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 12, padding: '14px 16px' }}>
+                  {cardData.foto_url
+                    ? <img src={cardData.foto_url} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(22,163,74,0.35)', flexShrink: 0 }} />
+                    : <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(22,163,74,0.1)', border: '2px solid rgba(22,163,74,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>👤</div>
+                  }
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>{cardData.nome}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>{cardData.graduacao} · {cardData.nucleo || '—'}</div>
+                    <div style={{ color: 'rgba(22,163,74,0.8)', fontSize: '0.72rem', marginTop: 2 }}>CPF: {cardData.cpf}</div>
+                  </div>
+                </div>
+                <a
+                  href="/financeiro"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '14px', background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 12, textDecoration: 'none', fontWeight: 800, fontSize: '1rem', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                  💰 Acessar Ficha de {cardData.nome.split(' ')[0]}
+                </a>
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
+                  Você será levado à ficha financeira. A senha de acesso é o seu CPF.
+                </p>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                    <input
+                      placeholder="CPF (000.000.000-00)"
+                      value={cardCpf}
+                      onChange={e => setCardCpf(formatCPF(e.target.value))}
+                      onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
+                      style={{ flex: 1, minWidth: 200 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={buscarCarteirinha}
+                      disabled={cardLoading}
+                      style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+                    >
+                      {cardLoading ? 'Buscando...' : 'Verificar CPF'}
+                    </button>
+                  </div>
+                  {cardError && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: 0, fontWeight: 600 }}>⚠ {cardError}</p>}
+                </div>
+                <a
+                  href="/financeiro"
+                  style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px', background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 12, textDecoration: 'none', fontWeight: 800, fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
+                >
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                  💰 Acessar Ficha Financeira
+                </a>
+                <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
+                  Digite seu CPF cadastrado para entrar na sua ficha financeira individual.
+                </p>
+              </div>
+            )}
+          </div>
+        )}
+
       </div>
 
       {/* Success modal */}
@@ -943,34 +1039,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       </footer>
 
-      {/* Botões fixos — canto inferior esquerdo */}
-      <div style={{ position: 'fixed', bottom: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 9999 }}>
-        <button
-          onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
-          style={{
-            background: 'linear-gradient(135deg,#b45309,#d97706)',
-            color: '#fff', border: '1.5px solid #fbbf24', borderRadius: '8px',
-            padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
-            backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
-            fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
-          }}
-        >
-          🔒 Painel Administrativo
-        </button>
-        <a
-          href="/financeiro"
-          style={{
-            display: 'block', textAlign: 'center', textDecoration: 'none',
-            background: 'linear-gradient(135deg,#16a34a,#15803d)',
-            color: '#fff', border: '1.5px solid #4ade80', borderRadius: '8px',
-            padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
-            backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
-            fontWeight: 700, boxShadow: '0 2px 12px rgba(22,163,74,0.45)',
-          }}
-        >
-          💰 Ficha Financeira
-        </a>
-      </div>
+      {/* Botão fixo — Painel Administrativo */}
+      <button
+        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
+        style={{
+          position: 'fixed', bottom: '20px', left: '20px',
+          background: 'linear-gradient(135deg,#b45309,#d97706)',
+          color: '#fff', border: '1.5px solid #fbbf24', borderRadius: '8px',
+          padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
+          zIndex: 9999, backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
+          fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
+        }}
+      >
+        🔒 Painel Administrativo
+      </button>
 
       {adminModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
