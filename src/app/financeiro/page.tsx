@@ -80,22 +80,41 @@ export default function FinanceiroPage() {
   const [unifValor, setUnifValor] = useState(50);
 
   const handleLogin = async () => {
-    const digits = cpfInput.replace(/\D/g, '');
-    if (digits.length < 11) { setErro('Digite um CPF válido.'); return; }
+    const raw = cpfInput.trim();
+    const digits = raw.replace(/\D/g, '');
+    if (!raw) { setErro('Digite seu CPF ou Numeração Única do documento.'); return; }
     setLoadingLogin(true);
     setErro('');
-    const { data, error } = await supabase
+
+    // Try matching by CPF (digits stored with or without formatting)
+    // Also try matching by identidade (RG / Numeração Única)
+    const { data: rows, error } = await supabase
       .from('students')
-      .select('id, nome_completo, cpf, nucleo, foto_url, graduacao')
-      .eq('cpf', digits)
-      .single();
-    if (error || !data) {
-      setErro('CPF não encontrado. Verifique se você está cadastrado.');
+      .select('id, nome_completo, cpf, identidade, nucleo, foto_url, graduacao');
+
+    if (error || !rows) {
+      setErro('Erro ao verificar cadastro. Tente novamente.');
       setLoadingLogin(false);
       return;
     }
-    if (data.cpf.replace(/\D/g, '') !== digits) {
-      setErro('CPF não encontrado.');
+
+    const data = rows.find(s => {
+      const storedCpfDigits = (s.cpf || '').replace(/\D/g, '');
+      const storedIdentidade = (s.identidade || '').replace(/\D/g, '').toLowerCase();
+      const inputDigits = digits;
+      const inputRaw = raw.replace(/\s/g, '').toLowerCase();
+      // Match by CPF digits
+      if (digits.length >= 11 && storedCpfDigits === inputDigits) return true;
+      // Match by identidade (exact raw or digits-only)
+      if (inputRaw && (
+        (s.identidade || '').replace(/\s/g, '').toLowerCase() === inputRaw ||
+        (storedIdentidade && storedIdentidade === inputDigits)
+      )) return true;
+      return false;
+    });
+
+    if (!data) {
+      setErro('Documento não encontrado. Verifique seu CPF ou Numeração Única.');
       setLoadingLogin(false);
       return;
     }
@@ -279,27 +298,41 @@ export default function FinanceiroPage() {
             <div style={{ textAlign: 'center', marginBottom: 28 }}>
               <div style={{ fontSize: '3rem', marginBottom: 8 }}>🔒</div>
               <div style={{ fontWeight: 800, fontSize: '1.3rem', marginBottom: 6 }}>Acesse sua Ficha Financeira</div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Digite seu CPF cadastrado para entrar</div>
+              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Use seu CPF ou Numeração Única do documento</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>Seu CPF (senha de acesso)</label>
+                <label style={{ display: 'block', color: 'rgba(255,255,255,0.6)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>
+                  CPF ou Numeração Única do Documento
+                </label>
                 <input
-                  type="text" inputMode="numeric" placeholder="000.000.000-00"
+                  type="text" inputMode="text" placeholder="Ex: 000.000.000-00 ou nº do documento"
                   value={cpfInput}
                   onChange={e => setCpfInput(e.target.value)}
                   onKeyDown={e => e.key === 'Enter' && handleLogin()}
-                  maxLength={14} autoFocus
-                  style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)', borderRadius: 10, color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '0.1em' }}
+                  autoFocus
+                  style={{ width: '100%', padding: '12px 16px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.12)', borderRadius: 10, color: '#fff', fontSize: '1rem', outline: 'none', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '0.06em' }}
                 />
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Opção 1</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>CPF cadastrado</div>
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>000.000.000-00</div>
+                </div>
+                <div style={{ flex: 1, background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: 8, padding: '8px 12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.35)', marginBottom: 2 }}>Opção 2</div>
+                  <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.55)', fontWeight: 600 }}>Nº do Documento</div>
+                  <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>RG / CIN / Doc. Único</div>
+                </div>
               </div>
               {erro && <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f87171', fontSize: '0.85rem', fontWeight: 600 }}>⚠ {erro}</div>}
               <button onClick={handleLogin} disabled={loadingLogin}
                 style={{ padding: '13px', background: 'linear-gradient(135deg,#dc2626,#1d4ed8)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: '1rem', opacity: loadingLogin ? 0.6 : 1 }}>
                 {loadingLogin ? '⏳ Verificando...' : '🔓 Acessar Ficha'}
               </button>
-              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>
-                A senha de acesso é o seu CPF cadastrado na associação.
+              <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>
+                Use o CPF ou a numeração do seu documento de identidade cadastrado.
               </div>
             </div>
           </div>

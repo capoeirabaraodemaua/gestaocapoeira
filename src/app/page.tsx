@@ -569,14 +569,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Identidade (RG) <span className="required">*</span></label>
+                <label>Identidade / Numeração Única (RG / CIN) <span className="required">*</span></label>
                 <input
                   name="identidade"
                   value={form.identidade}
                   onChange={(e) => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, identidade: undefined })); }}
                   onBlur={() => checkDuplicate('identidade', form.identidade)}
                   required
-                  placeholder="Número do RG"
+                  placeholder="Nº do RG, CIN ou Documento Único"
                   style={duplicateErrors.identidade ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
                 {checkingDuplicate.identidade && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
