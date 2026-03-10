@@ -1,7 +1,7 @@
 {
-  "name": "Associação Cultural de Capoeira Barão de Mauá",
-  "short_name": "Capoeira Mauá",
-  "description": "Ficha de Inscrição - Associação Cultural de Capoeira Barão de Mauá",
+  "name": "Sistema de Gestão de Alunos ACCBM",
+  "short_name": "Sistema ACCBM",
+  "description": "Sistema de Gestão de Alunos - Associação Cultural de Capoeira Barão de Mauá",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",
