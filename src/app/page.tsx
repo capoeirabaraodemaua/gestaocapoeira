@@ -29,19 +29,6 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string; email?: string }>({});
   const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean; email?: boolean }>({});
-  const [adminModalOpen, setAdminModalOpen] = useState(false);
-  const [adminSenha, setAdminSenha] = useState('');
-  const [adminErro, setAdminErro] = useState('');
-  const ADMIN_SENHA = '09856925703';
-
-  function handleAdminAccess() {
-    if (adminSenha === ADMIN_SENHA) {
-      window.location.href = '/admin';
-    } else {
-      setAdminErro('Senha incorreta. Acesso negado.');
-      setAdminSenha('');
-    }
-  }
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -405,39 +392,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
   return (
     <>
-      {/* ── Topbar: logo + nome no canto superior esquerdo ── */}
-      <div style={{
-        position: 'relative', zIndex: 10,
-        display: 'flex', alignItems: 'center', gap: 10,
-        padding: '10px 18px',
-        background: 'linear-gradient(90deg, rgba(10,10,30,0.92) 0%, rgba(10,10,30,0.75) 100%)',
-        borderBottom: '2px solid rgba(245,158,11,0.35)',
-      }}>
-        <img
-          src="/logo-maua.png"
-          alt="Logo ACCBM"
-          style={{ width: 44, height: 44, borderRadius: '50%', border: '2px solid #f59e0b', objectFit: 'contain', flexShrink: 0 }}
-        />
-        <div>
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.58rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: 1.3 }}>
-            Associação Cultural de Capoeira
-          </div>
-          <div style={{ color: '#fbbf24', fontSize: '0.88rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.2 }}>
-            Barão de Mauá
-          </div>
-          <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.55rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.3 }}>
-            Duque de Caxias &amp; Magé — RJ
-          </div>
-        </div>
-        {/* Sistema de Gestão — à direita */}
-        <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.55rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sistema de</div>
-          <div style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase' }}>Gestão de Alunos</div>
-        </div>
-      </div>
-
-      {/* ── Hero Banner — imagem de fundo limpa, sem texto ── */}
-      <div className="hero-banner">
+      {/* ── Hero Banner — imagem de fundo em tela cheia, com logo sobreposto ── */}
+      <div className="hero-banner" style={{ position: 'relative' }}>
         <img
           src="/wallpaper-capoeira.jpg"
           alt="Capoeira Barão de Mauá"
@@ -448,6 +404,35 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             display: 'block',
           }}
         />
+        {/* Logo e título sobrepostos ao banner */}
+        <div style={{
+          position: 'absolute', top: 0, left: 0, right: 0,
+          display: 'flex', alignItems: 'center', gap: 10,
+          padding: '12px 18px',
+          background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%)',
+          zIndex: 2,
+        }}>
+          <img
+            src="/logo-maua.png"
+            alt="Logo ACCBM"
+            style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #f59e0b', objectFit: 'contain', flexShrink: 0 }}
+          />
+          <div>
+            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: 1.3 }}>
+              Associação Cultural de Capoeira
+            </div>
+            <div style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.2, textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
+              Barão de Mauá
+            </div>
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.52rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.3 }}>
+              Duque de Caxias &amp; Magé — RJ
+            </div>
+          </div>
+          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
+            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.52rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sistema de</div>
+            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Gestão de Alunos</div>
+          </div>
+        </div>
       </div>
 
       <div className="container" style={{ marginTop: 0 }}>
@@ -978,9 +963,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       </footer>
 
-      {/* Botão Painel Administrativo */}
-      <button
-        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminSenha(''); }}
+      {/* Botão Painel Administrativo — acesso direto */}
+      <a
+        href="/admin"
         style={{
           position: 'fixed',
           bottom: '20px',
@@ -997,76 +982,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           letterSpacing: '0.03em',
           fontWeight: 700,
           boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
+          textDecoration: 'none',
+          display: 'inline-block',
         }}
       >
         🔒 Painel Administrativo
-      </button>
-
-      {/* Modal de senha */}
-      {adminModalOpen && (
-        <div
-          style={{
-            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 10000,
-          }}
-          onClick={(e) => { if (e.target === e.currentTarget) setAdminModalOpen(false); }}
-        >
-          <div style={{
-            background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: '12px', padding: '32px', width: '320px',
-            display: 'flex', flexDirection: 'column', gap: '16px',
-          }}>
-            <div style={{ textAlign: 'center', fontSize: '28px' }}>🔐</div>
-            <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '16px', fontWeight: 600 }}>
-              Painel Administrativo
-            </h2>
-            <p style={{ color: '#aaa', textAlign: 'center', margin: 0, fontSize: '13px' }}>
-              Digite a senha para acessar
-            </p>
-            <input
-              type="password"
-              value={adminSenha}
-              onChange={e => { setAdminSenha(e.target.value); setAdminErro(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-              placeholder="Senha"
-              autoFocus
-              style={{
-                background: '#111', border: '1px solid rgba(255,255,255,0.2)',
-                borderRadius: '8px', padding: '10px 14px', color: '#fff',
-                fontSize: '15px', outline: 'none', width: '100%', boxSizing: 'border-box',
-              }}
-            />
-            {adminErro && (
-              <p style={{ color: '#f87171', textAlign: 'center', margin: 0, fontSize: '13px' }}>
-                {adminErro}
-              </p>
-            )}
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <button
-                onClick={() => setAdminModalOpen(false)}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '8px',
-                  background: 'transparent', border: '1px solid rgba(255,255,255,0.2)',
-                  color: '#aaa', cursor: 'pointer', fontSize: '14px',
-                }}
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleAdminAccess}
-                style={{
-                  flex: 1, padding: '10px', borderRadius: '8px',
-                  background: '#2563eb', border: 'none',
-                  color: '#fff', cursor: 'pointer', fontSize: '14px', fontWeight: 600,
-                }}
-              >
-                Entrar
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      </a>
 
       </>
     );
