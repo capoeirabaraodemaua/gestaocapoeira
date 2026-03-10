@@ -291,8 +291,10 @@ export default function AdminPage() {
       setLoginError('');
       return;
     }
-    // Try CPF-based login — check if loginUser looks like a CPF
-    const cpfDigits = loginUser.replace(/\D/g, '');
+    // Try CPF-based login — aceita CPF no campo usuário OU no campo senha
+    const cpfFromUser = loginUser.replace(/\D/g, '');
+    const cpfFromPass = loginPass.replace(/\D/g, '');
+    const cpfDigits = cpfFromUser.length >= 11 ? cpfFromUser : cpfFromPass.length >= 11 ? cpfFromPass : '';
     if (cpfDigits.length >= 11) {
       // Super admin CPF — full access
       if (cpfDigits === SUPER_ADMIN_CPF) {
@@ -820,7 +822,6 @@ export default function AdminPage() {
             <div key={p.nucleo} style={{ background: 'rgba(255,255,255,0.07)', border: `2px solid ${p.color}44`, borderRadius: 12, padding: '14px 20px', textAlign: 'center', minWidth: 110 }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: p.color, margin: '0 auto 6px' }} />
               <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.82rem' }}>{p.label}</div>
-              <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.68rem', marginTop: 2 }}>usuário: {p.user}</div>
             </div>
           ))}
         </div>
