@@ -268,6 +268,8 @@ export default function AdminPage() {
   const [changeError, setChangeError] = useState('');
   const [changeDone, setChangeDone] = useState(false);
 
+  const SUPER_ADMIN_CPF = '09856925703';
+
   // Auto-autenticar como Admin Geral ao entrar na página
   useEffect(() => {
     sessionStorage.setItem('admin_auth', 'geral');
@@ -275,8 +277,9 @@ export default function AdminPage() {
     setActiveNucleo('geral');
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Try user/pass profiles first
     const profiles = getProfiles();
     const match = profiles.find(p => p.user === loginUser.trim() && p.pass === loginPass);
     if (match) {
@@ -284,9 +287,34 @@ export default function AdminPage() {
       setAuthed(true);
       setActiveNucleo(match.nucleo);
       setLoginError('');
-    } else {
-      setLoginError('Usuário ou senha incorretos.');
+      return;
     }
+    // Try CPF-based login — check if loginUser looks like a CPF
+    const cpfDigits = loginUser.replace(/\D/g, '');
+    if (cpfDigits.length >= 11) {
+      // Super admin CPF — full access
+      if (cpfDigits === SUPER_ADMIN_CPF) {
+        sessionStorage.setItem('admin_auth', 'geral');
+        setAuthed(true);
+        setActiveNucleo('geral');
+        setLoginError('');
+        return;
+      }
+      // Check responsáveis config
+      try {
+        const res = await fetch('/api/admin/responsaveis');
+        const cfg = await res.json();
+        const resp = (cfg.responsaveis || []).find((r: any) => r.cpf.replace(/\D/g,'') === cpfDigits);
+        if (resp) {
+          sessionStorage.setItem('admin_auth', resp.nucleo_key);
+          setAuthed(true);
+          setActiveNucleo(resp.nucleo_key as NucleoKey);
+          setLoginError('');
+          return;
+        }
+      } catch {}
+    }
+    setLoginError('Usuário, senha ou CPF incorretos.');
   };
 
   const handleChangeCreds = (e: React.FormEvent) => {
@@ -315,7 +343,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -411,6 +439,16 @@ export default function AdminPage() {
   const [patrimonioEditId, setPatrimonioEditId] = useState<string | null>(null);
   const [showPatrimonioForm, setShowPatrimonioForm] = useState(false);
   const [filterPatNucleo, setFilterPatNucleo] = useState('');
+
+  // ── Rascunhos state ───────────────────────────────────────────────────────
+  const [rascunhos, setRascunhos] = useState<any[]>([]);
+  const [loadingRascunhos, setLoadingRascunhos] = useState(false);
+  const [rascunhoExpanded, setRascunhoExpanded] = useState<string | null>(null);
+
+  // ── Responsáveis por núcleo ───────────────────────────────────────────────
+  const [responsaveis, setResponsaveis] = useState<Array<{ nucleo_key: string; nucleo_label: string; nome: string; cpf: string }>>([]);
+  const [loadingResponsaveis, setLoadingResponsaveis] = useState(false);
+  const [responsaveisMsg, setResponsaveisMsg] = useState('');
 
   // ── Gráfico individual por aluno ──────────────────────────────────────────
   const [indivChartOpen, setIndivChartOpen] = useState(false);
@@ -780,8 +818,8 @@ export default function AdminPage() {
         <div style={{ width: '100%', maxWidth: 360, background: 'rgba(255,255,255,0.06)', backdropFilter: 'blur(12px)', borderRadius: 16, border: '1px solid rgba(255,255,255,0.12)', padding: '28px 24px' }}>
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             <div>
-              <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Usuário</label>
-              <input value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="Digite seu usuário" autoFocus
+              <label style={{ display: 'block', color: 'rgba(255,255,255,0.7)', fontSize: '0.8rem', fontWeight: 600, marginBottom: 5 }}>Usuário ou CPF</label>
+              <input value={loginUser} onChange={e => setLoginUser(e.target.value)} placeholder="Usuário ou CPF do responsável" autoFocus
                 style={{ width: '100%', padding: '11px 14px', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 10, fontSize: '0.95rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box' }} />
             </div>
             <div>
@@ -903,6 +941,7 @@ export default function AdminPage() {
             { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2' },
             { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c' },
             { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04' },
+            ...(activeNucleo === 'geral' ? [{ key: 'rascunhos' as const, label: '📝 Rascunhos', activeColor: '#f59e0b' }] : []),
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -930,6 +969,10 @@ export default function AdminPage() {
                 if (tab.key === 'patrimonio') {
                   setLoadingPatrimonio(true);
                   fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false));
+                }
+                if (tab.key === 'rascunhos') {
+                  setLoadingRascunhos(true);
+                  fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
                 }
               }}
               style={{

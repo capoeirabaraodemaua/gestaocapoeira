@@ -11,6 +11,9 @@ type SuccessData = CarteirinhaData;
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
+  const [draftLoading, setDraftLoading] = useState(false);
+  const [draftMsg, setDraftMsg] = useState('');
+  const [draftId, setDraftId] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const carteirinhaRef = useRef<HTMLDivElement>(null);
@@ -175,6 +178,63 @@ export default function Home() {
       reader.onload = () => setPhotoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const handleSaveDraft = async () => {
+    setDraftLoading(true); setDraftMsg('');
+    const payload = {
+      id: draftId || undefined,
+      nome_completo: form.nome_completo || undefined,
+      cpf: form.cpf || undefined,
+      identidade: form.identidade || undefined,
+      data_nascimento: form.data_nascimento || undefined,
+      email: form.email || undefined,
+      telefone: form.telefone || undefined,
+      cep: form.cep || undefined,
+      endereco: form.endereco || undefined,
+      numero: form.numero || undefined,
+      complemento: form.complemento || undefined,
+      bairro: form.bairro || undefined,
+      cidade: form.cidade || undefined,
+      estado: form.estado || undefined,
+      nucleo: nucleo || undefined,
+      graduacao: graduacao || undefined,
+      tipo_graduacao: tipoGraduacao || undefined,
+      nome_pai: form.nome_pai || undefined,
+      nome_mae: form.nome_mae || undefined,
+      autoriza_imagem: form.autoriza_imagem,
+      menor_de_idade: menorDeIdade,
+      nome_responsavel: menorDeIdade ? (form.nome_responsavel || undefined) : undefined,
+      cpf_responsavel: menorDeIdade ? (form.cpf_responsavel || undefined) : undefined,
+    };
+    try {
+      const res = await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const data = await res.json();
+      if (res.ok && data.data?.id) {
+        setDraftId(data.data.id);
+        const pend = data.data.dados_pendentes as string[];
+        if (pend.length === 0) {
+          setDraftMsg('✓ Rascunho salvo! Todos os dados preenchidos — clique em Finalizar para concluir.');
+        } else {
+          setDraftMsg(`✓ Rascunho salvo! Dados pendentes: ${pend.join(', ')}`);
+        }
+        // Send WhatsApp message with missing fields if phone present
+        if (form.telefone && pend.length > 0) {
+          const tel = form.telefone.replace(/\D/g, '');
+          const phone = tel.startsWith('55') ? tel : `55${tel}`;
+          const nome = form.nome_completo ? form.nome_completo.split(' ')[0] : 'Aluno';
+          const msg = encodeURIComponent(
+            `Olá ${nome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informações:\n${pend.map(p => `• ${p}`).join('\n')}\n\nAcesse o formulário e complete seu cadastro. 🥋`
+          );
+          window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+        }
+      } else {
+        setDraftMsg('Erro ao salvar rascunho. Tente novamente.');
+      }
+    } catch {
+      setDraftMsg('Erro ao salvar rascunho.');
+    }
+    setDraftLoading(false);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -819,9 +879,39 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           </div>
 
-          <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
-            {loading ? 'Enviando...' : 'Finalizar Cadastro'}
-          </button>
+          {/* Draft message */}
+          {draftMsg && (
+            <div style={{
+              margin: '0 0 14px',
+              padding: '12px 16px',
+              borderRadius: 10,
+              background: draftMsg.includes('Erro') ? 'rgba(220,38,38,0.08)' : 'rgba(22,163,74,0.08)',
+              border: `1px solid ${draftMsg.includes('Erro') ? 'rgba(220,38,38,0.25)' : 'rgba(22,163,74,0.25)'}`,
+              color: draftMsg.includes('Erro') ? '#dc2626' : '#16a34a',
+              fontSize: '0.84rem',
+              fontWeight: 600,
+            }}>
+              {draftMsg}
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
+            <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
+              {loading ? 'Enviando...' : 'Finalizar Cadastro'}
+            </button>
+            <button type="button" onClick={handleSaveDraft} disabled={draftLoading}
+              style={{
+                width: '100%', padding: '14px', borderRadius: 10, cursor: draftLoading ? 'wait' : 'pointer',
+                background: 'rgba(234,179,8,0.08)', border: '2px solid rgba(234,179,8,0.35)',
+                color: '#ca8a04', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
+              }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+              {draftLoading ? 'Salvando...' : draftId ? '💾 Atualizar Rascunho' : '💾 Salvar como Rascunho'}
+            </button>
+            <p style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
+              Ainda não tem todos os dados? Salve como rascunho e complete depois.
+            </p>
+          </div>
         </form>
         )}
 
