@@ -420,6 +420,35 @@ export default function Home() {
       const { data, error } = await supabase.from('students').select('*').eq('cpf', cardCpf).limit(1).single();
       if (error || !data) { setCardError('Aluno não encontrado. Verifique o CPF.'); }
       else {
+        // Verificar cadastro completo antes de emitir carteirinha
+        const camposObrigatorios: Record<string, string> = {
+          nome_completo: 'Nome Completo',
+          identidade: 'Identidade / Numeração Única',
+          data_nascimento: 'Data de Nascimento',
+          telefone: 'Telefone',
+          cep: 'CEP',
+          endereco: 'Endereço',
+          numero: 'Número',
+          bairro: 'Bairro',
+          cidade: 'Cidade',
+          estado: 'Estado',
+          nucleo: 'Núcleo',
+          graduacao: 'Graduação',
+          tipo_graduacao: 'Tipo de Graduação',
+        };
+        const pendentes = Object.entries(camposObrigatorios)
+          .filter(([field]) => {
+            const val = (data as Record<string, unknown>)[field];
+            return !val || (typeof val === 'string' && !val.trim());
+          })
+          .map(([, label]) => label);
+
+        if (pendentes.length > 0) {
+          setCardError(`Cadastro incompleto. A carteirinha só pode ser emitida com o cadastro completo.\n\nDados pendentes: ${pendentes.join(', ')}`);
+          setCardLoading(false);
+          return;
+        }
+
         setCardData({
           nome: data.nome_completo,
           cpf: data.cpf,
@@ -1009,7 +1038,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {cardLoading ? 'Buscando...' : 'Buscar'}
               </button>
             </div>
-            {cardError && <p style={{ color: '#dc2626', fontSize: '0.82rem', marginTop: 8, fontWeight: 600 }}>⚠ {cardError}</p>}
+            {cardError && (
+              <div style={{ color: '#dc2626', fontSize: '0.82rem', marginTop: 8, fontWeight: 600, whiteSpace: 'pre-line', background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.25)', borderRadius: 8, padding: '10px 14px' }}>
+                ⚠ {cardError}
+              </div>
+            )}
 
             {cardData && (
               <div style={{ marginTop: 24, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>

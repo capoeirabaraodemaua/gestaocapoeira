@@ -102,7 +102,7 @@ export default function FinanceiroPage() {
     // Also try matching by identidade (RG / Numeração Única)
     const { data: rows, error } = await supabase
       .from('students')
-      .select('id, nome_completo, cpf, identidade, nucleo, foto_url, graduacao');
+      .select('id, nome_completo, cpf, identidade, nucleo, foto_url, graduacao, tipo_graduacao, data_nascimento, telefone, cep, endereco, numero, bairro, cidade, estado');
 
     if (error || !rows) {
       setErro('Erro ao verificar cadastro. Tente novamente.');
@@ -115,9 +115,7 @@ export default function FinanceiroPage() {
       const storedIdentidade = (s.identidade || '').replace(/\D/g, '').toLowerCase();
       const inputDigits = digits;
       const inputRaw = raw.replace(/\s/g, '').toLowerCase();
-      // Match by CPF digits
       if (digits.length >= 11 && storedCpfDigits === inputDigits) return true;
-      // Match by identidade (exact raw or digits-only)
       if (inputRaw && (
         (s.identidade || '').replace(/\s/g, '').toLowerCase() === inputRaw ||
         (storedIdentidade && storedIdentidade === inputDigits)
@@ -127,6 +125,35 @@ export default function FinanceiroPage() {
 
     if (!data) {
       setErro('Documento não encontrado. Verifique seu CPF ou Numeração Única.');
+      setLoadingLogin(false);
+      return;
+    }
+
+    // Validar cadastro completo
+    const camposObrigatorios: Record<string, string> = {
+      nome_completo: 'Nome Completo',
+      identidade: 'Identidade / Numeração Única',
+      data_nascimento: 'Data de Nascimento',
+      telefone: 'Telefone',
+      cep: 'CEP',
+      endereco: 'Endereço',
+      numero: 'Número',
+      bairro: 'Bairro',
+      cidade: 'Cidade',
+      estado: 'Estado',
+      nucleo: 'Núcleo',
+      graduacao: 'Graduação',
+      tipo_graduacao: 'Tipo de Graduação',
+    };
+    const pendentes = Object.entries(camposObrigatorios)
+      .filter(([field]) => {
+        const val = (data as Record<string, unknown>)[field];
+        return !val || (typeof val === 'string' && !val.trim());
+      })
+      .map(([, label]) => label);
+
+    if (pendentes.length > 0) {
+      setErro(`Cadastro incompleto. Complete seu cadastro antes de acessar a ficha financeira.\n\nDados pendentes: ${pendentes.join(', ')}`);
       setLoadingLogin(false);
       return;
     }
