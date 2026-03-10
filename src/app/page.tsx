@@ -413,12 +413,24 @@ export default function Home() {
   };
 
   const buscarCarteirinha = async () => {
-    const cpfClean = cardCpf.replace(/\D/g, '');
-    if (cpfClean.length < 11) { setCardError('CPF inválido.'); return; }
+    const raw = cardCpf.trim();
+    const digits = raw.replace(/\D/g, '');
+    if (!raw) { setCardError('Digite seu CPF ou Numeração Única.'); return; }
     setCardLoading(true); setCardError(''); setCardData(null);
     try {
-      const { data, error } = await supabase.from('students').select('*').eq('cpf', cardCpf).limit(1).single();
-      if (error || !data) { setCardError('Aluno não encontrado. Verifique o CPF.'); }
+      const { data: rows, error } = await supabase.from('students').select('*');
+      const data = (!error && rows) ? rows.find(s => {
+        const storedCpf = (s.cpf || '').replace(/\D/g, '');
+        const storedId  = (s.identidade || '').replace(/\D/g, '').toLowerCase();
+        const rawLower  = raw.replace(/\s/g, '').toLowerCase();
+        if (digits.length >= 11 && storedCpf === digits) return true;
+        if (rawLower && (
+          (s.identidade || '').replace(/\s/g, '').toLowerCase() === rawLower ||
+          (storedId && storedId === digits)
+        )) return true;
+        return false;
+      }) ?? null : null;
+      if (error || !data) { setCardError('Aluno não encontrado. Verifique o CPF ou Numeração Única.'); }
       else {
         // Verificar cadastro completo antes de emitir carteirinha
         const camposObrigatorios: Record<string, string> = {
@@ -1023,9 +1035,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input
-                placeholder="CPF (000.000.000-00)"
+                placeholder="CPF ou Numeração Única"
                 value={cardCpf}
-                onChange={e => setCardCpf(formatCPF(e.target.value))}
+                onChange={e => setCardCpf(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
                 style={{ flex: 1, minWidth: 200 }}
               />
@@ -1111,9 +1123,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <input
-                      placeholder="CPF (000.000.000-00)"
+                      placeholder="CPF ou Numeração Única"
                       value={cardCpf}
-                      onChange={e => setCardCpf(formatCPF(e.target.value))}
+                      onChange={e => setCardCpf(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
                       style={{ flex: 1, minWidth: 200 }}
                     />
@@ -1123,7 +1135,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       disabled={cardLoading}
                       style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
                     >
-                      {cardLoading ? 'Buscando...' : 'Verificar CPF'}
+                      {cardLoading ? 'Buscando...' : 'Verificar'}
                     </button>
                   </div>
                   {cardError && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: 0, fontWeight: 600 }}>⚠ {cardError}</p>}
