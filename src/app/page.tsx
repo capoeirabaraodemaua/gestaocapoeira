@@ -530,8 +530,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <label>Selecione o Núcleo <span className="required">*</span></label>
                   <select value={nucleo} onChange={(e) => setNucleo(e.target.value)} required>
                     <option value="">Selecione o núcleo</option>
-                    <option value="Mauá">Mauá</option>
-                    <option value="Saracuruna">Saracuruna</option>
+                    <option value="Saracuruna">Núcleo Saracuruna</option>
+                    <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves – Mauá</option>
+                    <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga – Mauá</option>
                     <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
                     <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
                   </select>
@@ -984,9 +985,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           position: 'fixed',
           bottom: '20px',
           left: '20px',
-          background: 'rgba(0,0,0,0.6)',
-          color: '#ccc',
-          border: '1px solid rgba(255,255,255,0.15)',
+          background: 'linear-gradient(135deg,#b45309,#d97706)',
+          color: '#fff',
+          border: '1.5px solid #fbbf24',
           borderRadius: '8px',
           padding: '8px 14px',
           fontSize: '11px',
@@ -994,6 +995,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           zIndex: 9999,
           backdropFilter: 'blur(4px)',
           letterSpacing: '0.03em',
+          fontWeight: 700,
+          boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
         }}
       >
         🔒 Painel Administrativo

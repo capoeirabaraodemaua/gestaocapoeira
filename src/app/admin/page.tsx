@@ -101,16 +101,17 @@ interface Student {
 type EditForm = Partial<Student>;
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-type NucleoKey = 'maua' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'geral';
+type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'geral';
 interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; }
 
 const PROFILES_KEY = 'accbm_admin_profiles';
 const DEFAULT_PROFILES: Profile[] = [
-  { nucleo: 'maua',           label: 'Núcleo Mauá',           color: '#dc2626', user: 'maua',           pass: 'maua2025'        },
-  { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',     color: '#16a34a', user: 'saracuruna',     pass: 'sara2025'        },
-  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',   color: '#9333ea', user: 'vilaurussai',    pass: 'urussai2025'     },
-  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',  color: '#0891b2', user: 'jaymefichman',   pass: 'fichman2025'     },
-  { nucleo: 'geral',          label: 'Admin Geral',            color: '#1d4ed8', user: 'admin',          pass: 'accbm2025'       },
+  { nucleo: 'edson-alves',    label: 'Poliesportivo Edson Alves', color: '#dc2626', user: 'edsonalves',     pass: 'edson2025'       },
+  { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga', color: '#ea580c', user: 'ipiranga',       pass: 'ipiranga2025'    },
+  { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',         color: '#16a34a', user: 'saracuruna',     pass: 'sara2025'        },
+  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',       color: '#9333ea', user: 'vilaurussai',    pass: 'urussai2025'     },
+  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2', user: 'jaymefichman',   pass: 'fichman2025'     },
+  { nucleo: 'geral',          label: 'Admin Geral',                color: '#1d4ed8', user: 'admin',          pass: 'accbm2025'       },
 ];
 
 function getProfiles(): Profile[] {
@@ -259,7 +260,7 @@ export default function AdminPage() {
   const [showPass, setShowPass] = useState(false);
   // Change-credentials modal
   const [showChangeCreds, setShowChangeCreds] = useState(false);
-  const [editingProfile, setEditingProfile] = useState<NucleoKey>('maua');
+  const [editingProfile, setEditingProfile] = useState<NucleoKey>('edson-alves');
   const [newUser, setNewUser] = useState('');
   const [newPass, setNewPass] = useState('');
   const [newPassConfirm, setNewPassConfirm] = useState('');
@@ -360,7 +361,7 @@ export default function AdminPage() {
   const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
-  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'maua' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   const printAdminCard = async (nome: string) => {
@@ -499,7 +500,8 @@ export default function AdminPage() {
   };
 
   // Restrict students by login profile (nucleus-specific logins see only their own)
-  const nucleoFilter = activeNucleo === 'maua' ? 'Mauá'
+  const nucleoFilter = activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves'
+    : activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga'
     : activeNucleo === 'saracuruna' ? 'Saracuruna'
     : activeNucleo === 'vila-urussai' ? 'Vila Urussaí'
     : activeNucleo === 'jayme-fichman' ? 'Jayme Fichman'
@@ -741,7 +743,7 @@ export default function AdminPage() {
             <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', marginTop: 4 }}>Entrar</button>
           </form>
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button type="button" onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile('maua'); }}
+            <button type="button" onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile('edson-alves'); }}
               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
               Alterar login / senha
             </button>
@@ -769,7 +771,7 @@ export default function AdminPage() {
               </div>
             )}
             <button
-              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile(activeNucleo || 'maua'); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
+              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile(activeNucleo || 'edson-alves'); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
               style={{ background: 'rgba(29,78,216,0.1)', border: '1px solid rgba(29,78,216,0.3)', color: '#1d4ed8', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -818,15 +820,16 @@ export default function AdminPage() {
               />
               <select
                 className="search-input"
-                style={{ width: 180 }}
+                style={{ width: 210 }}
                 value={filterNucleo}
                 onChange={(e) => setFilterNucleo(e.target.value)}
               >
                 <option value="">Todos os núcleos</option>
-                <option value="Mauá">Mauá</option>
-                <option value="Saracuruna">Saracuruna</option>
-                <option value="Vila Urussaí">Vila Urussaí</option>
-                <option value="Jayme Fichman">Jayme Fichman</option>
+                <option value="Saracuruna">Núcleo Saracuruna</option>
+                <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
+                <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
+                <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
+                <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
               </select>
             </>}
           </div>
@@ -867,21 +870,65 @@ export default function AdminPage() {
         />
 
         {/* ── Alerta de Aniversariantes ── */}
+        <style>{`
+          @keyframes sirenSpin { 0%{transform:rotate(-15deg)} 50%{transform:rotate(15deg)} 100%{transform:rotate(-15deg)} }
+          @keyframes sirenFlash { 0%,100%{opacity:1} 50%{opacity:0.35} }
+          @keyframes sirenGlow {
+            0%,100%{box-shadow:0 0 18px 6px rgba(220,38,38,0.55),0 0 0 0 rgba(59,130,246,0.2)}
+            50%{box-shadow:0 0 18px 6px rgba(59,130,246,0.55),0 0 0 0 rgba(220,38,38,0.2)}
+          }
+          @keyframes birthdayPulse {
+            0%,100%{border-color:rgba(220,38,38,0.7);background:linear-gradient(135deg,rgba(220,38,38,0.08),rgba(59,130,246,0.06))}
+            50%{border-color:rgba(59,130,246,0.7);background:linear-gradient(135deg,rgba(59,130,246,0.08),rgba(220,38,38,0.06))}
+          }
+        `}</style>
         {showBirthdayAlert && (() => {
           const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
           const todayMD = `${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
           const aniversariantes = students.filter(s => {
             if (!s.data_nascimento) return false;
-            const [y, m, d] = s.data_nascimento.split('-');
-            return `${m}-${d}` === todayMD;
+            const parts = s.data_nascimento.split('-');
+            if (parts.length < 3) return false;
+            return `${parts[1]}-${parts[2]}` === todayMD;
           }).filter(s => !nucleoFilter || s.nucleo === nucleoFilter);
           if (!aniversariantes.length) return null;
           return (
-            <div style={{ margin: '16px 0', background: 'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(251,191,36,0.06))', border: '1.5px solid rgba(251,191,36,0.5)', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-              <div style={{ fontSize: '2rem', lineHeight: 1, flexShrink: 0 }}>🎂</div>
+            <div style={{ margin: '16px 0', borderRadius: 16, padding: '16px 18px', display: 'flex', alignItems: 'flex-start', gap: 16, border: '2px solid rgba(220,38,38,0.7)', animation: 'birthdayPulse 1.6s ease-in-out infinite', position: 'relative', overflow: 'hidden' }}>
+              {/* Sirene animada */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                {/* Sirene SVG */}
+                <div style={{ animation: 'sirenGlow 1.6s ease-in-out infinite', borderRadius: '50%', padding: 4 }}>
+                  <svg width="48" height="48" viewBox="0 0 64 64" style={{ animation: 'sirenSpin 0.8s ease-in-out infinite', display: 'block' }}>
+                    {/* Base da sirene */}
+                    <rect x="18" y="36" width="28" height="8" rx="4" fill="#1e40af"/>
+                    <rect x="14" y="42" width="36" height="6" rx="3" fill="#1e3a8a"/>
+                    {/* Cúpula */}
+                    <ellipse cx="32" cy="34" rx="16" ry="10" fill="#1d4ed8"/>
+                    <ellipse cx="32" cy="32" rx="14" ry="10" fill="#2563eb"/>
+                    {/* Luzes alternando azul/vermelho */}
+                    <circle cx="22" cy="30" r="7" fill="#dc2626" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite' }}/>
+                    <circle cx="42" cy="30" r="7" fill="#3b82f6" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.4s' }}/>
+                    {/* Reflexo */}
+                    <ellipse cx="24" cy="27" rx="3" ry="2" fill="rgba(255,255,255,0.5)" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite' }}/>
+                    <ellipse cx="44" cy="27" rx="3" ry="2" fill="rgba(255,255,255,0.5)" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.4s' }}/>
+                    {/* Raios */}
+                    <line x1="32" y1="4" x2="32" y2="12" stroke="#fbbf24" strokeWidth="3" strokeLinecap="round" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite' }}/>
+                    <line x1="10" y1="14" x2="16" y2="20" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.2s' }}/>
+                    <line x1="54" y1="14" x2="48" y2="20" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.4s' }}/>
+                    <line x1="4" y1="32" x2="12" y2="32" stroke="#dc2626" strokeWidth="3" strokeLinecap="round" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.1s' }}/>
+                    <line x1="60" y1="32" x2="52" y2="32" stroke="#3b82f6" strokeWidth="3" strokeLinecap="round" style={{ animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.5s' }}/>
+                  </svg>
+                </div>
+                <span style={{ fontSize: '1.5rem', lineHeight: 1 }}>🎂</span>
+              </div>
+
               <div style={{ flex: 1 }}>
-                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#b45309', marginBottom: 6 }}>
-                  Aniversariante{aniversariantes.length > 1 ? 's' : ''} de Hoje!
+                <div style={{ fontWeight: 900, fontSize: '1rem', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ color: '#dc2626', animation: 'sirenFlash 0.8s ease-in-out infinite' }}>🚨</span>
+                  <span style={{ background: 'linear-gradient(90deg,#dc2626,#1d4ed8)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
+                    {aniversariantes.length === 1 ? 'ANIVERSARIANTE' : 'ANIVERSARIANTES'} DE HOJE!
+                  </span>
+                  <span style={{ color: '#3b82f6', animation: 'sirenFlash 0.8s ease-in-out infinite', animationDelay: '0.4s' }}>🚨</span>
                 </div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
                   {aniversariantes.map(s => {
@@ -890,20 +937,20 @@ export default function AdminPage() {
                     const br = phone.startsWith('55') ? phone : `55${phone}`;
                     const msg = encodeURIComponent(`🎂 *Feliz Aniversário, ${s.nome_completo}!*\n\nA família da Capoeira Barão de Mauá deseja a você um dia muito especial! Axé! 🤸`);
                     return (
-                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 10, padding: '6px 12px' }}>
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 10, padding: '8px 12px' }}>
                         {s.foto_url
-                          ? <img src={s.foto_url} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
-                          : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(251,191,36,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                          ? <img src={s.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid #dc2626' }} />
+                          : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'rgba(220,38,38,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, border: '2px solid #dc2626' }}>
+                              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#dc2626" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
                             </div>
                         }
                         <div>
-                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#78350f' }}>{s.nome_completo}</div>
-                          <div style={{ fontSize: '0.72rem', color: '#92400e' }}>{age} anos · {s.nucleo || '—'}</div>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem' }}>{s.nome_completo}</div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>🎉 {age} anos · {s.nucleo || '—'}</div>
                         </div>
                         {phone.length >= 10 && (
                           <a href={`https://wa.me/${br}?text=${msg}`} target="_blank" rel="noopener noreferrer"
-                            style={{ marginLeft: 4, background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.4)', color: '#16a34a', borderRadius: 7, padding: '4px 8px', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            style={{ marginLeft: 4, background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.4)', color: '#16a34a', borderRadius: 7, padding: '5px 10px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4, whiteSpace: 'nowrap' }}>
                             🎁 Parabéns
                           </a>
                         )}
@@ -912,7 +959,7 @@ export default function AdminPage() {
                   })}
                 </div>
               </div>
-              <button onClick={() => setShowBirthdayAlert(false)} style={{ background: 'none', border: 'none', color: '#b45309', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+              <button onClick={() => setShowBirthdayAlert(false)} style={{ background: 'rgba(0,0,0,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', cursor: 'pointer', fontSize: '1rem', lineHeight: 1, padding: '4px 8px', borderRadius: 6, flexShrink: 0, fontWeight: 700 }}>×</button>
             </div>
           );
         })()}
@@ -925,12 +972,16 @@ export default function AdminPage() {
             <div className="stat-label">Total de Alunos</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Mauá').length}</div>
-            <div className="stat-label">Núcleo Mauá</div>
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Saracuruna').length}</div>
+            <div className="stat-label">Saracuruna</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Saracuruna').length}</div>
-            <div className="stat-label">Núcleo Saracuruna</div>
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Poliesportivo Edson Alves').length}</div>
+            <div className="stat-label">Edson Alves</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Poliesportivo do Ipiranga').length}</div>
+            <div className="stat-label">Ipiranga</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{students.filter(s => s.nucleo === 'Vila Urussaí').length}</div>
@@ -984,7 +1035,7 @@ export default function AdminPage() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                       <td>
-                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
+                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
                           {student.nucleo || '—'}
                         </span>
                       </td>
@@ -1143,12 +1194,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   fetchPresencas(false, d);
                 }}
               />
-              <select className="search-input" style={{ width: 180 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
+              <select className="search-input" style={{ width: 220 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                 <option value="">Todos os núcleos</option>
-                <option value="Mauá">Mauá</option>
-                <option value="Saracuruna">Saracuruna</option>
-                <option value="Vila Urussaí">Vila Urussaí</option>
-                <option value="Jayme Fichman">Jayme Fichman</option>
+                <option value="Saracuruna">Núcleo Saracuruna</option>
+                <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
+                <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
+                <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
+                <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
               </select>
               <button
                 onClick={() => fetchPresencas(true)}
@@ -1302,7 +1354,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
         // Núcleo filter
-        const rankNucleoLabel = rankingNucleoTab === 'maua' ? 'Mauá'
+        const rankNucleoLabel = rankingNucleoTab === 'edson-alves' ? 'Poliesportivo Edson Alves'
+          : rankingNucleoTab === 'ipiranga' ? 'Poliesportivo do Ipiranga'
           : rankingNucleoTab === 'saracuruna' ? 'Saracuruna'
           : rankingNucleoTab === 'vila-urussai' ? 'Vila Urussaí'
           : rankingNucleoTab === 'jayme-fichman' ? 'Jayme Fichman'
@@ -1339,7 +1392,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {item.student.graduacao}
                 {rankingNucleoTab === 'todos' && (() => {
                   const nc = item.student.nucleo;
-                  const ncColor = nc === 'Mauá' ? '#dc2626' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : '#64748b';
+                  const ncColor = (nc === 'Poliesportivo Edson Alves' || nc === 'Mauá') ? '#dc2626' : nc === 'Poliesportivo do Ipiranga' ? '#ea580c' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : '#64748b';
                   return <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${ncColor}18`, color: ncColor }}>{nc || '—'}</span>;
                 })()}
               </div>
@@ -1383,9 +1436,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Núcleo tabs */}
               <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                {([['todos', '🌐 Todos', '#1d4ed8'], ['maua', '🔴 Mauá', '#dc2626'], ['saracuruna', '🟢 Saracuruna', '#16a34a'], ['vila-urussai', '🟣 Vila Urussaí', '#9333ea'], ['jayme-fichman', '🔵 Jayme Fichman', '#0891b2']] as const).map(([key, label, color]) => (
+                {([
+                  ['todos',          '🌐 Todos',                      '#1d4ed8'],
+                  ['edson-alves',    '🔴 Edson Alves',                '#dc2626'],
+                  ['ipiranga',       '🟠 Ipiranga',                   '#ea580c'],
+                  ['saracuruna',     '🟢 Saracuruna',                 '#16a34a'],
+                  ['vila-urussai',   '🟣 Vila Urussaí',               '#9333ea'],
+                  ['jayme-fichman',  '🔵 Jayme Fichman',              '#0891b2'],
+                ] as const).map(([key, label, color]) => (
                   <button key={key} onClick={() => setRankingNucleoTab(key)}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
+                    style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
                       background: rankingNucleoTab === key ? color : 'transparent',
                       color: rankingNucleoTab === key ? '#fff' : 'var(--text-secondary)',
                       transition: 'all 0.15s' }}>
@@ -1923,7 +1983,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </td>
                             <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                             <td>
-                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
+                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
                                 {student.nucleo || '—'}
                               </span>
                             </td>
@@ -2001,7 +2061,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </span>
                   )}
                   {selected.nucleo && (
-                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : selected.nucleo === 'Mauá' ? 'badge-maua' : selected.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : selected.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>{selected.nucleo}</span>
+                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (selected.nucleo === 'Poliesportivo Edson Alves' || selected.nucleo === 'Mauá') ? 'badge-maua' : selected.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : selected.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : selected.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>{selected.nucleo}</span>
                   )}
                 </div>
               </div>
@@ -2186,10 +2246,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" name="nucleo" value={editForm.nucleo || ''} onChange={handleEditChange}>
                   <option value="">Selecione</option>
-                  <option value="Mauá">Mauá</option>
-                  <option value="Saracuruna">Saracuruna</option>
-                  <option value="Vila Urussaí">Vila Urussaí</option>
-                  <option value="Jayme Fichman">Jayme Fichman</option>
+                  <option value="Saracuruna">Núcleo Saracuruna</option>
+                  <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
+                  <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
+                  <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
+                  <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
                 </select>
               </div>
               <div className="detail-item">
