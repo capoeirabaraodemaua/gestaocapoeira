@@ -412,11 +412,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%)',
           zIndex: 2,
         }}>
-          <img
-            src="/logo-maua.png"
-            alt="Logo ACCBM"
-            style={{ width: 42, height: 42, borderRadius: '50%', border: '2px solid #f59e0b', objectFit: 'contain', flexShrink: 0 }}
-          />
           <div>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: 1.3 }}>
               Associação Cultural de Capoeira
