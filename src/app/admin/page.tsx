@@ -2664,8 +2664,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         </div>
                       ) : (
                         <div>
-                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
-                            Modalidade: <strong>{f.batizado.modalidade === 'integral' ? 'Integral' : 'Parcelado 3×'}</strong>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                              Modalidade: <strong>{f.batizado.modalidade === 'integral' ? 'Integral' : 'Parcelado 3×'}</strong>
+                            </div>
+                            <button onClick={async () => {
+                              if (!confirm('Excluir agendamento de batizado? Isso vai apagar a modalidade e parcelas.')) return;
+                              const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido', parcelas: [], valor_total: 0 } };
+                              setFinFicha(updated); await adminSaveFicha(updated);
+                            }} style={{ padding: '3px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                              🗑 Excluir agendamento
+                            </button>
                           </div>
                           {f.batizado.parcelas.map((p: any) => (
                             <div key={p.numero} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
@@ -2743,7 +2752,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                               <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{names[parseInt(mo)-1]}/{y} — R$ {m.valor.toFixed(2)}</span>
-                              <div style={{ display: 'flex', gap: 4 }}>
+                              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                 {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                   <button key={st} onClick={async () => {
                                     const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, status: st, admin_confirmado: st === 'pago', data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : mm.data_pagamento } : mm) };
@@ -2753,6 +2762,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                     {statusLabel[st]}
                                   </button>
                                 ))}
+                                <button onClick={async () => {
+                                  if (!confirm(`Excluir mensalidade de ${names[parseInt(mo)-1]}/${y}?`)) return;
+                                  const updated = { ...f, mensalidades: f.mensalidades.filter((mm: any) => mm.mes !== m.mes) };
+                                  setFinFicha(updated); await adminSaveFicha(updated);
+                                }} style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                  🗑
+                                </button>
                               </div>
                             </div>
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -2807,7 +2823,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
                             <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y}</span>
                             <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>R$ {m.valor.toFixed(2)}</span>
-                            <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                            <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
                               {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                 <button key={st} onClick={async () => {
                                   const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.map((c: any) => c.mes === m.mes ? { ...c, status: st, admin_confirmado: st === 'pago' } : c) } };
@@ -2817,6 +2833,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   {statusLabel[st]}
                                 </button>
                               ))}
+                              <button onClick={async () => {
+                                if (!confirm(`Excluir contribuição de ${names[parseInt(mo)-1]}/${y}?`)) return;
+                                const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.filter((c: any) => c.mes !== m.mes) } };
+                                setFinFicha(updated); await adminSaveFicha(updated);
+                              }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
+                                🗑
+                              </button>
                             </div>
                           </div>
                         );
