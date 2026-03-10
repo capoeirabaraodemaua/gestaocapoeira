@@ -54,11 +54,11 @@ function TermoContent() {
       // Fallback: acesso direto ao Supabase
       const { data, error } = await supabase
         .from('students')
-        .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,menor_de_idade')
+        .select('id,nome_completo,cpf,data_nascimento,nome_pai,nome_mae,nucleo,nome_responsavel,cpf_responsavel,assinatura_responsavel,assinatura_pai,assinatura_mae,menor_de_idade')
         .eq('id', id)
         .single();
       if (error || !data) throw new Error(error?.message || 'not found');
-      const s = data as Student;
+      const s = { assinatura_pai: false, assinatura_mae: false, ...data } as Student;
       setStudent(s);
       setForm({ nome_responsavel: s.nome_responsavel || '', cpf_responsavel: s.cpf_responsavel || '' });
     } catch {
