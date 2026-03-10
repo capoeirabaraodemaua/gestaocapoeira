@@ -3544,21 +3544,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           {/* Núcleo header */}
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                             <span style={{ fontWeight: 800, fontSize: '0.85rem', flex: 1, color: 'var(--text-primary)' }}>{n.label}</span>
-                            {hasAny && (
-                              <button onClick={async () => {
-                                if (!confirm(`Remover todos os responsáveis do ${n.label}?`)) return;
-                                const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                                const currentList: typeof responsaveis = cfg.responsaveis || [];
-                                const updated = currentList.filter((r: { nucleo_key: string }) => r.nucleo_key !== n.key);
-                                setResponsaveis(updated);
-                                const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                                if (res.ok) { setResponsaveisMsg('✓ Responsáveis removidos!'); } else { setResponsaveisMsg('Erro ao remover.'); }
-                                setTimeout(() => setResponsaveisMsg(''), 3000);
-                              }}
-                                style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
-                                🗑 Remover Todos
-                              </button>
-                            )}
                           </div>
 
                           {/* Responsável 1 */}
@@ -3566,6 +3551,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fbbf24', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 1</span>
                               {has1 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
+                              {has1 && (
+                                <button onClick={async () => {
+                                  if (!confirm(`Remover Responsável 1 do ${n.label}?`)) return;
+                                  const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                                  const currentList: typeof responsaveis = cfg.responsaveis || [];
+                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome: '', cpf: '' } : r)
+                                    .filter((r: any) => r.nome?.trim() || r.nome2?.trim());
+                                  setResponsaveis(updated);
+                                  const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                  if (res.ok) { setResponsaveisMsg('✓ Responsável 1 removido!'); } else { setResponsaveisMsg('Erro ao remover.'); }
+                                  setTimeout(() => setResponsaveisMsg(''), 3000);
+                                }}
+                                  style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  🗑 Remover
+                                </button>
+                              )}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               <input type="text" placeholder="Nome completo"
@@ -3604,6 +3605,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
                               <span style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 2 <span style={{ opacity: 0.6 }}>(opcional)</span></span>
                               {has2 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
+                              {has2 && (
+                                <button onClick={async () => {
+                                  if (!confirm(`Remover Responsável 2 do ${n.label}?`)) return;
+                                  const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                                  const currentList: typeof responsaveis = cfg.responsaveis || [];
+                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome2: undefined, cpf2: undefined } : r);
+                                  setResponsaveis(updated);
+                                  const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                  if (res.ok) { setResponsaveisMsg('✓ Responsável 2 removido!'); } else { setResponsaveisMsg('Erro ao remover.'); }
+                                  setTimeout(() => setResponsaveisMsg(''), 3000);
+                                }}
+                                  style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  🗑 Remover
+                                </button>
+                              )}
                             </div>
                             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                               <input type="text" placeholder="Nome completo"
