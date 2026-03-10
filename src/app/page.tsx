@@ -29,6 +29,15 @@ export default function Home() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string; email?: string }>({});
   const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean; email?: boolean }>({});
+  const [adminModalOpen, setAdminModalOpen] = useState(false);
+  const [adminCpf, setAdminCpf] = useState('');
+  const [adminErro, setAdminErro] = useState('');
+  const ADMIN_CPF = '09856925703';
+  function handleAdminAccess() {
+    const digits = adminCpf.replace(/\D/g, '');
+    if (digits === ADMIN_CPF) { window.location.href = '/admin'; }
+    else { setAdminErro('CPF não autorizado.'); setAdminCpf(''); }
+  }
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -934,31 +943,53 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       </footer>
 
-      {/* Botão Painel Administrativo — acesso direto */}
-      <a
-        href="/admin"
+      {/* Botão Painel Administrativo — protegido por CPF */}
+      <button
+        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
         style={{
-          position: 'fixed',
-          bottom: '20px',
-          left: '20px',
+          position: 'fixed', bottom: '20px', left: '20px',
           background: 'linear-gradient(135deg,#b45309,#d97706)',
-          color: '#fff',
-          border: '1.5px solid #fbbf24',
-          borderRadius: '8px',
-          padding: '8px 14px',
-          fontSize: '11px',
-          cursor: 'pointer',
-          zIndex: 9999,
-          backdropFilter: 'blur(4px)',
-          letterSpacing: '0.03em',
-          fontWeight: 700,
-          boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
-          textDecoration: 'none',
-          display: 'inline-block',
+          color: '#fff', border: '1.5px solid #fbbf24', borderRadius: '8px',
+          padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
+          zIndex: 9999, backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
+          fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
         }}
       >
         🔒 Painel Administrativo
-      </a>
+      </button>
+
+      {adminModalOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
+          onClick={e => { if (e.target === e.currentTarget) setAdminModalOpen(false); }}>
+          <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '32px 28px', width: '320px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+            <div style={{ textAlign: 'center', fontSize: '26px' }}>🔐</div>
+            <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '15px', fontWeight: 700 }}>Acesso Restrito</h2>
+            <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0, fontSize: '12px' }}>Digite seu CPF para acessar o painel</p>
+            <input
+              type="text"
+              inputMode="numeric"
+              value={adminCpf}
+              onChange={e => { setAdminCpf(e.target.value); setAdminErro(''); }}
+              onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
+              placeholder="000.000.000-00"
+              autoFocus
+              maxLength={14}
+              style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '11px 14px', color: '#fff', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '0.08em' }}
+            />
+            {adminErro && <p style={{ color: '#f87171', textAlign: 'center', margin: 0, fontSize: '12px', fontWeight: 600 }}>⚠ {adminErro}</p>}
+            <div style={{ display: 'flex', gap: '10px', marginTop: 4 }}>
+              <button onClick={() => setAdminModalOpen(false)}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.18)', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>
+                Cancelar
+              </button>
+              <button onClick={handleAdminAccess}
+                style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: 'pointer', fontSize: '13px', fontWeight: 700 }}>
+                Entrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       </>
     );

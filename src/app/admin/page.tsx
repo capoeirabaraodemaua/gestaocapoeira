@@ -268,10 +268,11 @@ export default function AdminPage() {
   const [changeError, setChangeError] = useState('');
   const [changeDone, setChangeDone] = useState(false);
 
-  // Check session on mount
+  // Auto-autenticar como Admin Geral ao entrar na página
   useEffect(() => {
-    const saved = sessionStorage.getItem('admin_auth');
-    if (saved) { setAuthed(true); setActiveNucleo(saved as NucleoKey); }
+    sessionStorage.setItem('admin_auth', 'geral');
+    setAuthed(true);
+    setActiveNucleo('geral');
   }, []);
 
   const handleLogin = (e: React.FormEvent) => {
