@@ -365,6 +365,13 @@ export default function AdminPage() {
   const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
+  // ── Gráfico individual por aluno ──────────────────────────────────────────
+  const [indivChartOpen, setIndivChartOpen] = useState(false);
+  const [indivSearch, setIndivSearch] = useState('');
+  const [indivStudent, setIndivStudent] = useState<Student | null>(null);
+  const [indivHistorico, setIndivHistorico] = useState<string[]>([]);
+  const [indivLoading, setIndivLoading] = useState(false);
+
   const printAdminCard = async (nome: string) => {
     const el = adminCardRef.current;
     if (!el) return;
@@ -1910,6 +1917,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             >
               🖨 Imprimir
             </button>
+            <button
+              onClick={() => { setIndivChartOpen(true); setIndivStudent(null); setIndivSearch(''); setIndivHistorico([]); }}
+              style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', color: '#fff', padding: '6px 16px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>
+              Gráfico Individual
+            </button>
           </div>
 
           {loadingRelatorio ? (
@@ -2215,6 +2229,246 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       )}
 
       </div>
+
+      {/* ── Modal Gráfico Individual por Aluno ── */}
+      {indivChartOpen && (
+        <div className="modal-overlay" onClick={() => setIndivChartOpen(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 700, width: '96vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>📊 Gráfico Individual de Presença</div>
+                <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.75rem', marginTop: 2 }}>Busque um aluno pelo nome ou CPF</div>
+              </div>
+              <button onClick={() => setIndivChartOpen(false)} style={{ background: 'rgba(255,255,255,0.15)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Search */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input
+                type="text"
+                placeholder="Digite o nome ou CPF do aluno..."
+                value={indivSearch}
+                onChange={e => setIndivSearch(e.target.value)}
+                autoFocus
+                style={{ flex: 1, background: 'var(--bg-input)', border: '1.5px solid var(--border)', borderRadius: 10, padding: '10px 14px', color: 'var(--text-primary)', fontSize: '0.92rem', outline: 'none' }}
+              />
+            </div>
+
+            {/* Dropdown results */}
+            {indivSearch.trim().length >= 2 && !indivStudent && (() => {
+              const q = indivSearch.trim().toLowerCase().replace(/\D/g,'');
+              const results = students.filter(s => {
+                const nameMatch = s.nome_completo.toLowerCase().includes(indivSearch.trim().toLowerCase());
+                const cpfMatch = q.length >= 3 && s.cpf.replace(/\D/g,'').includes(q);
+                return nameMatch || cpfMatch;
+              }).slice(0, 8);
+              if (results.length === 0) return (
+                <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                  Nenhum aluno encontrado.
+                </div>
+              );
+              return (
+                <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+                  {results.map((s, i) => (
+                    <div key={s.id}
+                      onClick={async () => {
+                        setIndivStudent(s);
+                        setIndivLoading(true);
+                        try {
+                          const res = await fetch('/api/checkins/historico?days=365');
+                          const data: Record<string, string[]> = await res.json();
+                          setIndivHistorico(data[s.id] || []);
+                        } catch { setIndivHistorico([]); }
+                        setIndivLoading(false);
+                      }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: i % 2 === 0 ? 'var(--bg-card)' : 'var(--bg-input)', borderBottom: i < results.length - 1 ? '1px solid var(--border)' : 'none', transition: 'background 0.15s' }}
+                    >
+                      {s.foto_url
+                        ? <img src={s.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', flexShrink: 0, border: '2px solid var(--border)' }} />
+                        : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-input)', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                          </div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.nome_completo}</div>
+                        <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{s.graduacao} · {s.nucleo || '—'}</div>
+                      </div>
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
+            {/* Loading */}
+            {indivLoading && (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'inline-block', animation: 'spin 0.7s linear infinite', fontSize: '1.5rem' }}>↻</div>
+                <div style={{ marginTop: 8, fontSize: '0.88rem' }}>Carregando histórico...</div>
+              </div>
+            )}
+
+            {/* Chart */}
+            {indivStudent && !indivLoading && (() => {
+              const dias = indivHistorico;
+              // Group by YYYY-MM
+              const monthMap: Record<string, number> = {};
+              dias.forEach(d => {
+                const ym = d.slice(0, 7);
+                monthMap[ym] = (monthMap[ym] || 0) + 1;
+              });
+              const months = Object.keys(monthMap).sort();
+
+              // Also include months with 0 check-ins from the last 12 months
+              const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+              for (let i = 11; i >= 0; i--) {
+                const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+                const ym = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+                if (!monthMap[ym]) monthMap[ym] = 0;
+              }
+              const allMonths = Object.keys(monthMap).sort().slice(-12);
+
+              const totalDias = dias.length;
+              const monthLabel = (ym: string) => {
+                const [y, m] = ym.split('-');
+                const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                return `${names[parseInt(m)-1]}/${y.slice(2)}`;
+              };
+              const maxCount = Math.max(...allMonths.map(m => monthMap[m] || 0), 1);
+              const barW = Math.max(26, Math.min(52, Math.floor((580 - 80) / allMonths.length - 8)));
+              const svgW = allMonths.length * (barW + 8) + 100;
+              const svgH = 260;
+              const chartBottom = svgH - 50;
+              const chartTop = 30;
+              const chartH = chartBottom - chartTop;
+
+              const printIndiv = () => {
+                const pw = window.open('', '_blank');
+                if (!pw) return;
+                const svgEl = document.getElementById('grafico-indiv-svg');
+                const svgHtml = svgEl ? svgEl.outerHTML : '';
+                const dateStr = now.toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+                pw.document.write(`<!DOCTYPE html><html><head><meta charset="utf-8"><title>Frequência — ${indivStudent!.nome_completo}</title>
+                  <style>*{margin:0;padding:0;box-sizing:border-box;} @page{size:A4 landscape;margin:15mm} body{font-family:Arial,sans-serif;padding:20px;background:#fff;} h1{font-size:15px;color:#7c3aed;margin-bottom:2px;} .sub{font-size:10px;color:#64748b;margin-bottom:14px;} svg{width:100%;} .stat{display:inline-block;margin-right:20px;font-size:11px;} .stat strong{font-size:14px;display:block;}</style>
+                  </head><body>
+                  <h1>📊 Relatório Individual de Frequência — ${indivStudent!.nome_completo}</h1>
+                  <div class="sub">Gerado em ${dateStr} · ${indivStudent!.nucleo || '—'} · ${indivStudent!.graduacao}</div>
+                  <div style="margin-bottom:12px">
+                    <span class="stat"><strong style="color:#7c3aed">${totalDias}</strong>Presenças (12 meses)</span>
+                    <span class="stat"><strong style="color:#16a34a">${allMonths.length > 0 ? Math.round(totalDias / allMonths.length * 10) / 10 : 0}</strong>Média/mês</span>
+                  </div>
+                  ${svgHtml}
+                  <script>window.onload=()=>{window.print();setTimeout(()=>pw.close(),1500);}<\/script>
+                  </body></html>`);
+                pw.document.close();
+              };
+
+              return (
+                <div>
+                  {/* Back + info */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16, padding: '12px 14px', background: 'var(--bg-input)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                    <button onClick={() => { setIndivStudent(null); setIndivHistorico([]); }}
+                      style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '5px 10px', cursor: 'pointer', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      ← Trocar
+                    </button>
+                    {indivStudent.foto_url
+                      ? <img src={indivStudent.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid #7c3aed', flexShrink: 0 }} />
+                      : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-card)', border: '2px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                        </div>
+                    }
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{indivStudent.nome_completo}</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{indivStudent.graduacao} · {indivStudent.nucleo || '—'}</div>
+                    </div>
+                    <button onClick={printIndiv}
+                      style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', color: '#fff', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+                      Imprimir
+                    </button>
+                  </div>
+
+                  {/* Summary stats */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                    {[
+                      { label: 'Total de Presenças', value: totalDias, color: '#7c3aed' },
+                      { label: 'Média por Mês', value: `${allMonths.length > 0 ? (totalDias / allMonths.length).toFixed(1) : 0}`, color: '#16a34a' },
+                      { label: 'Mês mais frequente', value: allMonths.length > 0 ? monthLabel(allMonths.reduce((a, b) => (monthMap[a] || 0) >= (monthMap[b] || 0) ? a : b)) : '—', color: '#d97706' },
+                    ].map(st => (
+                      <div key={st.label} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', textAlign: 'center' }}>
+                        <div style={{ fontSize: '1.4rem', fontWeight: 800, color: st.color }}>{st.value}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>{st.label}</div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* SVG bar chart */}
+                  <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: '10px 6px', overflowX: 'auto' }}>
+                    <svg id="grafico-indiv-svg" width={svgW} height={svgH} style={{ display: 'block', minWidth: '100%' }}>
+                      {/* Grid lines */}
+                      {[0, 25, 50, 75, 100].map(pct => {
+                        const count = Math.round((pct / 100) * maxCount);
+                        const y = chartBottom - (pct / 100) * chartH;
+                        return (
+                          <g key={pct}>
+                            <line x1={55} y1={y} x2={svgW - 10} y2={y} stroke="var(--border)" strokeDasharray="3,3" strokeWidth={0.7} />
+                            <text x={50} y={y + 4} textAnchor="end" fill="var(--text-secondary)" fontSize={9}>{count}</text>
+                          </g>
+                        );
+                      })}
+                      {/* Bars */}
+                      {allMonths.map((ym, i) => {
+                        const count = monthMap[ym] || 0;
+                        const x = 60 + i * (barW + 8);
+                        const barH = Math.max(2, (count / maxCount) * chartH);
+                        const y = chartBottom - barH;
+                        const color = count === 0 ? 'var(--border)' : count >= maxCount * 0.75 ? '#16a34a' : count >= maxCount * 0.4 ? '#d97706' : '#dc2626';
+                        return (
+                          <g key={ym}>
+                            <rect x={x} y={y} width={barW} height={barH} rx={4} fill={color} opacity={0.92} />
+                            {count > 0 && <text x={x + barW / 2} y={y - 5} textAnchor="middle" fill={color} fontSize={9} fontWeight="700">{count}</text>}
+                            <text x={x + barW / 2} y={chartBottom + 14} textAnchor="middle" fill="var(--text-secondary)" fontSize={9}>{monthLabel(ym)}</text>
+                          </g>
+                        );
+                      })}
+                      {/* Axis */}
+                      <line x1={55} y1={chartTop} x2={55} y2={chartBottom} stroke="var(--border)" strokeWidth={1} />
+                      <line x1={55} y1={chartBottom} x2={svgW - 10} y2={chartBottom} stroke="var(--border)" strokeWidth={1} />
+                      {/* Y-axis label */}
+                      <text x={12} y={chartTop + chartH / 2} textAnchor="middle" fill="var(--text-secondary)" fontSize={9} transform={`rotate(-90,12,${chartTop + chartH / 2})`}>Presenças</text>
+                    </svg>
+                  </div>
+
+                  {/* Monthly cards */}
+                  <div style={{ display: 'flex', gap: 8, overflowX: 'auto', padding: '14px 0 4px', scrollbarWidth: 'thin' }}>
+                    {allMonths.map(ym => {
+                      const count = monthMap[ym] || 0;
+                      const color = count === 0 ? '#dc2626' : count >= maxCount * 0.75 ? '#16a34a' : count >= maxCount * 0.4 ? '#d97706' : '#dc2626';
+                      return (
+                        <div key={ym} style={{ flexShrink: 0, background: 'var(--bg-input)', border: `1px solid ${color}40`, borderRadius: 8, padding: '8px 12px', minWidth: 70, textAlign: 'center' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{monthLabel(ym)}</div>
+                          <div style={{ fontSize: '1.1rem', fontWeight: 800, color }}>{count}</div>
+                          <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)' }}>treinos</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Legend */}
+                  <div style={{ display: 'flex', gap: 16, marginTop: 12, flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {[['#16a34a','Alta frequência'],['#d97706','Frequência regular'],['#dc2626','Baixa frequência']].map(([c, l]) => (
+                      <div key={l} style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                        <div style={{ width: 11, height: 11, borderRadius: 3, background: c }} /> {l}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
+        </div>
+      )}
 
       {/* Detail Modal */}
       {selected && (
