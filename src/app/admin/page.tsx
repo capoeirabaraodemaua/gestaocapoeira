@@ -613,7 +613,9 @@ export default function AdminPage() {
     return matchSearch && matchNucleo && matchProfile;
   });
 
-  const menores = students.filter(s => s.menor_de_idade).length;
+  // For stats, only count students visible to this profile
+  const visibleStudents = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students;
+  const menores = visibleStudents.filter(s => s.menor_de_idade).length;
 
   const openEdit = (student: Student) => {
     setEditing(student);
@@ -1106,9 +1108,10 @@ export default function AdminPage() {
           <div>
           <div className="admin-stats">
           <div className="stat-card">
-            <div className="stat-value">{students.length}</div>
-            <div className="stat-label">Total de Alunos</div>
+            <div className="stat-value">{visibleStudents.length}</div>
+            <div className="stat-label">{nucleoFilter ? `Alunos — ${nucleoFilter}` : 'Total de Alunos'}</div>
           </div>
+          {!nucleoFilter && <>
           <div className="stat-card">
             <div className="stat-value">{students.filter(s => s.nucleo === 'Saracuruna').length}</div>
             <div className="stat-label">Saracuruna</div>
@@ -1129,6 +1132,7 @@ export default function AdminPage() {
             <div className="stat-value">{students.filter(s => s.nucleo === 'Jayme Fichman').length}</div>
             <div className="stat-label">Jayme Fichman</div>
           </div>
+          </>}
           <div className="stat-card">
             <div className="stat-value">{menores}</div>
             <div className="stat-label">Menores de Idade</div>
