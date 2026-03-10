@@ -1117,32 +1117,43 @@ export default function AdminPage() {
             <div className="stat-value">{visibleStudents.length}</div>
             <div className="stat-label">{nucleoFilter ? `Alunos — ${nucleoFilter}` : 'Total de Alunos'}</div>
           </div>
-          {!nucleoFilter && <>
-          <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Saracuruna').length}</div>
-            <div className="stat-label">Saracuruna</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Poliesportivo Edson Alves').length}</div>
-            <div className="stat-label">Edson Alves</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Poliesportivo do Ipiranga').length}</div>
-            <div className="stat-label">Ipiranga</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Vila Urussaí').length}</div>
-            <div className="stat-label">Vila Urussaí</div>
-          </div>
-          <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Jayme Fichman').length}</div>
-            <div className="stat-label">Jayme Fichman</div>
-          </div>
-          </>}
-          <div className="stat-card">
-            <div className="stat-value">{menores}</div>
-            <div className="stat-label">Menores de Idade</div>
-          </div>
+          {nucleoFilter ? (
+            // Responsável de núcleo: mostra apenas dados do seu núcleo
+            <>
+            <div className="stat-card">
+              <div className="stat-value">{visibleStudents.filter(s => s.menor_de_idade).length}</div>
+              <div className="stat-label">Menores de Idade</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{visibleStudents.filter(s => !s.menor_de_idade).length}</div>
+              <div className="stat-label">Maiores de Idade</div>
+            </div>
+            <div className="stat-card">
+              <div className="stat-value">{visibleStudents.filter(s => s.assinatura_responsavel).length}</div>
+              <div className="stat-label">Termos Assinados</div>
+            </div>
+            </>
+          ) : (
+            // Admin geral: mostra todos os núcleos
+            <>
+            {([
+              ['CIEP 318 — Saracuruna',       'Saracuruna',                 '#16a34a'],
+              ['Poliesportivo Edson Alves',     'Poliesportivo Edson Alves',  '#dc2626'],
+              ['Poliesportivo do Ipiranga',     'Poliesportivo do Ipiranga',  '#ea580c'],
+              ['Vila Urussaí',                  'Vila Urussaí',               '#9333ea'],
+              ['Jayme Fichman',                 'Jayme Fichman',              '#0891b2'],
+            ] as const).map(([label, nucleo, color]) => (
+              <div key={nucleo} className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
+                <div className="stat-value">{students.filter(s => s.nucleo === nucleo).length}</div>
+                <div className="stat-label">{label}</div>
+              </div>
+            ))}
+            <div className="stat-card">
+              <div className="stat-value">{menores}</div>
+              <div className="stat-label">Menores de Idade</div>
+            </div>
+            </>
+          )}
         </div>
 
         {loading ? (
@@ -1501,12 +1512,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         )}
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
-        // Núcleo filter
-        const rankNucleoLabel = rankingNucleoTab === 'edson-alves' ? 'Poliesportivo Edson Alves'
-          : rankingNucleoTab === 'ipiranga' ? 'Poliesportivo do Ipiranga'
-          : rankingNucleoTab === 'saracuruna' ? 'Saracuruna'
-          : rankingNucleoTab === 'vila-urussai' ? 'Vila Urussaí'
-          : rankingNucleoTab === 'jayme-fichman' ? 'Jayme Fichman'
+        // Se for responsável de núcleo, força o filtro do seu núcleo (ignora o tab selecionado)
+        const effectiveRankingTab = nucleoFilter ? activeNucleo! : rankingNucleoTab;
+        const rankNucleoLabel = effectiveRankingTab === 'edson-alves' ? 'Poliesportivo Edson Alves'
+          : effectiveRankingTab === 'ipiranga' ? 'Poliesportivo do Ipiranga'
+          : effectiveRankingTab === 'saracuruna' ? 'Saracuruna'
+          : effectiveRankingTab === 'vila-urussai' ? 'Vila Urussaí'
+          : effectiveRankingTab === 'jayme-fichman' ? 'Jayme Fichman'
           : null;
         const rankStudents = rankNucleoLabel ? students.filter(s => s.nucleo === rankNucleoLabel) : students;
 
@@ -1582,13 +1594,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Controls row */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Núcleo tabs */}
+              {/* Núcleo tabs — só admin geral pode trocar */}
+              {!nucleoFilter && (
               <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
                 {([
                   ['todos',          '🌐 Todos',                      '#1d4ed8'],
                   ['edson-alves',    '🔴 Edson Alves',                '#dc2626'],
                   ['ipiranga',       '🟠 Ipiranga',                   '#ea580c'],
-                  ['saracuruna',     '🟢 Saracuruna',                 '#16a34a'],
+                  ['saracuruna',     '🟢 CIEP 318 — Saracuruna',      '#16a34a'],
                   ['vila-urussai',   '🟣 Vila Urussaí',               '#9333ea'],
                   ['jayme-fichman',  '🔵 Jayme Fichman',              '#0891b2'],
                 ] as const).map(([key, label, color]) => (
@@ -1601,6 +1614,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </button>
                 ))}
               </div>
+              )}
               {/* Period */}
               <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginLeft: 'auto', flexWrap: 'wrap' }}>
                 <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Período:</span>
@@ -2813,7 +2827,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <div key={u.id} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
                             <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{u.descricao}{u.tamanho ? ` (${u.tamanho})` : ''}</span>
-                            <div style={{ display: 'flex', gap: 4 }}>
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                               {(['solicitado', 'confirmado', 'entregue', 'cancelado'] as const).map(st => (
                                 <button key={st} onClick={async () => {
                                   const updated = { ...f, uniformes: f.uniformes.map((uu: any) => uu.id === u.id ? { ...uu, status: st, data_entrega: st === 'entregue' ? new Date().toISOString().slice(0,10) : uu.data_entrega } : uu) };
@@ -2823,6 +2837,15 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   {st}
                                 </button>
                               ))}
+                              <button onClick={async () => {
+                                if (!confirm(`Excluir solicitação de "${u.descricao}"?`)) return;
+                                const updated = { ...f, uniformes: f.uniformes.filter((uu: any) => uu.id !== u.id) };
+                                setFinFicha(updated); await adminSaveFicha(updated);
+                              }}
+                                style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: 'rgba(220,38,38,0.15)', color: '#f87171', marginLeft: 4 }}
+                                title="Excluir solicitação">
+                                🗑
+                              </button>
                             </div>
                           </div>
                           <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
