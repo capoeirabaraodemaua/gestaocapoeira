@@ -131,33 +131,6 @@ export default function FinanceiroPage() {
       return;
     }
 
-    // Verify that the student record is complete before allowing financial access
-    const requiredFields: Record<string, string> = {
-      nome_completo: 'Nome Completo',
-      identidade: 'Identidade / Numeração Única',
-      data_nascimento: 'Data de Nascimento',
-      telefone: 'Telefone',
-      cep: 'CEP',
-      endereco: 'Endereço',
-      numero: 'Número',
-      bairro: 'Bairro',
-      cidade: 'Cidade',
-      estado: 'Estado',
-      nucleo: 'Núcleo',
-      graduacao: 'Graduação',
-      tipo_graduacao: 'Tipo de Graduação',
-    };
-    const pendentes: string[] = [];
-    for (const [field, label] of Object.entries(requiredFields)) {
-      const val = (data as Record<string, unknown>)[field];
-      if (!val || (typeof val === 'string' && !val.trim())) pendentes.push(label);
-    }
-    if (pendentes.length > 0) {
-      setErro(`Seu cadastro está incompleto. Complete o cadastro antes de acessar a ficha financeira.\n\nDados pendentes: ${pendentes.join(', ')}`);
-      setLoadingLogin(false);
-      return;
-    }
-
     setStudent(data);
     // Load financial sheet
     const res = await fetch(`/api/financeiro?student_id=${data.id}`);
