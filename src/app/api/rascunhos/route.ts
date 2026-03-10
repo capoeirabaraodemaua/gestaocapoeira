@@ -58,7 +58,7 @@ const REQUIRED_FIELDS: Record<string, string> = {
   tipo_graduacao: 'Tipo de Graduação',
 };
 
-export function calcularPendencias(data: Partial<RascunhoData>): string[] {
+function calcularPendencias(data: Partial<RascunhoData>): string[] {
   const pendentes: string[] = [];
   for (const [field, label] of Object.entries(REQUIRED_FIELDS)) {
     const val = (data as Record<string, unknown>)[field];

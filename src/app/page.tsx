@@ -597,6 +597,48 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
               Ficha Financeira
             </button>
+            <a
+              href="/organograma"
+              style={{
+                background: 'rgba(124,58,237,0.12)',
+                border: 'none',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 18px',
+                color: '#a78bfa',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="2" width="6" height="4" rx="1"/><rect x="2" y="15" width="6" height="4" rx="1"/><rect x="16" y="15" width="6" height="4" rx="1"/><path d="M12 6v4M12 10H5v5M12 10h7v5"/></svg>
+              Organograma
+            </a>
+            <a
+              href="/hierarquia"
+              style={{
+                background: 'rgba(202,138,4,0.12)',
+                border: 'none',
+                borderRadius: '10px 10px 0 0',
+                padding: '11px 18px',
+                color: '#fbbf24',
+                fontWeight: 800,
+                fontSize: '0.88rem',
+                letterSpacing: '0.04em',
+                textTransform: 'uppercase',
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+              }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+              Hierarquia ACCBM
+            </a>
           </div>
 
           {activeSection === 'ficha' && (

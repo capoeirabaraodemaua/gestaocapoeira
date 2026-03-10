@@ -977,6 +977,9 @@ export default function AdminPage() {
                 if (tab.key === 'rascunhos') {
                   setLoadingRascunhos(true);
                   fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
+                  // Also load responsáveis config
+                  setLoadingResponsaveis(true);
+                  fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
                 }
               }}
               style={{
@@ -3520,52 +3523,69 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </button>
                 </div>
                 {loadingResponsaveis ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Carregando...</div> : (
-                  <div style={{ display: 'grid', gap: 10 }}>
+                  <div style={{ display: 'grid', gap: 8 }}>
                     {nucleosList.map(n => {
                       const resp = responsaveis.find(r => r.nucleo_key === n.key);
+                      const hasData = resp?.nome?.trim() || resp?.cpf?.trim();
                       return (
-                        <div key={n.key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr auto', gap: 10, alignItems: 'center' }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{n.label}</div>
-                          <input type="text" placeholder="Nome do responsável"
-                            value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
-                            onChange={e => {
-                              const val = e.target.value;
-                              setResponsaveis(prev => {
-                                const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                const item = { nucleo_key: n.key, nucleo_label: n.label, nome: val, cpf: prev[idx]?.cpf || '' };
-                                if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                return [...prev, item];
-                              });
-                            }}
-                            style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                          />
-                          <input type="text" placeholder="CPF do responsável"
-                            value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
-                            onChange={e => {
-                              const val = e.target.value.replace(/\D/g, '');
-                              setResponsaveis(prev => {
-                                const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                const item = { nucleo_key: n.key, nucleo_label: n.label, nome: prev[idx]?.nome || '', cpf: val };
-                                if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                return [...prev, item];
-                              });
-                            }}
-                            style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                          />
-                          {resp && <span style={{ color: '#4ade80', fontSize: '0.78rem', fontWeight: 700 }}>✓</span>}
+                        <div key={n.key} style={{ background: hasData ? 'rgba(22,163,74,0.05)' : 'var(--bg-input)', border: `1px solid ${hasData ? 'rgba(22,163,74,0.2)' : 'var(--border)'}`, borderRadius: 10, padding: '10px 14px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.82rem', flex: 1 }}>{n.label}</span>
+                            {hasData && (
+                              <button onClick={async () => {
+                                if (!confirm(`Remover responsável do ${n.label}?`)) return;
+                                const updated = responsaveis.filter(r => r.nucleo_key !== n.key);
+                                setResponsaveis(updated);
+                                await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                setResponsaveisMsg('✓ Responsável removido!');
+                                setTimeout(() => setResponsaveisMsg(''), 3000);
+                              }}
+                                style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                🗑 Remover
+                              </button>
+                            )}
+                          </div>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                            <input type="text" placeholder="Nome do responsável"
+                              value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setResponsaveis(prev => {
+                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                  const item = { nucleo_key: n.key, nucleo_label: n.label, nome: val, cpf: prev[idx]?.cpf || '' };
+                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                  return [...prev, item];
+                                });
+                              }}
+                              style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                            />
+                            <input type="text" placeholder="CPF (só números)"
+                              value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
+                              onChange={e => {
+                                const val = e.target.value.replace(/\D/g, '');
+                                setResponsaveis(prev => {
+                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                  const item = { nucleo_key: n.key, nucleo_label: n.label, nome: prev[idx]?.nome || '', cpf: val };
+                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                  return [...prev, item];
+                                });
+                              }}
+                              style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                            />
+                          </div>
                         </div>
                       );
                     })}
-                    <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ marginTop: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
                       <button onClick={async () => {
                         setResponsaveisMsg('');
                         const filtered = responsaveis.filter(r => r.nome.trim() && r.cpf.trim());
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
-                        if (res.ok) { setResponsaveisMsg('✓ Salvo!'); } else { setResponsaveisMsg('Erro ao salvar'); }
+                        if (res.ok) { setResponsaveisMsg('✓ Responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
                         setTimeout(() => setResponsaveisMsg(''), 3000);
                       }}
                         style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
-                        💾 Salvar Responsáveis
+                        💾 Salvar Todos
                       </button>
                       {responsaveisMsg && <span style={{ fontSize: '0.8rem', color: responsaveisMsg.includes('Erro') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{responsaveisMsg}</span>}
                     </div>

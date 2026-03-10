@@ -10,7 +10,7 @@ const BUCKET = 'photos';
 const KEY = 'config/responsaveis.json';
 
 // CPF of the super-admin (always has full access regardless)
-export const SUPER_ADMIN_CPF = '09856925703';
+const SUPER_ADMIN_CPF = '09856925703';
 
 export interface ResponsavelNucleo {
   nucleo_key: string; // 'edson-alves', 'ipiranga', etc.
