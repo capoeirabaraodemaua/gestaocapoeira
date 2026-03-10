@@ -16,14 +16,15 @@ const supabaseAdmin = createClient(
 const BUCKET = 'photos';
 const KEY = 'config/responsaveis.json';
 
-// CPF of the super-admin (always has full access regardless)
-const SUPER_ADMIN_CPF = '09856925703';
-
 export interface ResponsavelNucleo {
   nucleo_key: string; // 'edson-alves', 'ipiranga', etc.
   nucleo_label: string;
+  // Responsável 1
   nome: string;
-  cpf: string; // digits only, stored normalized
+  cpf: string; // digits only
+  // Responsável 2 (optional)
+  nome2?: string;
+  cpf2?: string; // digits only
 }
 
 export interface ResponsaveisConfig {

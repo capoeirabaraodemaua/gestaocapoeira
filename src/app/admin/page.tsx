@@ -302,11 +302,14 @@ export default function AdminPage() {
         setLoginError('');
         return;
       }
-      // Check responsáveis config
+      // Check responsáveis config (cpf or cpf2)
       try {
         const res = await fetch('/api/admin/responsaveis');
         const cfg = await res.json();
-        const resp = (cfg.responsaveis || []).find((r: any) => r.cpf.replace(/\D/g,'') === cpfDigits);
+        const resp = (cfg.responsaveis || []).find((r: any) =>
+          (r.cpf || '').replace(/\D/g,'') === cpfDigits ||
+          (r.cpf2 || '').replace(/\D/g,'') === cpfDigits
+        );
         if (resp) {
           sessionStorage.setItem('admin_auth', resp.nucleo_key);
           setAuthed(true);
@@ -3529,77 +3532,128 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </button>
                 </div>
                 {loadingResponsaveis ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Carregando...</div> : (
-                  <div style={{ display: 'grid', gap: 8 }}>
+                  <div style={{ display: 'grid', gap: 10 }}>
                     {nucleosList.map(n => {
                       const resp = responsaveis.find(r => r.nucleo_key === n.key);
-                      const hasData = resp?.nome?.trim() || resp?.cpf?.trim();
+                      const has1 = resp?.nome?.trim() || resp?.cpf?.trim();
+                      const has2 = (resp as any)?.nome2?.trim() || (resp as any)?.cpf2?.trim();
+                      const hasAny = has1 || has2;
                       return (
-                        <div key={n.key} style={{ background: hasData ? 'rgba(22,163,74,0.05)' : 'var(--bg-input)', border: `1px solid ${hasData ? 'rgba(22,163,74,0.2)' : 'var(--border)'}`, borderRadius: 10, padding: '10px 14px' }}>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                            <span style={{ fontWeight: 700, fontSize: '0.82rem', flex: 1 }}>{n.label}</span>
-                            {hasData && (
+                        <div key={n.key} style={{ background: hasAny ? 'rgba(22,163,74,0.05)' : 'var(--bg-input)', border: `1px solid ${hasAny ? 'rgba(22,163,74,0.2)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 14px' }}>
+                          {/* Núcleo header */}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                            <span style={{ fontWeight: 800, fontSize: '0.85rem', flex: 1, color: 'var(--text-primary)' }}>{n.label}</span>
+                            {hasAny && (
                               <button onClick={async () => {
-                                if (!confirm(`Remover responsável do ${n.label}?`)) return;
-                                // Busca lista atual da API antes de remover para não perder dados não carregados
+                                if (!confirm(`Remover todos os responsáveis do ${n.label}?`)) return;
                                 const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
                                 const currentList: typeof responsaveis = cfg.responsaveis || [];
                                 const updated = currentList.filter((r: { nucleo_key: string }) => r.nucleo_key !== n.key);
                                 setResponsaveis(updated);
                                 const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                                if (res.ok) { setResponsaveisMsg('✓ Responsável removido!'); } else { setResponsaveisMsg('Erro ao remover. Tente novamente.'); }
+                                if (res.ok) { setResponsaveisMsg('✓ Responsáveis removidos!'); } else { setResponsaveisMsg('Erro ao remover.'); }
                                 setTimeout(() => setResponsaveisMsg(''), 3000);
                               }}
                                 style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
-                                🗑 Remover
+                                🗑 Remover Todos
                               </button>
                             )}
                           </div>
-                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                            <input type="text" placeholder="Nome do responsável"
-                              value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setResponsaveis(prev => {
-                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                  const item = { nucleo_key: n.key, nucleo_label: n.label, nome: val, cpf: prev[idx]?.cpf || '' };
-                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                  return [...prev, item];
-                                });
-                              }}
-                              style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                            />
-                            <input type="text" placeholder="CPF (só números)"
-                              value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
-                              onChange={e => {
-                                const val = e.target.value.replace(/\D/g, '');
-                                setResponsaveis(prev => {
-                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                  const item = { nucleo_key: n.key, nucleo_label: n.label, nome: prev[idx]?.nome || '', cpf: val };
-                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                  return [...prev, item];
-                                });
-                              }}
-                              style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                            />
+
+                          {/* Responsável 1 */}
+                          <div style={{ marginBottom: 8 }}>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fbbf24', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 1</span>
+                              {has1 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <input type="text" placeholder="Nome completo"
+                                value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setResponsaveis(prev => {
+                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                    const item = { ...existing, nome: val };
+                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                    return [...prev, item];
+                                  });
+                                }}
+                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                              />
+                              <input type="text" placeholder="CPF (senha de acesso)"
+                                value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
+                                onChange={e => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setResponsaveis(prev => {
+                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                    const item = { ...existing, cpf: val };
+                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                    return [...prev, item];
+                                  });
+                                }}
+                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                              />
+                            </div>
+                          </div>
+
+                          {/* Responsável 2 */}
+                          <div>
+                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <span style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 2 <span style={{ opacity: 0.6 }}>(opcional)</span></span>
+                              {has2 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                              <input type="text" placeholder="Nome completo"
+                                value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.nome2 || ''}
+                                onChange={e => {
+                                  const val = e.target.value;
+                                  setResponsaveis(prev => {
+                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                    const item = { ...existing, nome2: val };
+                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                    return [...prev, item];
+                                  });
+                                }}
+                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                              />
+                              <input type="text" placeholder="CPF (senha de acesso)"
+                                value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.cpf2 || ''}
+                                onChange={e => {
+                                  const val = e.target.value.replace(/\D/g, '');
+                                  setResponsaveis(prev => {
+                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                    const item = { ...existing, cpf2: val };
+                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                    return [...prev, item];
+                                  });
+                                }}
+                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                              />
+                            </div>
                           </div>
                         </div>
                       );
                     })}
-                    <div style={{ marginTop: 6, display: 'flex', gap: 10, alignItems: 'center' }}>
+                    <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
                       <button onClick={async () => {
                         setResponsaveisMsg('');
-                        // Só salva se o estado local foi carregado (tem pelo menos 1 núcleo editado ou lista foi buscada)
-                        if (responsaveis.length === 0 && !loadingResponsaveis) {
-                          setResponsaveisMsg('⚠ Clique em "Editar Responsáveis" antes de salvar.');
-                          setTimeout(() => setResponsaveisMsg(''), 4000);
-                          return;
-                        }
-                        const filtered = responsaveis.filter(r => r.nome.trim() && r.cpf.trim());
+                        // Filtra: mantém núcleos que tenham pelo menos o responsável 1 preenchido; limpa campos vazios do resp2
+                        const filtered = responsaveis
+                          .map((r: any) => ({
+                            ...r,
+                            nome2: r.nome2?.trim() || undefined,
+                            cpf2: r.cpf2?.trim() ? r.cpf2.replace(/\D/g,'') : undefined,
+                          }))
+                          .filter((r: any) => r.nome?.trim() && r.cpf?.trim());
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
                         if (res.ok) { setResponsaveisMsg('✓ Responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
                         setTimeout(() => setResponsaveisMsg(''), 3000);
                       }}
-                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
+                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
                         💾 Salvar Todos
                       </button>
                       {responsaveisMsg && <span style={{ fontSize: '0.8rem', color: responsaveisMsg.includes('Erro') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{responsaveisMsg}</span>}

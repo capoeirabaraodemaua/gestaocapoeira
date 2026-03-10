@@ -52,7 +52,10 @@ export default function Home() {
     try {
       const res = await fetch('/api/admin/responsaveis');
       const cfg = await res.json();
-      const resp = (cfg.responsaveis || []).find((r: { cpf: string; nucleo_key: string }) => r.cpf.replace(/\D/g,'') === digits);
+      const resp = (cfg.responsaveis || []).find((r: { cpf: string; cpf2?: string; nucleo_key: string }) =>
+        (r.cpf || '').replace(/\D/g,'') === digits ||
+        (r.cpf2 || '').replace(/\D/g,'') === digits
+      );
       if (resp) {
         sessionStorage.setItem('admin_auth', resp.nucleo_key);
         window.location.href = '/admin';
