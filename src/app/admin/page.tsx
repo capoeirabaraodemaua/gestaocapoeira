@@ -1253,7 +1253,7 @@ export default function AdminPage() {
                           {student.menor_de_idade && !student.assinatura_responsavel && (
                             <button
                               onClick={async () => {
-                                const base = process.env.NEXT_PUBLIC_APP_URL || window.location.origin;
+                                const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://inscri-o-capoeira-bar-o-de-mau.vercel.app';
                                 const url = `${base}/termo?id=${student.id}`;
                                 const phone = (student.telefone || '').replace(/\D/g, '');
                                 const br = phone.startsWith('55') ? phone : `55${phone}`;
@@ -4142,7 +4142,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </button>
                   <button
                     onClick={() => {
-                      const base = window.location.origin;
+                      const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://inscri-o-capoeira-bar-o-de-mau.vercel.app';
                       const cpfEnc = encodeURIComponent(selected.cpf || '');
                       const url = `${base}/carteirinha${cpfEnc ? `?cpf=${cpfEnc}` : ''}`;
                       const phone = (selected.telefone || '').replace(/\D/g, '');

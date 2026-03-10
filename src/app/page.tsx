@@ -483,7 +483,7 @@ export default function Home() {
   };
 
   const shareCarteirinhaWhatsApp = (telefone: string | null | undefined, nome: string, cpfAluno?: string) => {
-    const base = window.location.origin;
+    const base = process.env.NEXT_PUBLIC_APP_URL ?? 'https://inscri-o-capoeira-bar-o-de-mau.vercel.app';
     const cpfEncoded = cpfAluno ? encodeURIComponent(cpfAluno) : '';
     const url = `${base}/carteirinha${cpfEncoded ? `?cpf=${cpfEncoded}` : ''}`;
     const phone = (telefone || '').replace(/\D/g, '');
