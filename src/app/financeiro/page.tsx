@@ -145,7 +145,7 @@ export default function FinanceiroPage() {
         },
         mensalidades: [],
         uniformes: [],
-        alertas: { comprovante_pendente: false, uniforme_solicitado: false, mensalidade_atrasada: false },
+        alertas: { comprovante_pendente: false, uniforme_solicitado: false, mensalidade_atrasada: false, batizado_modalidade_escolhida: false, mensalidade_registrada: false, contribuicao_registrada: false, pagamento_registrado: false, ultimas_acoes: [] },
         updated_at: now,
       };
       setFicha(defaultFicha);

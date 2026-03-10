@@ -366,7 +366,7 @@ export default function AdminPage() {
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   // ── Financeiro admin state ────────────────────────────────────────────────
-  const [finAlerts, setFinAlerts] = useState<Array<{ student_id: string; nome_completo: string; nucleo: string; comprovante_pendente: boolean; uniforme_solicitado: boolean; mensalidade_atrasada: boolean }>>([]);
+  const [finAlerts, setFinAlerts] = useState<Array<{ student_id: string; nome_completo: string; nucleo: string; updated_at?: string; comprovante_pendente: boolean; uniforme_solicitado: boolean; mensalidade_atrasada: boolean; batizado_modalidade_escolhida?: boolean; mensalidade_registrada?: boolean; contribuicao_registrada?: boolean; pagamento_registrado?: boolean; ultimas_acoes?: string[] }>>([]);
   const [finLoadingAlerts, setFinLoadingAlerts] = useState(false);
   const [finStudent, setFinStudent] = useState<Student | null>(null);
   const [finFicha, setFinFicha] = useState<any>(null);
@@ -2282,25 +2282,52 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {finLoadingAlerts ? (
             <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Verificando alertas financeiros...</div>
           ) : finAlerts.length > 0 && (
-            <div style={{ marginBottom: 20, background: 'rgba(220,38,38,0.07)', border: '2px solid rgba(220,38,38,0.3)', borderRadius: 14, padding: '14px 18px' }}>
-              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#f87171', marginBottom: 10 }}>🚨 Alertas Financeiros Pendentes</div>
+            <div style={{ marginBottom: 20, background: 'rgba(22,163,74,0.05)', border: '2px solid rgba(22,163,74,0.25)', borderRadius: 14, overflow: 'hidden' }}>
+              {/* Header */}
+              <div style={{ background: 'linear-gradient(135deg,rgba(22,163,74,0.2),rgba(8,145,178,0.15))', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.1rem', animation: 'sirenFlash 1.2s ease-in-out infinite' }}>🔔</span>
+                  Notificações Financeiras — {finAlerts.length} aluno{finAlerts.length !== 1 ? 's' : ''}
+                </div>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Ações realizadas pelos alunos aguardando revisão</span>
+              </div>
+              {/* Alert rows */}
               {finAlerts.map(a => (
-                <div key={a.student_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{a.nome_completo}</span>
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{a.nucleo}</span>
-                  {a.comprovante_pendente && <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 20, padding: '2px 10px', color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700 }}>📎 Comprovante enviado</span>}
-                  {a.uniforme_solicitado && <span style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 20, padding: '2px 10px', color: '#93c5fd', fontSize: '0.72rem', fontWeight: 700 }}>👕 Uniforme solicitado</span>}
-                  {a.mensalidade_atrasada && <span style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 20, padding: '2px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700 }}>⚠ Pagamento atrasado</span>}
+                <div key={a.student_id} style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                    <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{a.nome_completo}</span>
+                    <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', background: 'var(--bg-input)', padding: '1px 7px', borderRadius: 10 }}>{a.nucleo}</span>
+                    {a.updated_at && <span style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>
+                      {new Date(a.updated_at).toLocaleString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                    </span>}
+                  </div>
+                  {/* Badge tags */}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                    {a.comprovante_pendente && <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 20, padding: '2px 9px', color: '#fbbf24', fontSize: '0.7rem', fontWeight: 700 }}>📎 Comprovante enviado</span>}
+                    {a.uniforme_solicitado && <span style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 20, padding: '2px 9px', color: '#93c5fd', fontSize: '0.7rem', fontWeight: 700 }}>👕 Uniforme solicitado</span>}
+                    {a.mensalidade_atrasada && <span style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 20, padding: '2px 9px', color: '#f87171', fontSize: '0.7rem', fontWeight: 700 }}>⚠ Pagamento atrasado</span>}
+                    {a.batizado_modalidade_escolhida && <span style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 20, padding: '2px 9px', color: '#a78bfa', fontSize: '0.7rem', fontWeight: 700 }}>🥋 Batizado registrado</span>}
+                    {a.mensalidade_registrada && <span style={{ background: 'rgba(8,145,178,0.12)', border: '1px solid rgba(8,145,178,0.35)', borderRadius: 20, padding: '2px 9px', color: '#67e8f9', fontSize: '0.7rem', fontWeight: 700 }}>📅 Mensalidade registrada</span>}
+                    {a.contribuicao_registrada && <span style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.35)', borderRadius: 20, padding: '2px 9px', color: '#4ade80', fontSize: '0.7rem', fontWeight: 700 }}>🤝 Contribuição registrada</span>}
+                    {a.pagamento_registrado && <span style={{ background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.35)', borderRadius: 20, padding: '2px 9px', color: '#fbbf24', fontSize: '0.7rem', fontWeight: 700 }}>💳 Forma de pagamento</span>}
+                  </div>
+                  {/* Last actions log */}
+                  {a.ultimas_acoes && a.ultimas_acoes.length > 0 && (
+                    <div style={{ background: 'rgba(0,0,0,0.2)', borderRadius: 6, padding: '6px 10px', marginBottom: 6 }}>
+                      {a.ultimas_acoes.slice(0, 3).map((acao, i) => (
+                        <div key={i} style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', padding: '1px 0', fontFamily: 'monospace' }}>{acao}</div>
+                      ))}
+                    </div>
+                  )}
                   <button onClick={async () => {
                     const s = students.find(st => st.id === a.student_id);
                     if (!s) return;
                     setFinStudent(s); setFinLoading(true);
                     const res = await fetch(`/api/financeiro?student_id=${s.id}`);
-                    const d = await res.json();
-                    setFinFicha(d); setFinLoading(false);
+                    const d = await res.json(); setFinFicha(d); setFinLoading(false);
                   }}
-                    style={{ marginLeft: 'auto', padding: '4px 12px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.35)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                    Ver ficha →
+                    style={{ padding: '4px 14px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.35)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                    Abrir Ficha →
                   </button>
                 </div>
               ))}
@@ -2359,9 +2386,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       </div>
                       {alert && (
                         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {alert.comprovante_pendente && <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 12, padding: '2px 8px', color: '#fbbf24', fontSize: '0.65rem', fontWeight: 700 }}>📎</span>}
-                          {alert.uniforme_solicitado && <span style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 12, padding: '2px 8px', color: '#93c5fd', fontSize: '0.65rem', fontWeight: 700 }}>👕</span>}
-                          {alert.mensalidade_atrasada && <span style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 12, padding: '2px 8px', color: '#f87171', fontSize: '0.65rem', fontWeight: 700 }}>⚠</span>}
+                          {alert.comprovante_pendente && <span title="Comprovante enviado" style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 12, padding: '2px 8px', color: '#fbbf24', fontSize: '0.65rem', fontWeight: 700 }}>📎</span>}
+                          {alert.uniforme_solicitado && <span title="Uniforme solicitado" style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 12, padding: '2px 8px', color: '#93c5fd', fontSize: '0.65rem', fontWeight: 700 }}>👕</span>}
+                          {alert.mensalidade_atrasada && <span title="Pagamento atrasado" style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 12, padding: '2px 8px', color: '#f87171', fontSize: '0.65rem', fontWeight: 700 }}>⚠</span>}
+                          {alert.batizado_modalidade_escolhida && <span title="Batizado registrado" style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.35)', borderRadius: 12, padding: '2px 8px', color: '#a78bfa', fontSize: '0.65rem', fontWeight: 700 }}>🥋</span>}
+                          {alert.mensalidade_registrada && <span title="Mensalidade registrada" style={{ background: 'rgba(8,145,178,0.12)', border: '1px solid rgba(8,145,178,0.35)', borderRadius: 12, padding: '2px 8px', color: '#67e8f9', fontSize: '0.65rem', fontWeight: 700 }}>📅</span>}
+                          {alert.contribuicao_registrada && <span title="Contribuição registrada" style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.35)', borderRadius: 12, padding: '2px 8px', color: '#4ade80', fontSize: '0.65rem', fontWeight: 700 }}>🤝</span>}
+                          {alert.pagamento_registrado && <span title="Forma de pagamento selecionada" style={{ background: 'rgba(217,119,6,0.12)', border: '1px solid rgba(217,119,6,0.35)', borderRadius: 12, padding: '2px 8px', color: '#fbbf24', fontSize: '0.65rem', fontWeight: 700 }}>💳</span>}
                         </div>
                       )}
                       <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>

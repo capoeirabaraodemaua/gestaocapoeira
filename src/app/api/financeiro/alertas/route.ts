@@ -36,12 +36,17 @@ export async function GET() {
         if (!data) return;
         try {
           const rec = JSON.parse(await data.text());
-          if (rec.alertas && (rec.alertas.comprovante_pendente || rec.alertas.uniforme_solicitado || rec.alertas.mensalidade_atrasada)) {
+          const a = rec.alertas ?? {};
+        const hasAlert = a.comprovante_pendente || a.uniforme_solicitado ||
+          a.mensalidade_atrasada || a.batizado_modalidade_escolhida ||
+          a.mensalidade_registrada || a.contribuicao_registrada || a.pagamento_registrado;
+        if (hasAlert) {
             alertas.push({
               student_id: studentId,
               nome_completo: rec.nome_completo,
               nucleo: rec.nucleo,
-              ...rec.alertas,
+              updated_at: rec.updated_at,
+              ...a,
             });
           }
         } catch {}

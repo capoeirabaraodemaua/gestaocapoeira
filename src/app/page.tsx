@@ -136,7 +136,7 @@ export default function Home() {
         return;
       }
       if (data && data.length > 0) {
-        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Identidade (RG)', nome_completo: 'Nome', email: 'E-mail' };
+        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Numeração Única / RG', nome_completo: 'Nome', email: 'E-mail' };
         setDuplicateErrors(prev => ({
           ...prev,
           [field]: `${labels[field]} já cadastrado(a): ${data[0].nome_completo}`,
@@ -187,15 +187,21 @@ export default function Home() {
 
     try {
       // Verificação server-side de duplicatas antes de inserir
+      // Build OR clause — always check nome + identidade; include cpf only if provided
+      const orParts = [`nome_completo.eq.${form.nome_completo}`];
+      if (form.identidade) orParts.push(`identidade.eq.${form.identidade}`);
+      if (form.cpf) orParts.push(`cpf.eq.${form.cpf}`);
       const { data: existing } = await supabase
         .from('students')
-        .select('id, nome_completo, cpf')
-        .or(`nome_completo.eq.${form.nome_completo},cpf.eq.${form.cpf}`)
+        .select('id, nome_completo, cpf, identidade')
+        .or(orParts.join(','))
         .limit(1);
       if (existing && existing.length > 0) {
         const dup = existing[0];
         const motivo =
-          dup.cpf === form.cpf ? `CPF ${form.cpf}` : `nome "${form.nome_completo}"`;
+          form.cpf && dup.cpf === form.cpf ? `CPF ${form.cpf}` :
+          form.identidade && dup.identidade === form.identidade ? `Numeração Única/RG "${form.identidade}"` :
+          `nome "${form.nome_completo}"`;
         alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
         setLoading(false);
         return;
@@ -262,10 +268,13 @@ export default function Home() {
       if (error) throw error;
 
       // Busca o ID e número de inscrição do aluno recém inserido
+      // Usa CPF se preenchido, caso contrário usa identidade (numeração única)
+      const lookupField = form.cpf ? 'cpf' : 'identidade';
+      const lookupValue = form.cpf || form.identidade;
       const { data: newStudent } = await supabase
         .from('students')
         .select('id, ordem_inscricao')
-        .eq('cpf', form.cpf)
+        .eq(lookupField, lookupValue)
         .limit(1)
         .single();
 
@@ -551,13 +560,15 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>CPF <span className="required">*</span></label>
+                <label>
+                  CPF{' '}
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>(opcional — preencha se possuir)</span>
+                </label>
                 <input
                   name="cpf"
                   value={form.cpf}
                   onChange={(e) => { handleCPFChange(e); setDuplicateErrors(prev => ({ ...prev, cpf: undefined })); }}
-                  onBlur={() => checkDuplicate('cpf', form.cpf)}
-                  required
+                  onBlur={() => { if (form.cpf) checkDuplicate('cpf', form.cpf); }}
                   placeholder="000.000.000-00"
                   style={duplicateErrors.cpf ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
