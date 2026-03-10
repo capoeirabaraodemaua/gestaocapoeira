@@ -2,14 +2,26 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Sistema de Gestão de Alunos – ACCBM",
+  title: "Sistema de Gestão de Alunos ACCBM",
   description: "Sistema de Gestão de Alunos da Associação Cultural de Capoeira Barão de Mauá",
   manifest: "/manifest.json",
   themeColor: "#e94560",
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Sistema ACCBM",
+    title: "Sistema de Gestão de Alunos ACCBM",
+  },
+  openGraph: {
+    title: "Sistema de Gestão de Alunos ACCBM",
+    description: "Associação Cultural de Capoeira Barão de Mauá",
+    siteName: "Sistema de Gestão de Alunos ACCBM",
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary",
+    title: "Sistema de Gestão de Alunos ACCBM",
+    description: "Associação Cultural de Capoeira Barão de Mauá",
   },
 };
 
