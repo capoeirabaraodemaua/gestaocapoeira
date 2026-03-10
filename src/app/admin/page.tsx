@@ -315,7 +315,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -389,6 +389,28 @@ export default function AdminPage() {
   const [editalForm, setEditalForm] = useState<any>({});
   const [editalEditId, setEditalEditId] = useState<string | null>(null);
   const [showEditalForm, setShowEditalForm] = useState(false);
+
+  // ── Config financeiro ────────────────────────────────────────────────────
+  const [finConfig, setFinConfig] = useState<{ mensalidade_valor: number; batizado_integral: number; batizado_parcela1: number; batizado_parcela2: number; batizado_parcela3: number; contribuicao_mensal: number }>({ mensalidade_valor: 80, batizado_integral: 150, batizado_parcela1: 60, batizado_parcela2: 50, batizado_parcela3: 40, contribuicao_mensal: 30 });
+  const [finConfigSaving, setFinConfigSaving] = useState(false);
+  const [finConfigMsg, setFinConfigMsg] = useState('');
+  const [showFinConfig, setShowFinConfig] = useState(false);
+
+  // ── Materiais state ────────────────────────────────────────────────────────
+  const [materiais, setMateriais] = useState<any[]>([]);
+  const [loadingMateriais, setLoadingMateriais] = useState(false);
+  const [materialForm, setMaterialForm] = useState<any>({});
+  const [materialEditId, setMaterialEditId] = useState<string | null>(null);
+  const [showMaterialForm, setShowMaterialForm] = useState(false);
+  const [filterMatNucleo, setFilterMatNucleo] = useState('');
+
+  // ── Patrimônio state ───────────────────────────────────────────────────────
+  const [patrimonio, setPatrimonio] = useState<any[]>([]);
+  const [loadingPatrimonio, setLoadingPatrimonio] = useState(false);
+  const [patrimonioForm, setPatrimonioForm] = useState<any>({});
+  const [patrimonioEditId, setPatrimonioEditId] = useState<string | null>(null);
+  const [showPatrimonioForm, setShowPatrimonioForm] = useState(false);
+  const [filterPatNucleo, setFilterPatNucleo] = useState('');
 
   // ── Gráfico individual por aluno ──────────────────────────────────────────
   const [indivChartOpen, setIndivChartOpen] = useState(false);
@@ -879,6 +901,8 @@ export default function AdminPage() {
             { key: 'financeiro',   label: '💰 Financeiro',    activeColor: '#16a34a' },
             { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6' },
             { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2' },
+            { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c' },
+            { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04' },
           ] as const).map(tab => (
             <button
               key={tab.key}
@@ -889,6 +913,7 @@ export default function AdminPage() {
                 if (tab.key === 'financeiro') {
                   setFinLoadingAlerts(true);
                   fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
+                  fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); }).catch(() => {});
                 }
                 if (tab.key === 'doacoes') {
                   setLoadingDoacoes(true);
@@ -897,6 +922,14 @@ export default function AdminPage() {
                 if (tab.key === 'editais') {
                   setLoadingEditais(true);
                   fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false));
+                }
+                if (tab.key === 'materiais') {
+                  setLoadingMateriais(true);
+                  fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false));
+                }
+                if (tab.key === 'patrimonio') {
+                  setLoadingPatrimonio(true);
+                  fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false));
                 }
               }}
               style={{
@@ -2334,6 +2367,53 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           )}
 
+          {/* ── Config de Valores ─────────────────────────────────────── */}
+          <div style={{ marginBottom: 16 }}>
+            <button onClick={() => {
+              setShowFinConfig(v => !v);
+              if (!showFinConfig) fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); });
+            }}
+              style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
+              ⚙ Configurar Valores Financeiros {showFinConfig ? '▲' : '▼'}
+            </button>
+            {showFinConfig && (
+              <div style={{ marginTop: 10, background: 'var(--bg-card)', border: '2px solid rgba(22,163,74,0.25)', borderRadius: 14, padding: '18px 20px' }}>
+                <div style={{ fontWeight: 800, color: '#4ade80', marginBottom: 14, fontSize: '0.9rem' }}>⚙ Valores Vigentes — atualize e salve para refletir em todas as fichas</div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12 }}>
+                  {([
+                    { key: 'mensalidade_valor', label: '📅 Mensalidade (R$)' },
+                    { key: 'batizado_integral', label: '🥋 Batizado Integral (R$)' },
+                    { key: 'batizado_parcela1', label: '🥋 Batizado Parcela 1 (R$)' },
+                    { key: 'batizado_parcela2', label: '🥋 Batizado Parcela 2 (R$)' },
+                    { key: 'batizado_parcela3', label: '🥋 Batizado Parcela 3 (R$)' },
+                    { key: 'contribuicao_mensal', label: '🤝 Contribuição Mensal (R$)' },
+                  ] as const).map(({ key, label }) => (
+                    <div key={key}>
+                      <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</label>
+                      <input type="number" min="0" step="0.01"
+                        value={finConfig[key]}
+                        onChange={e => setFinConfig(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                        style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
+                      />
+                    </div>
+                  ))}
+                </div>
+                <div style={{ marginTop: 14, display: 'flex', gap: 10, alignItems: 'center' }}>
+                  <button onClick={async () => {
+                    setFinConfigSaving(true); setFinConfigMsg('');
+                    const res = await fetch('/api/financeiro/config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(finConfig) });
+                    if (res.ok) { setFinConfigMsg('✓ Valores salvos com sucesso!'); } else { setFinConfigMsg('Erro ao salvar'); }
+                    setFinConfigSaving(false); setTimeout(() => setFinConfigMsg(''), 3000);
+                  }} disabled={finConfigSaving}
+                    style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', cursor: finConfigSaving ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                    {finConfigSaving ? 'Salvando...' : '💾 Salvar Valores'}
+                  </button>
+                  {finConfigMsg && <span style={{ fontSize: '0.8rem', color: finConfigMsg.includes('Erro') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{finConfigMsg}</span>}
+                </div>
+              </div>
+            )}
+          </div>
+
           {/* Search bar */}
           <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
             <input
@@ -2437,11 +2517,24 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     ? <img src={finStudent.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} />
                     : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👤</div>
                   }
-                  <div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{finStudent.nome_completo}</div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{finStudent.nucleo || '—'}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{finStudent.nucleo || '—'} {finStudent.telefone ? `· ${finStudent.telefone}` : ''}</div>
                   </div>
-                  {finMsg && <span style={{ marginLeft: 'auto', background: finMsg.includes('Erro') ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)', border: '1px solid', borderColor: finMsg.includes('Erro') ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)', color: finMsg.includes('Erro') ? '#f87171' : '#4ade80', borderRadius: 8, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700 }}>{finMsg}</span>}
+                  {/* WhatsApp button */}
+                  {finStudent.telefone && (() => {
+                    const tel = finStudent.telefone.replace(/\D/g, '');
+                    const phone = tel.startsWith('55') ? tel : `55${tel}`;
+                    const waMsg = encodeURIComponent(`Olá ${finStudent.nome_completo.split(' ')[0]}, segue informação da sua ficha financeira na Associação Cultural de Capoeira Barão de Mauá.`);
+                    return (
+                      <a href={`https://wa.me/${phone}?text=${waMsg}`} target="_blank" rel="noreferrer"
+                        style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                        WhatsApp
+                      </a>
+                    );
+                  })()}
+                  {finMsg && <span style={{ background: finMsg.includes('Erro') ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)', border: '1px solid', borderColor: finMsg.includes('Erro') ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)', color: finMsg.includes('Erro') ? '#f87171' : '#4ade80', borderRadius: 8, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700 }}>{finMsg}</span>}
                 </div>
 
                 {/* Section tabs */}
@@ -2463,7 +2556,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {finSection === 'batizado' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
                     <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', padding: '10px 16px' }}>
-                      <div style={{ color: '#fff', fontWeight: 800 }}>🥋 Batizado — Valor: R$ 150,00</div>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🥋 Batizado — Valor: R$ {finConfig.batizado_integral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
                     </div>
                     <div style={{ padding: '16px' }}>
                       {f.batizado.modalidade === 'nao_definido' ? (
@@ -2479,7 +2572,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 setFinFicha(updated); await adminSaveFicha(updated);
                               }}
                                 style={{ flex: 1, padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                                {mod === 'integral' ? '💳 Integral (R$ 150)' : '📆 Parcelado 3× (R$ 50)'}
+                                {mod === 'integral' ? `💳 Integral (R$ ${finConfig.batizado_integral.toLocaleString('pt-BR', {minimumFractionDigits:2})})` : `📆 Parcelado 3× (${finConfig.batizado_parcela1}+${finConfig.batizado_parcela2}+${finConfig.batizado_parcela3})`}
                               </button>
                             ))}
                           </div>
@@ -2986,6 +3079,293 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       </span>
                     )}
                     {e.observacoes && <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>📝 {e.observacoes}</div>}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA MATERIAIS ===== */}
+      {activeTab === 'materiais' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fb923c' }}>🛒 Compra de Materiais</div>
+            <button onClick={() => { setShowMaterialForm(true); setMaterialEditId(null); setMaterialForm({}); }}
+              style={{ background: 'linear-gradient(135deg,#ea580c,#c2410c)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+              + Registrar Compra
+            </button>
+          </div>
+
+          {/* Summary */}
+          {materiais.length > 0 && (() => {
+            const total = materiais.reduce((s, m) => s + (m.valor_total || 0), 0);
+            const qtd = materiais.reduce((s, m) => s + (m.quantidade || 0), 0);
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fb923c' }}>{materiais.length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Compras Registradas</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#fb923c' }}>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total Gasto</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#fb923c' }}>{qtd}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Itens</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filter */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <select value={filterMatNucleo} onChange={e => setFilterMatNucleo(e.target.value)}
+              style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
+              <option value="">Todos os núcleos</option>
+              <option value="Poliesportivo Edson Alves">Edson Alves</option>
+              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
+              <option value="Saracuruna">Saracuruna</option>
+              <option value="Vila Urussaí">Vila Urussaí</option>
+              <option value="Jayme Fichman">Jayme Fichman</option>
+              <option value="Geral">Geral</option>
+            </select>
+          </div>
+
+          {/* Form */}
+          {showMaterialForm && (
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(234,88,12,0.3)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, color: '#fb923c', marginBottom: 14 }}>{materialEditId ? '✏ Editar Compra' : '+ Nova Compra'}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12, marginBottom: 14 }}>
+                {[
+                  { key: 'descricao', label: 'Produto / Descrição', placeholder: 'Ex: Pandeiro profissional', type: 'text' },
+                  { key: 'categoria', label: 'Categoria', placeholder: '', type: 'select', opts: ['instrumento', 'uniforme', 'material de escritório', 'limpeza', 'informática', 'outros'] },
+                  { key: 'quantidade', label: 'Quantidade', placeholder: '1', type: 'number' },
+                  { key: 'valor_unitario', label: 'Valor Unitário (R$)', placeholder: '0,00', type: 'number' },
+                  { key: 'modalidade', label: 'Modalidade', placeholder: '', type: 'select', opts: ['avista', 'parcelado'] },
+                  { key: 'parcelas', label: 'Nº Parcelas (se parcelado)', placeholder: '', type: 'number' },
+                  { key: 'metodo_pagamento', label: 'Forma de Pagamento', placeholder: '', type: 'select', opts: ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro', 'Boleto'] },
+                  { key: 'fornecedor', label: 'Fornecedor', placeholder: 'Opcional', type: 'text' },
+                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'data_compra', label: 'Data da Compra', placeholder: '', type: 'date' },
+                  { key: 'notas', label: 'Observações', placeholder: 'Opcional', type: 'text' },
+                ].map(({ key, label, placeholder, type, opts }) => (
+                  <div key={key}>
+                    <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4 }}>{label}</label>
+                    {type === 'select'
+                      ? <select value={materialForm[key] || ''} onChange={e => setMaterialForm((p: any) => ({ ...p, [key]: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
+                          <option value="">— selecione —</option>
+                          {(opts || []).map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      : <input type={type} value={materialForm[key] || ''} onChange={e => setMaterialForm((p: any) => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
+                          style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                    }
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={async () => {
+                  if (!materialForm.descricao?.trim()) { alert('Informe a descrição do produto.'); return; }
+                  const qtd = parseFloat(materialForm.quantidade) || 1;
+                  const vu = parseFloat(materialForm.valor_unitario) || 0;
+                  const body = { ...materialForm, id: materialEditId || undefined, quantidade: qtd, valor_unitario: vu, valor_total: qtd * vu };
+                  await fetch('/api/materiais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                  const d = await fetch('/api/materiais').then(r => r.json());
+                  setMateriais(d); setShowMaterialForm(false); setMaterialForm({}); setMaterialEditId(null);
+                }}
+                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#ea580c,#c2410c)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {materialEditId ? '💾 Salvar' : '+ Registrar Compra'}
+                </button>
+                <button onClick={() => { setShowMaterialForm(false); setMaterialForm({}); setMaterialEditId(null); }}
+                  style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* List */}
+          {loadingMateriais ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : materiais.filter(m => !filterMatNucleo || m.nucleo === filterMatNucleo).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhuma compra registrada ainda.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {materiais.filter(m => !filterMatNucleo || m.nucleo === filterMatNucleo).map(m => (
+                <div key={m.id} style={{ background: 'var(--bg-card)', border: '1px solid rgba(234,88,12,0.2)', borderLeft: '4px solid #ea580c', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                    <div>
+                      <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{m.descricao}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {m.categoria} · {m.nucleo || 'Geral'} · {m.data_compra ? new Date(m.data_compra + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}
+                      </div>
+                    </div>
+                    <div style={{ textAlign: 'right' }}>
+                      <div style={{ fontWeight: 800, color: '#fb923c', fontSize: '1rem' }}>R$ {(m.valor_total || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{m.quantidade}x R$ {(m.valor_unitario || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <span style={{ background: 'rgba(234,88,12,0.12)', border: '1px solid rgba(234,88,12,0.3)', borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: '#fb923c', fontWeight: 700 }}>
+                      {m.modalidade === 'parcelado' ? `${m.parcelas}x` : 'À Vista'}
+                    </span>
+                    <span style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{m.metodo_pagamento}</span>
+                    {m.fornecedor && <span style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>🏪 {m.fornecedor}</span>}
+                    <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                      <button onClick={() => { setMaterialEditId(m.id); setMaterialForm(m); setShowMaterialForm(true); }}
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem' }}>✏ Editar</button>
+                      <button onClick={async () => { if (!confirm('Excluir esta compra?')) return; await fetch('/api/materiais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: m.id }) }); setMateriais(materiais.filter(x => x.id !== m.id)); }}
+                        style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                    </div>
+                  </div>
+                  {m.notas && <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>📝 {m.notas}</div>}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA PATRIMÔNIO ===== */}
+      {activeTab === 'patrimonio' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#facc15' }}>🏛 Patrimônio da Associação</div>
+            <button onClick={() => { setShowPatrimonioForm(true); setPatrimonioEditId(null); setPatrimonioForm({}); }}
+              style={{ background: 'linear-gradient(135deg,#ca8a04,#a16207)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+              + Cadastrar Item
+            </button>
+          </div>
+
+          {/* Summary */}
+          {patrimonio.length > 0 && (() => {
+            const total = patrimonio.reduce((s, p) => s + ((p.valor_estimado || 0) * (p.quantidade || 1)), 0);
+            const nucleos = [...new Set(patrimonio.map((p: any) => p.nucleo).filter(Boolean))];
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(202,138,4,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#facc15' }}>{patrimonio.length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Itens Cadastrados</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(202,138,4,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 800, color: '#facc15' }}>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Valor Estimado Total</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(202,138,4,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#facc15' }}>{nucleos.length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Núcleos</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Filter */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 14, flexWrap: 'wrap' }}>
+            <select value={filterPatNucleo} onChange={e => setFilterPatNucleo(e.target.value)}
+              style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
+              <option value="">Todos os núcleos</option>
+              <option value="Poliesportivo Edson Alves">Edson Alves</option>
+              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
+              <option value="Saracuruna">Saracuruna</option>
+              <option value="Vila Urussaí">Vila Urussaí</option>
+              <option value="Jayme Fichman">Jayme Fichman</option>
+              <option value="Geral">Geral</option>
+            </select>
+          </div>
+
+          {/* Form */}
+          {showPatrimonioForm && (
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(202,138,4,0.3)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, color: '#facc15', marginBottom: 14 }}>{patrimonioEditId ? '✏ Editar Item' : '+ Cadastrar Patrimônio'}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12, marginBottom: 14 }}>
+                {[
+                  { key: 'nome', label: 'Nome do Item', placeholder: 'Ex: Berimbau médio', type: 'text' },
+                  { key: 'tipo', label: 'Tipo', placeholder: '', type: 'select', opts: ['instrumento', 'mobiliário', 'equipamento', 'uniforme', 'material pedagógico', 'outros'] },
+                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'quantidade', label: 'Quantidade', placeholder: '1', type: 'number' },
+                  { key: 'valor_estimado', label: 'Valor Estimado (R$)', placeholder: '0,00', type: 'number' },
+                  { key: 'estado', label: 'Estado de Conservação', placeholder: '', type: 'select', opts: ['otimo', 'bom', 'regular', 'ruim', 'descartado'] },
+                  { key: 'numero_serie', label: 'Nº de Série / Tombamento', placeholder: 'Opcional', type: 'text' },
+                  { key: 'data_aquisicao', label: 'Data de Aquisição', placeholder: '', type: 'date' },
+                  { key: 'notas', label: 'Observações', placeholder: 'Opcional', type: 'text' },
+                ].map(({ key, label, placeholder, type, opts }) => (
+                  <div key={key}>
+                    <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4 }}>{label}</label>
+                    {type === 'select'
+                      ? <select value={patrimonioForm[key] || ''} onChange={e => setPatrimonioForm((p: any) => ({ ...p, [key]: e.target.value }))}
+                          style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
+                          <option value="">— selecione —</option>
+                          {(opts || []).map(o => <option key={o} value={o}>{o}</option>)}
+                        </select>
+                      : <input type={type} value={patrimonioForm[key] || ''} onChange={e => setPatrimonioForm((p: any) => ({ ...p, [key]: e.target.value }))} placeholder={placeholder}
+                          style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                    }
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={async () => {
+                  if (!patrimonioForm.nome?.trim()) { alert('Informe o nome do item.'); return; }
+                  const body = { ...patrimonioForm, id: patrimonioEditId || undefined, quantidade: parseFloat(patrimonioForm.quantidade) || 1, valor_estimado: patrimonioForm.valor_estimado ? parseFloat(patrimonioForm.valor_estimado) : undefined };
+                  await fetch('/api/patrimonio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                  const d = await fetch('/api/patrimonio').then(r => r.json());
+                  setPatrimonio(d); setShowPatrimonioForm(false); setPatrimonioForm({}); setPatrimonioEditId(null);
+                }}
+                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#ca8a04,#a16207)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {patrimonioEditId ? '💾 Salvar' : '+ Cadastrar Item'}
+                </button>
+                <button onClick={() => { setShowPatrimonioForm(false); setPatrimonioForm({}); setPatrimonioEditId(null); }}
+                  style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* List */}
+          {loadingPatrimonio ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : patrimonio.filter(p => !filterPatNucleo || p.nucleo === filterPatNucleo).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum item cadastrado ainda.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {patrimonio.filter(p => !filterPatNucleo || p.nucleo === filterPatNucleo).map(p => {
+                const estadoCor: Record<string, string> = { otimo: '#16a34a', bom: '#22c55e', regular: '#ca8a04', ruim: '#dc2626', descartado: '#64748b' };
+                const estadoLabel: Record<string, string> = { otimo: 'Ótimo', bom: 'Bom', regular: 'Regular', ruim: 'Ruim', descartado: 'Descartado' };
+                const cor = estadoCor[p.estado] || '#64748b';
+                return (
+                  <div key={p.id} style={{ background: 'var(--bg-card)', border: '1px solid rgba(202,138,4,0.2)', borderLeft: `4px solid ${cor}`, borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{p.nome}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                          {p.tipo} · {p.nucleo || 'Geral'} · Qtd: {p.quantidade}
+                        </div>
+                      </div>
+                      {p.valor_estimado && (
+                        <div style={{ textAlign: 'right' }}>
+                          <div style={{ fontWeight: 800, color: '#facc15', fontSize: '0.95rem' }}>R$ {((p.valor_estimado || 0) * (p.quantidade || 1)).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>R$ {(p.valor_estimado || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })} / un</div>
+                        </div>
+                      )}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <span style={{ background: `${cor}1a`, border: `1px solid ${cor}50`, borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: cor, fontWeight: 700 }}>
+                        {estadoLabel[p.estado] || p.estado}
+                      </span>
+                      {p.numero_serie && <span style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>🏷 {p.numero_serie}</span>}
+                      {p.data_aquisicao && <span style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 12, padding: '2px 10px', fontSize: '0.72rem', color: 'var(--text-secondary)' }}>📅 {new Date(p.data_aquisicao + 'T12:00:00').toLocaleDateString('pt-BR')}</span>}
+                      <div style={{ marginLeft: 'auto', display: 'flex', gap: 6 }}>
+                        <button onClick={() => { setPatrimonioEditId(p.id); setPatrimonioForm(p); setShowPatrimonioForm(true); }}
+                          style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem' }}>✏ Editar</button>
+                        <button onClick={async () => { if (!confirm('Excluir este item?')) return; await fetch('/api/patrimonio', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: p.id }) }); setPatrimonio(patrimonio.filter(x => x.id !== p.id)); }}
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                      </div>
+                    </div>
+                    {p.notas && <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>📝 {p.notas}</div>}
                   </div>
                 );
               })}

@@ -1,12 +1,9 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { FichaFinanceira, Mensalidade, Parcela, UniformeItem } from '@/app/api/financeiro/route';
-
-const VALOR_BATIZADO = 150;
-const VALOR_MENSALIDADE = 80;
-const VALOR_CONTRIBUICAO = 30;
+import type { FinanceiroConfig } from '@/app/api/financeiro/config/route';
 
 function formatMoeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -56,11 +53,26 @@ const sectionHeader = (color: string, icon: string, title: string, sub?: string)
   </div>
 );
 
+const DEFAULT_CONFIG: FinanceiroConfig = {
+  mensalidade_valor: 80,
+  batizado_integral: 150,
+  batizado_parcela1: 60,
+  batizado_parcela2: 50,
+  batizado_parcela3: 40,
+  contribuicao_mensal: 30,
+  updated_at: '',
+};
+
 export default function FinanceiroPage() {
   const [step, setStep] = useState<'login' | 'sheet'>('login');
   const [cpfInput, setCpfInput] = useState('');
   const [erro, setErro] = useState('');
   const [loadingLogin, setLoadingLogin] = useState(false);
+  const [config, setConfig] = useState<FinanceiroConfig>(DEFAULT_CONFIG);
+
+  useEffect(() => {
+    fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setConfig(d); }).catch(() => {});
+  }, []);
 
   const [student, setStudent] = useState<{ id: string; nome_completo: string; cpf: string; nucleo: string | null; foto_url: string | null; graduacao: string } | null>(null);
   const [ficha, setFicha] = useState<FichaFinanceira | null>(null);
@@ -134,13 +146,13 @@ export default function FinanceiroPage() {
         nucleo: data.nucleo || '',
         batizado: {
           modalidade: 'nao_definido',
-          valor_total: VALOR_BATIZADO,
+          valor_total: config.batizado_integral,
           parcelas: [],
           status_geral: 'nao_definido',
         },
         contribuicao: {
           ativa: false,
-          valor_mensal: VALOR_CONTRIBUICAO,
+          valor_mensal: config.contribuicao_mensal,
           historico: [],
         },
         mensalidades: [],
@@ -222,14 +234,13 @@ export default function FinanceiroPage() {
   const setBatizadoModalidade = async (modalidade: 'integral' | 'parcelado') => {
     if (!ficha) return;
     const parcelas: Parcela[] = modalidade === 'integral'
-      ? [{ numero: 1, valor: VALOR_BATIZADO, vencimento: '', status: 'pendente' }]
-      : Array.from({ length: 3 }, (_, i) => ({
-          numero: i + 1,
-          valor: Math.round(VALOR_BATIZADO / 3),
-          vencimento: '',
-          status: 'pendente' as const,
-        }));
-    const updated = { ...ficha, batizado: { ...ficha.batizado, modalidade, parcelas, valor_total: VALOR_BATIZADO } };
+      ? [{ numero: 1, valor: config.batizado_integral, vencimento: '', status: 'pendente' }]
+      : [
+          { numero: 1, valor: config.batizado_parcela1, vencimento: '', status: 'pendente' as const },
+          { numero: 2, valor: config.batizado_parcela2, vencimento: '', status: 'pendente' as const },
+          { numero: 3, valor: config.batizado_parcela3, vencimento: '', status: 'pendente' as const },
+        ];
+    const updated = { ...ficha, batizado: { ...ficha.batizado, modalidade, parcelas, valor_total: config.batizado_integral } };
     setFicha(updated);
     await saveFicha(updated);
   };
@@ -239,7 +250,7 @@ export default function FinanceiroPage() {
     const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
     const mes = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     if (ficha.mensalidades.find(m => m.mes === mes)) { alert('Mensalidade deste mês já existe.'); return; }
-    const nova: Mensalidade = { mes, valor: VALOR_MENSALIDADE, status: 'pendente' };
+    const nova: Mensalidade = { mes, valor: config.mensalidade_valor, status: 'pendente' };
     const updated = { ...ficha, mensalidades: [...ficha.mensalidades, nova].sort((a, b) => b.mes.localeCompare(a.mes)) };
     setFicha(updated);
     await saveFicha(updated);
@@ -376,7 +387,7 @@ export default function FinanceiroPage() {
             {/* ── BATIZADO ── */}
             {activeSection === 'batizado' && (
               <div style={cardStyle}>
-                {sectionHeader('#7c3aed', '🥋', 'Pagamento do Batizado', `Valor: ${formatMoeda(VALOR_BATIZADO)}`)}
+                {sectionHeader('#7c3aed', '🥋', 'Pagamento do Batizado', `Valor: ${formatMoeda(config.batizado_integral)}`)}
                 {ficha.batizado.modalidade === 'nao_definido' ? (
                   <div>
                     <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', marginBottom: 16, textAlign: 'center' }}>Escolha a modalidade de pagamento do batizado:</div>
@@ -385,13 +396,13 @@ export default function FinanceiroPage() {
                         style={{ padding: '18px', background: 'rgba(124,58,237,0.12)', border: '2px solid rgba(124,58,237,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
                         <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>💳</div>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Pagamento Integral</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>{formatMoeda(VALOR_BATIZADO)} à vista</div>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>{formatMoeda(config.batizado_integral)} à vista</div>
                       </button>
                       <button onClick={() => setBatizadoModalidade('parcelado')}
                         style={{ padding: '18px', background: 'rgba(59,130,246,0.12)', border: '2px solid rgba(59,130,246,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
                         <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>📆</div>
                         <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Parcelado (3×)</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>3× de {formatMoeda(Math.round(VALOR_BATIZADO / 3))}</div>
+                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>{formatMoeda(config.batizado_parcela1)} + {formatMoeda(config.batizado_parcela2)} + {formatMoeda(config.batizado_parcela3)}</div>
                       </button>
                     </div>
                   </div>
@@ -401,7 +412,7 @@ export default function FinanceiroPage() {
                       <span style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '4px 12px', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem' }}>
                         {ficha.batizado.modalidade === 'integral' ? '💳 Integral' : '📆 Parcelado 3×'}
                       </span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>Valor total: {formatMoeda(VALOR_BATIZADO)}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>Valor total: {formatMoeda(ficha.batizado.valor_total || config.batizado_integral)}</span>
                       <button onClick={() => { const u = { ...ficha, batizado: { ...ficha.batizado, modalidade: 'nao_definido' as const, parcelas: [] } }; setFicha(u); }}
                         style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>
                         Alterar
@@ -448,7 +459,7 @@ export default function FinanceiroPage() {
             {/* ── MENSALIDADES ── */}
             {activeSection === 'mensalidades' && (
               <div style={cardStyle}>
-                {sectionHeader('#0891b2', '📅', 'Mensalidades', `Valor padrão: ${formatMoeda(VALOR_MENSALIDADE)}/mês`)}
+                {sectionHeader('#0891b2', '📅', 'Mensalidades', `Valor padrão: ${formatMoeda(config.mensalidade_valor)}/mês`)}
                 <button onClick={addMensalidade}
                   style={{ marginBottom: 14, padding: '8px 18px', background: 'rgba(8,145,178,0.2)', border: '1px solid rgba(8,145,178,0.4)', color: '#67e8f9', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
                   + Registrar mês atual
@@ -496,7 +507,7 @@ export default function FinanceiroPage() {
             {/* ── CONTRIBUIÇÃO ── */}
             {activeSection === 'contribuicao' && (
               <div style={cardStyle}>
-                {sectionHeader('#16a34a', '🤝', 'Contribuição — Projeto Social', `Valor sugerido: ${formatMoeda(VALOR_CONTRIBUICAO)}/mês`)}
+                {sectionHeader('#16a34a', '🤝', 'Contribuição — Projeto Social', `Valor sugerido: ${formatMoeda(config.contribuicao_mensal)}/mês`)}
                 <div style={{ marginBottom: 16 }}>
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center', marginBottom: 14 }}>
                     <span style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem' }}>Participar do projeto social?</span>
