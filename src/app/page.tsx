@@ -943,20 +943,34 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       </footer>
 
-      {/* Botão Painel Administrativo — protegido por CPF */}
-      <button
-        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
-        style={{
-          position: 'fixed', bottom: '20px', left: '20px',
-          background: 'linear-gradient(135deg,#b45309,#d97706)',
-          color: '#fff', border: '1.5px solid #fbbf24', borderRadius: '8px',
-          padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
-          zIndex: 9999, backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
-          fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
-        }}
-      >
-        🔒 Painel Administrativo
-      </button>
+      {/* Botões fixos — canto inferior esquerdo */}
+      <div style={{ position: 'fixed', bottom: '20px', left: '20px', display: 'flex', flexDirection: 'column', gap: 8, zIndex: 9999 }}>
+        <button
+          onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
+          style={{
+            background: 'linear-gradient(135deg,#b45309,#d97706)',
+            color: '#fff', border: '1.5px solid #fbbf24', borderRadius: '8px',
+            padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
+            backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
+            fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
+          }}
+        >
+          🔒 Painel Administrativo
+        </button>
+        <a
+          href="/financeiro"
+          style={{
+            display: 'block', textAlign: 'center', textDecoration: 'none',
+            background: 'linear-gradient(135deg,#16a34a,#15803d)',
+            color: '#fff', border: '1.5px solid #4ade80', borderRadius: '8px',
+            padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
+            backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
+            fontWeight: 700, boxShadow: '0 2px 12px rgba(22,163,74,0.45)',
+          }}
+        >
+          💰 Ficha Financeira
+        </a>
+      </div>
 
       {adminModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}

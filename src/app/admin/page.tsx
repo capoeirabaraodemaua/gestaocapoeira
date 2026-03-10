@@ -315,7 +315,7 @@ export default function AdminPage() {
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -364,6 +364,31 @@ export default function AdminPage() {
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
   const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
+
+  // ── Financeiro admin state ────────────────────────────────────────────────
+  const [finAlerts, setFinAlerts] = useState<Array<{ student_id: string; nome_completo: string; nucleo: string; comprovante_pendente: boolean; uniforme_solicitado: boolean; mensalidade_atrasada: boolean }>>([]);
+  const [finLoadingAlerts, setFinLoadingAlerts] = useState(false);
+  const [finStudent, setFinStudent] = useState<Student | null>(null);
+  const [finFicha, setFinFicha] = useState<any>(null);
+  const [finSearch, setFinSearch] = useState('');
+  const [finLoading, setFinLoading] = useState(false);
+  const [finSaving, setFinSaving] = useState(false);
+  const [finMsg, setFinMsg] = useState('');
+  const [finSection, setFinSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
+
+  // ── Doações state ─────────────────────────────────────────────────────────
+  const [doacoes, setDoacoes] = useState<any[]>([]);
+  const [loadingDoacoes, setLoadingDoacoes] = useState(false);
+  const [doacaoForm, setDoacaoForm] = useState<any>({});
+  const [doacaoEditId, setDoacaoEditId] = useState<string | null>(null);
+  const [showDoacaoForm, setShowDoacaoForm] = useState(false);
+
+  // ── Editais state ─────────────────────────────────────────────────────────
+  const [editais, setEditais] = useState<any[]>([]);
+  const [loadingEditais, setLoadingEditais] = useState(false);
+  const [editalForm, setEditalForm] = useState<any>({});
+  const [editalEditId, setEditalEditId] = useState<string | null>(null);
+  const [showEditalForm, setShowEditalForm] = useState(false);
 
   // ── Gráfico individual por aluno ──────────────────────────────────────────
   const [indivChartOpen, setIndivChartOpen] = useState(false);
@@ -844,29 +869,51 @@ export default function AdminPage() {
         </div>
 
         {/* Tabs */}
-        <div style={{ display: 'flex', gap: 4, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap' }}>
-          {(['alunos', 'presencas', 'relatorio', 'ranking', 'certificado'] as const).map(tab => (
+        <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap', overflowX: 'auto' }}>
+          {([
+            { key: 'alunos',       label: '👥 Alunos',        activeColor: '#dc2626' },
+            { key: 'presencas',    label: '📊 Presenças',     activeColor: '#dc2626' },
+            { key: 'relatorio',    label: '📋 Relatório',     activeColor: '#dc2626' },
+            { key: 'ranking',      label: '🏆 Ranking',       activeColor: '#dc2626' },
+            { key: 'certificado',  label: '🎓 Certificado',   activeColor: '#dc2626' },
+            { key: 'financeiro',   label: '💰 Financeiro',    activeColor: '#16a34a' },
+            { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6' },
+            { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2' },
+          ] as const).map(tab => (
             <button
-              key={tab}
+              key={tab.key}
               onClick={() => {
-                setActiveTab(tab);
-                if (tab === 'presencas') fetchPresencas();
-                if ((tab === 'relatorio' || tab === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
+                setActiveTab(tab.key);
+                if (tab.key === 'presencas') fetchPresencas();
+                if ((tab.key === 'relatorio' || tab.key === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
+                if (tab.key === 'financeiro') {
+                  setFinLoadingAlerts(true);
+                  fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
+                }
+                if (tab.key === 'doacoes') {
+                  setLoadingDoacoes(true);
+                  fetch('/api/doacoes').then(r => r.json()).then(d => { setDoacoes(d); setLoadingDoacoes(false); }).catch(() => setLoadingDoacoes(false));
+                }
+                if (tab.key === 'editais') {
+                  setLoadingEditais(true);
+                  fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false));
+                }
               }}
               style={{
-                padding: '10px 20px',
+                padding: '10px 16px',
                 background: 'none',
                 border: 'none',
-                borderBottom: activeTab === tab ? '2px solid #dc2626' : '2px solid transparent',
+                borderBottom: activeTab === tab.key ? `2px solid ${tab.activeColor}` : '2px solid transparent',
                 marginBottom: -2,
-                color: activeTab === tab ? '#dc2626' : 'var(--text-secondary)',
-                fontWeight: activeTab === tab ? 700 : 500,
+                color: activeTab === tab.key ? tab.activeColor : 'var(--text-secondary)',
+                fontWeight: activeTab === tab.key ? 700 : 500,
                 cursor: 'pointer',
-                fontSize: '0.9rem',
+                fontSize: '0.85rem',
                 transition: 'all 0.2s',
+                whiteSpace: 'nowrap',
               }}
             >
-              {tab === 'alunos' ? '👥 Alunos' : tab === 'presencas' ? '📊 Presenças' : tab === 'relatorio' ? '📋 Relatório' : tab === 'ranking' ? '🏆 Ranking' : '🎓 Certificado'}
+              {tab.label}
             </button>
           ))}
         </div>
@@ -2223,6 +2270,694 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <div style={{ width: 12, height: 12, borderRadius: 3, background: '#dc2626' }} /> &lt; 50% — Baixa frequência
                 </div>
               </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA FINANCEIRO ===== */}
+      {activeTab === 'financeiro' && (
+        <div>
+          {/* Alert strip */}
+          {finLoadingAlerts ? (
+            <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Verificando alertas financeiros...</div>
+          ) : finAlerts.length > 0 && (
+            <div style={{ marginBottom: 20, background: 'rgba(220,38,38,0.07)', border: '2px solid rgba(220,38,38,0.3)', borderRadius: 14, padding: '14px 18px' }}>
+              <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#f87171', marginBottom: 10 }}>🚨 Alertas Financeiros Pendentes</div>
+              {finAlerts.map(a => (
+                <div key={a.student_id} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 0', borderBottom: '1px solid rgba(255,255,255,0.05)', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{a.nome_completo}</span>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{a.nucleo}</span>
+                  {a.comprovante_pendente && <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 20, padding: '2px 10px', color: '#fbbf24', fontSize: '0.72rem', fontWeight: 700 }}>📎 Comprovante enviado</span>}
+                  {a.uniforme_solicitado && <span style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 20, padding: '2px 10px', color: '#93c5fd', fontSize: '0.72rem', fontWeight: 700 }}>👕 Uniforme solicitado</span>}
+                  {a.mensalidade_atrasada && <span style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 20, padding: '2px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700 }}>⚠ Pagamento atrasado</span>}
+                  <button onClick={async () => {
+                    const s = students.find(st => st.id === a.student_id);
+                    if (!s) return;
+                    setFinStudent(s); setFinLoading(true);
+                    const res = await fetch(`/api/financeiro?student_id=${s.id}`);
+                    const d = await res.json();
+                    setFinFicha(d); setFinLoading(false);
+                  }}
+                    style={{ marginLeft: 'auto', padding: '4px 12px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.35)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                    Ver ficha →
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Search bar */}
+          <div style={{ display: 'flex', gap: 10, marginBottom: 16, alignItems: 'center' }}>
+            <input
+              type="text" placeholder="Buscar aluno por nome ou CPF..."
+              value={finSearch} onChange={e => setFinSearch(e.target.value)}
+              style={{ flex: 1, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
+            />
+            <button onClick={async () => {
+              setFinLoadingAlerts(true);
+              const d = await fetch('/api/financeiro/alertas').then(r => r.json()).catch(() => []);
+              setFinAlerts(d); setFinLoadingAlerts(false);
+            }}
+              style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', padding: '10px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 600 }}>
+              ↻ Alertas
+            </button>
+          </div>
+
+          {/* Student list */}
+          {!finStudent && (() => {
+            const q = finSearch.trim().toLowerCase();
+            const list = q.length >= 1
+              ? students.filter(s => s.nome_completo.toLowerCase().includes(q) || s.cpf.replace(/\D/g,'').includes(q.replace(/\D/g,'')))
+              : students;
+            return (
+              <div style={{ display: 'grid', gap: 8 }}>
+                {list.slice(0, 40).map(s => {
+                  const alert = finAlerts.find(a => a.student_id === s.id);
+                  return (
+                    <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-card)', border: `1px solid ${alert ? 'rgba(251,191,36,0.4)' : 'var(--border)'}`, borderRadius: 10, padding: '10px 14px', cursor: 'pointer', transition: 'border 0.2s' }}
+                      onClick={async () => {
+                        setFinStudent(s); setFinLoading(true);
+                        const res = await fetch(`/api/financeiro?student_id=${s.id}`);
+                        const d = await res.json();
+                        if (d) { setFinFicha(d); }
+                        else {
+                          const now = new Date().toISOString().slice(0,10);
+                          setFinFicha({ student_id: s.id, nome_completo: s.nome_completo, cpf: s.cpf, nucleo: s.nucleo || '', batizado: { modalidade: 'nao_definido', valor_total: 150, parcelas: [], status_geral: 'nao_definido' }, contribuicao: { ativa: false, valor_mensal: 30, historico: [] }, mensalidades: [], uniformes: [], alertas: { comprovante_pendente: false, uniforme_solicitado: false, mensalidade_atrasada: false }, updated_at: now });
+                        }
+                        setFinLoading(false);
+                      }}>
+                      {s.foto_url
+                        ? <img src={s.foto_url} alt="" style={{ width: 36, height: 36, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)', flexShrink: 0 }} />
+                        : <div style={{ width: 36, height: 36, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                          </div>
+                      }
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.nome_completo}</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.graduacao} · {s.nucleo || '—'}</div>
+                      </div>
+                      {alert && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {alert.comprovante_pendente && <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 12, padding: '2px 8px', color: '#fbbf24', fontSize: '0.65rem', fontWeight: 700 }}>📎</span>}
+                          {alert.uniforme_solicitado && <span style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: 12, padding: '2px 8px', color: '#93c5fd', fontSize: '0.65rem', fontWeight: 700 }}>👕</span>}
+                          {alert.mensalidade_atrasada && <span style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 12, padding: '2px 8px', color: '#f87171', fontSize: '0.65rem', fontWeight: 700 }}>⚠</span>}
+                        </div>
+                      )}
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2"><path d="M9 18l6-6-6-6"/></svg>
+                    </div>
+                  );
+                })}
+                {list.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Nenhum aluno encontrado.</div>}
+              </div>
+            );
+          })()}
+
+          {/* Ficha detail */}
+          {finStudent && finFicha && !finLoading && (() => {
+            const f = finFicha;
+            const METODOS = ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro'];
+
+            const adminSaveFicha = async (updated: any) => {
+              setFinSaving(true);
+              const res = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+              if (res.ok) {
+                const { data } = await res.json();
+                if (data) setFinFicha(data);
+                setFinMsg('Salvo!'); setTimeout(() => setFinMsg(''), 2500);
+              } else { setFinMsg('Erro ao salvar'); }
+              setFinSaving(false);
+              // Refresh alerts
+              fetch('/api/financeiro/alertas').then(r => r.json()).then(d => setFinAlerts(d)).catch(() => {});
+            };
+
+            const statusColor: Record<string, string> = { pago: '#16a34a', pendente: '#ca8a04', atrasado: '#dc2626', nao_definido: '#64748b' };
+            const statusLabel: Record<string, string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado', nao_definido: '— N/D' };
+
+            return (
+              <div>
+                {/* Back */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+                  <button onClick={() => { setFinStudent(null); setFinFicha(null); }}
+                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    ← Voltar
+                  </button>
+                  {finStudent.foto_url
+                    ? <img src={finStudent.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} />
+                    : <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'var(--bg-input)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>👤</div>
+                  }
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{finStudent.nome_completo}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{finStudent.nucleo || '—'}</div>
+                  </div>
+                  {finMsg && <span style={{ marginLeft: 'auto', background: finMsg.includes('Erro') ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)', border: '1px solid', borderColor: finMsg.includes('Erro') ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)', color: finMsg.includes('Erro') ? '#f87171' : '#4ade80', borderRadius: 8, padding: '4px 12px', fontSize: '0.78rem', fontWeight: 700 }}>{finMsg}</span>}
+                </div>
+
+                {/* Section tabs */}
+                <div style={{ display: 'flex', gap: 6, marginBottom: 16, flexWrap: 'wrap' }}>
+                  {([
+                    { key: 'batizado', label: '🥋 Batizado', color: '#7c3aed' },
+                    { key: 'mensalidades', label: '📅 Mensalidades', color: '#0891b2' },
+                    { key: 'contribuicao', label: '🤝 Contribuição', color: '#16a34a' },
+                    { key: 'uniformes', label: '👕 Uniformes', color: '#d97706' },
+                  ] as const).map(s => (
+                    <button key={s.key} onClick={() => setFinSection(s.key)}
+                      style={{ padding: '7px 14px', borderRadius: 8, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, border: finSection === s.key ? 'none' : '1px solid var(--border)', background: finSection === s.key ? s.color : 'var(--bg-input)', color: finSection === s.key ? '#fff' : 'var(--text-secondary)' }}>
+                      {s.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* BATIZADO */}
+                {finSection === 'batizado' && (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
+                    <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', padding: '10px 16px' }}>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🥋 Batizado — Valor: R$ 150,00</div>
+                    </div>
+                    <div style={{ padding: '16px' }}>
+                      {f.batizado.modalidade === 'nao_definido' ? (
+                        <div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 12 }}>Definir modalidade:</div>
+                          <div style={{ display: 'flex', gap: 10 }}>
+                            {(['integral', 'parcelado'] as const).map(mod => (
+                              <button key={mod} onClick={async () => {
+                                const parcelas = mod === 'integral'
+                                  ? [{ numero: 1, valor: 150, vencimento: '', status: 'pendente' }]
+                                  : [1,2,3].map(n => ({ numero: n, valor: 50, vencimento: '', status: 'pendente' }));
+                                const updated = { ...f, batizado: { ...f.batizado, modalidade: mod, parcelas, valor_total: 150 } };
+                                setFinFicha(updated); await adminSaveFicha(updated);
+                              }}
+                                style={{ flex: 1, padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
+                                {mod === 'integral' ? '💳 Integral (R$ 150)' : '📆 Parcelado 3× (R$ 50)'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div>
+                          <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                            Modalidade: <strong>{f.batizado.modalidade === 'integral' ? 'Integral' : 'Parcelado 3×'}</strong>
+                          </div>
+                          {f.batizado.parcelas.map((p: any) => (
+                            <div key={p.numero} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                                <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero} — R$ {p.valor.toFixed(2)}</span>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  {(['pago', 'pendente', 'atrasado'] as const).map(st => (
+                                    <button key={st} onClick={async () => {
+                                      const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, status: st, data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : pp.data_pagamento } : pp) } };
+                                      setFinFicha(updated); await adminSaveFicha(updated);
+                                    }}
+                                      style={{ padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, border: 'none', background: p.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: p.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                      {statusLabel[st]}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                              {/* Metodo */}
+                              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
+                                {METODOS.map(m => (
+                                  <button key={m} onClick={async () => {
+                                    const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, metodo: m } : pp) } };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                  }}
+                                    style={{ padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, background: p.metodo === m ? 'rgba(124,58,237,0.2)' : 'var(--bg-card)', border: `1px solid ${p.metodo === m ? 'rgba(124,58,237,0.5)' : 'var(--border)'}`, color: p.metodo === m ? '#a78bfa' : 'var(--text-secondary)' }}>
+                                    {m}
+                                  </button>
+                                ))}
+                              </div>
+                              {p.comprovante_url && (
+                                <div style={{ marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                                  <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#a78bfa', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante do aluno</a>
+                                  {p.status !== 'pago' && (
+                                    <button onClick={async () => {
+                                      const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, status: 'pago', admin_confirmado: true, data_pagamento: new Date().toISOString().slice(0,10) } : pp) } };
+                                      setFinFicha(updated); await adminSaveFicha(updated);
+                                    }}
+                                      style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                      ✓ Confirmar pagamento
+                                    </button>
+                                  )}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* MENSALIDADES */}
+                {finSection === 'mensalidades' && (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
+                    <div style={{ background: 'linear-gradient(135deg,#0891b2,#0369a1)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>📅 Mensalidades</div>
+                      <button onClick={async () => {
+                        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+                        const mes = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+                        if (f.mensalidades.find((m: any) => m.mes === mes)) { setFinMsg('Mês já registrado'); setTimeout(() => setFinMsg(''), 2000); return; }
+                        const nova = { mes, valor: 80, status: 'pendente' };
+                        const updated = { ...f, mensalidades: [...f.mensalidades, nova].sort((a: any, b: any) => b.mes.localeCompare(a.mes)) };
+                        setFinFicha(updated); await adminSaveFicha(updated);
+                      }}
+                        style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        + Adicionar mês
+                      </button>
+                    </div>
+                    <div style={{ padding: '16px' }}>
+                      {f.mensalidades.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0', fontSize: '0.85rem' }}>Nenhuma mensalidade registrada.</div>}
+                      {f.mensalidades.map((m: any) => {
+                        const [y, mo] = m.mes.split('-');
+                        const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        return (
+                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                              <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{names[parseInt(mo)-1]}/{y} — R$ {m.valor.toFixed(2)}</span>
+                              <div style={{ display: 'flex', gap: 4 }}>
+                                {(['pago', 'pendente', 'atrasado'] as const).map(st => (
+                                  <button key={st} onClick={async () => {
+                                    const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, status: st, admin_confirmado: st === 'pago', data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : mm.data_pagamento } : mm) };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                  }}
+                                    style={{ padding: '3px 9px', borderRadius: 12, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                    {statusLabel[st]}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
+                              {METODOS.map(mt => (
+                                <button key={mt} onClick={async () => {
+                                  const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, metodo: mt } : mm) };
+                                  setFinFicha(updated); await adminSaveFicha(updated);
+                                }}
+                                  style={{ padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(8,145,178,0.2)' : 'var(--bg-card)', border: `1px solid ${m.metodo === mt ? 'rgba(8,145,178,0.5)' : 'var(--border)'}`, color: m.metodo === mt ? '#67e8f9' : 'var(--text-secondary)' }}>
+                                  {mt}
+                                </button>
+                              ))}
+                            </div>
+                            {m.comprovante_url && (
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '0.75rem', textDecoration: 'underline' }}>📎 Comprovante</a>
+                                {m.comprovante_pendente && !m.admin_confirmado && (
+                                  <button onClick={async () => {
+                                    const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, status: 'pago', admin_confirmado: true, comprovante_pendente: false, data_pagamento: new Date().toISOString().slice(0,10) } : mm) };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                  }}
+                                    style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                    ✓ Confirmar pagamento
+                                  </button>
+                                )}
+                                {m.admin_confirmado && <span style={{ color: '#4ade80', fontSize: '0.72rem' }}>✅ Confirmado</span>}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* CONTRIBUICAO */}
+                {finSection === 'contribuicao' && (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
+                    <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', padding: '10px 16px' }}>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição — Projeto Social</div>
+                    </div>
+                    <div style={{ padding: '16px' }}>
+                      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Status:</span>
+                        <span style={{ fontWeight: 700, color: f.contribuicao.ativa ? '#4ade80' : 'var(--text-secondary)', fontSize: '0.85rem' }}>{f.contribuicao.ativa ? '✓ Ativo' : '— Inativo'}</span>
+                      </div>
+                      {f.contribuicao.historico.length === 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Nenhum registro de contribuição.</div>}
+                      {f.contribuicao.historico.map((m: any) => {
+                        const [y, mo] = m.mes.split('-');
+                        const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        return (
+                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y}</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>R$ {m.valor.toFixed(2)}</span>
+                            <div style={{ display: 'flex', gap: 4, marginLeft: 'auto' }}>
+                              {(['pago', 'pendente', 'atrasado'] as const).map(st => (
+                                <button key={st} onClick={async () => {
+                                  const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.map((c: any) => c.mes === m.mes ? { ...c, status: st, admin_confirmado: st === 'pago' } : c) } };
+                                  setFinFicha(updated); await adminSaveFicha(updated);
+                                }}
+                                  style={{ padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                  {statusLabel[st]}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* UNIFORMES */}
+                {finSection === 'uniformes' && (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
+                    <div style={{ background: 'linear-gradient(135deg,#d97706,#b45309)', padding: '10px 16px' }}>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>👕 Uniformes Solicitados</div>
+                    </div>
+                    <div style={{ padding: '16px' }}>
+                      {f.uniformes.length === 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '16px 0' }}>Nenhuma solicitação.</div>}
+                      {f.uniformes.map((u: any) => (
+                        <div key={u.id} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{u.descricao}{u.tamanho ? ` (${u.tamanho})` : ''}</span>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              {(['solicitado', 'confirmado', 'entregue', 'cancelado'] as const).map(st => (
+                                <button key={st} onClick={async () => {
+                                  const updated = { ...f, uniformes: f.uniformes.map((uu: any) => uu.id === u.id ? { ...uu, status: st, data_entrega: st === 'entregue' ? new Date().toISOString().slice(0,10) : uu.data_entrega } : uu) };
+                                  setFinFicha(updated); await adminSaveFicha(updated);
+                                }}
+                                  style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: u.status === st ? (st === 'entregue' ? '#16a34a' : st === 'confirmado' ? '#7c3aed' : st === 'cancelado' ? '#64748b' : '#3b82f6') : 'var(--bg-card)', color: u.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                  {st}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                            {u.quantidade}× R$ {u.valor_unitario.toFixed(2)} · Total: R$ {(u.quantidade * u.valor_unitario).toFixed(2)} · {new Date(u.data_solicitacao + 'T12:00:00').toLocaleDateString('pt-BR')}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {finLoading && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando ficha...</div>}
+        </div>
+      )}
+
+      {/* ===== ABA DOAÇÕES ===== */}
+      {activeTab === 'doacoes' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#8b5cf6,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🤲 Gestão de Doações</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>Pessoas Jurídicas e Pessoas Naturais</div>
+            </div>
+            <button onClick={() => { setShowDoacaoForm(true); setDoacaoEditId(null); setDoacaoForm({ tipo: 'pf', modalidade: 'unica', data: new Date().toISOString().slice(0,10) }); }}
+              style={{ background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', border: 'none', color: '#fff', padding: '9px 18px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              + Nova Doação
+            </button>
+          </div>
+
+          {/* Form modal */}
+          {showDoacaoForm && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(139,92,246,0.4)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 14, color: '#a78bfa' }}>{doacaoEditId ? '✏ Editar Doação' : '+ Nova Doação'}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 12 }}>
+                {/* Tipo */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Tipo de Doador</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {([['pf','Pessoa Física'],['pj','Pessoa Jurídica']] as const).map(([v, l]) => (
+                      <button key={v} onClick={() => setDoacaoForm((p: any) => ({ ...p, tipo: v }))}
+                        style={{ flex: 1, padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', background: doacaoForm.tipo === v ? 'rgba(139,92,246,0.25)' : 'var(--bg-input)', border: `1px solid ${doacaoForm.tipo === v ? 'rgba(139,92,246,0.5)' : 'var(--border)'}`, color: doacaoForm.tipo === v ? '#c4b5fd' : 'var(--text-secondary)' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Nome do Doador</label>
+                  <input value={doacaoForm.nome || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, nome: e.target.value }))} placeholder="Nome completo ou razão social"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>{doacaoForm.tipo === 'pj' ? 'CNPJ' : 'CPF'}</label>
+                  <input value={doacaoForm.documento || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, documento: e.target.value }))} placeholder={doacaoForm.tipo === 'pj' ? '00.000.000/0001-00' : '000.000.000-00'}
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Valor (R$)</label>
+                  <input type="number" min={0} step={0.01} value={doacaoForm.valor || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, valor: parseFloat(e.target.value) || 0 }))} placeholder="0,00"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Local de Domicílio</label>
+                  <input value={doacaoForm.domicilio || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, domicilio: e.target.value }))} placeholder="Cidade/Estado"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Data</label>
+                  <input type="date" value={doacaoForm.data || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, data: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Modalidade</label>
+                  <div style={{ display: 'flex', gap: 6 }}>
+                    {([['unica','Única'],['mensal','Mensal']] as const).map(([v,l]) => (
+                      <button key={v} onClick={() => setDoacaoForm((p: any) => ({ ...p, modalidade: v }))}
+                        style={{ flex: 1, padding: '8px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.78rem', background: doacaoForm.modalidade === v ? 'rgba(139,92,246,0.25)' : 'var(--bg-input)', border: `1px solid ${doacaoForm.modalidade === v ? 'rgba(139,92,246,0.5)' : 'var(--border)'}`, color: doacaoForm.modalidade === v ? '#c4b5fd' : 'var(--text-secondary)' }}>
+                        {l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Observações</label>
+                  <input value={doacaoForm.observacoes || ''} onChange={e => setDoacaoForm((p: any) => ({ ...p, observacoes: e.target.value }))} placeholder="Opcional"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={async () => {
+                  if (!doacaoForm.nome?.trim() || !doacaoForm.valor) { alert('Preencha nome e valor.'); return; }
+                  const body = doacaoEditId ? { ...doacaoForm, id: doacaoEditId } : doacaoForm;
+                  await fetch('/api/doacoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                  const d = await fetch('/api/doacoes').then(r => r.json());
+                  setDoacoes(d); setShowDoacaoForm(false); setDoacaoForm({});
+                }}
+                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {doacaoEditId ? '💾 Salvar' : '+ Registrar Doação'}
+                </button>
+                <button onClick={() => { setShowDoacaoForm(false); setDoacaoForm({}); }}
+                  style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          {doacoes.length > 0 && (() => {
+            const total = doacoes.reduce((s, d) => s + (d.valor || 0), 0);
+            const mensais = doacoes.filter(d => d.modalidade === 'mensal').length;
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#a78bfa' }}>{doacoes.length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total de Doadores</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 800, color: '#4ade80' }}>R$ {total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total Arrecadado</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#67e8f9' }}>{mensais}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Doações Mensais</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* List */}
+          {loadingDoacoes ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : doacoes.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhuma doação registrada ainda.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 8 }}>
+              {doacoes.map(d => (
+                <div key={d.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: d.tipo === 'pj' ? 'rgba(139,92,246,0.15)' : 'rgba(8,145,178,0.15)', border: `2px solid ${d.tipo === 'pj' ? 'rgba(139,92,246,0.4)' : 'rgba(8,145,178,0.4)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.2rem', flexShrink: 0 }}>
+                    {d.tipo === 'pj' ? '🏢' : '👤'}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{d.nome}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{d.tipo === 'pj' ? 'CNPJ' : 'CPF'}: {d.documento} · {d.domicilio}</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      {new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR')} · {d.modalidade === 'mensal' ? '🔄 Mensal' : '1× Única'}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: '#4ade80' }}>R$ {(d.valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <span style={{ fontSize: '0.68rem', background: d.tipo === 'pj' ? 'rgba(139,92,246,0.12)' : 'rgba(8,145,178,0.12)', border: `1px solid ${d.tipo === 'pj' ? 'rgba(139,92,246,0.3)' : 'rgba(8,145,178,0.3)'}`, borderRadius: 20, padding: '1px 8px', color: d.tipo === 'pj' ? '#c4b5fd' : '#67e8f9', fontWeight: 700 }}>
+                      {d.tipo === 'pj' ? 'PJ' : 'PF'}
+                    </span>
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    <button onClick={() => { setDoacaoEditId(d.id); setDoacaoForm(d); setShowDoacaoForm(true); }}
+                      style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem' }}>✏</button>
+                    <button onClick={async () => { if (!confirm('Excluir esta doação?')) return; await fetch('/api/doacoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: d.id }) }); setDoacoes(doacoes.filter(x => x.id !== d.id)); }}
+                      style={{ padding: '5px 10px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem' }}>✕</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA EDITAIS ===== */}
+      {activeTab === 'editais' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#0891b2,#0369a1)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>📜 Participação em Editais</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>Registro, valores e prestação de contas</div>
+            </div>
+            <button onClick={() => { setShowEditalForm(true); setEditalEditId(null); setEditalForm({ status: 'inscrito', prestacao_status: 'pendente', data_submissao: new Date().toISOString().slice(0,10) }); }}
+              style={{ background: 'linear-gradient(135deg,#0891b2,#0369a1)', border: 'none', color: '#fff', padding: '9px 18px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+              + Novo Edital
+            </button>
+          </div>
+
+          {/* Form */}
+          {showEditalForm && (
+            <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(8,145,178,0.4)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 14, color: '#67e8f9' }}>{editalEditId ? '✏ Editar Edital' : '+ Novo Edital'}</div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 10, marginBottom: 12 }}>
+                {[
+                  { key: 'titulo', label: 'Título do Edital', placeholder: 'Ex: Edital de Cultura 2026' },
+                  { key: 'orgao', label: 'Órgão/Entidade', placeholder: 'Ex: Secretaria de Cultura RJ' },
+                  { key: 'numero', label: 'Número do Edital', placeholder: 'Ex: 001/2026' },
+                  { key: 'valor_solicitado', label: 'Valor Solicitado (R$)', placeholder: '0,00', type: 'number' },
+                  { key: 'valor_aprovado', label: 'Valor Aprovado (R$)', placeholder: '0,00', type: 'number' },
+                  { key: 'data_submissao', label: 'Data de Submissão', type: 'date' },
+                  { key: 'data_inicio', label: 'Data de Início', type: 'date' },
+                  { key: 'data_fim', label: 'Data de Encerramento', type: 'date' },
+                  { key: 'data_prestacao_contas', label: 'Data Prestação de Contas', type: 'date' },
+                ].map(f => (
+                  <div key={f.key}>
+                    <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>{f.label}</label>
+                    <input type={f.type || 'text'} value={editalForm[f.key] || ''} onChange={e => setEditalForm((p: any) => ({ ...p, [f.key]: f.type === 'number' ? parseFloat(e.target.value)||0 : e.target.value }))} placeholder={f.placeholder}
+                      style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
+                {/* Status */}
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Status</label>
+                  <select value={editalForm.status || 'inscrito'} onChange={e => setEditalForm((p: any) => ({ ...p, status: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
+                    <option value="inscrito">Inscrito</option>
+                    <option value="aprovado">Aprovado</option>
+                    <option value="em_execucao">Em Execução</option>
+                    <option value="concluido">Concluído</option>
+                    <option value="reprovado">Reprovado</option>
+                    <option value="cancelado">Cancelado</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Prestação de Contas</label>
+                  <select value={editalForm.prestacao_status || 'pendente'} onChange={e => setEditalForm((p: any) => ({ ...p, prestacao_status: e.target.value }))}
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
+                    <option value="pendente">Pendente</option>
+                    <option value="enviada">Enviada</option>
+                    <option value="aprovada">Aprovada</option>
+                    <option value="reprovada">Reprovada</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: 'block', color: 'var(--text-secondary)', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4 }}>Observações</label>
+                  <input value={editalForm.observacoes || ''} onChange={e => setEditalForm((p: any) => ({ ...p, observacoes: e.target.value }))} placeholder="Opcional"
+                    style={{ width: '100%', padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: 10 }}>
+                <button onClick={async () => {
+                  if (!editalForm.titulo?.trim()) { alert('Informe o título do edital.'); return; }
+                  const body = editalEditId ? { ...editalForm, id: editalEditId } : editalForm;
+                  await fetch('/api/editais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+                  const d = await fetch('/api/editais').then(r => r.json());
+                  setEditais(d); setShowEditalForm(false); setEditalForm({});
+                }}
+                  style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#0891b2,#0369a1)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {editalEditId ? '💾 Salvar' : '+ Registrar Edital'}
+                </button>
+                <button onClick={() => { setShowEditalForm(false); setEditalForm({}); }}
+                  style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
+                  Cancelar
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Summary */}
+          {editais.length > 0 && (() => {
+            const aprovados = editais.filter(e => ['aprovado','em_execucao','concluido'].includes(e.status));
+            const totalAprovado = aprovados.reduce((s, e) => s + (e.valor_aprovado || 0), 0);
+            return (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10, marginBottom: 16 }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#67e8f9' }}>{editais.length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total de Editais</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 800, color: '#4ade80' }}>R$ {totalAprovado.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Total Aprovado</div>
+                </div>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '12px', textAlign: 'center' }}>
+                  <div style={{ fontSize: '1.3rem', fontWeight: 800, color: '#f87171' }}>{editais.filter(e => e.prestacao_status === 'pendente' && e.status !== 'reprovado' && e.status !== 'cancelado').length}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Prest. Pendentes</div>
+                </div>
+              </div>
+            );
+          })()}
+
+          {/* Edital list */}
+          {loadingEditais ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : editais.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum edital registrado ainda.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {editais.map(e => {
+                const statusColors: Record<string, string> = { inscrito: '#3b82f6', aprovado: '#16a34a', em_execucao: '#0891b2', concluido: '#64748b', reprovado: '#dc2626', cancelado: '#94a3b8' };
+                const prestColors: Record<string, string> = { pendente: '#ca8a04', enviada: '#3b82f6', aprovada: '#16a34a', reprovada: '#dc2626' };
+                const sc = statusColors[e.status] || '#64748b';
+                const pc = prestColors[e.prestacao_status] || '#64748b';
+                return (
+                  <div key={e.id} style={{ background: 'var(--bg-card)', border: `1px solid ${sc}30`, borderLeft: `4px solid ${sc}`, borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap', marginBottom: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '0.95rem' }}>{e.titulo}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem', marginTop: 2 }}>{e.orgao} · Nº {e.numero || '—'}</div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                        <span style={{ background: `${sc}20`, border: `1px solid ${sc}50`, borderRadius: 20, padding: '2px 10px', color: sc, fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {e.status === 'inscrito' ? '📋 Inscrito' : e.status === 'aprovado' ? '✅ Aprovado' : e.status === 'em_execucao' ? '⚙ Em Execução' : e.status === 'concluido' ? '✓ Concluído' : e.status === 'reprovado' ? '✕ Reprovado' : '— Cancelado'}
+                        </span>
+                        <button onClick={() => { setEditalEditId(e.id); setEditalForm(e); setShowEditalForm(true); }}
+                          style={{ padding: '4px 9px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem' }}>✏</button>
+                        <button onClick={async () => { if (!confirm('Excluir este edital?')) return; await fetch('/api/editais', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: e.id }) }); setEditais(editais.filter(x => x.id !== e.id)); }}
+                          style={{ padding: '4px 9px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem' }}>✕</button>
+                      </div>
+                    </div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(150px,1fr))', gap: 8, fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 6 }}>
+                      <div>💰 Solicitado: <strong style={{ color: 'var(--text-primary)' }}>R$ {(e.valor_solicitado||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+                      <div>✅ Aprovado: <strong style={{ color: '#4ade80' }}>R$ {(e.valor_aprovado||0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</strong></div>
+                      <div>📅 Submissão: {e.data_submissao ? new Date(e.data_submissao + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+                      {e.data_prestacao_contas && <div>📋 Prest. Contas: {new Date(e.data_prestacao_contas + 'T12:00:00').toLocaleDateString('pt-BR')}</div>}
+                    </div>
+                    {e.prestacao_status && (
+                      <span style={{ background: `${pc}15`, border: `1px solid ${pc}40`, borderRadius: 20, padding: '2px 10px', color: pc, fontSize: '0.7rem', fontWeight: 700 }}>
+                        Prestação: {e.prestacao_status === 'pendente' ? '⏳ Pendente' : e.prestacao_status === 'enviada' ? '📤 Enviada' : e.prestacao_status === 'aprovada' ? '✅ Aprovada' : '⚠ Reprovada'}
+                      </span>
+                    )}
+                    {e.observacoes && <div style={{ marginTop: 6, fontSize: '0.72rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>📝 {e.observacoes}</div>}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
