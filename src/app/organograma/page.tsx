@@ -322,12 +322,15 @@ export default function OrganogramaPage() {
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 20 }}
           onClick={() => setShowAdminModal(false)}>
           <div style={{ background: '#1e293b', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 340 }} onClick={e => e.stopPropagation()}>
-            <h3 style={{ color: '#fff', fontWeight: 800, margin: '0 0 14px', fontSize: '1rem' }}>Acesso Administrativo</h3>
-            <input type="text" value={adminCpf} onChange={e => setAdminCpf(e.target.value.replace(/\D/g,''))} placeholder="CPF do administrador" autoFocus
+            <h3 style={{ color: '#fff', fontWeight: 800, margin: '0 0 6px', fontSize: '1rem' }}>🔒 Acesso Administrativo</h3>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', margin: '0 0 14px' }}>Somente o Administrador Geral pode editar o organograma.</p>
+            <input type="password" value={adminCpf} onChange={e => setAdminCpf(e.target.value.replace(/\D/g,''))}
+              onKeyDown={e => e.key === 'Enter' && handleAdminLogin()}
+              placeholder="CPF do administrador" autoFocus
               style={{ width: '100%', padding: '10px 12px', background: 'rgba(255,255,255,0.08)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box', marginBottom: 10 }} />
             {adminErr && <div style={{ color: '#f87171', fontSize: '0.78rem', marginBottom: 8 }}>{adminErr}</div>}
             <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => setShowAdminModal(false)} style={{ flex: 1, padding: '9px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>Cancelar</button>
+              <button onClick={() => { setShowAdminModal(false); setAdminCpf(''); setAdminErr(''); }} style={{ flex: 1, padding: '9px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.6)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>Cancelar</button>
               <button onClick={handleAdminLogin} style={{ flex: 2, padding: '9px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', color: '#fff', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>Entrar</button>
             </div>
           </div>
