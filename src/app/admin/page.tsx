@@ -3652,13 +3652,42 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               />
                             </div>
                           </div>
+
+                          {/* Botão salvar individual do núcleo */}
+                          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                            <button onClick={async () => {
+                              setResponsaveisMsg('');
+                              const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                              const currentList: any[] = cfg.responsaveis || [];
+                              const thisEntry = responsaveis.find((r: any) => r.nucleo_key === n.key) as any;
+                              if (!thisEntry?.nome?.trim() || !thisEntry?.cpf?.trim()) {
+                                setResponsaveisMsg('Preencha pelo menos o nome e CPF do Responsável 1.');
+                                setTimeout(() => setResponsaveisMsg(''), 3000);
+                                return;
+                              }
+                              const entry = {
+                                ...thisEntry,
+                                nome2: thisEntry.nome2?.trim() || undefined,
+                                cpf2: thisEntry.cpf2?.trim() ? thisEntry.cpf2.replace(/\D/g,'') : undefined,
+                              };
+                              const idx = currentList.findIndex((r: any) => r.nucleo_key === n.key);
+                              const updated = idx >= 0
+                                ? currentList.map((r: any) => r.nucleo_key === n.key ? entry : r)
+                                : [...currentList, entry];
+                              const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                              if (res.ok) { setResponsaveisMsg(`✓ ${n.label} salvo!`); } else { setResponsaveisMsg('Erro ao salvar.'); }
+                              setTimeout(() => setResponsaveisMsg(''), 3000);
+                            }}
+                              style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 7, padding: '7px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}>
+                              💾 Salvar
+                            </button>
+                          </div>
                         </div>
                       );
                     })}
                     <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
                       <button onClick={async () => {
                         setResponsaveisMsg('');
-                        // Filtra: mantém núcleos que tenham pelo menos o responsável 1 preenchido; limpa campos vazios do resp2
                         const filtered = responsaveis
                           .map((r: any) => ({
                             ...r,
@@ -3667,13 +3696,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           }))
                           .filter((r: any) => r.nome?.trim() && r.cpf?.trim());
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
-                        if (res.ok) { setResponsaveisMsg('✓ Responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
+                        if (res.ok) { setResponsaveisMsg('✓ Todos os responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
                         setTimeout(() => setResponsaveisMsg(''), 3000);
                       }}
-                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                        style={{ background: 'rgba(251,191,36,0.15)', color: '#fbbf24', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '9px 22px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
                         💾 Salvar Todos
                       </button>
-                      {responsaveisMsg && <span style={{ fontSize: '0.8rem', color: responsaveisMsg.includes('Erro') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{responsaveisMsg}</span>}
+                      {responsaveisMsg && <span style={{ fontSize: '0.8rem', color: responsaveisMsg.includes('Erro') || responsaveisMsg.includes('Preencha') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{responsaveisMsg}</span>}
                     </div>
                   </div>
                 )}
