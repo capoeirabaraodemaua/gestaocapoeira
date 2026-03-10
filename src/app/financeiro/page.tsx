@@ -130,6 +130,34 @@ export default function FinanceiroPage() {
       setLoadingLogin(false);
       return;
     }
+
+    // Verify that the student record is complete before allowing financial access
+    const requiredFields: Record<string, string> = {
+      nome_completo: 'Nome Completo',
+      identidade: 'Identidade / Numeração Única',
+      data_nascimento: 'Data de Nascimento',
+      telefone: 'Telefone',
+      cep: 'CEP',
+      endereco: 'Endereço',
+      numero: 'Número',
+      bairro: 'Bairro',
+      cidade: 'Cidade',
+      estado: 'Estado',
+      nucleo: 'Núcleo',
+      graduacao: 'Graduação',
+      tipo_graduacao: 'Tipo de Graduação',
+    };
+    const pendentes: string[] = [];
+    for (const [field, label] of Object.entries(requiredFields)) {
+      const val = (data as Record<string, unknown>)[field];
+      if (!val || (typeof val === 'string' && !val.trim())) pendentes.push(label);
+    }
+    if (pendentes.length > 0) {
+      setErro(`Seu cadastro está incompleto. Complete o cadastro antes de acessar a ficha financeira.\n\nDados pendentes: ${pendentes.join(', ')}`);
+      setLoadingLogin(false);
+      return;
+    }
+
     setStudent(data);
     // Load financial sheet
     const res = await fetch(`/api/financeiro?student_id=${data.id}`);
@@ -337,7 +365,7 @@ export default function FinanceiroPage() {
                   <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.3)', marginTop: 1 }}>RG / CIN / Doc. Único</div>
                 </div>
               </div>
-              {erro && <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f87171', fontSize: '0.85rem', fontWeight: 600 }}>⚠ {erro}</div>}
+              {erro && <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f87171', fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'pre-line' }}>⚠ {erro}</div>}
               <button onClick={handleLogin} disabled={loadingLogin}
                 style={{ padding: '13px', background: 'linear-gradient(135deg,#dc2626,#1d4ed8)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: '1rem', opacity: loadingLogin ? 0.6 : 1 }}>
                 {loadingLogin ? '⏳ Verificando...' : '🔓 Acessar Ficha'}

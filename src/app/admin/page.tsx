@@ -270,11 +270,13 @@ export default function AdminPage() {
 
   const SUPER_ADMIN_CPF = '09856925703';
 
-  // Auto-autenticar como Admin Geral ao entrar na página
+  // Autenticar com base no sessionStorage (set pelo modal da página principal ou pelo formulário de login)
   useEffect(() => {
-    sessionStorage.setItem('admin_auth', 'geral');
-    setAuthed(true);
-    setActiveNucleo('geral');
+    const stored = sessionStorage.getItem('admin_auth') as NucleoKey | null;
+    if (stored) {
+      setAuthed(true);
+      setActiveNucleo(stored);
+    }
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -491,6 +493,8 @@ export default function AdminPage() {
       const raw = localStorage.getItem(OFFLINE_QUEUE_KEY);
       if (raw) setOfflinePending(JSON.parse(raw));
     } catch {}
+    // Load financial alerts on mount so badge counts are always visible
+    fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); }).catch(() => {});
   }, []);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -936,12 +940,12 @@ export default function AdminPage() {
             { key: 'relatorio',    label: '📋 Relatório',     activeColor: '#dc2626', geralOnly: false },
             { key: 'ranking',      label: '🏆 Ranking',       activeColor: '#dc2626', geralOnly: false },
             { key: 'certificado',  label: '🎓 Certificado',   activeColor: '#dc2626', geralOnly: false },
-            { key: 'financeiro',   label: '💰 Financeiro',    activeColor: '#16a34a', geralOnly: false },
+            { key: 'financeiro',   label: `💰 Financeiro${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 ? ` 🔔${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length}` : ''}`,   activeColor: '#16a34a', geralOnly: false },
             { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6', geralOnly: true },
             { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2', geralOnly: true },
             { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c', geralOnly: false },
             { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04', geralOnly: false },
-            { key: 'rascunhos',    label: '📝 Rascunhos',     activeColor: '#f59e0b', geralOnly: true },
+            { key: 'rascunhos',    label: '📋 Cadastro de Responsável',  activeColor: '#f59e0b', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -3479,17 +3483,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       )}
 
       {/* ===== ABA RASCUNHOS ===== */}
-      {activeTab === 'rascunhos' && activeNucleo === 'geral' && (
+      {activeTab === 'rascunhos' && (
         <div>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
-            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📝 Cadastros Incompletos (Rascunhos)</div>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📋 Cadastro de Responsável por Núcleo</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie responsáveis por núcleo e acompanhe cadastros incompletos</div>
+            </div>
             <div style={{ display: 'flex', gap: 8 }}>
               <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
             </div>
           </div>
 
-          {/* Responsáveis por Núcleo config */}
+          {/* Responsáveis por Núcleo config — apenas admin geral pode gerenciar */}
           {activeNucleo === 'geral' && (() => {
             const nucleosList = [
               { key: 'edson-alves', label: 'Poliesportivo Edson Alves' },
@@ -3570,12 +3577,15 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* Draft list */}
           {loadingRascunhos ? (
-            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando rascunhos...</div>
-          ) : rascunhos.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum rascunho pendente.</div>
-          ) : (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando cadastros incompletos...</div>
+          ) : (() => {
+            // Filter drafts by nucleo if not geral
+            const filteredRascunhos = !nucleoFilter ? rascunhos : rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter);
+            return filteredRascunhos.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum cadastro incompleto{nucleoFilter ? ` para ${nucleoFilter}` : ''}.</div>
+            ) : (
             <div style={{ display: 'grid', gap: 10 }}>
-              {rascunhos.map(r => (
+              {filteredRascunhos.map((r: any) => (
                 <div key={r.id} style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.25)', borderLeft: '4px solid #f59e0b', borderRadius: 12, overflow: 'hidden' }}>
                   <div style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
                     onClick={() => setRascunhoExpanded(rascunhoExpanded === r.id ? null : r.id)}>
@@ -3646,7 +3656,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <button onClick={async () => {
                           if (!confirm('Excluir este rascunho?')) return;
                           await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
-                          setRascunhos(rascunhos.filter((x: any) => x.id !== r.id));
+                          setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
                         }}
                           style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                           🗑 Excluir Rascunho
@@ -3657,7 +3667,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
               ))}
             </div>
-          )}
+            );
+          })()}
         </div>
       )}
 
