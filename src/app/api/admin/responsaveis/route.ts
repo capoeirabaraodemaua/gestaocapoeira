@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
+// Read-only (anon)
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+// Write (service_role bypasses RLS)
+const supabaseAdmin = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const BUCKET = 'photos';
@@ -55,7 +62,7 @@ export async function POST(req: NextRequest) {
   };
 
   const blob = new Blob([JSON.stringify(updated)], { type: 'application/json' });
-  const { error } = await supabase.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data: updated });
 }
