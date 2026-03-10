@@ -2518,9 +2518,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {/* Student list */}
           {!finStudent && (() => {
             const q = finSearch.trim().toLowerCase();
+            // Filtra por núcleo se for representante
+            const baseList = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students;
             const list = q.length >= 1
-              ? students.filter(s => s.nome_completo.toLowerCase().includes(q) || s.cpf.replace(/\D/g,'').includes(q.replace(/\D/g,'')))
-              : students;
+              ? baseList.filter(s => s.nome_completo.toLowerCase().includes(q) || s.cpf.replace(/\D/g,'').includes(q.replace(/\D/g,'')))
+              : baseList;
             return (
               <div style={{ display: 'grid', gap: 8 }}>
                 {list.slice(0, 40).map(s => {
