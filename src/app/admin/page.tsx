@@ -931,18 +931,18 @@ export default function AdminPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap', overflowX: 'auto' }}>
           {([
-            { key: 'alunos',       label: '👥 Alunos',        activeColor: '#dc2626' },
-            { key: 'presencas',    label: '📊 Presenças',     activeColor: '#dc2626' },
-            { key: 'relatorio',    label: '📋 Relatório',     activeColor: '#dc2626' },
-            { key: 'ranking',      label: '🏆 Ranking',       activeColor: '#dc2626' },
-            { key: 'certificado',  label: '🎓 Certificado',   activeColor: '#dc2626' },
-            { key: 'financeiro',   label: '💰 Financeiro',    activeColor: '#16a34a' },
-            { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6' },
-            { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2' },
-            { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c' },
-            { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04' },
-            ...(activeNucleo === 'geral' ? [{ key: 'rascunhos' as const, label: '📝 Rascunhos', activeColor: '#f59e0b' }] : []),
-          ] as const).map(tab => (
+            { key: 'alunos',       label: '👥 Alunos',        activeColor: '#dc2626', geralOnly: false },
+            { key: 'presencas',    label: '📊 Presenças',     activeColor: '#dc2626', geralOnly: false },
+            { key: 'relatorio',    label: '📋 Relatório',     activeColor: '#dc2626', geralOnly: false },
+            { key: 'ranking',      label: '🏆 Ranking',       activeColor: '#dc2626', geralOnly: false },
+            { key: 'certificado',  label: '🎓 Certificado',   activeColor: '#dc2626', geralOnly: false },
+            { key: 'financeiro',   label: '💰 Financeiro',    activeColor: '#16a34a', geralOnly: false },
+            { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6', geralOnly: true },
+            { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2', geralOnly: true },
+            { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c', geralOnly: false },
+            { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04', geralOnly: false },
+            { key: 'rascunhos',    label: '📝 Rascunhos',     activeColor: '#f59e0b', geralOnly: true },
+          ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
               onClick={() => {
@@ -2357,18 +2357,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {/* Alert strip */}
           {finLoadingAlerts ? (
             <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Verificando alertas financeiros...</div>
-          ) : finAlerts.length > 0 && (
+          ) : finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 && (
             <div style={{ marginBottom: 20, background: 'rgba(22,163,74,0.05)', border: '2px solid rgba(22,163,74,0.25)', borderRadius: 14, overflow: 'hidden' }}>
               {/* Header */}
               <div style={{ background: 'linear-gradient(135deg,rgba(22,163,74,0.2),rgba(8,145,178,0.15))', padding: '12px 18px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                 <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: 8 }}>
                   <span style={{ fontSize: '1.1rem', animation: 'sirenFlash 1.2s ease-in-out infinite' }}>🔔</span>
-                  Notificações Financeiras — {finAlerts.length} aluno{finAlerts.length !== 1 ? 's' : ''}
+                  Notificações Financeiras — {finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length} aluno{finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length !== 1 ? 's' : ''}
                 </div>
                 <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>Ações realizadas pelos alunos aguardando revisão</span>
               </div>
               {/* Alert rows */}
-              {finAlerts.map(a => (
+              {finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).map(a => (
                 <div key={a.student_id} style={{ padding: '10px 18px', borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
                     <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{a.nome_completo}</span>
@@ -2534,7 +2534,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             const adminSaveFicha = async (updated: any) => {
               setFinSaving(true);
-              const res = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+              // _admin_save=true tells the API to clear action-notification flags (admin has seen them)
+              const res = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updated, _admin_save: true }) });
               if (res.ok) {
                 const { data } = await res.json();
                 if (data) setFinFicha(data);
@@ -2962,7 +2963,67 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       {d.tipo === 'pj' ? 'PJ' : 'PF'}
                     </span>
                   </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    <button onClick={() => {
+                      // Generate printable receipt
+                      const pw = window.open('', '_blank');
+                      if (!pw) return;
+                      const dataFormatada = d.data ? new Date(d.data + 'T12:00:00').toLocaleDateString('pt-BR') : new Date().toLocaleDateString('pt-BR');
+                      const valorFormatado = (d.valor || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+                      const modalidadeLabel = d.modalidade === 'mensal' ? 'Doação Mensal' : 'Doação Única';
+                      const docLabel = d.tipo === 'pj' ? 'CNPJ' : 'CPF';
+                      pw.document.write(`<!DOCTYPE html><html lang="pt-BR"><head><meta charset="utf-8"><title>Recibo de Doação</title>
+                      <style>
+                        * { margin:0; padding:0; box-sizing:border-box; }
+                        body { font-family: Arial, sans-serif; color: #1a1a1a; padding: 40px; max-width: 700px; margin: 0 auto; }
+                        .header { text-align: center; border-bottom: 3px double #1a1a1a; padding-bottom: 20px; margin-bottom: 24px; }
+                        .header h1 { font-size: 16px; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+                        .header p { font-size: 12px; color: #444; margin: 2px 0; }
+                        .title { text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 2px; text-transform: uppercase; margin: 20px 0; border: 2px solid #1a1a1a; padding: 10px; }
+                        .row { display: flex; margin: 10px 0; font-size: 13px; }
+                        .label { font-weight: bold; min-width: 180px; }
+                        .value { flex: 1; border-bottom: 1px dotted #999; padding-bottom: 2px; }
+                        .valor-box { margin: 24px 0; padding: 16px; border: 2px solid #1a1a1a; text-align: center; }
+                        .valor-box .valor { font-size: 28px; font-weight: bold; }
+                        .footer { margin-top: 40px; display: flex; justify-content: space-between; font-size: 12px; }
+                        .ass-line { border-top: 1px solid #1a1a1a; padding-top: 6px; min-width: 220px; text-align: center; }
+                        @media print { body { padding: 20px; } }
+                      </style></head><body>
+                      <div class="header">
+                        <h1>Associação Cultural de Capoeira Barão de Mauá</h1>
+                        <p>CNPJ: 58.860.408/0001-13</p>
+                        <p>Recibo de Doação</p>
+                      </div>
+                      <div class="title">RECIBO DE DOAÇÃO Nº ${d.id?.slice(-6).toUpperCase()}</div>
+                      <div class="row"><span class="label">Doador:</span><span class="value">${d.nome || '—'}</span></div>
+                      <div class="row"><span class="label">${docLabel}:</span><span class="value">${d.documento || '—'}</span></div>
+                      <div class="row"><span class="label">Domicílio:</span><span class="value">${d.domicilio || '—'}</span></div>
+                      <div class="row"><span class="label">Tipo:</span><span class="value">${d.tipo === 'pj' ? 'Pessoa Jurídica' : 'Pessoa Física'}</span></div>
+                      <div class="row"><span class="label">Modalidade:</span><span class="value">${modalidadeLabel}</span></div>
+                      <div class="row"><span class="label">Data:</span><span class="value">${dataFormatada}</span></div>
+                      <div class="valor-box">
+                        <div style="font-size:13px;margin-bottom:6px;">Valor da Doação</div>
+                        <div class="valor">${valorFormatado}</div>
+                      </div>
+                      <p style="font-size:12px;text-align:justify;margin-bottom:24px;">
+                        A Associação Cultural de Capoeira Barão de Mauá, CNPJ 58.860.408/0001-13, declara ter recebido a doação acima
+                        descrita, destinada ao desenvolvimento de atividades culturais, sociais e esportivas de capoeira junto às comunidades
+                        atendidas pela associação.
+                      </p>
+                      <div class="footer">
+                        <div class="ass-line">
+                          <p>Duque de Caxias/RJ, ${new Date().toLocaleDateString('pt-BR')}</p>
+                        </div>
+                        <div class="ass-line">
+                          <p>Assinatura do Responsável</p>
+                          <p style="margin-top:4px;font-size:11px;">Associação Cultural de Capoeira Barão de Mauá</p>
+                        </div>
+                      </div>
+                      <script>window.onload=()=>{window.print();}<\/script>
+                      </body></html>`);
+                      pw.document.close();
+                    }}
+                      style={{ padding: '5px 10px', background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#c4b5fd', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>🖨 Recibo</button>
                     <button onClick={() => { setDoacaoEditId(d.id); setDoacaoForm(d); setShowDoacaoForm(true); }}
                       style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem' }}>✏</button>
                     <button onClick={async () => { if (!confirm('Excluir esta doação?')) return; await fetch('/api/doacoes', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: d.id }) }); setDoacoes(doacoes.filter(x => x.id !== d.id)); }}
@@ -3412,6 +3473,189 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 );
               })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA RASCUNHOS ===== */}
+      {activeTab === 'rascunhos' && activeNucleo === 'geral' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📝 Cadastros Incompletos (Rascunhos)</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
+                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
+            </div>
+          </div>
+
+          {/* Responsáveis por Núcleo config */}
+          {activeNucleo === 'geral' && (() => {
+            const nucleosList = [
+              { key: 'edson-alves', label: 'Poliesportivo Edson Alves' },
+              { key: 'ipiranga', label: 'Poliesportivo do Ipiranga' },
+              { key: 'saracuruna', label: 'Saracuruna' },
+              { key: 'vila-urussai', label: 'Vila Urussaí' },
+              { key: 'jayme-fichman', label: 'Jayme Fichman' },
+            ];
+            return (
+              <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.9rem' }}>🔐 Responsáveis por Núcleo (login por CPF)</div>
+                  <button onClick={async () => {
+                    setLoadingResponsaveis(true);
+                    const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                    setResponsaveis(cfg.responsaveis || []);
+                    setLoadingResponsaveis(false);
+                  }}
+                    style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                    ✏ Editar Responsáveis
+                  </button>
+                </div>
+                {loadingResponsaveis ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Carregando...</div> : (
+                  <div style={{ display: 'grid', gap: 10 }}>
+                    {nucleosList.map(n => {
+                      const resp = responsaveis.find(r => r.nucleo_key === n.key);
+                      return (
+                        <div key={n.key} style={{ display: 'grid', gridTemplateColumns: '180px 1fr 1fr auto', gap: 10, alignItems: 'center' }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{n.label}</div>
+                          <input type="text" placeholder="Nome do responsável"
+                            value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
+                            onChange={e => {
+                              const val = e.target.value;
+                              setResponsaveis(prev => {
+                                const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                const item = { nucleo_key: n.key, nucleo_label: n.label, nome: val, cpf: prev[idx]?.cpf || '' };
+                                if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                return [...prev, item];
+                              });
+                            }}
+                            style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                          />
+                          <input type="text" placeholder="CPF do responsável"
+                            value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
+                            onChange={e => {
+                              const val = e.target.value.replace(/\D/g, '');
+                              setResponsaveis(prev => {
+                                const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                const item = { nucleo_key: n.key, nucleo_label: n.label, nome: prev[idx]?.nome || '', cpf: val };
+                                if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                return [...prev, item];
+                              });
+                            }}
+                            style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                          />
+                          {resp && <span style={{ color: '#4ade80', fontSize: '0.78rem', fontWeight: 700 }}>✓</span>}
+                        </div>
+                      );
+                    })}
+                    <div style={{ marginTop: 8, display: 'flex', gap: 10, alignItems: 'center' }}>
+                      <button onClick={async () => {
+                        setResponsaveisMsg('');
+                        const filtered = responsaveis.filter(r => r.nome.trim() && r.cpf.trim());
+                        const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
+                        if (res.ok) { setResponsaveisMsg('✓ Salvo!'); } else { setResponsaveisMsg('Erro ao salvar'); }
+                        setTimeout(() => setResponsaveisMsg(''), 3000);
+                      }}
+                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
+                        💾 Salvar Responsáveis
+                      </button>
+                      {responsaveisMsg && <span style={{ fontSize: '0.8rem', color: responsaveisMsg.includes('Erro') ? '#f87171' : '#4ade80', fontWeight: 700 }}>{responsaveisMsg}</span>}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* Draft list */}
+          {loadingRascunhos ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando rascunhos...</div>
+          ) : rascunhos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum rascunho pendente.</div>
+          ) : (
+            <div style={{ display: 'grid', gap: 10 }}>
+              {rascunhos.map(r => (
+                <div key={r.id} style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.25)', borderLeft: '4px solid #f59e0b', borderRadius: 12, overflow: 'hidden' }}>
+                  <div style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                    onClick={() => setRascunhoExpanded(rascunhoExpanded === r.id ? null : r.id)}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(251,191,36,0.15)', border: '2px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>📝</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{r.nome_completo || '(sem nome)'}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {r.nucleo || '—'} · {r.telefone || '—'} · {r.updated_at ? new Date(r.updated_at).toLocaleDateString('pt-BR') : '—'}
+                      </div>
+                    </div>
+                    {(r.dados_pendentes || []).length > 0 ? (
+                      <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 12, padding: '3px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
+                        ⚠ {(r.dados_pendentes || []).length} pendência(s)
+                      </div>
+                    ) : (
+                      <div style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.35)', borderRadius: 12, padding: '3px 10px', color: '#4ade80', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
+                        ✓ Completo
+                      </div>
+                    )}
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" style={{ transform: rascunhoExpanded === r.id ? 'rotate(90deg)' : 'none', transition: '0.2s' }}><path d="M9 18l6-6-6-6"/></svg>
+                  </div>
+
+                  {rascunhoExpanded === r.id && (
+                    <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
+                      {/* Pendências */}
+                      {(r.dados_pendentes || []).length > 0 && (
+                        <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, color: '#f87171', marginBottom: 8, fontSize: '0.82rem' }}>⚠ Dados pendentes para completar o cadastro:</div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {(r.dados_pendentes as string[]).map((p: string) => (
+                              <span key={p} style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '3px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700 }}>{p}</span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Data preview */}
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: 8, marginBottom: 14, fontSize: '0.78rem' }}>
+                        {[
+                          ['Nome', r.nome_completo], ['CPF', r.cpf], ['Identidade', r.identidade],
+                          ['Nascimento', r.data_nascimento], ['Telefone', r.telefone], ['E-mail', r.email],
+                          ['Núcleo', r.nucleo], ['Graduação', r.graduacao], ['CEP', r.cep],
+                          ['Endereço', r.endereco ? `${r.endereco}, ${r.numero}` : null], ['Bairro', r.bairro], ['Cidade/UF', r.cidade ? `${r.cidade}/${r.estado}` : null],
+                        ].filter(([, v]) => v).map(([l, v]) => (
+                          <div key={l as string} style={{ background: 'var(--bg-input)', borderRadius: 7, padding: '7px 10px' }}>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{l as string}</span>
+                            <div style={{ fontWeight: 600, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v as string}</div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Actions */}
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {/* Send WhatsApp with pending list */}
+                        {r.telefone && (r.dados_pendentes || []).length > 0 && (() => {
+                          const tel = (r.telefone || '').replace(/\D/g, '');
+                          const phone = tel.startsWith('55') ? tel : `55${tel}`;
+                          const nome = (r.nome_completo || 'Aluno').split(' ')[0];
+                          const msg = encodeURIComponent(`Olá ${nome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá está incompleto.\n\nDados pendentes:\n${(r.dados_pendentes as string[]).map((p: string) => `• ${p}`).join('\n')}\n\nAcesse o formulário e complete seu cadastro para ter acesso completo. 🥋`);
+                          return (
+                            <a href={`https://wa.me/${phone}?text=${msg}`} target="_blank" rel="noreferrer"
+                              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', color: '#fff', borderRadius: 8, padding: '8px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none' }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                              Enviar pendências por WhatsApp
+                            </a>
+                          );
+                        })()}
+                        <button onClick={async () => {
+                          if (!confirm('Excluir este rascunho?')) return;
+                          await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
+                          setRascunhos(rascunhos.filter((x: any) => x.id !== r.id));
+                        }}
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          🗑 Excluir Rascunho
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ))}
             </div>
           )}
         </div>

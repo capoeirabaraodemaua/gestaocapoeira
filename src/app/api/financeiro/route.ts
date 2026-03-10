@@ -96,7 +96,12 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const body: FichaFinanceira = await req.json();
+  const rawBody = await req.json();
+  // admin_viewed flag: when admin saves, clear action-notification flags
+  const isAdminSave = !!rawBody._admin_save;
+  const body: FichaFinanceira = rawBody;
+  delete (body as any)._admin_save;
+
   if (!body.student_id) return NextResponse.json({ error: 'student_id required' }, { status: 400 });
 
   const now = new Date().toISOString();
@@ -156,10 +161,11 @@ export async function POST(req: NextRequest) {
     comprovante_pendente,
     uniforme_solicitado,
     mensalidade_atrasada,
-    batizado_modalidade_escolhida,
-    mensalidade_registrada,
-    contribuicao_registrada,
-    pagamento_registrado,
+    // When admin saves, clear action-notification flags (they've been seen)
+    batizado_modalidade_escolhida: isAdminSave ? false : batizado_modalidade_escolhida,
+    mensalidade_registrada: isAdminSave ? false : mensalidade_registrada,
+    contribuicao_registrada: isAdminSave ? false : contribuicao_registrada,
+    pagamento_registrado: isAdminSave ? false : pagamento_registrado,
     ultimas_acoes: acoes.slice(0, 20), // keep last 20 entries
   };
 
