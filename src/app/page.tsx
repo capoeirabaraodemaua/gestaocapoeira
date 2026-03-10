@@ -404,30 +404,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             display: 'block',
           }}
         />
-        {/* Logo e título sobrepostos ao banner */}
-        <div style={{
-          position: 'absolute', top: 0, left: 0, right: 0,
-          display: 'flex', alignItems: 'center', gap: 10,
-          padding: '12px 18px',
-          background: 'linear-gradient(180deg, rgba(0,0,0,0.55) 0%, transparent 100%)',
-          zIndex: 2,
-        }}>
-          <div>
-            <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.55rem', fontWeight: 700, letterSpacing: '0.16em', textTransform: 'uppercase', lineHeight: 1.3 }}>
-              Associação Cultural de Capoeira
-            </div>
-            <div style={{ color: '#fbbf24', fontSize: '0.85rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.2, textShadow: '0 1px 4px rgba(0,0,0,0.6)' }}>
-              Barão de Mauá
-            </div>
-            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.52rem', letterSpacing: '0.1em', textTransform: 'uppercase', lineHeight: 1.3 }}>
-              Duque de Caxias &amp; Magé — RJ
-            </div>
-          </div>
-          <div style={{ marginLeft: 'auto', textAlign: 'right' }}>
-            <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.52rem', letterSpacing: '0.12em', textTransform: 'uppercase' }}>Sistema de</div>
-            <div style={{ color: 'rgba(255,255,255,0.9)', fontSize: '0.7rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', textShadow: '0 1px 4px rgba(0,0,0,0.5)' }}>Gestão de Alunos</div>
-          </div>
-        </div>
       </div>
 
       <div className="container" style={{ marginTop: 0 }}>
