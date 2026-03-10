@@ -101,14 +101,16 @@ interface Student {
 type EditForm = Partial<Student>;
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-type NucleoKey = 'maua' | 'saracuruna' | 'geral';
+type NucleoKey = 'maua' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'geral';
 interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; }
 
 const PROFILES_KEY = 'accbm_admin_profiles';
 const DEFAULT_PROFILES: Profile[] = [
-  { nucleo: 'maua',        label: 'Núcleo Mauá',        color: '#dc2626', user: 'maua',        pass: 'maua2025'        },
-  { nucleo: 'saracuruna',  label: 'Núcleo Saracuruna',  color: '#16a34a', user: 'saracuruna',  pass: 'sara2025'        },
-  { nucleo: 'geral',       label: 'Admin Geral',         color: '#1d4ed8', user: 'admin',       pass: 'accbm2025'       },
+  { nucleo: 'maua',           label: 'Núcleo Mauá',           color: '#dc2626', user: 'maua',           pass: 'maua2025'        },
+  { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',     color: '#16a34a', user: 'saracuruna',     pass: 'sara2025'        },
+  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',   color: '#9333ea', user: 'vilaurussai',    pass: 'urussai2025'     },
+  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',  color: '#0891b2', user: 'jaymefichman',   pass: 'fichman2025'     },
+  { nucleo: 'geral',          label: 'Admin Geral',            color: '#1d4ed8', user: 'admin',          pass: 'accbm2025'       },
 ];
 
 function getProfiles(): Profile[] {
@@ -358,7 +360,8 @@ export default function AdminPage() {
   const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
-  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'maua' | 'saracuruna'>('todos');
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'maua' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
+  const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   const printAdminCard = async (nome: string) => {
     const el = adminCardRef.current;
@@ -495,8 +498,12 @@ export default function AdminPage() {
     setLoadingHistorico(false);
   };
 
-  // Restrict students by login profile (Mauá or Saracuruna see only their own)
-  const nucleoFilter = activeNucleo === 'maua' ? 'Mauá' : activeNucleo === 'saracuruna' ? 'Saracuruna' : null;
+  // Restrict students by login profile (nucleus-specific logins see only their own)
+  const nucleoFilter = activeNucleo === 'maua' ? 'Mauá'
+    : activeNucleo === 'saracuruna' ? 'Saracuruna'
+    : activeNucleo === 'vila-urussai' ? 'Vila Urussaí'
+    : activeNucleo === 'jayme-fichman' ? 'Jayme Fichman'
+    : null;
   const filtered = students.filter(s => {
     const matchSearch =
       s.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
@@ -811,13 +818,15 @@ export default function AdminPage() {
               />
               <select
                 className="search-input"
-                style={{ width: 160 }}
+                style={{ width: 180 }}
                 value={filterNucleo}
                 onChange={(e) => setFilterNucleo(e.target.value)}
               >
                 <option value="">Todos os núcleos</option>
-                <option value="Saracuruna">Saracuruna</option>
                 <option value="Mauá">Mauá</option>
+                <option value="Saracuruna">Saracuruna</option>
+                <option value="Vila Urussaí">Vila Urussaí</option>
+                <option value="Jayme Fichman">Jayme Fichman</option>
               </select>
             </>}
           </div>
@@ -857,6 +866,57 @@ export default function AdminPage() {
           students={students.map(s => ({ id: s.id, nome_completo: s.nome_completo, telefone: s.telefone, nucleo: s.nucleo, email: (s as any).email }))}
         />
 
+        {/* ── Alerta de Aniversariantes ── */}
+        {showBirthdayAlert && (() => {
+          const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+          const todayMD = `${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+          const aniversariantes = students.filter(s => {
+            if (!s.data_nascimento) return false;
+            const [y, m, d] = s.data_nascimento.split('-');
+            return `${m}-${d}` === todayMD;
+          }).filter(s => !nucleoFilter || s.nucleo === nucleoFilter);
+          if (!aniversariantes.length) return null;
+          return (
+            <div style={{ margin: '16px 0', background: 'linear-gradient(135deg,rgba(251,191,36,0.12),rgba(251,191,36,0.06))', border: '1.5px solid rgba(251,191,36,0.5)', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+              <div style={{ fontSize: '2rem', lineHeight: 1, flexShrink: 0 }}>🎂</div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#b45309', marginBottom: 6 }}>
+                  Aniversariante{aniversariantes.length > 1 ? 's' : ''} de Hoje!
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                  {aniversariantes.map(s => {
+                    const age = now.getFullYear() - parseInt(s.data_nascimento.split('-')[0]);
+                    const phone = (s.telefone || '').replace(/\D/g, '');
+                    const br = phone.startsWith('55') ? phone : `55${phone}`;
+                    const msg = encodeURIComponent(`🎂 *Feliz Aniversário, ${s.nome_completo}!*\n\nA família da Capoeira Barão de Mauá deseja a você um dia muito especial! Axé! 🤸`);
+                    return (
+                      <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', borderRadius: 10, padding: '6px 12px' }}>
+                        {s.foto_url
+                          ? <img src={s.foto_url} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                          : <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'rgba(251,191,36,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#b45309" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                            </div>
+                        }
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#78350f' }}>{s.nome_completo}</div>
+                          <div style={{ fontSize: '0.72rem', color: '#92400e' }}>{age} anos · {s.nucleo || '—'}</div>
+                        </div>
+                        {phone.length >= 10 && (
+                          <a href={`https://wa.me/${br}?text=${msg}`} target="_blank" rel="noopener noreferrer"
+                            style={{ marginLeft: 4, background: 'rgba(37,211,102,0.15)', border: '1px solid rgba(37,211,102,0.4)', color: '#16a34a', borderRadius: 7, padding: '4px 8px', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 4 }}>
+                            🎁 Parabéns
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <button onClick={() => setShowBirthdayAlert(false)} style={{ background: 'none', border: 'none', color: '#b45309', cursor: 'pointer', fontSize: '1.2rem', lineHeight: 1, padding: 0, flexShrink: 0 }}>×</button>
+            </div>
+          );
+        })()}
+
         {activeTab === 'alunos' && (
           <div>
           <div className="admin-stats">
@@ -865,12 +925,20 @@ export default function AdminPage() {
             <div className="stat-label">Total de Alunos</div>
           </div>
           <div className="stat-card">
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Mauá').length}</div>
+            <div className="stat-label">Núcleo Mauá</div>
+          </div>
+          <div className="stat-card">
             <div className="stat-value">{students.filter(s => s.nucleo === 'Saracuruna').length}</div>
             <div className="stat-label">Núcleo Saracuruna</div>
           </div>
           <div className="stat-card">
-            <div className="stat-value">{students.filter(s => s.nucleo === 'Mauá').length}</div>
-            <div className="stat-label">Núcleo Mauá</div>
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Vila Urussaí').length}</div>
+            <div className="stat-label">Vila Urussaí</div>
+          </div>
+          <div className="stat-card">
+            <div className="stat-value">{students.filter(s => s.nucleo === 'Jayme Fichman').length}</div>
+            <div className="stat-label">Jayme Fichman</div>
           </div>
           <div className="stat-card">
             <div className="stat-value">{menores}</div>
@@ -916,7 +984,7 @@ export default function AdminPage() {
                       </td>
                       <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                       <td>
-                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : ''}`}>
+                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
                           {student.nucleo || '—'}
                         </span>
                       </td>
@@ -1077,8 +1145,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               />
               <select className="search-input" style={{ width: 180 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                 <option value="">Todos os núcleos</option>
-                <option value="Saracuruna">Saracuruna</option>
                 <option value="Mauá">Mauá</option>
+                <option value="Saracuruna">Saracuruna</option>
+                <option value="Vila Urussaí">Vila Urussaí</option>
+                <option value="Jayme Fichman">Jayme Fichman</option>
               </select>
               <button
                 onClick={() => fetchPresencas(true)}
@@ -1232,7 +1302,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
         // Núcleo filter
-        const rankNucleoLabel = rankingNucleoTab === 'maua' ? 'Mauá' : rankingNucleoTab === 'saracuruna' ? 'Saracuruna' : null;
+        const rankNucleoLabel = rankingNucleoTab === 'maua' ? 'Mauá'
+          : rankingNucleoTab === 'saracuruna' ? 'Saracuruna'
+          : rankingNucleoTab === 'vila-urussai' ? 'Vila Urussaí'
+          : rankingNucleoTab === 'jayme-fichman' ? 'Jayme Fichman'
+          : null;
         const rankStudents = rankNucleoLabel ? students.filter(s => s.nucleo === rankNucleoLabel) : students;
 
         const rankData = rankStudents.map(s => {
@@ -1263,7 +1337,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ fontWeight: 700, fontSize: '0.86rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.student.nome_completo}</div>
               <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {item.student.graduacao}
-                {rankingNucleoTab === 'todos' && <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: item.student.nucleo === 'Mauá' ? 'rgba(220,38,38,0.1)' : 'rgba(22,163,74,0.1)', color: item.student.nucleo === 'Mauá' ? '#dc2626' : '#16a34a' }}>{item.student.nucleo || '—'}</span>}
+                {rankingNucleoTab === 'todos' && (() => {
+                  const nc = item.student.nucleo;
+                  const ncColor = nc === 'Mauá' ? '#dc2626' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : '#64748b';
+                  return <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${ncColor}18`, color: ncColor }}>{nc || '—'}</span>;
+                })()}
               </div>
             </div>
             <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -1304,11 +1382,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {/* Controls row */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
               {/* Núcleo tabs */}
-              <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)' }}>
-                {([['todos', '🌐 Todos'], ['maua', '🔴 Mauá'], ['saracuruna', '🟢 Saracuruna']] as const).map(([key, label]) => (
+              <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
+                {([['todos', '🌐 Todos', '#1d4ed8'], ['maua', '🔴 Mauá', '#dc2626'], ['saracuruna', '🟢 Saracuruna', '#16a34a'], ['vila-urussai', '🟣 Vila Urussaí', '#9333ea'], ['jayme-fichman', '🔵 Jayme Fichman', '#0891b2']] as const).map(([key, label, color]) => (
                   <button key={key} onClick={() => setRankingNucleoTab(key)}
                     style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
-                      background: rankingNucleoTab === key ? (key === 'maua' ? '#dc2626' : key === 'saracuruna' ? '#16a34a' : '#1d4ed8') : 'transparent',
+                      background: rankingNucleoTab === key ? color : 'transparent',
                       color: rankingNucleoTab === key ? '#fff' : 'var(--text-secondary)',
                       transition: 'all 0.15s' }}>
                     {label}
@@ -1845,7 +1923,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </td>
                             <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                             <td>
-                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : ''}`}>
+                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : student.nucleo === 'Mauá' ? 'badge-maua' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
                                 {student.nucleo || '—'}
                               </span>
                             </td>
@@ -1923,7 +2001,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </span>
                   )}
                   {selected.nucleo && (
-                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : 'badge-maua'}`}>{selected.nucleo}</span>
+                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : selected.nucleo === 'Mauá' ? 'badge-maua' : selected.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : selected.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>{selected.nucleo}</span>
                   )}
                 </div>
               </div>
@@ -2108,8 +2186,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" name="nucleo" value={editForm.nucleo || ''} onChange={handleEditChange}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Saracuruna</option>
                   <option value="Mauá">Mauá</option>
+                  <option value="Saracuruna">Saracuruna</option>
+                  <option value="Vila Urussaí">Vila Urussaí</option>
+                  <option value="Jayme Fichman">Jayme Fichman</option>
                 </select>
               </div>
               <div className="detail-item">

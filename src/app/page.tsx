@@ -530,8 +530,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <label>Selecione o Núcleo <span className="required">*</span></label>
                   <select value={nucleo} onChange={(e) => setNucleo(e.target.value)} required>
                     <option value="">Selecione o núcleo</option>
-                    <option value="Saracuruna">Saracuruna</option>
                     <option value="Mauá">Mauá</option>
+                    <option value="Saracuruna">Saracuruna</option>
+                    <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
+                    <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
                   </select>
                 </div>
               </div>

@@ -36,6 +36,24 @@ export const LOCAIS: Local[] = [
     lng: -43.2577859,
     mapUrl: 'https://maps.google.com/?q=-22.6746110,-43.2577859',
   },
+  {
+    id: 'nucleo-vila-urussai',
+    nome: 'Núcleo Vila Urussaí',
+    endereco: 'Vila Urussaí, Duque de Caxias - RJ',
+    nucleo: 'Vila Urussaí',
+    lat: -22.6600000,
+    lng: -43.2800000,
+    mapUrl: 'https://maps.google.com/?q=-22.6600000,-43.2800000',
+  },
+  {
+    id: 'nucleo-jayme-fichman',
+    nome: 'Núcleo Jayme Fichman',
+    endereco: 'Jayme Fichman, Duque de Caxias - RJ',
+    nucleo: 'Jayme Fichman',
+    lat: -22.6700000,
+    lng: -43.2900000,
+    mapUrl: 'https://maps.google.com/?q=-22.6700000,-43.2900000',
+  },
 ];
 
 function deg2rad(deg: number) {
