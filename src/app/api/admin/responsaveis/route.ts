@@ -1,12 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Read-only (anon)
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
-
 // Write (service_role bypasses RLS)
 const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -17,12 +11,10 @@ const BUCKET = 'photos';
 const KEY = 'config/responsaveis.json';
 
 export interface ResponsavelNucleo {
-  nucleo_key: string; // 'edson-alves', 'ipiranga', etc.
+  nucleo_key: string;
   nucleo_label: string;
-  // Responsável 1
   nome: string;
   cpf: string; // digits only
-  // Responsável 2 (optional)
   nome2?: string;
   cpf2?: string; // digits only
 }
@@ -37,25 +29,35 @@ const DEFAULT_CONFIG: ResponsaveisConfig = {
   updated_at: new Date().toISOString(),
 };
 
-export async function GET() {
-  const { data, error } = await supabase.storage.from(BUCKET).download(KEY);
-  if (error || !data) return NextResponse.json(DEFAULT_CONFIG);
+/** Lê o arquivo sempre fresco, sem cache, usando service_role */
+async function readConfig(): Promise<ResponsaveisConfig> {
   try {
-    return NextResponse.json(JSON.parse(await data.text()));
+    // Gera URL pública via service_role para evitar cache do SDK
+    const { data: urlData } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .createSignedUrl(KEY, 10);
+    if (!urlData?.signedUrl) return DEFAULT_CONFIG;
+
+    const res = await fetch(urlData.signedUrl, {
+      cache: 'no-store',
+      headers: { 'Cache-Control': 'no-cache, no-store, must-revalidate' },
+    });
+    if (!res.ok) return DEFAULT_CONFIG;
+    return await res.json();
   } catch {
-    return NextResponse.json(DEFAULT_CONFIG);
+    return DEFAULT_CONFIG;
   }
+}
+
+export async function GET() {
+  return NextResponse.json(await readConfig());
 }
 
 export async function POST(req: NextRequest) {
   const body: Partial<ResponsaveisConfig> = await req.json();
   const now = new Date().toISOString();
 
-  const { data: existing } = await supabase.storage.from(BUCKET).download(KEY);
-  let current: ResponsaveisConfig = DEFAULT_CONFIG;
-  if (existing) {
-    try { current = JSON.parse(await existing.text()); } catch {}
-  }
+  const current = await readConfig();
 
   const updated: ResponsaveisConfig = {
     responsaveis: body.responsaveis ?? current.responsaveis,
@@ -63,7 +65,12 @@ export async function POST(req: NextRequest) {
   };
 
   const blob = new Blob([JSON.stringify(updated)], { type: 'application/json' });
-  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+  const { error } = await supabaseAdmin.storage
+    .from(BUCKET)
+    .upload(KEY, blob, { upsert: true, contentType: 'application/json' });
+
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+  // Retorna o dado que acabou de ser salvo (sem releitura para evitar cache)
   return NextResponse.json({ ok: true, data: updated });
 }
