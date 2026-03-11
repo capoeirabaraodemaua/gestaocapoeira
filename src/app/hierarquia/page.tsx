@@ -196,7 +196,7 @@ export default function HierarquiaPage() {
                     ) : (
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                         {membros.map((m, idx) => (
-                          <div key={m.id || idx} style={{ background: `${nivel.border}08`, border: `1px solid ${nivel.border}25`, borderRadius: 12, padding: '12px', width: 130, textAlign: 'center', position: 'relative' }}>
+                          <div key={m.id} style={{ background: `${nivel.border}08`, border: `1px solid ${nivel.border}25`, borderRadius: 12, padding: '12px', width: 130, textAlign: 'center', position: 'relative' }}>
                             <div style={{ position: 'relative', display: 'inline-block' }}>
                               {m.foto_url
                                 ? <img src={m.foto_url} alt="" style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${nivel.border}` }} />

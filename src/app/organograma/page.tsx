@@ -44,6 +44,62 @@ const CARGO_COLORS: Record<string, { bg: string; border: string; text: string; b
   coordenador_tecnico_cultural: { bg: 'linear-gradient(135deg,#ea580c,#c2410c)', border: '#ea580c', text: '#fff', badge: '#fdba74' },
 };
 
+// ── CargoCard definido FORA do componente pai para evitar remount a cada keystroke ──
+function CargoCard({
+  cargoKey, membro, isEdit, uploadingKey,
+  onNomeChange, onTriggerUpload,
+}: {
+  cargoKey: string;
+  membro: Membro;
+  isEdit: boolean;
+  uploadingKey: string | null;
+  onNomeChange: (value: string) => void;
+  onTriggerUpload: () => void;
+}) {
+  const c = CARGO_COLORS[cargoKey];
+  return (
+    <div style={{
+      background: 'var(--bg-card,#1e293b)',
+      border: `2px solid ${c.border}40`,
+      borderRadius: 16,
+      overflow: 'hidden',
+      boxShadow: `0 4px 20px ${c.border}20`,
+    }}>
+      <div style={{ background: c.bg, padding: '8px 16px', textAlign: 'center' }}>
+        <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: 0.9 }}>
+          {CARGO_LABELS[cargoKey]}
+        </span>
+      </div>
+      <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
+        <div style={{ position: 'relative' }}>
+          {membro.foto_url
+            ? <img src={membro.foto_url} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${c.border}` }} />
+            : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${c.border}20`, border: `3px solid ${c.border}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>👤</div>
+          }
+          {isEdit && (
+            <button onClick={onTriggerUpload} disabled={uploadingKey === cargoKey}
+              style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: c.bg, border: '2px solid #fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem' }}>
+              📷
+            </button>
+          )}
+        </div>
+        {isEdit ? (
+          <input
+            value={membro.nome}
+            onChange={e => onNomeChange(e.target.value)}
+            placeholder={`Nome do ${CARGO_LABELS[cargoKey]}`}
+            style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#60a5fa', fontWeight: 700, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+          />
+        ) : (
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', minHeight: 20 }}>{membro.nome || <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>—</span>}</div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function OrganogramaPage() {
   const [data, setData] = useState<Organograma>(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -128,55 +184,11 @@ export default function OrganogramaPage() {
     setTimeout(() => setSaveMsg(''), 3000);
   };
 
-  const mainCargos = ['presidente', 'vice_presidente', 'secretario', 'tesoureiro', 'coordenador_tecnico_cultural'] as const;
-
-  const CargoCard = ({ cargoKey, membro, isEdit }: { cargoKey: string; membro: Membro; isEdit: boolean }) => {
-    const c = CARGO_COLORS[cargoKey];
-    return (
-      <div style={{
-        background: 'var(--bg-card,#1e293b)',
-        border: `2px solid ${c.border}40`,
-        borderRadius: 16,
-        overflow: 'hidden',
-        boxShadow: `0 4px 20px ${c.border}20`,
-        transition: 'transform 0.2s',
-      }}>
-        {/* Colored top bar */}
-        <div style={{ background: c.bg, padding: '8px 16px', textAlign: 'center' }}>
-          <span style={{ color: '#fff', fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase', opacity: 0.9 }}>
-            {CARGO_LABELS[cargoKey]}
-          </span>
-        </div>
-        <div style={{ padding: '16px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10 }}>
-          {/* Photo */}
-          <div style={{ position: 'relative' }}>
-            {membro.foto_url
-              ? <img src={membro.foto_url} alt="" style={{ width: 80, height: 80, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${c.border}` }} />
-              : <div style={{ width: 80, height: 80, borderRadius: '50%', background: `${c.border}20`, border: `3px solid ${c.border}50`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '2rem' }}>👤</div>
-            }
-            {isEdit && (
-              <button onClick={() => triggerUpload(cargoKey)} disabled={uploadingKey === cargoKey}
-                style={{ position: 'absolute', bottom: 0, right: 0, width: 26, height: 26, borderRadius: '50%', background: c.bg, border: '2px solid #fff', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.65rem' }}>
-                📷
-              </button>
-            )}
-          </div>
-          {isEdit ? (
-            <input
-              value={membro.nome}
-              onChange={e => setDraft(prev => ({ ...prev, [cargoKey]: { ...(prev as any)[cargoKey], nome: e.target.value } }))}
-              placeholder={`Nome do ${CARGO_LABELS[cargoKey]}`}
-              style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#60a5fa', fontWeight: 700, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-            />
-          ) : (
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#fff', minHeight: 20 }}>{membro.nome || <span style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.8rem' }}>—</span>}</div>
-            </div>
-          )}
-        </div>
-      </div>
-    );
+  const updateCargo = (cargoKey: string, value: string) => {
+    setDraft(prev => ({ ...prev, [cargoKey]: { ...(prev as any)[cargoKey], nome: value } }));
   };
+
+  const mainCargos = ['presidente', 'vice_presidente', 'secretario', 'tesoureiro', 'coordenador_tecnico_cultural'] as const;
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 60%,#0f172a 100%)', fontFamily: 'Inter, sans-serif', padding: '24px 16px' }}>
@@ -233,7 +245,14 @@ export default function OrganogramaPage() {
           {/* Presidente — top */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 0, position: 'relative' }}>
             <div style={{ width: 220 }}>
-              <CargoCard cargoKey="presidente" membro={editMode ? draft.presidente : data.presidente} isEdit={editMode} />
+              <CargoCard
+                cargoKey="presidente"
+                membro={editMode ? draft.presidente : data.presidente}
+                isEdit={editMode}
+                uploadingKey={uploadingKey}
+                onNomeChange={v => updateCargo('presidente', v)}
+                onTriggerUpload={() => triggerUpload('presidente')}
+              />
             </div>
           </div>
 
@@ -242,10 +261,17 @@ export default function OrganogramaPage() {
             <div style={{ width: 2, background: 'rgba(167,139,250,0.3)' }} />
           </div>
 
-          {/* Vice + horizontal connector */}
+          {/* Vice */}
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 0 }}>
             <div style={{ width: 220 }}>
-              <CargoCard cargoKey="vice_presidente" membro={editMode ? draft.vice_presidente : data.vice_presidente} isEdit={editMode} />
+              <CargoCard
+                cargoKey="vice_presidente"
+                membro={editMode ? draft.vice_presidente : data.vice_presidente}
+                isEdit={editMode}
+                uploadingKey={uploadingKey}
+                onNomeChange={v => updateCargo('vice_presidente', v)}
+                onTriggerUpload={() => triggerUpload('vice_presidente')}
+              />
             </div>
           </div>
 
@@ -259,11 +285,17 @@ export default function OrganogramaPage() {
           </div>
 
           {/* Secretário, Tesoureiro, Coordenador */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, marginBottom: 28, maxWidth: 700, margin: '0 auto 28px' }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, maxWidth: 700, margin: '0 auto 28px' }}>
             {(['secretario', 'tesoureiro', 'coordenador_tecnico_cultural'] as const).map(cargo => (
-              <CargoCard key={cargo} cargoKey={cargo}
+              <CargoCard
+                key={cargo}
+                cargoKey={cargo}
                 membro={editMode ? (draft as any)[cargo] : (data as any)[cargo]}
-                isEdit={editMode} />
+                isEdit={editMode}
+                uploadingKey={uploadingKey}
+                onNomeChange={v => updateCargo(cargo, v)}
+                onTriggerUpload={() => triggerUpload(cargo)}
+              />
             ))}
           </div>
 
@@ -289,11 +321,19 @@ export default function OrganogramaPage() {
                   </div>
                   {editMode ? (
                     <>
-                      <input value={m.nome} onChange={e => setDraft(prev => {
-                        const cf = [...prev.conselho_fiscal];
-                        cf[idx] = { ...cf[idx], nome: e.target.value };
-                        return { ...prev, conselho_fiscal: cf };
-                      })} placeholder="Nome" style={{ marginTop: 8, width: '100%', padding: '5px 8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#60a5fa', fontWeight: 700, fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }} />
+                      <input
+                        value={m.nome}
+                        onChange={e => {
+                          const val = e.target.value;
+                          setDraft(prev => {
+                            const cf = [...prev.conselho_fiscal];
+                            cf[idx] = { ...cf[idx], nome: val };
+                            return { ...prev, conselho_fiscal: cf };
+                          });
+                        }}
+                        placeholder="Nome"
+                        style={{ marginTop: 8, width: '100%', padding: '5px 8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#60a5fa', fontWeight: 700, fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }}
+                      />
                       <button onClick={() => setDraft(prev => ({ ...prev, conselho_fiscal: prev.conselho_fiscal.filter((_, i) => i !== idx) }))}
                         style={{ marginTop: 6, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.68rem' }}>Remover</button>
                     </>
