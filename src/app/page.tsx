@@ -251,7 +251,7 @@ export default function Home() {
           const msg = encodeURIComponent(
             `Olá ${nome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informações:\n${pend.map(p => `• ${p}`).join('\n')}\n\nAcesse o formulário e complete seu cadastro. 🥋`
           );
-          window.open(`https://wa.me/${phone}?text=${msg}`, '_blank');
+          window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, '_blank');
         }
       } else {
         setDraftMsg('Erro ao salvar rascunho. Tente novamente.');
@@ -497,9 +497,9 @@ Olá, *${nome}*! Sua carteirinha de associado está disponível. Toque no link a
 _Associação Cultural de Capoeira Barão de Mauá_`
     );
     if (phone.length >= 10) {
-      window.open(`https://wa.me/${br}?text=${msg}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?phone=${br}&text=${msg}`, '_blank');
     } else {
-      window.open(`https://wa.me/?text=${msg}`, '_blank');
+      window.open(`https://api.whatsapp.com/send?text=${msg}`, '_blank');
     }
   };
 
@@ -1231,7 +1231,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           </div>
           <a
-            href="https://wa.me/5521966102513"
+            href="https://api.whatsapp.com/send?phone=5521966102513"
             target="_blank"
             rel="noopener noreferrer"
             title="Mais informações: (21) 96610-2513"

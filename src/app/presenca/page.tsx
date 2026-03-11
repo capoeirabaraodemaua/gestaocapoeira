@@ -350,7 +350,7 @@ Associação Cultural de Capoeira Barão de Mauá
 
 _Axé! 🤸_`
     );
-    return `https://wa.me/${br}?text=${msg}`;
+    return `https://api.whatsapp.com/send?phone=${br}&text=${msg}`;
   };
 
   const buildEmailLink = (s: typeof success) => {

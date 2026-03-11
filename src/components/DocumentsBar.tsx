@@ -187,7 +187,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
 
   const waLink = (phone: string, text: string) => {
     const p = phone.replace(/\D/g,''); const br = p.startsWith('55')?p:`55${p}`;
-    return `https://wa.me/${br}?text=${encodeURIComponent(`ℹ️ *Informações — Capoeira Barão de Mauá*\n\n${text}\n\n_Associação Cultural de Capoeira Barão de Mauá_`)}`;
+    return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(`ℹ️ *Informações — Capoeira Barão de Mauá*\n\n${text}\n\n_Associação Cultural de Capoeira Barão de Mauá_`)}`;
   };
 
   // ── Shared styles ─────────────────────────────────────────────────────────
