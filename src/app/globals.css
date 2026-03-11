@@ -41,7 +41,7 @@ html, body {
 .hero-banner {
   position: relative;
   width: calc(100% - 3cm); /* 1cm esquerda + 2cm direita */
-  height: calc(420px - 4cm); /* 2cm topo + 2cm base */
+  height: 420px;
   overflow: hidden;
   display: block;
   background: #0a0a1e;
@@ -660,7 +660,7 @@ html, body {
     font-size: 1.4rem;
   }
   .hero-banner {
-    height: calc(280px - 4cm);
+    height: 280px;
     margin: 2cm 2cm 2cm 1cm;
     width: calc(100% - 3cm);
   }
