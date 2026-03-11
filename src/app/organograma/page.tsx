@@ -171,17 +171,21 @@ export default function OrganogramaPage() {
 
   const saveDraft = async () => {
     setSaving(true);
-    const res = await fetch('/api/organograma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
-    if (res.ok) {
-      const { data: saved } = await res.json();
-      setData(saved);
-      setSaveMsg('✓ Salvo com sucesso!');
-      setEditMode(false);
-    } else {
-      setSaveMsg('Erro ao salvar.');
+    try {
+      const res = await fetch('/api/organograma', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setData(json.data);
+        setSaveMsg('✓ Salvo com sucesso!');
+        setEditMode(false);
+      } else {
+        setSaveMsg('Erro: ' + (json.error || 'falha ao salvar'));
+      }
+    } catch (e: any) {
+      setSaveMsg('Erro: ' + e.message);
     }
     setSaving(false);
-    setTimeout(() => setSaveMsg(''), 3000);
+    setTimeout(() => setSaveMsg(''), 5000);
   };
 
   const updateCargo = (cargoKey: string, value: string) => {

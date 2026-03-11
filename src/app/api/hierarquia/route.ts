@@ -1,11 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseRead = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
-const supabaseWrite = createClient(
+const supabaseAdmin = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
@@ -41,7 +37,7 @@ const DEFAULT: Hierarquia = {
 };
 
 export async function GET() {
-  const { data, error } = await supabaseRead.storage.from(BUCKET).download(KEY);
+  const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(KEY);
   if (error || !data) return NextResponse.json(DEFAULT);
   try { return NextResponse.json(JSON.parse(await data.text())); } catch { return NextResponse.json(DEFAULT); }
 }
@@ -50,7 +46,7 @@ export async function POST(req: NextRequest) {
   const body: Hierarquia = await req.json();
   body.updated_at = new Date().toISOString();
   const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-  const { error } = await supabaseWrite.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+  const { error } = await supabaseAdmin.storage.from(BUCKET).upload(KEY, blob, { upsert: true, contentType: 'application/json' });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data: body });
 }
