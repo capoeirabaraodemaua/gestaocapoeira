@@ -59,7 +59,7 @@ function CargoCard({
   const c = CARGO_COLORS[cargoKey];
   return (
     <div style={{
-      background: 'var(--bg-card,#1e293b)',
+      background: '#1e293b',
       border: `2px solid ${c.border}40`,
       borderRadius: 16,
       overflow: 'hidden',
