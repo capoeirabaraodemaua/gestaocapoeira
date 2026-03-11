@@ -1,9 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabase = createClient(
+// Read-only client (anon key) for GET
+const supabaseRead = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+);
+
+// Write client (service role) for POST — bypasses RLS
+const supabaseWrite = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 const BUCKET = 'photos';
@@ -78,7 +85,7 @@ export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
   if (!studentId) return NextResponse.json({ error: 'student_id required' }, { status: 400 });
 
-  const { data, error } = await supabase.storage
+  const { data, error } = await supabaseRead.storage
     .from(BUCKET)
     .download(`financeiro/${studentId}.json`);
 
@@ -170,7 +177,7 @@ export async function POST(req: NextRequest) {
   };
 
   const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
-  const { error } = await supabase.storage
+  const { error } = await supabaseWrite.storage
     .from(BUCKET)
     .upload(`financeiro/${body.student_id}.json`, blob, { upsert: true });
 
