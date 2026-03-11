@@ -40,11 +40,13 @@ html, body {
 /* Hero banner */
 .hero-banner {
   position: relative;
-  width: 100%;
-  height: 420px;
+  width: calc(100% - 3cm); /* 1cm esquerda + 2cm direita */
+  height: calc(420px - 4cm); /* 2cm topo + 2cm base */
   overflow: hidden;
   display: block;
   background: #0a0a1e;
+  margin: 2cm 2cm 2cm 1cm; /* topo direita base esquerda */
+  border-radius: 12px;
 }
 
 .hero-content {
@@ -658,7 +660,9 @@ html, body {
     font-size: 1.4rem;
   }
   .hero-banner {
-    height: 280px;
+    height: calc(280px - 4cm);
+    margin: 2cm 2cm 2cm 1cm;
+    width: calc(100% - 3cm);
   }
   .form-section {
     padding: 20px;
