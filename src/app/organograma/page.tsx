@@ -166,7 +166,7 @@ export default function OrganogramaPage() {
               value={membro.nome}
               onChange={e => setDraft(prev => ({ ...prev, [cargoKey]: { ...(prev as any)[cargoKey], nome: e.target.value } }))}
               placeholder={`Nome do ${CARGO_LABELS[cargoKey]}`}
-              style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: '0.85rem', outline: 'none', textAlign: 'center', boxSizing: 'border-box' }}
+              style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#60a5fa', fontWeight: 700, fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
             />
           ) : (
             <div style={{ textAlign: 'center' }}>
@@ -293,7 +293,7 @@ export default function OrganogramaPage() {
                         const cf = [...prev.conselho_fiscal];
                         cf[idx] = { ...cf[idx], nome: e.target.value };
                         return { ...prev, conselho_fiscal: cf };
-                      })} placeholder="Nome" style={{ marginTop: 8, width: '100%', padding: '5px 8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#fff', fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box', textAlign: 'center' }} />
+                      })} placeholder="Nome" style={{ marginTop: 8, width: '100%', padding: '5px 8px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 6, color: '#60a5fa', fontWeight: 700, fontSize: '0.78rem', outline: 'none', boxSizing: 'border-box' }} />
                       <button onClick={() => setDraft(prev => ({ ...prev, conselho_fiscal: prev.conselho_fiscal.filter((_, i) => i !== idx) }))}
                         style={{ marginTop: 6, background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '3px 10px', cursor: 'pointer', fontSize: '0.68rem' }}>Remover</button>
                     </>
