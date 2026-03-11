@@ -5,6 +5,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
+const supabaseWrite = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
 const BUCKET = 'photos';
 
@@ -108,7 +112,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
 
   if (body._delete) {
-    const { error } = await supabase.storage.from(BUCKET).remove([`rascunhos/${body._delete}.json`]);
+    const { error } = await supabaseWrite.storage.from(BUCKET).remove([`rascunhos/${body._delete}.json`]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
   }
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
   };
 
   const blob = new Blob([JSON.stringify(rascunho)], { type: 'application/json' });
-  const { error } = await supabase.storage.from(BUCKET).upload(`rascunhos/${id}.json`, blob, { upsert: true });
+  const { error } = await supabaseWrite.storage.from(BUCKET).upload(`rascunhos/${id}.json`, blob, { upsert: true });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ ok: true, data: rascunho });
 }

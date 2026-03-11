@@ -5,6 +5,10 @@ const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
 );
+const supabaseWrite = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+);
 
 const BUCKET = 'photos';
 const KEY = 'financeiro/materiais.json';
@@ -34,7 +38,7 @@ async function getAll(): Promise<MaterialCompra[]> {
 
 async function saveAll(list: MaterialCompra[]) {
   const blob = new Blob([JSON.stringify(list)], { type: 'application/json' });
-  return supabase.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+  return supabaseWrite.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
 }
 
 export async function GET() {
