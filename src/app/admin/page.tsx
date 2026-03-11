@@ -3797,31 +3797,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         {r.nucleo || '—'} · {r.telefone || '—'} · {r.updated_at ? new Date(r.updated_at).toLocaleDateString('pt-BR') : '—'}
                       </div>
                     </div>
-                    {(r.dados_pendentes || []).length > 0 ? (
-                      <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 12, padding: '3px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
-                        ⚠ {(r.dados_pendentes || []).length} pendência(s)
-                      </div>
-                    ) : (
-                      <div style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.35)', borderRadius: 12, padding: '3px 10px', color: '#4ade80', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
-                        ✓ Completo
-                      </div>
-                    )}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" style={{ transform: rascunhoExpanded === r.id ? 'rotate(90deg)' : 'none', transition: '0.2s' }}><path d="M9 18l6-6-6-6"/></svg>
                   </div>
 
                   {rascunhoExpanded === r.id && (
                     <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
-                      {/* Pendências */}
-                      {(r.dados_pendentes || []).length > 0 && (
-                        <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                          <div style={{ fontWeight: 700, color: '#f87171', marginBottom: 8, fontSize: '0.82rem' }}>⚠ Dados pendentes para completar o cadastro:</div>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {(r.dados_pendentes as string[]).map((p: string) => (
-                              <span key={p} style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '3px 10px', color: '#f87171', fontSize: '0.72rem', fontWeight: 700 }}>{p}</span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
 
                       {/* Data preview */}
                       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: 8, marginBottom: 14, fontSize: '0.78rem' }}>
