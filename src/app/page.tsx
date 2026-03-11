@@ -435,7 +435,6 @@ export default function Home() {
         // Verificar cadastro completo antes de emitir carteirinha
         const camposObrigatorios: Record<string, string> = {
           nome_completo: 'Nome Completo',
-          identidade: 'Identidade / Numeração Única',
           data_nascimento: 'Data de Nascimento',
           telefone: 'Telefone',
           cep: 'CEP',
@@ -748,13 +747,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Identidade / Numeração Única (RG / CIN) <span className="required">*</span></label>
+                <label>Identidade / Numeração Única (RG / CIN) <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400 }}>(opcional)</span></label>
                 <input
                   name="identidade"
                   value={form.identidade}
                   onChange={(e) => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, identidade: undefined })); }}
-                  onBlur={() => checkDuplicate('identidade', form.identidade)}
-                  required
+                  onBlur={() => form.identidade && checkDuplicate('identidade', form.identidade)}
                   placeholder="Nº do RG, CIN ou Documento Único"
                   style={duplicateErrors.identidade ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />

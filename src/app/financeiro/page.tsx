@@ -132,7 +132,6 @@ export default function FinanceiroPage() {
     // Validar cadastro completo
     const camposObrigatorios: Record<string, string> = {
       nome_completo: 'Nome Completo',
-      identidade: 'Identidade / Numeração Única',
       data_nascimento: 'Data de Nascimento',
       telefone: 'Telefone',
       cep: 'CEP',

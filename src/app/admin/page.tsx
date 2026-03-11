@@ -451,6 +451,8 @@ export default function AdminPage() {
   const [rascunhos, setRascunhos] = useState<any[]>([]);
   const [loadingRascunhos, setLoadingRascunhos] = useState(false);
   const [rascunhoExpanded, setRascunhoExpanded] = useState<string | null>(null);
+  const [rascunhosCount, setRascunhosCount] = useState(0);
+  const [showDadosFaltantes, setShowDadosFaltantes] = useState(false);
 
   // ── Responsáveis por núcleo ───────────────────────────────────────────────
   const [responsaveis, setResponsaveis] = useState<Array<{ nucleo_key: string; nucleo_label: string; nome: string; cpf: string }>>([]);
@@ -502,6 +504,8 @@ export default function AdminPage() {
     fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); }).catch(() => {});
     // Pre-load responsáveis config for geral admin to prevent accidental empty saves
     fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); }).catch(() => {});
+    // Pre-load rascunhos count for badge
+    fetch('/api/rascunhos').then(r => r.json()).then((d: any[]) => { setRascunhosCount(d.length); setRascunhos(d); }).catch(() => {});
   }, []);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -953,7 +957,7 @@ export default function AdminPage() {
             { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2', geralOnly: true },
             { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c', geralOnly: false },
             { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04', geralOnly: false },
-            { key: 'rascunhos',    label: '📋 Cadastro de Responsável',  activeColor: '#f59e0b', geralOnly: false },
+            { key: 'rascunhos',    label: `📋 Cadastro de Responsável${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`,  activeColor: '#f59e0b', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -3561,11 +3565,66 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📋 Cadastro de Responsável por Núcleo</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie responsáveis por núcleo e acompanhe cadastros incompletos</div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
-              <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button onClick={() => setShowDadosFaltantes(v => !v)}
+                style={{ background: showDadosFaltantes ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.35)', color: showDadosFaltantes ? '#fff' : '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>
+                ⚠ Dados Faltantes{(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` (${c})`:''; })()}
+              </button>
+              <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
             </div>
           </div>
+
+          {/* ── Dados Faltantes ────────────────────────────────────────────── */}
+          {showDadosFaltantes && (() => {
+            const lista = (nucleoFilter ? rascunhos.filter((r:any) => (r.nucleo||'') === nucleoFilter) : rascunhos)
+              .filter((r:any) => (r.dados_pendentes||[]).length > 0);
+            return (
+              <div style={{ background: 'rgba(220,38,38,0.04)', border: '2px solid rgba(220,38,38,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
+                <div style={{ fontWeight: 800, color: '#f87171', fontSize: '0.9rem', marginBottom: 14 }}>
+                  ⚠ Cadastros com Dados Faltantes {lista.length > 0 && <span style={{ background: '#dc2626', color: '#fff', borderRadius: 20, padding: '2px 10px', fontSize: '0.75rem', marginLeft: 6 }}>{lista.length}</span>}
+                </div>
+                {lista.length === 0 ? (
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Nenhum rascunho com dados pendentes.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {lista.map((r: any) => {
+                      const pendentes: string[] = r.dados_pendentes || [];
+                      const tel = (r.telefone || '').replace(/\D/g, '');
+                      const nome = (r.nome_completo || 'Aluno').split(' ')[0];
+                      const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://inscri-o-capoeira-bar-o-de-mau.vercel.app';
+                      const msg = encodeURIComponent(
+                        `Olá ${nome}! 👋\n\nIdentificamos que seu cadastro na *Associação Cultural de Capoeira Barão de Mauá* está incompleto.\n\n📋 *Dados que ainda faltam:*\n${pendentes.map(p => `• ${p}`).join('\n')}\n\nPor favor, acesse o link abaixo para completar seu cadastro:\n${appUrl}\n\nQualquer dúvida, entre em contato com seu núcleo. 🥋`
+                      );
+                      return (
+                        <div key={r.id} style={{ background: 'var(--bg-card)', border: '1px solid rgba(220,38,38,0.15)', borderRadius: 10, padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{r.nome_completo || '(sem nome)'}</div>
+                              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>{r.nucleo || '—'} {r.telefone ? `· ${r.telefone}` : ''}</div>
+                            </div>
+                            {tel && (
+                              <a href={`https://wa.me/55${tel}?text=${msg}`} target="_blank" rel="noopener noreferrer"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 8, padding: '7px 14px', textDecoration: 'none', fontSize: '0.8rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                Avisar pelo WhatsApp
+                              </a>
+                            )}
+                            {!tel && <span style={{ fontSize: '0.75rem', color: '#f87171' }}>Sem telefone cadastrado</span>}
+                          </div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {pendentes.map((p, i) => (
+                              <span key={i} style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 20, padding: '2px 10px', fontSize: '0.72rem', color: '#f87171', fontWeight: 600 }}>{p}</span>
+                            ))}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Responsáveis por Núcleo config — apenas admin geral pode gerenciar */}
           {activeNucleo === 'geral' && (() => {
