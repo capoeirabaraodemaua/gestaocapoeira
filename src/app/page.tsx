@@ -371,10 +371,6 @@ export default function Home() {
     e.preventDefault();
     // Honeypot bot detection — bots fill hidden fields, humans don't
     if (honeypot) return;
-    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.email) {
-      alert('Corrija os campos duplicados antes de enviar.');
-      return;
-    }
     setLoading(true);
 
     try {
@@ -972,7 +968,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label>{t('form_select_nucleus')} <span className="required">*</span></label>
-                  <select value={nucleo} onChange={(e) => setNucleo(e.target.value)} required>
+                  <select value={nucleo} onChange={(e) => setNucleo(e.target.value)}>
                     <option value="">{t('form_select_nucleus')}</option>
                     <option value="Saracuruna">Núcleo Saracuruna</option>
                     <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves – Mauá</option>
@@ -994,7 +990,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   name="nome_completo"
                   value={form.nome_completo}
                   onChange={handleChange}
-                  required
                   placeholder="Digite seu nome completo"
                 />
               </div>
@@ -1118,7 +1113,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       setMenorDeIdade(false);
                     }
                   }}
-                  required
                 />
                 {form.data_nascimento && (
                   <span style={{ fontSize: '0.78rem', marginTop: 4, display: 'block', color: menorDeIdade ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
@@ -1128,7 +1122,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="form-group">
                 <label>{t('form_phone')} <span className="required">*</span></label>
-                <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} required placeholder="(00) 00000-0000" />
+                <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} placeholder="(00) 00000-0000" />
               </div>
               <div className="form-group">
                 <label>E-mail</label>
@@ -1184,7 +1178,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       name="nome_responsavel"
                       value={form.nome_responsavel}
                       onChange={handleChange}
-                      required={menorDeIdade}
                       placeholder="Nome completo do responsável legal"
                       style={{ width: '100%' }}
                     />
@@ -1197,7 +1190,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       name="cpf_responsavel"
                       value={form.cpf_responsavel}
                       onChange={handleCPFResponsavelChange}
-                      required={menorDeIdade}
                       placeholder="000.000.000-00"
                       style={{ maxWidth: 220 }}
                     />
@@ -1240,15 +1232,15 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="form-group">
                 <label>Estado <span className="required">*</span></label>
-                <input name="estado" value={form.estado} onChange={handleChange} required placeholder="UF" />
+                <input name="estado" value={form.estado} onChange={handleChange} placeholder="UF" />
               </div>
               <div className="form-group full-width">
                 <label>Endereço <span className="required">*</span></label>
-                <input name="endereco" value={form.endereco} onChange={handleChange} required placeholder="Rua, Avenida..." />
+                <input name="endereco" value={form.endereco} onChange={handleChange} placeholder="Rua, Avenida..." />
               </div>
               <div className="form-group">
                 <label>Número <span className="required">*</span></label>
-                <input name="numero" value={form.numero} onChange={handleChange} required placeholder="Nº" />
+                <input name="numero" value={form.numero} onChange={handleChange} placeholder="Nº" />
               </div>
               <div className="form-group">
                 <label>Complemento</label>
@@ -1256,11 +1248,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="form-group">
                 <label>Bairro <span className="required">*</span></label>
-                <input name="bairro" value={form.bairro} onChange={handleChange} required placeholder="Bairro" />
+                <input name="bairro" value={form.bairro} onChange={handleChange} placeholder="Bairro" />
               </div>
               <div className="form-group">
                 <label>Cidade <span className="required">*</span></label>
-                <input name="cidade" value={form.cidade} onChange={handleChange} required placeholder="Cidade" />
+                <input name="cidade" value={form.cidade} onChange={handleChange} placeholder="Cidade" />
               </div>
             </div>
           </div>
@@ -1278,7 +1270,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="form-group">
                 <label>Graduação (Corda) <span className="required">*</span></label>
-                <select value={graduacao} onChange={(e) => setGraduacao(e.target.value)} required>
+                <select value={graduacao} onChange={(e) => setGraduacao(e.target.value)}>
                   <option value="">Selecione a graduação</option>
                   {graduacoes.map(g => (
                     <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
@@ -1337,7 +1329,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
 
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-            <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.email)}>
+            <button type="submit" className="btn-submit" disabled={loading}>
               {loading ? t('form_saving') : t('form_submit')}
             </button>
             <button type="button" onClick={handleSaveDraft} disabled={draftLoading}
