@@ -5490,93 +5490,94 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         );
                       })()}
 
-                      {/* Imprimir PDF */}
-                      {(ev.participantes || []).length > 0 && (
-                        <button
-                          onClick={() => {
-                            const origin = typeof window !== 'undefined' ? window.location.origin : '';
-                            const dataFmt = ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-                            const rows = (ev.participantes || []).map((p: any, i: number) => {
-                              const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
-                              const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
-                              const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
-                              return `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#1d4ed8;font-weight:700">${mat}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:0.88em">${p.nome_completo}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.cpf || '—'}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${dn}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.nucleo || '—'}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:700;font-size:0.78em">${p.graduacao_atual}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">→</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:${mudou?'#15803d':'#94a3b8'};font-weight:${mudou?'800':'400'};font-size:0.78em">${p.nova_graduacao || p.graduacao_atual}</td>
-                                <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#94a3b8;border-left:1px dashed #e2e8f0"></td>
-                              </tr>`;
-                            }).join('');
-                            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${ev.nome}</title>
-                            <style>
-                              *{box-sizing:border-box}
-                              body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:12px;background:#fff}
-                              .header{display:flex;align-items:center;gap:18px;margin-bottom:0;padding-bottom:14px;border-bottom:3px solid #1e3a8a}
-                              .header img{height:72px;width:72px;object-fit:contain;flex-shrink:0}
-                              .header-text{flex:1}
-                              .assoc-name{font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px}
-                              .event-title{font-size:1.25rem;font-weight:800;color:#1e3a8a;margin:0 0 2px;line-height:1.2}
-                              .badge{display:inline-block;background:#1e3a8a;color:#fff;border-radius:4px;padding:2px 10px;font-size:0.68rem;font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.04em}
-                              .info-bar{display:flex;gap:0;margin:14px 0 16px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc}
-                              .info-item{flex:1;padding:8px 12px;border-right:1px solid #e2e8f0;text-align:center}
-                              .info-item:last-child{border-right:none}
-                              .info-label{font-size:0.62rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px}
-                              .info-value{font-size:0.82rem;font-weight:700;color:#1e293b}
-                              .status-ok{color:#15803d}.status-pending{color:#b45309}
-                              table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;font-size:0.82rem}
-                              thead tr{background:#1e3a8a;color:#fff}
-                              thead td{padding:9px 10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
-                              .footer{margin-top:24px;display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid #e2e8f0;padding-top:14px}
-                              .sig-box{width:200px;text-align:center}
-                              .sig-line{border-top:1px solid #334155;margin-bottom:4px}
-                              .sig-label{font-size:0.68rem;color:#64748b}
-                              .gen-info{font-size:0.65rem;color:#94a3b8;text-align:right}
-                              @media print{body{padding:14px 16px};@page{size:landscape;margin:1cm}}
-                            </style></head>
-                            <body>
-                            <div class="header">
-                              <img src="${origin}/logo-accbm.jpeg" alt="ACCBM" onerror="this.src='${origin}/logo-maua.png'"/>
-                              <div class="header-text">
-                                <div class="assoc-name">Associação Cultural de Capoeira Barão de Mauá</div>
-                                <div class="badge">${ev.tipo === 'batizado' ? 'Batizado' : 'Troca de Graduação'}</div>
-                                <div class="event-title">${ev.nome}</div>
-                              </div>
+                      {/* Imprimir PDF — sempre visível */}
+                      <button
+                        onClick={() => {
+                          const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                          const dataFmt = ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                          const rows = (ev.participantes || []).map((p: any, i: number) => {
+                            const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                            const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                            const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
+                            return `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#1d4ed8;font-weight:700">${mat}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-weight:700;font-size:0.88em">${p.nome_completo}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.cpf || '—'}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${dn}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.nucleo || '—'}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:700;font-size:0.78em">${p.graduacao_atual}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">→</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:${mudou?'#15803d':'#94a3b8'};font-weight:${mudou?'800':'400'};font-size:0.78em">${p.nova_graduacao || p.graduacao_atual}</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#94a3b8;border-left:1px dashed #e2e8f0"></td>
+                            </tr>`;
+                          }).join('');
+                          const semParticipantes = (ev.participantes || []).length === 0
+                            ? `<tr><td colspan="9" style="padding:20px;text-align:center;color:#94a3b8;font-style:italic">Nenhum participante registrado</td></tr>`
+                            : '';
+                          const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${ev.nome}</title>
+                          <style>
+                            *{box-sizing:border-box}
+                            body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:12px;background:#fff}
+                            .header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:3px solid #1e3a8a;margin-bottom:14px}
+                            .header img{height:72px;width:72px;object-fit:contain;flex-shrink:0}
+                            .header-text{flex:1}
+                            .assoc-name{font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px}
+                            .event-title{font-size:1.25rem;font-weight:800;color:#1e3a8a;margin:0 0 2px;line-height:1.2}
+                            .badge{display:inline-block;background:#1e3a8a;color:#fff;border-radius:4px;padding:2px 10px;font-size:0.68rem;font-weight:700;margin-bottom:5px;text-transform:uppercase;letter-spacing:0.04em}
+                            .info-bar{display:flex;gap:0;margin:0 0 16px;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden;background:#f8fafc}
+                            .info-item{flex:1;padding:8px 12px;border-right:1px solid #e2e8f0;text-align:center}
+                            .info-item:last-child{border-right:none}
+                            .info-label{font-size:0.62rem;color:#94a3b8;font-weight:700;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:2px}
+                            .info-value{font-size:0.82rem;font-weight:700;color:#1e293b}
+                            .status-ok{color:#15803d}.status-pending{color:#b45309}
+                            table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0;overflow:hidden;font-size:0.82rem}
+                            thead tr{background:#1e3a8a;color:#fff}
+                            thead td{padding:9px 10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+                            .footer{margin-top:24px;display:flex;justify-content:space-between;align-items:flex-end;border-top:2px solid #e2e8f0;padding-top:14px}
+                            .sig-box{width:200px;text-align:center}
+                            .sig-line{border-top:1px solid #334155;margin-bottom:4px;margin-top:40px}
+                            .sig-label{font-size:0.68rem;color:#64748b}
+                            .gen-info{font-size:0.65rem;color:#94a3b8;text-align:center}
+                            @media print{body{padding:14px 16px};@page{size:landscape;margin:1cm}}
+                          </style></head>
+                          <body>
+                          <div class="header">
+                            <img src="${origin}/logo-accbm.jpeg" alt="ACCBM" onerror="this.src='${origin}/logo-maua.png'"/>
+                            <div class="header-text">
+                              <div class="assoc-name">Associação Cultural de Capoeira Barão de Mauá</div>
+                              <div class="badge">${ev.tipo === 'batizado' ? 'Batizado' : 'Troca de Graduação'}</div>
+                              <div class="event-title">${ev.nome}</div>
                             </div>
-                            <div class="info-bar">
-                              <div class="info-item"><div class="info-label">Data</div><div class="info-value">${dataFmt}</div></div>
-                              <div class="info-item"><div class="info-label">Horário</div><div class="info-value">${ev.hora || '—'}</div></div>
-                              ${ev.local ? `<div class="info-item"><div class="info-label">Local</div><div class="info-value">${ev.local}</div></div>` : ''}
-                              ${ev.nucleo ? `<div class="info-item"><div class="info-label">Núcleo</div><div class="info-value">${ev.nucleo}</div></div>` : ''}
-                              <div class="info-item"><div class="info-label">Participantes</div><div class="info-value">${(ev.participantes||[]).length}</div></div>
-                              <div class="info-item"><div class="info-label">Status</div><div class="info-value ${ev.finalizado?'status-ok':'status-pending'}">${ev.finalizado?'✓ Aplicado':'⏳ Pendente'}</div></div>
+                          </div>
+                          <div class="info-bar">
+                            <div class="info-item"><div class="info-label">Data</div><div class="info-value">${dataFmt}</div></div>
+                            <div class="info-item"><div class="info-label">Horário</div><div class="info-value">${ev.hora || '—'}</div></div>
+                            ${ev.local ? `<div class="info-item"><div class="info-label">Local</div><div class="info-value">${ev.local}</div></div>` : ''}
+                            ${ev.nucleo ? `<div class="info-item"><div class="info-label">Núcleo</div><div class="info-value">${ev.nucleo}</div></div>` : ''}
+                            <div class="info-item"><div class="info-label">Participantes</div><div class="info-value">${(ev.participantes||[]).length}</div></div>
+                            <div class="info-item"><div class="info-label">Status</div><div class="info-value ${ev.finalizado?'status-ok':'status-pending'}">${ev.finalizado?'✓ Aplicado':'⏳ Pendente'}</div></div>
+                          </div>
+                          <table>
+                            <thead><tr>
+                              <td>Matrícula</td><td>Nome Completo</td><td>CPF</td><td>Nascimento</td><td>Núcleo</td><td>Graduação Atual</td><td></td><td>Nova Graduação</td><td>Assinatura</td>
+                            </tr></thead>
+                            <tbody>${rows || semParticipantes}</tbody>
+                          </table>
+                          <div class="footer">
+                            <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Responsável / Mestre</div></div>
+                            <div class="gen-info">
+                              <div>Relatório gerado em ${new Date().toLocaleString('pt-BR')}</div>
+                              <div style="margin-top:2px;font-weight:700;color:#475569">Associação Cultural de Capoeira Barão de Mauá — ACCBM</div>
                             </div>
-                            <table>
-                              <thead><tr>
-                                <td>Matrícula</td><td>Nome Completo</td><td>CPF</td><td>Nascimento</td><td>Núcleo</td><td>Graduação Atual</td><td></td><td>Nova Graduação</td><td>Assinatura</td>
-                              </tr></thead>
-                              <tbody>${rows}</tbody>
-                            </table>
-                            <div class="footer">
-                              <div class="sig-box"><div class="sig-line" style="margin-top:40px"></div><div class="sig-label">Responsável / Mestre</div></div>
-                              <div class="gen-info">
-                                <div>Relatório gerado em ${new Date().toLocaleString('pt-BR')}</div>
-                                <div style="margin-top:2px;font-weight:700">Associação Cultural de Capoeira Barão de Mauá — ACCBM</div>
-                              </div>
-                              <div class="sig-box"><div class="sig-line" style="margin-top:40px"></div><div class="sig-label">Secretário(a)</div></div>
-                            </div>
-                            </body></html>`;
-                            const w = window.open('', '_blank');
-                            if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
-                          }}
-                          style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          🖨 Imprimir PDF
-                        </button>
-                      )}
+                            <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Secretário(a)</div></div>
+                          </div>
+                          </body></html>`;
+                          const w = window.open('', '_blank');
+                          if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+                        }}
+                        style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        🖨 Imprimir PDF
+                      </button>
 
                       {/* Excluir */}
                       <button onClick={async () => {
