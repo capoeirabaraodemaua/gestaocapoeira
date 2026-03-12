@@ -98,6 +98,7 @@ interface Student {
   cpf_responsavel: string | null;
   assinatura_responsavel: boolean;
   created_at: string;
+  ordem_inscricao?: number | null;
   ultimo_checkin?: string | null;
   checkin_nucleo?: string | null;
 }
@@ -614,6 +615,8 @@ export default function AdminPage() {
     fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); }).catch(() => {});
     // Pre-load rascunhos count for badge
     fetch('/api/rascunhos').then(r => r.json()).then((d: any[]) => { setRascunhosCount(d.length); setRascunhos(d); }).catch(() => {});
+    // Ensure DB columns (ordem_inscricao, apelido, etc.) are active — silent background call
+    fetch('/api/add-columns').catch(() => {});
   }, []);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -4144,7 +4147,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 } else {
                                   if (!confirm(`Finalizar cadastro de ${r.nome_completo}?\n\nO rascunho será removido e o aluno incluído no sistema.`)) return;
                                 }
-                                if (!r.nome_completo || !r.cpf) { alert('Preencha pelo menos Nome e CPF antes de finalizar.'); return; }
+                                if (!r.nome_completo) { alert('Preencha pelo menos o Nome Completo antes de finalizar.'); return; }
                                 setRascunhoSaving(true);
                                 try {
                                   const payload: Record<string, any> = { ...r };
@@ -4583,7 +4586,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       nome_mae: selected.nome_mae || '',
                       nome_responsavel: selected.nome_responsavel,
                       cpf_responsavel: selected.cpf_responsavel,
-                      inscricao_numero: (selected as any).ordem_inscricao ?? null,
+                      inscricao_numero: selected.ordem_inscricao ?? null,
                     }} />
                   </div>
                   <button

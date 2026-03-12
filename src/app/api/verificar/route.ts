@@ -19,13 +19,14 @@ export async function GET(req: NextRequest) {
 
   const { data, error } = await admin
     .from('students')
-    .select('nome_completo,nucleo,graduacao,tipo_graduacao,foto_url,menor_de_idade,nome_pai,nome_mae,nome_responsavel,cpf_responsavel,inscricao_numero,apelido,nome_social,sexo')
-    .eq('inscricao_numero', num)
+    .select('nome_completo,nucleo,graduacao,tipo_graduacao,foto_url,menor_de_idade,nome_pai,nome_mae,nome_responsavel,cpf_responsavel,ordem_inscricao,apelido,nome_social,sexo')
+    .eq('ordem_inscricao', num)
     .single();
 
   if (error || !data) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  return NextResponse.json(data);
+  // Normalize field name for CarteirinhaData
+  return NextResponse.json({ ...data, inscricao_numero: data.ordem_inscricao });
 }

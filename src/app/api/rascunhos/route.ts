@@ -100,7 +100,12 @@ export async function GET(req: NextRequest) {
     files.filter(f => f.name.endsWith('.json')).map(async f => {
       const { data } = await supabase.storage.from(BUCKET).download(`rascunhos/${f.name}`);
       if (!data) return;
-      try { rascunhos.push(JSON.parse(await data.text())); } catch {}
+      try {
+        const r = JSON.parse(await data.text());
+        // Always recalculate dados_pendentes to avoid stale data
+        r.dados_pendentes = calcularPendencias(r);
+        rascunhos.push(r);
+      } catch {}
     })
   );
   rascunhos.sort((a, b) => b.updated_at.localeCompare(a.updated_at));
