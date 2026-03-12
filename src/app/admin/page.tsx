@@ -5356,6 +5356,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   setShowEventoForm(true);
                   setEventoMsg('');
                   setEventoParticipantSearch('');
+                  setEventoParticipantStaging(null);
                 }}
                 style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
                 {t('admin_new_event')}
@@ -5434,6 +5435,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           setShowEventoForm(true);
                           setEventoMsg('');
                           setEventoParticipantSearch('');
+                          setEventoParticipantStaging(null);
                         }} style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)', color: '#38bdf8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                           ✏ {t('admin_edit')}
                         </button>
@@ -5771,114 +5773,188 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Participants section */}
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)' }}>
-                👥 {t('admin_event_participants')} ({(eventoForm.participantes || []).length})
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                👥 {t('admin_event_participants')}
+                {(eventoForm.participantes || []).length > 0 && (
+                  <span style={{ background: 'rgba(14,165,233,0.15)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 20, padding: '2px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                    {(eventoForm.participantes || []).length} inserido{(eventoForm.participantes || []).length !== 1 ? 's' : ''}
+                  </span>
+                )}
               </div>
 
-              {/* Search to add participant */}
-              <div style={{ marginBottom: 10 }}>
-                <div style={{ position: 'relative' }}>
-                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', pointerEvents: 'none' }}>🔍</span>
-                  <input
-                    value={eventoParticipantSearch}
-                    onChange={e => setEventoParticipantSearch(e.target.value)}
-                    placeholder="Pesquisar aluno por nome ou CPF..."
-                    style={{ width: '100%', padding: '10px 12px 10px 34px', background: 'var(--bg)', border: '1.5px solid rgba(14,165,233,0.4)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
-                  />
+              {/* Step 1 — Search (hidden while staging) */}
+              {!eventoParticipantStaging && (
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ position: 'relative' }}>
+                    <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', pointerEvents: 'none' }}>🔍</span>
+                    <input
+                      value={eventoParticipantSearch}
+                      onChange={e => setEventoParticipantSearch(e.target.value)}
+                      placeholder="Pesquisar aluno por nome ou CPF para adicionar..."
+                      style={{ width: '100%', padding: '10px 12px 10px 34px', background: 'var(--bg)', border: '1.5px solid rgba(14,165,233,0.4)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                    />
+                  </div>
+                  {eventoParticipantSearch.trim().length >= 2 && (() => {
+                    const q = eventoParticipantSearch.toLowerCase().replace(/\D/g, '') || eventoParticipantSearch.toLowerCase();
+                    const alreadyIds = new Set((eventoForm.participantes || []).map((p: any) => p.student_id));
+                    const results = students.filter(s =>
+                      !alreadyIds.has(s.id) &&
+                      (s.nome_completo.toLowerCase().includes(eventoParticipantSearch.toLowerCase()) ||
+                       (s.cpf || '').replace(/\D/g, '').includes(q))
+                    ).slice(0, 10);
+                    if (!results.length) return (
+                      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6, padding: '8px 12px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 9 }}>
+                        Nenhum aluno encontrado
+                      </div>
+                    );
+                    return (
+                      <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 10, marginTop: 4, overflow: 'hidden', maxHeight: 260, overflowY: 'auto' }}>
+                        {results.map(s => (
+                          <button key={s.id}
+                            onClick={() => {
+                              setEventoParticipantStaging({
+                                student_id: s.id,
+                                nome_completo: s.nome_completo,
+                                nucleo: s.nucleo || '',
+                                graduacao_atual: s.graduacao,
+                                nova_graduacao: s.graduacao,
+                                tipo_graduacao: s.tipo_graduacao || 'adulta',
+                                cpf: s.cpf || null,
+                                inscricao_numero: s.ordem_inscricao ?? null,
+                                data_nascimento: s.data_nascimento || null,
+                              });
+                              setEventoParticipantSearch('');
+                            }}
+                            style={{ width: '100%', padding: '10px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'rgba(14,165,233,0.08)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome_completo}</div>
+                              {s.cpf && <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 1 }}>CPF: {s.cpf}</div>}
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0, marginRight: 6 }}>
+                              <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700 }}>{s.graduacao}</div>
+                              <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{s.nucleo || '—'}</div>
+                            </div>
+                            <div style={{ background: 'rgba(14,165,233,0.15)', border: '1px solid rgba(14,165,233,0.4)', color: '#38bdf8', borderRadius: 7, padding: '4px 10px', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>
+                              Selecionar →
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    );
+                  })()}
                 </div>
-                {eventoParticipantSearch.trim().length >= 2 && (() => {
-                  const q = eventoParticipantSearch.toLowerCase().replace(/\D/g, '') || eventoParticipantSearch.toLowerCase();
-                  const alreadyIds = new Set((eventoForm.participantes || []).map((p: any) => p.student_id));
-                  const results = students.filter(s =>
-                    !alreadyIds.has(s.id) &&
-                    (s.nome_completo.toLowerCase().includes(eventoParticipantSearch.toLowerCase()) ||
-                     (s.cpf || '').replace(/\D/g, '').includes(q))
-                  ).slice(0, 10);
-                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6, padding: '6px 10px' }}>Nenhum aluno encontrado</div>;
-                  return (
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 10, marginTop: 4, overflow: 'hidden', maxHeight: 280, overflowY: 'auto' }}>
-                      {results.map(s => (
-                        <button key={s.id} onClick={() => {
-                          const p = {
-                            student_id: s.id,
-                            nome_completo: s.nome_completo,
-                            nucleo: s.nucleo || '',
-                            graduacao_atual: s.graduacao,
-                            nova_graduacao: s.graduacao,
-                            tipo_graduacao: s.tipo_graduacao || 'adulta',
-                            cpf: s.cpf || null,
-                            inscricao_numero: s.ordem_inscricao ?? null,
-                            data_nascimento: s.data_nascimento || null,
-                          };
-                          setEventoForm((f: any) => ({ ...f, participantes: [...(f.participantes || []), p] }));
-                          setEventoParticipantSearch('');
-                        }} style={{ width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(14,165,233,0.08)')}
-                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome_completo}</div>
-                            {s.cpf && <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>CPF: {s.cpf}</div>}
-                          </div>
-                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                            <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700 }}>{s.graduacao}</div>
-                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{s.nucleo}</div>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  );
-                })()}
-              </div>
+              )}
 
-              {/* Participants table */}
+              {/* Step 2 — Staging card: set graduações then click Inserir */}
+              {eventoParticipantStaging && (
+                <div style={{ marginBottom: 14, background: 'rgba(14,165,233,0.06)', border: '2px solid rgba(14,165,233,0.45)', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#38bdf8', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>
+                    ✏ Definir graduações — depois clique em Inserir
+                  </div>
+                  {/* Student info row */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12, padding: '8px 12px', background: 'var(--bg)', borderRadius: 9, border: '1px solid var(--border)' }}>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{eventoParticipantStaging.nome_completo}</div>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                        {eventoParticipantStaging.nucleo || '—'}
+                        {eventoParticipantStaging.cpf ? ` · ${eventoParticipantStaging.cpf}` : ''}
+                      </div>
+                    </div>
+                  </div>
+                  {/* Graduation selectors */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#f59e0b', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Graduação Atual
+                      </label>
+                      <select
+                        value={eventoParticipantStaging.graduacao_atual}
+                        onChange={e => setEventoParticipantStaging((s: any) => ({ ...s, graduacao_atual: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', background: 'var(--bg)', border: '2px solid rgba(245,158,11,0.5)', borderRadius: 8, color: '#f59e0b', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', boxSizing: 'border-box' }}>
+                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.7rem', fontWeight: 700, color: '#4ade80', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        Nova Graduação
+                      </label>
+                      <select
+                        value={eventoParticipantStaging.nova_graduacao}
+                        onChange={e => setEventoParticipantStaging((s: any) => ({ ...s, nova_graduacao: e.target.value }))}
+                        style={{ width: '100%', padding: '8px 10px', background: 'var(--bg)', border: '2px solid rgba(74,222,128,0.5)', borderRadius: 8, color: '#4ade80', fontSize: '0.82rem', fontWeight: 700, cursor: 'pointer', boxSizing: 'border-box' }}>
+                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                    </div>
+                  </div>
+                  {/* Action buttons */}
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      onClick={() => {
+                        setEventoForm((f: any) => ({ ...f, participantes: [...(f.participantes || []), eventoParticipantStaging] }));
+                        setEventoParticipantStaging(null);
+                        setEventoParticipantSearch('');
+                      }}
+                      style={{ flex: 1, padding: '10px 0', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', color: '#fff', borderRadius: 9, cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem', boxShadow: '0 2px 10px rgba(14,165,233,0.4)' }}>
+                      ✅ Inserir na Lista
+                    </button>
+                    <button
+                      onClick={() => { setEventoParticipantStaging(null); setEventoParticipantSearch(''); }}
+                      style={{ padding: '10px 18px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 9, cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
+                      Cancelar
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Participants list */}
               {(eventoForm.participantes || []).length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                  {/* Header */}
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 36px', gap: 8, padding: '6px 10px', background: 'rgba(14,165,233,0.08)', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aluno</div>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Graduação Atual</div>
-                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nova Graduação</div>
+                <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px 36px', gap: 6, padding: '7px 10px', background: 'linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.05))', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>#</div>
+                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aluno</div>
+                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Grad. Atual</div>
+                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nova Grad.</div>
                     <div />
                   </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 280, overflowY: 'auto' }}>
-                  {eventoForm.participantes.map((p: any, idx: number) => (
-                    <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 36px', alignItems: 'center', gap: 8, padding: '8px 10px', background: idx % 2 === 0 ? 'var(--bg)' : 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome_completo}</div>
-                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{p.nucleo}</div>
+                  <div style={{ maxHeight: 300, overflowY: 'auto' }}>
+                    {eventoForm.participantes.map((p: any, idx: number) => (
+                      <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px 36px', alignItems: 'center', gap: 6, padding: '8px 10px', background: idx % 2 === 0 ? 'var(--bg)' : 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, textAlign: 'center' }}>{idx + 1}</div>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontWeight: 600, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome_completo}</div>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: 1 }}>{p.nucleo || '—'}</div>
+                        </div>
+                        <select
+                          value={p.graduacao_atual}
+                          onChange={e => {
+                            const updated = eventoForm.participantes.map((pp: any, i: number) =>
+                              i === idx ? { ...pp, graduacao_atual: e.target.value } : pp
+                            );
+                            setEventoForm((f: any) => ({ ...f, participantes: updated }));
+                          }}
+                          style={{ padding: '5px 6px', background: 'var(--bg-card)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, color: '#f59e0b', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
+                          {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                        <select
+                          value={p.nova_graduacao}
+                          onChange={e => {
+                            const updated = eventoForm.participantes.map((pp: any, i: number) =>
+                              i === idx ? { ...pp, nova_graduacao: e.target.value } : pp
+                            );
+                            setEventoForm((f: any) => ({ ...f, participantes: updated }));
+                          }}
+                          style={{ padding: '5px 6px', background: 'var(--bg-card)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 7, color: '#4ade80', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
+                          {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                        <button
+                          onClick={() => setEventoForm((f: any) => ({ ...f, participantes: f.participantes.filter((_: any, i: number) => i !== idx) }))}
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+                          ×
+                        </button>
                       </div>
-                      {/* Graduação ATUAL — seletor */}
-                      <select
-                        value={p.graduacao_atual}
-                        onChange={e => {
-                          const updated = eventoForm.participantes.map((pp: any, i: number) =>
-                            i === idx ? { ...pp, graduacao_atual: e.target.value } : pp
-                          );
-                          setEventoForm((f: any) => ({ ...f, participantes: updated }));
-                        }}
-                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
-                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                      {/* Nova GRADUAÇÃO — seletor */}
-                      <select
-                        value={p.nova_graduacao}
-                        onChange={e => {
-                          const updated = eventoForm.participantes.map((pp: any, i: number) =>
-                            i === idx ? { ...pp, nova_graduacao: e.target.value } : pp
-                          );
-                          setEventoForm((f: any) => ({ ...f, participantes: updated }));
-                        }}
-                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
-                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
-                      </select>
-                      <button onClick={() => {
-                        const updated = eventoForm.participantes.filter((_: any, i: number) => i !== idx);
-                        setEventoForm((f: any) => ({ ...f, participantes: updated }));
-                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
-                        ×
-                      </button>
-                    </div>
-                  ))}
+                    ))}
                   </div>
                 </div>
               )}
