@@ -808,40 +808,38 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="form-group full-width">
                 <label>{t('form_sex')}</label>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
-                  {[
-                    { v: 'masculino', label: t('form_sex_male'), icon: '♂' },
-                    { v: 'feminino', label: t('form_sex_female'), icon: '♀' },
-                    { v: 'nao-binario', label: t('form_sex_nonbinary'), icon: '⚧' },
-                    { v: 'outros', label: t('form_sex_other'), icon: '◈' },
-                    { v: 'nao-informado', label: t('form_sex_undisclosed'), icon: '—' },
-                  ].map(opt => {
+                  {([
+                    { v: 'masculino',     label: t('form_sex_male'),        icon: '♂' },
+                    { v: 'feminino',      label: t('form_sex_female'),       icon: '♀' },
+                    { v: 'nao-binario',   label: t('form_sex_nonbinary'),    icon: '⚧' },
+                    { v: 'outros',        label: t('form_sex_other'),        icon: '◈' },
+                    { v: 'nao-informado', label: t('form_sex_undisclosed'),  icon: '—' },
+                  ] as { v: string; label: string; icon: string }[]).map(opt => {
                     const selected = form.sexo === opt.v;
                     return (
                       <button
                         key={opt.v}
                         type="button"
-                        onClick={() => {
-                          const e = { target: { name: 'sexo', value: opt.v } } as React.ChangeEvent<HTMLInputElement>;
-                          handleChange(e);
-                        }}
+                        onClick={() => setForm(prev => ({ ...prev, sexo: opt.v }))}
                         style={{
                           display: 'inline-flex',
                           alignItems: 'center',
                           gap: 6,
-                          padding: '7px 16px',
+                          padding: '7px 18px',
                           borderRadius: 999,
                           border: selected ? '2px solid var(--accent)' : '2px solid var(--border)',
-                          background: selected ? 'var(--accent)' : 'var(--bg-input, var(--bg-card))',
+                          background: selected ? 'var(--accent)' : 'transparent',
                           color: selected ? '#fff' : 'var(--text-secondary)',
-                          fontSize: '0.84rem',
+                          fontSize: '0.85rem',
                           fontWeight: selected ? 700 : 400,
                           cursor: 'pointer',
                           transition: 'all 0.15s',
                           outline: 'none',
                           whiteSpace: 'nowrap',
+                          letterSpacing: '0.01em',
                         }}
                       >
-                        <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{opt.icon}</span>
+                        <span style={{ fontSize: '1rem', lineHeight: 1 }}>{opt.icon}</span>
                         {opt.label}
                       </button>
                     );
