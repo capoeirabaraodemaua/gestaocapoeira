@@ -21,6 +21,7 @@ export interface CarteirinhaData {
   apelido?: string | null;
   nome_social?: string | null;
   sexo?: string | null;
+  student_id?: string | null;
 }
 
 interface Props {
@@ -58,10 +59,13 @@ export default function Carteirinha({ data }: Props) {
 
   // QR code — URL de verificação pública da carteirinha
   const matriculaStr = data.inscricao_numero != null ? `ACCBM-${String(data.inscricao_numero).padStart(6, '0')}` : '';
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
-  const qrValue = matriculaStr
-    ? `${baseUrl}/verificar?mat=${matriculaStr}`
-    : `${baseUrl}/verificar`;
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://accbm.org.br';
+  // Prefer UUID (always works), fallback to matricula number
+  const qrValue = data.student_id
+    ? `${baseUrl}/verificar?id=${data.student_id}`
+    : matriculaStr
+      ? `${baseUrl}/verificar?mat=${matriculaStr}`
+      : `${baseUrl}/verificar`;
 
   const displayName = data.nome_social || data.nome;
 

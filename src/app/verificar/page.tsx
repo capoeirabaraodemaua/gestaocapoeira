@@ -7,13 +7,17 @@ import { Suspense } from 'react';
 function VerificarContent() {
   const params = useSearchParams();
   const mat = params.get('mat');
+  const idParam = params.get('id');
   const [data, setData] = useState<CarteirinhaData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!mat) { setLoading(false); setError('Matrícula não informada.'); return; }
-    fetch(`/api/verificar?mat=${encodeURIComponent(mat)}`)
+    if (!mat && !idParam) { setLoading(false); setError('Credencial não informada.'); return; }
+    const url = idParam
+      ? `/api/verificar?id=${encodeURIComponent(idParam)}`
+      : `/api/verificar?mat=${encodeURIComponent(mat!)}`;
+    fetch(url)
       .then(async (r) => {
         if (!r.ok) throw new Error('Associado não encontrado.');
         return r.json();
@@ -36,11 +40,12 @@ function VerificarContent() {
           apelido: d.apelido,
           nome_social: d.nome_social,
           sexo: d.sexo,
+          student_id: d.student_id ?? d.id ?? null,
         });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
-  }, [mat]);
+  }, [mat, idParam]);
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1e3a8a 0%, #1d4ed8 60%, #2563eb 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '24px 16px' }}>

@@ -468,10 +468,22 @@ export default function Home() {
       const lookupValue = form.cpf || form.identidade;
       const { data: newStudent } = await supabase
         .from('students')
-        .select('id, ordem_inscricao')
+        .select('id')
         .eq(lookupField, lookupValue)
         .limit(1)
         .single();
+
+      // Busca ordem_inscricao separado (pode falhar se coluna não existe)
+      let inscricao_numero: number | null = null;
+      if (newStudent?.id) {
+        const { data: withOrdm } = await supabase.from('students').select('ordem_inscricao').eq('id', newStudent.id).single();
+        inscricao_numero = (withOrdm as any)?.ordem_inscricao ?? null;
+        if (!inscricao_numero) {
+          // Fallback: contar total de alunos (este é o último inserido)
+          const { count } = await supabase.from('students').select('*', { count: 'exact', head: true });
+          inscricao_numero = count ?? null;
+        }
+      }
 
       // Salva dados extras (email, assinaturas pai/mãe) no Storage como JSON backup
       if (newStudent?.id && (form.email || form.assinatura_pai || form.assinatura_mae)) {
@@ -511,8 +523,9 @@ export default function Home() {
         nome_mae: form.nome_mae,
         nome_responsavel: menorDeIdade ? form.nome_responsavel : null,
         cpf_responsavel: menorDeIdade ? form.cpf_responsavel : null,
-        inscricao_numero: (newStudent as any)?.ordem_inscricao ?? null,
+        inscricao_numero,
         telefone: form.telefone || null,
+        student_id: newStudent?.id ?? null,
       });
     } catch (err) {
       console.error(err);
@@ -570,6 +583,12 @@ export default function Home() {
           return;
         }
 
+        // Compute virtual matricula if ordem_inscricao missing
+        let cardInscricaoNum: number | null = (data as any).ordem_inscricao ?? null;
+        if (!cardInscricaoNum) {
+          const { count } = await supabase.from('students').select('*', { count: 'exact', head: true });
+          cardInscricaoNum = count ?? null;
+        }
         setCardData({
           nome: data.nome_completo,
           cpf: data.cpf,
@@ -583,8 +602,9 @@ export default function Home() {
           nome_mae: data.nome_mae || '',
           nome_responsavel: data.nome_responsavel || null,
           cpf_responsavel: data.cpf_responsavel || null,
-          inscricao_numero: (data as any).ordem_inscricao ?? null,
+          inscricao_numero: cardInscricaoNum,
           telefone: data.telefone || null,
+          student_id: (data as any).id ?? null,
         });
       }
     } catch { setCardError('Erro ao buscar dados.'); }

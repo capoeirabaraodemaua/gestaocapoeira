@@ -635,7 +635,13 @@ export default function AdminPage() {
       .order('created_at', { ascending: false });
     if (!error && data) {
       const list = data as Student[];
-      setStudents(list);
+      // Compute virtual ordem_inscricao for students missing it (sort by created_at asc → index+1)
+      const sortedAsc = [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const listWithNum = list.map(s => ({
+        ...s,
+        ordem_inscricao: s.ordem_inscricao ?? (sortedAsc.findIndex(x => x.id === s.id) + 1),
+      }));
+      setStudents(listWithNum);
       // Carrega registros de termos enviados para alunos menores
       const menoresIds = list.filter(s => s.menor_de_idade).map(s => s.id);
       if (menoresIds.length) {
@@ -4156,8 +4162,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   // Attempt insert with all fields; retry without optional new columns if DB error
                                   let { error: insErr } = await supabase.from('students').insert([payload]).select().single();
                                   if (insErr && (insErr.message.includes('column') || insErr.code === '42703')) {
+                                    // Remove ALL optional/new columns that might not exist in DB yet
                                     const corePayload = { ...payload };
-                                    delete corePayload.apelido; delete corePayload.nome_social; delete corePayload.sexo; delete corePayload.ordem_inscricao;
+                                    for (const col of ['apelido','nome_social','sexo','ordem_inscricao','email','assinatura_pai','assinatura_mae','inscricao_numero','dados_pendentes']) {
+                                      delete corePayload[col];
+                                    }
                                     const retry = await supabase.from('students').insert([corePayload]).select().single();
                                     insErr = retry.error;
                                   }
@@ -4165,7 +4174,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
                                   setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
                                   setRascunhosCount(c => Math.max(0, c - 1));
-                                  alert(`✅ ${r.nome_completo} cadastrado com sucesso!`);
+                                  // Reload students to get the new matricula number
+                                  await fetchStudents();
+                                  alert(`✅ ${r.nome_completo} cadastrado com sucesso! O número de matrícula foi atribuído automaticamente.`);
                                 } catch (e: any) { alert('Erro: ' + e.message); }
                                 setRascunhoSaving(false);
                               }}
@@ -4587,6 +4598,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       nome_responsavel: selected.nome_responsavel,
                       cpf_responsavel: selected.cpf_responsavel,
                       inscricao_numero: selected.ordem_inscricao ?? null,
+                      student_id: selected.id,
                     }} />
                   </div>
                   <button
@@ -5604,33 +5616,42 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
               {/* Search to add participant */}
               <div style={{ marginBottom: 10 }}>
-                <input
-                  value={eventoParticipantSearch}
-                  onChange={e => setEventoParticipantSearch(e.target.value)}
-                  placeholder={t('admin_event_search_student')}
-                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}
-                />
+                <div style={{ position: 'relative' }}>
+                  <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '0.9rem', pointerEvents: 'none' }}>🔍</span>
+                  <input
+                    value={eventoParticipantSearch}
+                    onChange={e => setEventoParticipantSearch(e.target.value)}
+                    placeholder="Pesquisar aluno por nome ou CPF..."
+                    style={{ width: '100%', padding: '10px 12px 10px 34px', background: 'var(--bg)', border: '1.5px solid rgba(14,165,233,0.4)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                  />
+                </div>
                 {eventoParticipantSearch.trim().length >= 2 && (() => {
-                  const q = eventoParticipantSearch.toLowerCase();
+                  const q = eventoParticipantSearch.toLowerCase().replace(/\D/g, '') || eventoParticipantSearch.toLowerCase();
                   const alreadyIds = new Set((eventoForm.participantes || []).map((p: any) => p.student_id));
                   const results = students.filter(s =>
                     !alreadyIds.has(s.id) &&
-                    (s.nome_completo.toLowerCase().includes(q) || (s.cpf || '').includes(q))
-                  ).slice(0, 8);
-                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6 }}>{t('admin_event_student_none')}</div>;
+                    (s.nome_completo.toLowerCase().includes(eventoParticipantSearch.toLowerCase()) ||
+                     (s.cpf || '').replace(/\D/g, '').includes(q))
+                  ).slice(0, 10);
+                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6, padding: '6px 10px' }}>Nenhum aluno encontrado</div>;
                   return (
-                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 4, overflow: 'hidden' }}>
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 10, marginTop: 4, overflow: 'hidden', maxHeight: 280, overflowY: 'auto' }}>
                       {results.map(s => (
                         <button key={s.id} onClick={() => {
                           const p = { student_id: s.id, nome_completo: s.nome_completo, nucleo: s.nucleo || '', graduacao_atual: s.graduacao, nova_graduacao: s.graduacao, tipo_graduacao: s.tipo_graduacao || 'adulta' };
                           setEventoForm((f: any) => ({ ...f, participantes: [...(f.participantes || []), p] }));
                           setEventoParticipantSearch('');
                         }} style={{ width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}
-                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(14,165,233,0.08)')}
                           onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                          <span style={{ flex: 1, fontWeight: 600 }}>{s.nome_completo}</span>
-                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{s.nucleo}</span>
-                          <span style={{ color: '#f59e0b', fontSize: '0.72rem' }}>{s.graduacao}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{s.nome_completo}</div>
+                            {s.cpf && <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>CPF: {s.cpf}</div>}
+                          </div>
+                          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                            <div style={{ color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700 }}>{s.graduacao}</div>
+                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{s.nucleo}</div>
+                          </div>
                         </button>
                       ))}
                     </div>
