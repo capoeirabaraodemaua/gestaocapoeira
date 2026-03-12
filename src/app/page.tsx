@@ -120,6 +120,9 @@ export default function Home() {
 
   const [form, setForm] = useState({
     nome_completo: '',
+    apelido: '',
+    nome_social: '',
+    sexo: '',
     cpf: '',
     identidade: '',
     data_nascimento: '',
@@ -358,6 +361,9 @@ export default function Home() {
 
       const payload: Record<string, unknown> = {
         nome_completo: form.nome_completo,
+        apelido: form.apelido || null,
+        nome_social: form.nome_social || null,
+        sexo: form.sexo || null,
         cpf: form.cpf,
         identidade: form.identidade,
         data_nascimento: form.data_nascimento,
@@ -776,6 +782,52 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     ⚠ {duplicateErrors.nome_completo}
                   </span>
                 )}
+              </div>
+
+              {/* Apelido + Nome Social */}
+              <div className="form-group">
+                <label>{t('form_nickname')} <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>(opcional)</span></label>
+                <input
+                  name="apelido"
+                  value={form.apelido}
+                  onChange={handleChange}
+                  placeholder="Como você é conhecido(a)"
+                />
+              </div>
+              <div className="form-group">
+                <label>{t('form_social_name')} <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>(opcional)</span></label>
+                <input
+                  name="nome_social"
+                  value={form.nome_social}
+                  onChange={handleChange}
+                  placeholder="Nome pelo qual prefere ser chamado(a)"
+                />
+              </div>
+
+              {/* Sexo */}
+              <div className="form-group full-width">
+                <label>{t('form_sex')}</label>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', marginTop: 4 }}>
+                  {[
+                    { v: 'masculino', label: t('form_sex_male') },
+                    { v: 'feminino', label: t('form_sex_female') },
+                    { v: 'nao-binario', label: t('form_sex_nonbinary') },
+                    { v: 'outros', label: t('form_sex_other') },
+                    { v: 'nao-informado', label: t('form_sex_undisclosed') },
+                  ].map(opt => (
+                    <label key={opt.v} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.88rem', color: form.sexo === opt.v ? 'var(--accent)' : 'var(--text-primary)', fontWeight: form.sexo === opt.v ? 700 : 400 }}>
+                      <input
+                        type="radio"
+                        name="sexo"
+                        value={opt.v}
+                        checked={form.sexo === opt.v}
+                        onChange={handleChange}
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                      {opt.label}
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="form-group">
                 <label>

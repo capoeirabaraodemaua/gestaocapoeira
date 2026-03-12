@@ -354,7 +354,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -471,6 +471,17 @@ export default function AdminPage() {
   const [uploadingManual, setUploadingManual] = useState(false);
   const [manualMsg, setManualMsg] = useState('');
   const manualFileRef = useRef<HTMLInputElement>(null);
+
+  // ── Eventos state ──────────────────────────────────────────────────────────
+  const [eventos, setEventos] = useState<any[]>([]);
+  const [loadingEventos, setLoadingEventos] = useState(false);
+  const [eventoForm, setEventoForm] = useState<any>({ tipo: 'batizado', nome: '', data: '', hora: '', local: '', nucleo: '', participantes: [] });
+  const [eventoEditId, setEventoEditId] = useState<string | null>(null);
+  const [showEventoForm, setShowEventoForm] = useState(false);
+  const [eventoMsg, setEventoMsg] = useState('');
+  const [eventoSaving, setEventoSaving] = useState(false);
+  const [eventoParticipantSearch, setEventoParticipantSearch] = useState('');
+  const [eventoFinalizing, setEventoFinalizing] = useState<string | null>(null);
 
   // ── Responsáveis por núcleo ───────────────────────────────────────────────
   const [responsaveis, setResponsaveis] = useState<Array<{ nucleo_key: string; nucleo_label: string; nome: string; cpf: string }>>([]);
@@ -998,6 +1009,7 @@ export default function AdminPage() {
             { key: 'rascunhos',       label: `${t('admin_drafts')}${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
             { key: 'dados-faltantes', label: `${t('admin_missing_data')}${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
             { key: 'manual',          label: t('admin_manual'),  activeColor: '#7c3aed', geralOnly: false },
+            { key: 'eventos',         label: t('admin_events'),  activeColor: '#0ea5e9', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -1039,6 +1051,10 @@ export default function AdminPage() {
                 if (tab.key === 'manual') {
                   setLoadingManuais(true); setManualMsg('');
                   fetch('/api/admin/manual').then(r => r.json()).then(d => { setManuais(d.files || []); setLoadingManuais(false); }).catch(() => setLoadingManuais(false));
+                }
+                if (tab.key === 'eventos') {
+                  setLoadingEventos(true); setEventoMsg('');
+                  fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(d); setLoadingEventos(false); }).catch(() => setLoadingEventos(false));
                 }
               }}
               style={{
@@ -4899,6 +4915,331 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             • Somente o Admin Geral pode subir ou excluir manuais.<br/>
             • Apenas arquivos PDF são aceitos.<br/>
             • Os links de download são válidos por 1 hora; recarregue a página para renovar.
+          </div>
+        </div>
+      )}
+
+      {/* ===== ABA EVENTOS ===== */}
+      {activeTab === 'eventos' && (() => {
+        const nucleoFilter = activeNucleo !== 'geral' ? (
+          activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves' :
+          activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga' :
+          activeNucleo === 'saracuruna' ? 'Saracuruna' :
+          activeNucleo === 'vila-urussai' ? 'Vila Urussaí' :
+          activeNucleo === 'jayme-fichman' ? 'Jayme Fichman' : ''
+        ) : '';
+        const eventosFiltrados = nucleoFilter
+          ? eventos.filter(e => !e.nucleo || e.nucleo === nucleoFilter)
+          : eventos;
+
+        return (
+          <div>
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0ea5e9' }}>📅 Eventos — Batizado & Troca de Graduação</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie batizados e trocas de graduação. Ao finalizar, as graduações são atualizadas automaticamente.</div>
+              </div>
+              <button
+                onClick={() => {
+                  setEventoEditId(null);
+                  setEventoForm({ tipo: 'batizado', nome: '', data: '', hora: '09:00', local: '', nucleo: nucleoFilter || '', participantes: [] });
+                  setShowEventoForm(true);
+                  setEventoMsg('');
+                  setEventoParticipantSearch('');
+                }}
+                style={{ background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                {t('admin_new_event')}
+              </button>
+            </div>
+
+            {eventoMsg && (
+              <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: eventoMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${eventoMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, color: eventoMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600, fontSize: '0.85rem' }}>
+                {eventoMsg}
+              </div>
+            )}
+
+            {loadingEventos ? (
+              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>{t('common_loading')}</div>
+            ) : eventosFiltrados.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+                <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📅</div>
+                <div style={{ fontWeight: 700 }}>Nenhum evento cadastrado ainda.</div>
+                <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em "+ Novo Evento" para criar o primeiro.</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {eventosFiltrados.sort((a, b) => (b.data || '').localeCompare(a.data || '')).map((ev: any) => (
+                  <div key={ev.id} style={{ background: 'var(--bg-card)', border: `1px solid ${ev.finalizado ? 'rgba(22,163,74,0.4)' : 'rgba(14,165,233,0.3)'}`, borderRadius: 14, overflow: 'hidden' }}>
+                    {/* Event header */}
+                    <div style={{ background: ev.finalizado ? 'linear-gradient(135deg,#166534,#15803d)' : 'linear-gradient(135deg,#0c4a6e,#0ea5e9)', padding: '12px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>
+                          {ev.tipo === 'batizado' ? '🥋' : '🎓'} {ev.nome || (ev.tipo === 'batizado' ? 'Batizado' : 'Troca de Graduação')}
+                        </div>
+                        <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
+                          {ev.tipo === 'batizado' ? t('admin_event_batizado') : t('admin_event_troca')}
+                          {ev.data && ` · ${new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR')}`}
+                          {ev.hora && ` às ${ev.hora}`}
+                          {ev.local && ` · ${ev.local}`}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span style={{ background: ev.finalizado ? 'rgba(22,163,74,0.35)' : 'rgba(245,158,11,0.3)', color: ev.finalizado ? '#4ade80' : '#fcd34d', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                          {ev.finalizado ? t('admin_event_finalized') : t('admin_event_pending')}
+                        </span>
+                        <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                          {(ev.participantes || []).length} alunos
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Participants list */}
+                    {(ev.participantes || []).length > 0 && (
+                      <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Participantes</div>
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
+                          {ev.participantes.map((p: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 8px', background: 'var(--bg)', borderRadius: 8, fontSize: '0.8rem' }}>
+                              <span style={{ flex: 1, fontWeight: 600, color: 'var(--text-primary)' }}>{p.nome_completo}</span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{p.nucleo}</span>
+                              <span style={{ color: '#f59e0b', fontSize: '0.72rem' }}>{p.graduacao_atual}</span>
+                              {p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual && (
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                                  <span style={{ color: 'var(--text-secondary)', fontSize: '0.65rem' }}>→</span>
+                                  <span style={{ color: '#4ade80', fontSize: '0.72rem', fontWeight: 700 }}>{p.nova_graduacao}</span>
+                                </span>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Actions */}
+                    {!ev.finalizado && (
+                      <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        <button onClick={() => {
+                          setEventoEditId(ev.id);
+                          setEventoForm({ ...ev });
+                          setShowEventoForm(true);
+                          setEventoMsg('');
+                          setEventoParticipantSearch('');
+                        }} style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)', color: '#38bdf8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          ✏ {t('admin_edit')}
+                        </button>
+                        <button
+                          disabled={eventoFinalizing === ev.id}
+                          onClick={async () => {
+                            if (!confirm(`Finalizar evento "${ev.nome}"? Isso atualizará as graduações de ${(ev.participantes || []).length} alunos.`)) return;
+                            setEventoFinalizing(ev.id); setEventoMsg('');
+                            const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _finalize: ev.id }) });
+                            const json = await res.json();
+                            setEventoFinalizing(null);
+                            if (json.ok) {
+                              setEventoMsg(`✓ Evento finalizado! ${json.applied || 0} graduações atualizadas.`);
+                              const d = await fetch('/api/eventos').then(r => r.json());
+                              setEventos(d);
+                            } else {
+                              setEventoMsg('Erro: ' + (json.errors || []).join(', '));
+                            }
+                          }}
+                          style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: eventoFinalizing === ev.id ? 0.6 : 1 }}>
+                          {eventoFinalizing === ev.id ? '⏳ Finalizando...' : t('admin_event_finalize')}
+                        </button>
+                        <button onClick={async () => {
+                          if (!confirm('Excluir este evento?')) return;
+                          const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: ev.id }) });
+                          if (res.ok) {
+                            setEventos(prev => prev.filter((x: any) => x.id !== ev.id));
+                            setEventoMsg('Evento excluído.');
+                          }
+                        }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          🗑
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })()}
+
+      {/* ── Modal Criar/Editar Evento ── */}
+      {showEventoForm && (
+        <div className="modal-overlay" onClick={() => setShowEventoForm(false)} style={{ zIndex: 1300 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 720, width: '97vw', maxHeight: '95vh', overflowY: 'auto' }}>
+            {/* Header */}
+            <div style={{ background: 'linear-gradient(135deg,#0c4a6e,#0ea5e9)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>
+                  {eventoEditId ? '✏ Editar Evento' : '📅 Novo Evento'}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
+                  {eventoForm.tipo === 'batizado' ? t('admin_event_batizado') : t('admin_event_troca')}
+                </div>
+              </div>
+              <button onClick={() => setShowEventoForm(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Tipo selector */}
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipo de Evento</label>
+              <div style={{ display: 'flex', gap: 10 }}>
+                {[{ v: 'batizado', label: `🥋 ${t('admin_event_batizado')}` }, { v: 'troca', label: `🎓 ${t('admin_event_troca')}` }].map(opt => (
+                  <button key={opt.v} onClick={() => setEventoForm((f: any) => ({ ...f, tipo: opt.v }))}
+                    style={{ flex: 1, padding: '9px 14px', border: `2px solid ${eventoForm.tipo === opt.v ? '#0ea5e9' : 'var(--border)'}`, borderRadius: 10, background: eventoForm.tipo === opt.v ? 'rgba(14,165,233,0.12)' : 'var(--bg)', color: eventoForm.tipo === opt.v ? '#38bdf8' : 'var(--text-secondary)', fontWeight: eventoForm.tipo === opt.v ? 700 : 500, cursor: 'pointer', fontSize: '0.85rem', transition: 'all 0.15s' }}>
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Fields */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', marginBottom: 16 }}>
+              <div style={{ gridColumn: '1/-1' }}>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>Nome do Evento *</label>
+                <input value={eventoForm.nome || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nome: e.target.value }))}
+                  placeholder={eventoForm.tipo === 'batizado' ? 'Ex: Batizado 2025 — ACCBM' : 'Ex: Troca de Cordas — Março 2025'}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.9rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📅 Data *</label>
+                <input type="date" value={eventoForm.data || ''} onChange={e => setEventoForm((f: any) => ({ ...f, data: e.target.value }))}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>🕐 Hora *</label>
+                <input type="time" value={eventoForm.hora || ''} onChange={e => setEventoForm((f: any) => ({ ...f, hora: e.target.value }))}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📍 Local</label>
+                <input value={eventoForm.local || ''} onChange={e => setEventoForm((f: any) => ({ ...f, local: e.target.value }))}
+                  placeholder="Ex: Poliesportivo Edson Alves"
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>Núcleo (opcional)</label>
+                <select value={eventoForm.nucleo || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nucleo: e.target.value }))}
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}>
+                  <option value="">Todos os núcleos</option>
+                  <option>Poliesportivo Edson Alves</option>
+                  <option>Poliesportivo do Ipiranga</option>
+                  <option>Saracuruna</option>
+                  <option>Vila Urussaí</option>
+                  <option>Jayme Fichman</option>
+                </select>
+              </div>
+            </div>
+
+            {/* Participants section */}
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)' }}>
+                👥 Participantes ({(eventoForm.participantes || []).length})
+              </div>
+
+              {/* Search to add participant */}
+              <div style={{ marginBottom: 10 }}>
+                <input
+                  value={eventoParticipantSearch}
+                  onChange={e => setEventoParticipantSearch(e.target.value)}
+                  placeholder="Buscar aluno por nome ou CPF para adicionar..."
+                  style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}
+                />
+                {eventoParticipantSearch.trim().length >= 2 && (() => {
+                  const q = eventoParticipantSearch.toLowerCase();
+                  const alreadyIds = new Set((eventoForm.participantes || []).map((p: any) => p.student_id));
+                  const results = students.filter(s =>
+                    !alreadyIds.has(s.id) &&
+                    (s.nome_completo.toLowerCase().includes(q) || (s.cpf || '').includes(q))
+                  ).slice(0, 8);
+                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6 }}>Nenhum aluno encontrado.</div>;
+                  return (
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 4, overflow: 'hidden' }}>
+                      {results.map(s => (
+                        <button key={s.id} onClick={() => {
+                          const p = { student_id: s.id, nome_completo: s.nome_completo, nucleo: s.nucleo || '', graduacao_atual: s.graduacao, nova_graduacao: s.graduacao, tipo_graduacao: s.tipo_graduacao || 'adulta' };
+                          setEventoForm((f: any) => ({ ...f, participantes: [...(f.participantes || []), p] }));
+                          setEventoParticipantSearch('');
+                        }} style={{ width: '100%', padding: '9px 14px', background: 'transparent', border: 'none', borderBottom: '1px solid var(--border)', color: 'var(--text-primary)', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', gap: 10, fontSize: '0.82rem' }}
+                          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.05)')}
+                          onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
+                          <span style={{ flex: 1, fontWeight: 600 }}>{s.nome_completo}</span>
+                          <span style={{ color: 'var(--text-secondary)', fontSize: '0.72rem' }}>{s.nucleo}</span>
+                          <span style={{ color: '#f59e0b', fontSize: '0.72rem' }}>{s.graduacao}</span>
+                        </button>
+                      ))}
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Participants table */}
+              {(eventoForm.participantes || []).length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                  {eventoForm.participantes.map((p: any, idx: number) => (
+                    <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px auto', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9 }}>
+                      <div style={{ minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome_completo}</div>
+                        <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{p.nucleo}</div>
+                      </div>
+                      <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>
+                        {p.graduacao_atual}
+                      </div>
+                      <select
+                        value={p.nova_graduacao}
+                        onChange={e => {
+                          const updated = eventoForm.participantes.map((pp: any, i: number) =>
+                            i === idx ? { ...pp, nova_graduacao: e.target.value } : pp
+                          );
+                          setEventoForm((f: any) => ({ ...f, participantes: updated }));
+                        }}
+                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
+                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <button onClick={() => {
+                        const updated = eventoForm.participantes.filter((_: any, i: number) => i !== idx);
+                        setEventoForm((f: any) => ({ ...f, participantes: updated }));
+                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, padding: '5px 9px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                        ×
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Save button */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10 }}>
+              <button onClick={() => setShowEventoForm(false)} style={{ padding: '9px 18px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>
+                {t('admin_cancel')}
+              </button>
+              <button
+                disabled={eventoSaving}
+                onClick={async () => {
+                  if (!eventoForm.nome?.trim()) { setEventoMsg('Informe o nome do evento.'); return; }
+                  if (!eventoForm.data) { setEventoMsg('Informe a data do evento.'); return; }
+                  setEventoSaving(true); setEventoMsg('');
+                  const payload = eventoEditId ? { ...eventoForm, id: eventoEditId } : eventoForm;
+                  const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                  const json = await res.json();
+                  setEventoSaving(false);
+                  if (json.ok) {
+                    setShowEventoForm(false);
+                    setEventoMsg('✓ Evento salvo com sucesso!');
+                    const d = await fetch('/api/eventos').then(r => r.json());
+                    setEventos(d);
+                  } else {
+                    setEventoMsg('Erro ao salvar evento.');
+                  }
+                }}
+                style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, opacity: eventoSaving ? 0.7 : 1 }}>
+                {eventoSaving ? t('admin_saving') : t('admin_save')}
+              </button>
+            </div>
           </div>
         </div>
       )}

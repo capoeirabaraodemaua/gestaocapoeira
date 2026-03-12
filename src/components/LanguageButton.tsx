@@ -2,16 +2,9 @@
 
 import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { Language, LANGUAGE_LABELS, LANGUAGE_NAMES } from '@/lib/i18n/translations';
+import { Language, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '@/lib/i18n/translations';
 
-const LANGUAGES: Language[] = ['pt', 'en', 'es', 'fr'];
-
-const FLAGS: Record<Language, string> = {
-  pt: '🇧🇷',
-  en: '🇺🇸',
-  es: '🇪🇸',
-  fr: '🇫🇷',
-};
+const LANGUAGES: Language[] = ['pt', 'pt-PT', 'en', 'es', 'fr', 'it', 'sv', 'af', 'nl', 'ja', 'ko'];
 
 export default function LanguageButton() {
   const { lang, setLang, t } = useLanguage();
@@ -31,7 +24,9 @@ export default function LanguageButton() {
             borderRadius: '12px',
             overflow: 'hidden',
             boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
-            minWidth: '160px',
+            minWidth: '190px',
+            maxHeight: '400px',
+            overflowY: 'auto',
           }}
         >
           {LANGUAGES.map((l) => (
@@ -40,7 +35,7 @@ export default function LanguageButton() {
               onClick={() => { setLang(l); setOpen(false); }}
               style={{
                 width: '100%',
-                padding: '10px 16px',
+                padding: '9px 16px',
                 background: lang === l ? 'rgba(180,83,9,0.25)' : 'transparent',
                 border: 'none',
                 borderBottom: '1px solid rgba(255,255,255,0.06)',
@@ -57,7 +52,7 @@ export default function LanguageButton() {
               onMouseEnter={e => { if (lang !== l) (e.currentTarget as HTMLButtonElement).style.background = 'rgba(255,255,255,0.06)'; }}
               onMouseLeave={e => { if (lang !== l) (e.currentTarget as HTMLButtonElement).style.background = 'transparent'; }}
             >
-              <span style={{ fontSize: '18px', lineHeight: 1 }}>{FLAGS[l]}</span>
+              <span style={{ fontSize: '18px', lineHeight: 1 }}>{LANGUAGE_FLAGS[l]}</span>
               <span>{LANGUAGE_NAMES[l]}</span>
               {lang === l && <span style={{ marginLeft: 'auto', fontSize: '10px' }}>✓</span>}
             </button>
@@ -87,7 +82,7 @@ export default function LanguageButton() {
           transition: 'border-color 0.2s',
         }}
       >
-        <span style={{ fontSize: '16px', lineHeight: 1 }}>{FLAGS[lang]}</span>
+        <span style={{ fontSize: '16px', lineHeight: 1 }}>{LANGUAGE_FLAGS[lang]}</span>
         <span>{t('language_button')}</span>
         <svg
           width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"

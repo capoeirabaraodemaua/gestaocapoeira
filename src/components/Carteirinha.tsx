@@ -1,5 +1,7 @@
 'use client';
 import { getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
+import { useEffect, useRef } from 'react';
+import QRCode from 'qrcode';
 
 export interface CarteirinhaData {
   nome: string;
@@ -16,16 +18,33 @@ export interface CarteirinhaData {
   cpf_responsavel: string | null;
   inscricao_numero?: number | null;
   telefone?: string | null;
+  apelido?: string | null;
+  nome_social?: string | null;
+  sexo?: string | null;
 }
 
 interface Props {
   data: CarteirinhaData;
 }
 
+function QRCodeCanvas({ value, size }: { value: string; size: number }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+  useEffect(() => {
+    if (canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, value, {
+        width: size,
+        margin: 1,
+        color: { dark: '#1e3a8a', light: '#ffffff' },
+      }).catch(() => {});
+    }
+  }, [value, size]);
+  return <canvas ref={canvasRef} width={size} height={size} style={{ display: 'block' }} />;
+}
+
 export default function Carteirinha({ data }: Props) {
   const colors = getCordaColors(data.graduacao);
   const nomenclatura = nomenclaturaGraduacao[data.graduacao] || '';
-  const isMaua = data.nucleo === 'Mauá';
+  const isMaua = data.nucleo === 'Mauá' || data.nucleo === 'Poliesportivo Edson Alves' || data.nucleo === 'Poliesportivo do Ipiranga';
   const sig = isMaua
     ? { imgSrc: '/assinatura-frazao.png', nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM' }
     : { imgSrc: '/assinatura-naldo.png', nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM' };
@@ -37,12 +56,30 @@ export default function Carteirinha({ data }: Props) {
   const emissaoStr = hoje.toLocaleDateString('pt-BR');
   const validadeStr = validade.toLocaleDateString('pt-BR');
 
+  // QR code data — individual student info
+  const matriculaStr = data.inscricao_numero != null ? `ACCBM-${String(data.inscricao_numero).padStart(6, '0')}` : '';
+  const qrValue = [
+    `ACCBM — Associação Cultural de Capoeira Barão de Mauá`,
+    `Nome: ${data.nome_social || data.nome}`,
+    data.apelido ? `Apelido: ${data.apelido}` : '',
+    `CPF: ${data.cpf}`,
+    data.identidade ? `RG: ${data.identidade}` : '',
+    `Núcleo: ${data.nucleo}`,
+    `Graduação: ${data.graduacao}`,
+    `Tipo: ${data.tipo_graduacao === 'infantil' ? 'Infantil' : 'Adulta'}`,
+    matriculaStr ? `Matrícula: ${matriculaStr}` : '',
+    `Validade: ${validadeStr}`,
+    `Emissão: ${emissaoStr}`,
+  ].filter(Boolean).join('\n');
+
+  const displayName = data.nome_social || data.nome;
+
   return (
     <div
       id="carteirinha-print"
       style={{
-        width: 500,
-        minHeight: 290,
+        width: 540,
+        minHeight: 300,
         background: '#ffffff',
         borderRadius: 12,
         overflow: 'hidden',
@@ -94,7 +131,7 @@ export default function Carteirinha({ data }: Props) {
           <div style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', textAlign: 'right', background: 'rgba(0,0,0,0.25)', borderRadius: 6, padding: '3px 8px' }}>
             <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.42rem', textTransform: 'uppercase', letterSpacing: '0.08em' }}>Matrícula</div>
             <div style={{ color: '#fbbf24', fontSize: '0.68rem', fontWeight: 900, letterSpacing: '0.04em' }}>
-              ACCBM-{String(data.inscricao_numero).padStart(6, '0')}
+              {matriculaStr}
             </div>
           </div>
         )}
@@ -138,12 +175,18 @@ export default function Carteirinha({ data }: Props) {
           </div>
         </div>
 
-        {/* RIGHT — info */}
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 12px 6px', overflow: 'hidden' }}>
+        {/* CENTER — info */}
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '8px 10px 6px', overflow: 'hidden' }}>
 
           {/* Name + nomenclatura */}
           <div style={{ marginBottom: 6 }}>
-            <div style={{ color: '#1e3a8a', fontWeight: 800, fontSize: '0.88rem', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{data.nome}</div>
+            <div style={{ color: '#1e3a8a', fontWeight: 800, fontSize: '0.85rem', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{displayName}</div>
+            {data.nome_social && data.nome_social !== data.nome && (
+              <div style={{ color: '#64748b', fontSize: '0.55rem', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>({data.nome})</div>
+            )}
+            {data.apelido && (
+              <div style={{ color: '#7c3aed', fontSize: '0.58rem', fontStyle: 'italic', marginTop: 1 }}>"{data.apelido}"</div>
+            )}
             {nomenclatura && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3 }}>
                 <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#16a34a', flexShrink: 0 }} />
@@ -155,10 +198,10 @@ export default function Carteirinha({ data }: Props) {
           </div>
 
           {/* Data grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 12px', flex: 1 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '3px 10px', flex: 1 }}>
             {[
               ['CPF', data.cpf],
-              ['RG', data.identidade],
+              data.identidade ? ['RG', data.identidade] : null,
               ['Corda', data.graduacao],
               ['Tipo', data.tipo_graduacao === 'infantil' ? 'Infantil' : 'Adulta'],
               data.nome_pai ? ['Pai', data.nome_pai] : null,
@@ -169,21 +212,45 @@ export default function Carteirinha({ data }: Props) {
               return val ? (
                 <div key={label} style={{ display: 'flex', gap: 4, alignItems: 'baseline', minWidth: 0 }}>
                   <span style={{ color: '#3b82f6', fontSize: '0.48rem', fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.07em', flexShrink: 0 }}>{label}</span>
-                  <span style={{ color: '#1e3a8a', fontSize: '0.62rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
+                  <span style={{ color: '#1e3a8a', fontSize: '0.6rem', fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{val}</span>
                 </div>
               ) : null;
             })}
           </div>
 
           {/* Signature — centered below data */}
-          <div style={{ borderTop: '1.5px solid #bfdbfe', paddingTop: 6, marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+          <div style={{ borderTop: '1.5px solid #bfdbfe', paddingTop: 5, marginTop: 4, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
             <img
               src={sig.imgSrc}
               alt="Assinatura"
-              style={{ height: 32, maxWidth: 120, objectFit: 'contain' }}
+              style={{ height: 28, maxWidth: 110, objectFit: 'contain' }}
             />
-            <div style={{ fontSize: '0.5rem', fontWeight: 700, color: '#1e3a8a', lineHeight: 1.3, textAlign: 'center' }}>{sig.nome}</div>
-            <div style={{ fontSize: '0.45rem', color: '#3b82f6', textAlign: 'center' }}>{sig.cargo}</div>
+            <div style={{ fontSize: '0.48rem', fontWeight: 700, color: '#1e3a8a', lineHeight: 1.3, textAlign: 'center' }}>{sig.nome}</div>
+            <div style={{ fontSize: '0.42rem', color: '#3b82f6', textAlign: 'center' }}>{sig.cargo}</div>
+          </div>
+        </div>
+
+        {/* RIGHT — QR Code */}
+        <div style={{
+          width: 78,
+          background: 'linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%)',
+          borderLeft: '2px solid #bfdbfe',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          padding: '6px 4px',
+          gap: 4,
+          flexShrink: 0,
+        }}>
+          <div style={{ background: '#fff', borderRadius: 6, padding: 3, border: '1px solid #bfdbfe', overflow: 'hidden' }}>
+            <QRCodeCanvas value={qrValue} size={62} />
+          </div>
+          <div style={{ color: '#1e40af', fontSize: '0.38rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', fontWeight: 700 }}>
+            QR Code
+          </div>
+          <div style={{ color: '#64748b', fontSize: '0.36rem', textAlign: 'center', lineHeight: 1.3 }}>
+            Dados do<br/>associado
           </div>
         </div>
       </div>
