@@ -32,8 +32,8 @@ export default function Home() {
   const [graduacao, setGraduacao] = useState('');
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; nome_completo?: string; email?: string }>({});
-  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; nome_completo?: boolean; email?: boolean }>({});
+  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; email?: string }>({});
+  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; email?: boolean }>({});
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminCpf, setAdminCpf] = useState('');
   const [adminErro, setAdminErro] = useState('');
@@ -252,7 +252,7 @@ export default function Home() {
     setForm(prev => ({ ...prev, cpf_responsavel: formatCPF(e.target.value) }));
   };
 
-  const checkDuplicate = async (field: 'cpf' | 'identidade' | 'nome_completo' | 'email', value: string) => {
+  const checkDuplicate = async (field: 'cpf' | 'identidade' | 'email', value: string) => {
     const cleanValue = value.trim();
     if (!cleanValue) return;
     setCheckingDuplicate(prev => ({ ...prev, [field]: true }));
@@ -371,32 +371,32 @@ export default function Home() {
     e.preventDefault();
     // Honeypot bot detection — bots fill hidden fields, humans don't
     if (honeypot) return;
-    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email) {
+    if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.email) {
       alert('Corrija os campos duplicados antes de enviar.');
       return;
     }
     setLoading(true);
 
     try {
-      // Verificação server-side de duplicatas antes de inserir
-      // Build OR clause — always check nome + identidade; include cpf only if provided
-      const orParts = [`nome_completo.eq.${form.nome_completo}`];
+      // Verificação server-side de duplicatas — apenas CPF e identidade (nomes iguais são comuns)
+      const orParts: string[] = [];
       if (form.identidade) orParts.push(`identidade.eq.${form.identidade}`);
       if (form.cpf) orParts.push(`cpf.eq.${form.cpf}`);
-      const { data: existing } = await supabase
-        .from('students')
-        .select('id, nome_completo, cpf, identidade')
-        .or(orParts.join(','))
-        .limit(1);
-      if (existing && existing.length > 0) {
-        const dup = existing[0];
-        const motivo =
-          form.cpf && dup.cpf === form.cpf ? `CPF ${form.cpf}` :
-          form.identidade && dup.identidade === form.identidade ? `Numeração Única/RG "${form.identidade}"` :
-          `nome "${form.nome_completo}"`;
-        alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
-        setLoading(false);
-        return;
+      if (orParts.length > 0) {
+        const { data: existing } = await supabase
+          .from('students')
+          .select('id, nome_completo, cpf, identidade')
+          .or(orParts.join(','))
+          .limit(1);
+        if (existing && existing.length > 0) {
+          const dup = existing[0];
+          const motivo =
+            form.cpf && dup.cpf === form.cpf ? `CPF ${form.cpf}` :
+            `Numeração Única/RG "${form.identidade}"`;
+          alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
+          setLoading(false);
+          return;
+        }
       }
 
       let foto_url = null;
@@ -993,18 +993,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input
                   name="nome_completo"
                   value={form.nome_completo}
-                  onChange={(e) => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, nome_completo: undefined })); }}
-                  onBlur={() => checkDuplicate('nome_completo', form.nome_completo)}
+                  onChange={handleChange}
                   required
                   placeholder="Digite seu nome completo"
-                  style={duplicateErrors.nome_completo ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
-                {checkingDuplicate.nome_completo && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
-                {duplicateErrors.nome_completo && (
-                  <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
-                    ⚠ {duplicateErrors.nome_completo}
-                  </span>
-                )}
               </div>
 
               {/* Apelido + Nome Social */}
@@ -1345,7 +1337,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
 
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
-            <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
+            <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.email)}>
               {loading ? t('form_saving') : t('form_submit')}
             </button>
             <button type="button" onClick={handleSaveDraft} disabled={draftLoading}
