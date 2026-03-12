@@ -1020,8 +1020,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <h2 className="form-section-title">{t('form_address')}</h2>
             <div className="form-grid">
               <div className="form-group">
-                <label>CEP <span className="required">*</span></label>
-                <input name="cep" value={form.cep} onChange={handleCEPChange} required placeholder="00000-000" />
+                <label>{t('form_cep')}</label>
+                <input name="cep" value={form.cep} onChange={handleCEPChange} placeholder="00000-000" />
               </div>
               <div className="form-group">
                 <label>Estado <span className="required">*</span></label>

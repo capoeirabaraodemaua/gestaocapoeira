@@ -5179,16 +5179,34 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
               {/* Participants table */}
               {(eventoForm.participantes || []).length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 1, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
+                  {/* Header */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 36px', gap: 8, padding: '6px 10px', background: 'rgba(14,165,233,0.08)', borderBottom: '1px solid var(--border)' }}>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aluno</div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Graduação Atual</div>
+                    <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nova Graduação</div>
+                    <div />
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', maxHeight: 280, overflowY: 'auto' }}>
                   {eventoForm.participantes.map((p: any, idx: number) => (
-                    <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '1fr 110px 110px auto', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9 }}>
+                    <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '1fr 130px 130px 36px', alignItems: 'center', gap: 8, padding: '8px 10px', background: idx % 2 === 0 ? 'var(--bg)' : 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
                       <div style={{ minWidth: 0 }}>
                         <div style={{ fontWeight: 600, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome_completo}</div>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{p.nucleo}</div>
                       </div>
-                      <div style={{ fontSize: '0.72rem', color: '#f59e0b', fontWeight: 600 }}>
-                        {p.graduacao_atual}
-                      </div>
+                      {/* Graduação ATUAL — seletor */}
+                      <select
+                        value={p.graduacao_atual}
+                        onChange={e => {
+                          const updated = eventoForm.participantes.map((pp: any, i: number) =>
+                            i === idx ? { ...pp, graduacao_atual: e.target.value } : pp
+                          );
+                          setEventoForm((f: any) => ({ ...f, participantes: updated }));
+                        }}
+                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(245,158,11,0.4)', borderRadius: 7, color: '#f59e0b', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
+                        {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      {/* Nova GRADUAÇÃO — seletor */}
                       <select
                         value={p.nova_graduacao}
                         onChange={e => {
@@ -5197,17 +5215,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           );
                           setEventoForm((f: any) => ({ ...f, participantes: updated }));
                         }}
-                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer' }}>
+                        style={{ padding: '5px 7px', background: 'var(--bg-card)', border: '1px solid rgba(74,222,128,0.4)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, cursor: 'pointer', width: '100%' }}>
                         {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
                       <button onClick={() => {
                         const updated = eventoForm.participantes.filter((_: any, i: number) => i !== idx);
                         setEventoForm((f: any) => ({ ...f, participantes: updated }));
-                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, padding: '5px 9px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>
+                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, padding: '5px 8px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, flexShrink: 0 }}>
                         ×
                       </button>
                     </div>
                   ))}
+                  </div>
                 </div>
               )}
             </div>

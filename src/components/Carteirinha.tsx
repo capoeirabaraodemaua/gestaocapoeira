@@ -56,21 +56,18 @@ export default function Carteirinha({ data }: Props) {
   const emissaoStr = hoje.toLocaleDateString('pt-BR');
   const validadeStr = validade.toLocaleDateString('pt-BR');
 
-  // QR code data — individual student info
+  // QR code data — compact format for easy scanning
   const matriculaStr = data.inscricao_numero != null ? `ACCBM-${String(data.inscricao_numero).padStart(6, '0')}` : '';
-  const qrValue = [
-    `ACCBM — Associação Cultural de Capoeira Barão de Mauá`,
-    `Nome: ${data.nome_social || data.nome}`,
-    data.apelido ? `Apelido: ${data.apelido}` : '',
-    `CPF: ${data.cpf}`,
-    data.identidade ? `RG: ${data.identidade}` : '',
-    `Núcleo: ${data.nucleo}`,
-    `Graduação: ${data.graduacao}`,
-    `Tipo: ${data.tipo_graduacao === 'infantil' ? 'Infantil' : 'Adulta'}`,
-    matriculaStr ? `Matrícula: ${matriculaStr}` : '',
-    `Validade: ${validadeStr}`,
-    `Emissão: ${emissaoStr}`,
-  ].filter(Boolean).join('\n');
+  const qrLines = [
+    'ACCBM',
+    `Nome:${data.nome_social || data.nome}`,
+    data.cpf ? `CPF:${data.cpf}` : '',
+    `Nucleo:${data.nucleo}`,
+    `Corda:${data.graduacao}`,
+    matriculaStr ? `Mat:${matriculaStr}` : '',
+    `Val:${validadeStr}`,
+  ].filter(Boolean);
+  const qrValue = qrLines.join('|');
 
   const displayName = data.nome_social || data.nome;
 
@@ -232,22 +229,22 @@ export default function Carteirinha({ data }: Props) {
 
         {/* RIGHT — QR Code */}
         <div style={{
-          width: 60,
+          width: 50,
           background: 'linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%)',
           borderLeft: '1.5px solid #bfdbfe',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
-          padding: '6px 4px',
-          gap: 3,
+          padding: '4px 3px',
+          gap: 2,
           flexShrink: 0,
         }}>
-          <div style={{ background: '#fff', borderRadius: 5, padding: 2, border: '1px solid #bfdbfe', overflow: 'hidden' }}>
-            <QRCodeCanvas value={qrValue} size={46} />
+          <div style={{ background: '#fff', borderRadius: 4, padding: 2, border: '1px solid #bfdbfe', overflow: 'hidden', boxShadow: '0 1px 4px rgba(29,78,216,0.1)' }}>
+            <QRCodeCanvas value={qrValue} size={38} />
           </div>
-          <div style={{ color: '#1e40af', fontSize: '0.34rem', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', fontWeight: 700 }}>
-            QR
+          <div style={{ color: '#93c5fd', fontSize: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', fontWeight: 700 }}>
+            scan
           </div>
         </div>
       </div>
