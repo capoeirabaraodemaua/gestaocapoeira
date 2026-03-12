@@ -550,7 +550,7 @@ export default function AdminPage() {
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
   const [dbMaintLoading, setDbMaintLoading] = useState(false);
   const [dbMaintMsg, setDbMaintMsg] = useState('');
-  const [dbSqlModal, setDbSqlModal] = useState<{ sql: string; missing: string[] } | null>(null);
+  const [dbSqlModal, setDbSqlModal] = useState<{ sql: string; errors: any[] } | null>(null);
 
   // ── Eventos state ──────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<any[]>([]);
@@ -1339,21 +1339,38 @@ export default function AdminPage() {
             <button
               disabled={dbMaintLoading}
               onClick={async () => {
-                setDbMaintLoading(true); setDbMaintMsg(''); setDbSqlModal(null);
+                setDbMaintLoading(true);
+                setDbMaintMsg('⏳ Ativando colunas automaticamente...');
+                setDbSqlModal(null);
                 const r = await fetch('/api/add-columns').catch(() => null);
                 const j = r ? await r.json().catch(() => ({})) : {};
                 if (j.success) {
-                  setDbMaintMsg('✓ Todas as colunas estão ativas!');
-                } else if (j.sql) {
-                  setDbSqlModal({ sql: j.sql, missing: j.missing || [] });
-                  setDbMaintMsg('');
+                  const created = j.created?.length ? ` (${j.created.join(', ')} criadas)` : '';
+                  setDbMaintMsg(`✓ ${j.message || 'Colunas ativas!'}${created}`);
+                  // Auto-run gender detection after activation
+                  if (j.created?.includes('sexo')) {
+                    setTimeout(async () => {
+                      setDbMaintMsg('⏳ Detectando sexo automaticamente...');
+                      const r2 = await fetch('/api/auto-sexo').catch(() => null);
+                      const j2 = r2 ? await r2.json().catch(() => ({})) : {};
+                      if (j2.updated !== undefined) {
+                        setDbMaintMsg(`✓ Colunas ativadas! ${j2.updated} aluno(s) com sexo detectado automaticamente.`);
+                        fetchStudents();
+                      } else {
+                        setDbMaintMsg('✓ Colunas ativadas! (detecção de sexo falhou, tente manualmente)');
+                      }
+                    }, 500);
+                  }
+                } else if (j.fallbackSQL) {
+                  setDbSqlModal({ sql: j.fallbackSQL, errors: j.errors || [] });
+                  setDbMaintMsg('⚠️ Não foi possível executar automaticamente. Copie o SQL abaixo.');
                 } else {
                   setDbMaintMsg('❌ ' + (j.message || j.error || 'Erro desconhecido.'));
                 }
                 setDbMaintLoading(false);
               }}
               style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
-              {dbMaintLoading ? '⏳ Verificando...' : '⚡ Ativar Novas Colunas'}
+              {dbMaintLoading ? '⏳ Ativando...' : '⚡ Ativar Novas Colunas'}
             </button>
             <button
               disabled={dbMaintLoading}
@@ -1387,16 +1404,16 @@ export default function AdminPage() {
             <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '96vw' }}>
               <div style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
                 <div>
-                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>⚡ Ativar Colunas no Banco de Dados</div>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>⚡ Ativar Colunas — Execução Manual</div>
                   <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
-                    {dbSqlModal.missing.length} coluna(s) pendente(s): <strong>{dbSqlModal.missing.join(', ')}</strong>
+                    A execução automática não está disponível neste ambiente.
                   </div>
                 </div>
                 <button onClick={() => setDbSqlModal(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
               </div>
 
               <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, fontSize: '0.8rem', color: '#fcd34d', lineHeight: 1.6 }}>
-                <strong>Como ativar:</strong> Copie o SQL abaixo → acesse o <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong> → cole e clique em <strong>Run</strong>.
+                <strong>Como ativar:</strong> Copie o SQL abaixo → acesse o <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong> → cole e clique em <strong>Run</strong>. Depois clique em <strong>⚡ Ativar Novas Colunas</strong> novamente.
               </div>
 
               <div style={{ position: 'relative', marginBottom: 16 }}>
