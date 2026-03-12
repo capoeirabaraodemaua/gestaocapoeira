@@ -36,14 +36,27 @@ export default function Home() {
   const [adminCpf, setAdminCpf] = useState('');
   const [adminErro, setAdminErro] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
-  const ADMIN_CPF = '09856925703';
+  const [adminScreen, setAdminScreen] = useState<'login' | 'manage'>('login');
+  const [adminConfigCpf, setAdminConfigCpf] = useState('09856925703'); // loaded from API
+  const [manageTab, setManageTab] = useState<'edit' | 'include' | 'remove'>('edit');
+  const [newAdminCpf, setNewAdminCpf] = useState('');
+  const [manageSaving, setManageSaving] = useState(false);
+  const [manageMsg, setManageMsg] = useState('');
+
+  // Load admin config CPF on mount
+  useEffect(() => {
+    fetch('/api/admin/config').then(r => r.json()).then(d => {
+      if (d.super_admin_cpf) setAdminConfigCpf(d.super_admin_cpf);
+    }).catch(() => {});
+  }, []);
+
   async function handleAdminAccess() {
     const digits = adminCpf.replace(/\D/g, '');
     if (!digits) { setAdminErro('Digite seu CPF.'); return; }
     setAdminLoading(true);
     setAdminErro('');
     // Super admin CPF
-    if (digits === ADMIN_CPF) {
+    if (digits === adminConfigCpf) {
       sessionStorage.setItem('admin_auth', 'geral');
       window.location.href = '/admin';
       return;
@@ -65,6 +78,42 @@ export default function Home() {
     setAdminErro('CPF não autorizado.');
     setAdminCpf('');
     setAdminLoading(false);
+  }
+
+  async function handleManageAdmin() {
+    const digits = newAdminCpf.replace(/\D/g, '');
+    if (digits.length < 11) { setManageMsg('CPF inválido (mínimo 11 dígitos).'); return; }
+    setManageSaving(true);
+    setManageMsg('');
+    try {
+      if (manageTab === 'remove') {
+        if (digits === adminConfigCpf) {
+          setManageMsg('Não é possível excluir o administrador atual sem substituí-lo.');
+          setManageSaving(false);
+          return;
+        }
+        setManageMsg('CPF não corresponde ao administrador geral.');
+        setManageSaving(false);
+        return;
+      }
+      // edit or include: set new CPF
+      const res = await fetch('/api/admin/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ super_admin_cpf: digits }),
+      });
+      const json = await res.json();
+      if (res.ok && json.ok) {
+        setAdminConfigCpf(digits);
+        setManageMsg('✓ Administrador atualizado com sucesso!');
+        setNewAdminCpf('');
+      } else {
+        setManageMsg('Erro: ' + (json.error || 'falha ao salvar'));
+      }
+    } catch (e: any) {
+      setManageMsg('Erro: ' + e.message);
+    }
+    setManageSaving(false);
   }
 
   const [form, setForm] = useState({
@@ -1252,7 +1301,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* Botão fixo — Painel Administrativo */}
       <button
-        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); }}
+        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); setAdminScreen('login'); setManageMsg(''); setNewAdminCpf(''); }}
         style={{
           position: 'fixed', bottom: '20px', left: '20px',
           background: 'linear-gradient(135deg,#b45309,#d97706)',
@@ -1268,34 +1317,175 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {adminModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.72)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
           onClick={e => { if (e.target === e.currentTarget) { setAdminModalOpen(false); setAdminLoading(false); } }}>
-          <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '32px 28px', width: '340px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
-            <div style={{ textAlign: 'center', fontSize: '26px' }}>🔐</div>
-            <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '15px', fontWeight: 700 }}>Painel Administrativo</h2>
-            <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0, fontSize: '12px' }}>Digite seu CPF para acessar o painel</p>
-            <p style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', margin: 0, fontSize: '11px' }}>Responsável por núcleo ou administrador geral</p>
-            <input
-              type="text"
-              inputMode="numeric"
-              value={adminCpf}
-              onChange={e => { setAdminCpf(e.target.value); setAdminErro(''); }}
-              onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-              placeholder="000.000.000-00"
-              autoFocus
-              maxLength={14}
-              disabled={adminLoading}
-              style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '11px 14px', color: '#fff', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '0.08em' }}
-            />
-            {adminErro && <p style={{ color: '#f87171', textAlign: 'center', margin: 0, fontSize: '12px', fontWeight: 600 }}>⚠ {adminErro}</p>}
-            <div style={{ display: 'flex', gap: '10px', marginTop: 4 }}>
-              <button onClick={() => { setAdminModalOpen(false); setAdminLoading(false); }}
-                style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.18)', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>
-                Cancelar
-              </button>
-              <button onClick={handleAdminAccess} disabled={adminLoading}
-                style={{ flex: 2, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: adminLoading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: adminLoading ? 0.7 : 1 }}>
-                {adminLoading ? '⏳ Verificando...' : 'Entrar'}
-              </button>
-            </div>
+          <div style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.15)', borderRadius: '14px', padding: '32px 28px', width: '360px', display: 'flex', flexDirection: 'column', gap: '14px' }}>
+
+            {adminScreen === 'login' ? (
+              <>
+                <div style={{ textAlign: 'center', fontSize: '26px' }}>🔐</div>
+                <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '15px', fontWeight: 700 }}>Painel Administrativo</h2>
+                <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0, fontSize: '12px' }}>Digite seu CPF para acessar o painel</p>
+                <p style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', margin: 0, fontSize: '11px' }}>Responsável por núcleo ou administrador geral</p>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={adminCpf}
+                  onChange={e => { setAdminCpf(e.target.value); setAdminErro(''); }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
+                  placeholder="000.000.000-00"
+                  autoFocus
+                  maxLength={14}
+                  disabled={adminLoading}
+                  style={{ background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: '8px', padding: '11px 14px', color: '#fff', fontSize: '1rem', outline: 'none', width: '100%', boxSizing: 'border-box', textAlign: 'center', letterSpacing: '0.08em' }}
+                />
+                {adminErro && <p style={{ color: '#f87171', textAlign: 'center', margin: 0, fontSize: '12px', fontWeight: 600 }}>⚠ {adminErro}</p>}
+                <div style={{ display: 'flex', gap: '10px', marginTop: 4 }}>
+                  <button onClick={() => { setAdminModalOpen(false); setAdminLoading(false); }}
+                    style={{ flex: 1, padding: '10px', borderRadius: '8px', background: 'transparent', border: '1px solid rgba(255,255,255,0.18)', color: '#aaa', cursor: 'pointer', fontSize: '13px' }}>
+                    Cancelar
+                  </button>
+                  <button onClick={handleAdminAccess} disabled={adminLoading}
+                    style={{ flex: 2, padding: '10px', borderRadius: '8px', background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: adminLoading ? 'not-allowed' : 'pointer', fontSize: '13px', fontWeight: 700, opacity: adminLoading ? 0.7 : 1 }}>
+                    {adminLoading ? '⏳ Verificando...' : 'Entrar'}
+                  </button>
+                </div>
+                {/* Botão para gerenciar admin — exige verificação de CPF primeiro */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: 10, textAlign: 'center' }}>
+                  <button
+                    onClick={async () => {
+                      const digits = adminCpf.replace(/\D/g, '');
+                      if (digits !== adminConfigCpf) {
+                        setAdminErro('Digite o CPF do administrador geral para gerenciar.');
+                        return;
+                      }
+                      setAdminScreen('manage');
+                      setManageTab('edit');
+                      setManageMsg('');
+                      setNewAdminCpf('');
+                    }}
+                    style={{ background: 'rgba(180,83,9,0.12)', border: '1px solid rgba(251,191,36,0.25)', color: '#fbbf24', borderRadius: '7px', padding: '7px 16px', fontSize: '11px', cursor: 'pointer', fontWeight: 600 }}
+                  >
+                    ⚙ Gerenciar Administrador Geral
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 2 }}>
+                  <button onClick={() => setAdminScreen('login')}
+                    style={{ background: 'transparent', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '18px', padding: '0 4px', lineHeight: 1 }}>←</button>
+                  <h2 style={{ color: '#fff', margin: 0, fontSize: '14px', fontWeight: 700, flex: 1 }}>⚙ Gerenciar Administrador Geral</h2>
+                </div>
+
+                {/* Tabs */}
+                <div style={{ display: 'flex', gap: 6, background: 'rgba(255,255,255,0.05)', borderRadius: 8, padding: 4 }}>
+                  {([
+                    { key: 'edit', label: '✏ Editar CPF' },
+                    { key: 'include', label: '➕ Incluir' },
+                    { key: 'remove', label: '🗑 Excluir' },
+                  ] as const).map(t => (
+                    <button key={t.key} onClick={() => { setManageTab(t.key); setManageMsg(''); setNewAdminCpf(''); }}
+                      style={{ flex: 1, padding: '6px 4px', borderRadius: 6, border: 'none', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                        background: manageTab === t.key ? 'linear-gradient(135deg,#b45309,#d97706)' : 'transparent',
+                        color: manageTab === t.key ? '#fff' : 'rgba(255,255,255,0.4)' }}>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Current admin info */}
+                <div style={{ background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.08)' }}>
+                  <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.4)', marginBottom: 3 }}>Administrador Geral Atual</div>
+                  <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '13px', letterSpacing: '0.06em' }}>
+                    {adminConfigCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                  </div>
+                </div>
+
+                {manageTab === 'edit' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: '11px' }}>Altere o CPF do administrador geral. O CPF atual deixará de ter acesso ao painel único.</p>
+                    <input
+                      type="text" inputMode="numeric" value={newAdminCpf}
+                      onChange={e => setNewAdminCpf(e.target.value.replace(/\D/g,''))}
+                      placeholder="Novo CPF (somente números)"
+                      maxLength={11}
+                      style={{ padding: '9px 12px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', outline: 'none', width: '100%', boxSizing: 'border-box', letterSpacing: '0.06em' }}
+                    />
+                    <button onClick={handleManageAdmin} disabled={manageSaving}
+                      style={{ padding: '9px', borderRadius: 8, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: manageSaving ? 'wait' : 'pointer' }}>
+                      {manageSaving ? '⏳ Salvando...' : '💾 Salvar Novo CPF'}
+                    </button>
+                  </div>
+                )}
+
+                {manageTab === 'include' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: '11px' }}>Defina um novo CPF como administrador geral do sistema.</p>
+                    <input
+                      type="text" inputMode="numeric" value={newAdminCpf}
+                      onChange={e => setNewAdminCpf(e.target.value.replace(/\D/g,''))}
+                      placeholder="Novo CPF do administrador"
+                      maxLength={11}
+                      style={{ padding: '9px 12px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.15)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', outline: 'none', width: '100%', boxSizing: 'border-box', letterSpacing: '0.06em' }}
+                    />
+                    <button onClick={handleManageAdmin} disabled={manageSaving}
+                      style={{ padding: '9px', borderRadius: 8, background: 'linear-gradient(135deg,#059669,#047857)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: manageSaving ? 'wait' : 'pointer' }}>
+                      {manageSaving ? '⏳ Salvando...' : '✅ Incluir Administrador'}
+                    </button>
+                  </div>
+                )}
+
+                {manageTab === 'remove' && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: '11px' }}>Para excluir o administrador geral, informe o CPF de substituição. O sistema sempre deve ter um administrador ativo.</p>
+                    <input
+                      type="text" inputMode="numeric" value={newAdminCpf}
+                      onChange={e => setNewAdminCpf(e.target.value.replace(/\D/g,''))}
+                      placeholder="CPF do novo administrador substituto"
+                      maxLength={11}
+                      style={{ padding: '9px 12px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(245,101,101,0.4)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', outline: 'none', width: '100%', boxSizing: 'border-box', letterSpacing: '0.06em' }}
+                    />
+                    <button
+                      onClick={async () => {
+                        const digits = newAdminCpf.replace(/\D/g, '');
+                        if (digits.length < 11) { setManageMsg('CPF inválido.'); return; }
+                        setManageSaving(true);
+                        setManageMsg('');
+                        try {
+                          const res = await fetch('/api/admin/config', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ super_admin_cpf: digits }),
+                          });
+                          const json = await res.json();
+                          if (res.ok && json.ok) {
+                            setAdminConfigCpf(digits);
+                            setManageMsg('✓ Administrador substituído e CPF anterior removido.');
+                            setNewAdminCpf('');
+                          } else {
+                            setManageMsg('Erro: ' + (json.error || 'falha ao salvar'));
+                          }
+                        } catch (e: any) { setManageMsg('Erro: ' + e.message); }
+                        setManageSaving(false);
+                      }}
+                      disabled={manageSaving}
+                      style={{ padding: '9px', borderRadius: 8, background: 'rgba(220,38,38,0.8)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', cursor: manageSaving ? 'wait' : 'pointer' }}>
+                      {manageSaving ? '⏳ Processando...' : '🗑 Excluir e Substituir Administrador'}
+                    </button>
+                  </div>
+                )}
+
+                {manageMsg && (
+                  <div style={{ padding: '8px 12px', borderRadius: 8, background: manageMsg.startsWith('✓') ? 'rgba(22,163,74,0.15)' : 'rgba(220,38,38,0.15)', border: `1px solid ${manageMsg.startsWith('✓') ? 'rgba(22,163,74,0.4)' : 'rgba(220,38,38,0.4)'}`, color: manageMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontSize: '12px', fontWeight: 600, textAlign: 'center' }}>
+                    {manageMsg}
+                  </div>
+                )}
+
+                <button onClick={() => { setAdminScreen('login'); setManageMsg(''); }}
+                  style={{ padding: '9px', borderRadius: 8, background: 'transparent', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.5)', fontSize: '12px', cursor: 'pointer' }}>
+                  ← Voltar ao Login
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}

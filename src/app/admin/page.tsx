@@ -1089,7 +1089,7 @@ export default function AdminPage() {
                     const age = now.getFullYear() - parseInt(s.data_nascimento.split('-')[0]);
                     const phone = (s.telefone || '').replace(/\D/g, '');
                     const br = phone.startsWith('55') ? phone : `55${phone}`;
-                    const msg = encodeURIComponent(`🎂 *Feliz Aniversário, ${s.nome_completo}!*\n\nA família da Capoeira Barão de Mauá deseja a você um dia muito especial! Axé! 🤸`);
+                    const msg = encodeURIComponent(`🎉✨ *Feliz Aniversário, ${s.nome_completo}!* ✨🎉\n\nEm nome de toda a família da *Associação Cultural de Capoeira Barão de Mauá*, celebramos com muita alegria mais um ano da sua jornada!\n\nQue este dia seja repleto de saúde, paz e muita ginga de vida. Que a energia do axé ilumine cada passo seu, dentro e fora do treino.\n\n🥋 Continue evoluindo — a capoeira transforma!\n\n_Com carinho e respeito,_\n_Mestre e família ACCBM_ 🌟\n\n*Axé!* 🤸‍♂️`);
                     return (
                       <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 10, padding: '8px 12px' }}>
                         {s.foto_url
