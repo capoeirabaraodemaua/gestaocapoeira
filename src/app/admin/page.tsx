@@ -550,9 +550,6 @@ export default function AdminPage() {
   ];
 
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
-  const [dbMaintLoading, setDbMaintLoading] = useState(false);
-  const [dbMaintMsg, setDbMaintMsg] = useState('');
-  const [dbSqlModal, setDbSqlModal] = useState<{ sql: string; errors: any[] } | null>(null);
 
   // ── Eventos state ──────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<any[]>([]);
@@ -780,37 +777,54 @@ export default function AdminPage() {
         }
       }
 
-      const { error } = await supabase
+      // Core fields — always present in DB
+      const corePayload: Record<string, any> = {
+        nome_completo: editForm.nome_completo,
+        cpf: editForm.cpf,
+        identidade: editForm.identidade,
+        data_nascimento: editForm.data_nascimento,
+        telefone: editForm.telefone,
+        cep: editForm.cep,
+        endereco: editForm.endereco,
+        numero: editForm.numero,
+        complemento: editForm.complemento,
+        bairro: editForm.bairro,
+        cidade: editForm.cidade,
+        estado: editForm.estado,
+        graduacao: editForm.graduacao,
+        tipo_graduacao: editForm.tipo_graduacao,
+        nucleo: editForm.nucleo,
+        nome_pai: editForm.nome_pai,
+        nome_mae: editForm.nome_mae,
+        nome_responsavel: editForm.nome_responsavel,
+        cpf_responsavel: editForm.cpf_responsavel,
+        foto_url,
+      };
+
+      // Try to save with optional new columns first
+      const fullPayload = {
+        ...corePayload,
+        apelido: (editForm as any).apelido || null,
+        nome_social: (editForm as any).nome_social || null,
+        sexo: (editForm as any).sexo || null,
+      };
+
+      let { error } = await supabase
         .from('students')
-        .update({
-          nome_completo: editForm.nome_completo,
-          apelido: (editForm as any).apelido || null,
-          nome_social: (editForm as any).nome_social || null,
-          sexo: (editForm as any).sexo || null,
-          cpf: editForm.cpf,
-          identidade: editForm.identidade,
-          data_nascimento: editForm.data_nascimento,
-          telefone: editForm.telefone,
-          cep: editForm.cep,
-          endereco: editForm.endereco,
-          numero: editForm.numero,
-          complemento: editForm.complemento,
-          bairro: editForm.bairro,
-          cidade: editForm.cidade,
-          estado: editForm.estado,
-          graduacao: editForm.graduacao,
-          tipo_graduacao: editForm.tipo_graduacao,
-          nucleo: editForm.nucleo,
-          nome_pai: editForm.nome_pai,
-          nome_mae: editForm.nome_mae,
-          nome_responsavel: editForm.nome_responsavel,
-          cpf_responsavel: editForm.cpf_responsavel,
-          foto_url,
-        })
+        .update(fullPayload)
         .eq('id', editing.id);
 
+      // If error is about missing columns, retry with core fields only
+      if (error && (error.message.includes('column') || error.code === '42703')) {
+        const retry = await supabase
+          .from('students')
+          .update(corePayload)
+          .eq('id', editing.id);
+        error = retry.error;
+      }
+
       if (error) {
-        alert('Erro ao salvar. Tente novamente.');
+        alert('Erro ao salvar: ' + error.message);
       } else {
         logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
@@ -1386,122 +1400,6 @@ export default function AdminPage() {
         </div>
 
         {/* ── Botões de manutenção — somente Admin Geral ── */}
-        {activeNucleo === 'geral' && (
-          <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>🔧 Manutenção do Banco:</span>
-            <button
-              disabled={dbMaintLoading}
-              onClick={async () => {
-                setDbMaintLoading(true);
-                setDbMaintMsg('⏳ Ativando colunas automaticamente...');
-                setDbSqlModal(null);
-                const r = await fetch('/api/add-columns').catch(() => null);
-                const j = r ? await r.json().catch(() => ({})) : {};
-                if (j.success) {
-                  const created = j.created?.length ? ` (${j.created.join(', ')} criadas)` : '';
-                  setDbMaintMsg(`✓ ${j.message || 'Colunas ativas!'}${created}`);
-                  // Auto-run gender detection after activation
-                  if (j.created?.includes('sexo')) {
-                    setTimeout(async () => {
-                      setDbMaintMsg('⏳ Detectando sexo automaticamente...');
-                      const r2 = await fetch('/api/auto-sexo').catch(() => null);
-                      const j2 = r2 ? await r2.json().catch(() => ({})) : {};
-                      if (j2.updated !== undefined) {
-                        setDbMaintMsg(`✓ Colunas ativadas! ${j2.updated} aluno(s) com sexo detectado automaticamente.`);
-                        fetchStudents();
-                      } else {
-                        setDbMaintMsg('✓ Colunas ativadas! (detecção de sexo falhou, tente manualmente)');
-                      }
-                    }, 500);
-                  }
-                } else if (j.fallbackSQL) {
-                  setDbSqlModal({ sql: j.fallbackSQL, errors: j.errors || [] });
-                  setDbMaintMsg('⚠️ Não foi possível executar automaticamente. Copie o SQL abaixo.');
-                } else {
-                  setDbMaintMsg('❌ ' + (j.message || j.error || 'Erro desconhecido.'));
-                }
-                setDbMaintLoading(false);
-              }}
-              style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
-              {dbMaintLoading ? '⏳ Ativando...' : '⚡ Ativar Novas Colunas'}
-            </button>
-            <button
-              disabled={dbMaintLoading}
-              onClick={async () => {
-                if (!confirm('Isso irá detectar e preencher automaticamente o campo de sexo para alunos sem essa informação, baseado no nome. Continuar?')) return;
-                setDbMaintLoading(true); setDbMaintMsg('');
-                const r = await fetch('/api/auto-sexo').catch(() => null);
-                const j = r ? await r.json().catch(() => ({})) : {};
-                if (j.updated !== undefined) {
-                  setDbMaintMsg(`✓ ${j.updated} aluno(s) atualizados, ${j.skipped || 0} não identificados.`);
-                  fetchStudents();
-                } else {
-                  setDbMaintMsg('❌ ' + (j.error || 'Erro ao detectar sexo.'));
-                }
-                setDbMaintLoading(false);
-              }}
-              style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
-              {dbMaintLoading ? '⏳ Aguarde...' : '🔍 Detectar Sexo Automático'}
-            </button>
-            {dbMaintMsg && (
-              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: dbMaintMsg.startsWith('✓') ? '#4ade80' : '#f87171' }}>
-                {dbMaintMsg}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* ── Modal SQL — Ativar colunas manualmente ── */}
-        {dbSqlModal && (
-          <div className="modal-overlay" onClick={() => setDbSqlModal(null)} style={{ zIndex: 1500 }}>
-            <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '96vw' }}>
-              <div style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
-                <div>
-                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>⚡ Ativar Colunas — Execução Manual</div>
-                  <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
-                    A execução automática não está disponível neste ambiente.
-                  </div>
-                </div>
-                <button onClick={() => setDbSqlModal(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
-              </div>
-
-              <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, fontSize: '0.8rem', color: '#fcd34d', lineHeight: 1.6 }}>
-                <strong>Como ativar:</strong> Copie o SQL abaixo → acesse o <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong> → cole e clique em <strong>Run</strong>. Depois clique em <strong>⚡ Ativar Novas Colunas</strong> novamente.
-              </div>
-
-              <div style={{ position: 'relative', marginBottom: 16 }}>
-                <textarea
-                  readOnly
-                  value={dbSqlModal.sql}
-                  style={{ width: '100%', minHeight: 200, padding: '12px 14px', background: '#0f172a', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 10, color: '#a5f3fc', fontFamily: 'monospace', fontSize: '0.8rem', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box' }}
-                  onClick={e => (e.target as HTMLTextAreaElement).select()}
-                />
-                <button
-                  onClick={() => {
-                    navigator.clipboard.writeText(dbSqlModal.sql).then(() => {
-                      setDbMaintMsg('✓ SQL copiado para a área de transferência!');
-                      setDbSqlModal(null);
-                    });
-                  }}
-                  style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(99,102,241,0.85)', border: 'none', color: '#fff', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
-                  📋 Copiar SQL
-                </button>
-              </div>
-
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-                <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('.supabase.co', '') || ''}`}
-                  target="_blank" rel="noopener noreferrer"
-                  style={{ color: '#818cf8', fontSize: '0.78rem', textDecoration: 'none' }}>
-                  🔗 Abrir Supabase Dashboard →
-                </a>
-                <button onClick={() => setDbSqlModal(null)}
-                  style={{ padding: '8px 18px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 9, cursor: 'pointer', fontWeight: 600 }}>
-                  Fechar
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
@@ -4249,10 +4147,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 if (!r.nome_completo || !r.cpf) { alert('Preencha pelo menos Nome e CPF antes de finalizar.'); return; }
                                 setRascunhoSaving(true);
                                 try {
-                                  const payload = { ...r };
+                                  const payload: Record<string, any> = { ...r };
                                   delete payload.id; delete payload.updated_at; delete payload.dados_pendentes;
                                   payload.created_at = new Date().toISOString();
-                                  const { error: insErr } = await supabase.from('students').insert([payload]).select().single();
+                                  // Attempt insert with all fields; retry without optional new columns if DB error
+                                  let { error: insErr } = await supabase.from('students').insert([payload]).select().single();
+                                  if (insErr && (insErr.message.includes('column') || insErr.code === '42703')) {
+                                    const corePayload = { ...payload };
+                                    delete corePayload.apelido; delete corePayload.nome_social; delete corePayload.sexo; delete corePayload.ordem_inscricao;
+                                    const retry = await supabase.from('students').insert([corePayload]).select().single();
+                                    insErr = retry.error;
+                                  }
                                   if (insErr) { alert('Erro ao inserir aluno: ' + insErr.message); setRascunhoSaving(false); return; }
                                   await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
                                   setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
