@@ -5017,8 +5017,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     )}
 
                     {/* Actions */}
-                    {!ev.finalizado && (
-                      <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                    <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
+                      {!ev.finalizado && (<>
                         <button onClick={() => {
                           setEventoEditId(ev.id);
                           setEventoForm({ ...ev });
@@ -5047,18 +5047,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: eventoFinalizing === ev.id ? 0.6 : 1 }}>
                           {eventoFinalizing === ev.id ? '⏳ Finalizando...' : t('admin_event_finalize')}
                         </button>
-                        <button onClick={async () => {
-                          if (!confirm('Excluir este evento?')) return;
-                          const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: ev.id }) });
-                          if (res.ok) {
-                            setEventos(prev => prev.filter((x: any) => x.id !== ev.id));
-                            setEventoMsg(t('admin_event_deleted'));
-                          }
-                        }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          🗑
-                        </button>
-                      </div>
-                    )}
+                      </>)}
+
+                      {/* Excluir — disponível sempre, inclusive após finalizar */}
+                      <button onClick={async () => {
+                        if (!confirm(`Excluir o evento "${ev.nome}"? Esta ação não pode ser desfeita.`)) return;
+                        const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: ev.id }) });
+                        if (res.ok) {
+                          setEventos(prev => prev.filter((x: any) => x.id !== ev.id));
+                          setEventoMsg(t('admin_event_deleted'));
+                        }
+                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, marginLeft: ev.finalizado ? 0 : 'auto' }}>
+                        🗑 {t('admin_delete')}
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
