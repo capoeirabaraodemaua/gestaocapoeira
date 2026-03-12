@@ -618,6 +618,8 @@ export default function AdminPage() {
     fetch('/api/rascunhos').then(r => r.json()).then((d: any[]) => { setRascunhosCount(d.length); setRascunhos(d); }).catch(() => {});
     // Ensure DB columns (ordem_inscricao, apelido, etc.) are active — silent background call
     fetch('/api/add-columns').catch(() => {});
+    // Pre-load eventos on mount so they're ready immediately
+    fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); }).catch(() => {});
   }, []);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -1219,18 +1221,21 @@ export default function AdminPage() {
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
-                  // First run auto-finalize check, then reload eventos list
+                  // Load events directly — always reliable
+                  fetch('/api/eventos')
+                    .then(r => r.json())
+                    .then(d => { setEventos(Array.isArray(d) ? d : []); setLoadingEventos(false); })
+                    .catch(() => setLoadingEventos(false));
+                  // Auto-finalize runs in background, doesn't block display
                   fetch('/api/eventos/auto-finalize')
                     .then(r => r.json())
                     .then(af => {
                       if (af.applied > 0) {
                         setEventoMsg(`✓ ${af.applied} evento(s) finalizado(s) automaticamente: ${af.events.join(', ')}`);
+                        fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); });
                       }
                     })
-                    .catch(() => {})
-                    .finally(() => {
-                      fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(d); setLoadingEventos(false); }).catch(() => setLoadingEventos(false));
-                    });
+                    .catch(() => {});
                 }
               }}
               style={{
@@ -5337,10 +5342,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           activeNucleo === 'vila-urussai' ? 'Vila Urussaí' :
           activeNucleo === 'jayme-fichman' ? 'Jayme Fichman' : ''
         ) : '';
-        // Responsável de núcleo vê APENAS eventos do seu núcleo (ou sem núcleo definido que foi criado por ele)
-        // Admin geral vê TODOS
+        // Admin geral vê TODOS os eventos
+        // Responsável de núcleo vê APENAS eventos do seu núcleo OU sem núcleo definido
         const eventosFiltrados = nucleoFilter
-          ? eventos.filter(e => e.nucleo === nucleoFilter)
+          ? eventos.filter(e => !e.nucleo || e.nucleo === nucleoFilter)
           : eventos;
 
         return (
@@ -6009,11 +6014,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   setEventoSaving(false);
                   if (json.ok) {
                     setShowEventoForm(false);
-                    setEventoMsg(t('admin_event_saved'));
-                    const d = await fetch('/api/eventos').then(r => r.json());
-                    setEventos(d);
+                    setEventoParticipantStaging(null);
+                    setEventoParticipantSearch('');
+                    // Reload events and ensure we're on the eventos tab
+                    try {
+                      const d = await fetch('/api/eventos').then(r => r.json());
+                      setEventos(Array.isArray(d) ? d : []);
+                    } catch {}
+                    setEventoMsg('✓ Evento salvo com sucesso!');
+                    setActiveTab('eventos');
                   } else {
-                    setEventoMsg('Erro ao salvar evento.');
+                    setEventoMsg('Erro ao salvar evento. Tente novamente.');
                   }
                 }}
                 style={{ padding: '9px 22px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, opacity: eventoSaving ? 0.7 : 1 }}>
