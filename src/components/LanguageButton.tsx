@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Language, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '@/lib/i18n/translations';
 
-const LANGUAGES: Language[] = ['pt', 'pt-PT', 'en', 'es', 'fr', 'it', 'sv', 'af', 'nl', 'ja', 'ko', 'zh'];
+const LANGUAGES: Language[] = ['pt', 'pt-PT', 'en', 'es', 'fr', 'it', 'sv', 'af', 'nl', 'ja', 'ko', 'zh', 'de'];
 
 export default function LanguageButton() {
   const { lang, setLang, t } = useLanguage();
