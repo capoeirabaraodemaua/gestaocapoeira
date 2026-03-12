@@ -561,6 +561,7 @@ export default function AdminPage() {
   const [eventoMsg, setEventoMsg] = useState('');
   const [eventoSaving, setEventoSaving] = useState(false);
   const [eventoParticipantSearch, setEventoParticipantSearch] = useState('');
+  const [eventoParticipantStaging, setEventoParticipantStaging] = useState<any | null>(null);
   const [eventoFinalizing, setEventoFinalizing] = useState<string | null>(null);
 
   // ── Responsáveis por núcleo ───────────────────────────────────────────────
