@@ -471,6 +471,26 @@ export default function AdminPage() {
   const [uploadingManual, setUploadingManual] = useState(false);
   const [manualMsg, setManualMsg] = useState('');
   const manualFileRef = useRef<HTMLInputElement>(null);
+  // Translations state
+  const [translatingManual, setTranslatingManual] = useState<string | null>(null);
+  const [manualTranslations, setManualTranslations] = useState<Record<string, Record<string, string>>>({});
+  const [manualViewLang, setManualViewLang] = useState<Record<string, string>>({});
+  const [manualViewOpen, setManualViewOpen] = useState<string | null>(null);
+  const MANUAL_LANGS: { code: string; flag: string; label: string }[] = [
+    { code: 'pt',    flag: '🇧🇷', label: 'Português (BR)' },
+    { code: 'pt-PT', flag: '🇵🇹', label: 'Português (PT)' },
+    { code: 'en',    flag: '🇺🇸', label: 'English' },
+    { code: 'es',    flag: '🇪🇸', label: 'Español' },
+    { code: 'fr',    flag: '🇫🇷', label: 'Français' },
+    { code: 'it',    flag: '🇮🇹', label: 'Italiano' },
+    { code: 'sv',    flag: '🇸🇪', label: 'Svenska' },
+    { code: 'af',    flag: '🇿🇦', label: 'Afrikaans' },
+    { code: 'nl',    flag: '🇳🇱', label: 'Nederlands' },
+    { code: 'ja',    flag: '🇯🇵', label: '日本語' },
+    { code: 'ko',    flag: '🇰🇷', label: '한국어' },
+    { code: 'zh',    flag: '🇨🇳', label: '中文' },
+    { code: 'de',    flag: '🇩🇪', label: 'Deutsch' },
+  ];
 
   // ── Eventos state ──────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<any[]>([]);
@@ -1050,7 +1070,21 @@ export default function AdminPage() {
                 }
                 if (tab.key === 'manual') {
                   setLoadingManuais(true); setManualMsg('');
-                  fetch('/api/admin/manual').then(r => r.json()).then(d => { setManuais(d.files || []); setLoadingManuais(false); }).catch(() => setLoadingManuais(false));
+                  fetch('/api/admin/manual').then(r => r.json()).then(async d => {
+                    const files = d.files || [];
+                    setManuais(files);
+                    // Load translations for each manual
+                    await Promise.all(files.map(async (f: { name: string }) => {
+                      try {
+                        const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(f.name)}`).then(r => r.json());
+                        if (tr.translations) {
+                          setManualTranslations(prev => ({ ...prev, [f.name]: tr.translations }));
+                          setManualViewLang(prev => ({ ...prev, [f.name]: prev[f.name] || 'pt' }));
+                        }
+                      } catch {}
+                    }));
+                    setLoadingManuais(false);
+                  }).catch(() => setLoadingManuais(false));
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
@@ -4844,10 +4878,32 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 const res = await fetch('/api/admin/manual', { method: 'POST', body: fd });
                 const json = await res.json();
                 if (res.ok && json.ok) {
-                  setManualMsg('✓ Manual enviado com sucesso!');
+                  setManualMsg('✓ Manual enviado! Traduzindo para todos os idiomas...');
                   // Reload list
                   const d = await fetch('/api/admin/manual').then(r => r.json());
                   setManuais(d.files || []);
+                  // Trigger translation in background
+                  const newName = json.name;
+                  setTranslatingManual(newName);
+                  fetch('/api/admin/manual/translate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: newName }),
+                  }).then(async r => {
+                    const tj = await r.json();
+                    if (tj.ok) {
+                      setManualMsg('✓ Manual enviado e traduzido para todos os idiomas!');
+                      // Load translations
+                      const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(newName)}`).then(r => r.json());
+                      if (tr.translations) {
+                        setManualTranslations(prev => ({ ...prev, [newName]: tr.translations }));
+                        setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
+                      }
+                    } else {
+                      setManualMsg('✓ Manual enviado. Tradução parcial: ' + (tj.error || ''));
+                    }
+                    setTranslatingManual(null);
+                  }).catch(() => { setTranslatingManual(null); });
                 } else {
                   setManualMsg('Erro: ' + (json.error || 'falha'));
                 }
@@ -4872,40 +4928,120 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {activeNucleo === 'geral' && <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em "Subir PDF" para adicionar o primeiro manual.</div>}
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-              {manuais.map(m => (
-                <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
-                  <div style={{ fontSize: '1.8rem', flexShrink: 0 }}>📄</div>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {m.name.replace(/^\d+_/, '')}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              {manuais.map(m => {
+                const hasTranslations = !!manualTranslations[m.name];
+                const isTranslating = translatingManual === m.name;
+                const currentLang = manualViewLang[m.name] || 'pt';
+                const isOpen = manualViewOpen === m.name;
+                const translatedText = manualTranslations[m.name]?.[currentLang] || '';
+
+                return (
+                  <div key={m.name} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                    {/* Card header */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '14px 16px' }}>
+                      <div style={{ fontSize: '1.8rem', flexShrink: 0 }}>📄</div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {m.name.replace(/^\d+_/, '')}
+                        </div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          {m.size ? `${(m.size / 1024).toFixed(0)} KB · ` : ''}
+                          {m.created_at ? new Date(m.created_at).toLocaleDateString('pt-BR') : ''}
+                          {isTranslating && (
+                            <span style={{ background: 'rgba(139,92,246,0.15)', color: '#a78bfa', borderRadius: 6, padding: '2px 8px', fontSize: '0.68rem', fontWeight: 700 }}>
+                              ⏳ Traduzindo para 13 idiomas...
+                            </span>
+                          )}
+                          {hasTranslations && !isTranslating && (
+                            <span style={{ background: 'rgba(22,163,74,0.15)', color: '#4ade80', borderRadius: 6, padding: '2px 8px', fontSize: '0.68rem', fontWeight: 700 }}>
+                              ✓ 13 idiomas disponíveis
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, flexShrink: 0, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                        {/* Translate button — if no translations yet and not translating */}
+                        {activeNucleo === 'geral' && !hasTranslations && !isTranslating && (
+                          <button onClick={async () => {
+                            setTranslatingManual(m.name);
+                            setManualMsg('Traduzindo manual para todos os idiomas...');
+                            try {
+                              const res = await fetch('/api/admin/manual/translate', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) });
+                              const tj = await res.json();
+                              if (tj.ok) {
+                                setManualMsg('✓ Manual traduzido para todos os idiomas!');
+                                const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(m.name)}`).then(r => r.json());
+                                if (tr.translations) {
+                                  setManualTranslations(prev => ({ ...prev, [m.name]: tr.translations }));
+                                  setManualViewLang(prev => ({ ...prev, [m.name]: 'pt' }));
+                                }
+                              } else {
+                                setManualMsg('Erro na tradução: ' + tj.error);
+                              }
+                            } catch (err: any) { setManualMsg('Erro: ' + err.message); }
+                            setTranslatingManual(null);
+                          }}
+                            style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                            🌐 Traduzir
+                          </button>
+                        )}
+                        {/* View translations button */}
+                        {hasTranslations && (
+                          <button onClick={() => setManualViewOpen(isOpen ? null : m.name)}
+                            style={{ background: isOpen ? 'rgba(139,92,246,0.25)' : 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.4)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                            🌐 {isOpen ? 'Fechar' : 'Ver Traduções'}
+                          </button>
+                        )}
+                        {m.url && (
+                          <a href={m.url} target="_blank" rel="noopener noreferrer" download
+                            style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            ⬇ PDF
+                          </a>
+                        )}
+                        {activeNucleo === 'geral' && (
+                          <button onClick={async () => {
+                            if (!confirm('Excluir este manual?')) return;
+                            const res = await fetch('/api/admin/manual', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) });
+                            if (res.ok) {
+                              setManuais(prev => prev.filter(x => x.name !== m.name));
+                              setManualTranslations(prev => { const n = { ...prev }; delete n[m.name]; return n; });
+                              setManualMsg('Manual excluído.');
+                              // Also delete translations
+                              fetch('/api/admin/manual/translate', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) }).catch(() => {});
+                            } else { const j = await res.json(); setManualMsg('Erro: ' + j.error); }
+                          }}
+                            style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '7px 11px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                            🗑
+                          </button>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                      {m.size ? `${(m.size / 1024).toFixed(0)} KB · ` : ''}
-                      {m.created_at ? new Date(m.created_at).toLocaleDateString('pt-BR') : ''}
-                    </div>
-                  </div>
-                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                    {m.url && (
-                      <a href={m.url} target="_blank" rel="noopener noreferrer" download
-                        style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                        ⬇ Baixar
-                      </a>
+
+                    {/* Translation viewer — expandable */}
+                    {isOpen && hasTranslations && (
+                      <div style={{ borderTop: '1px solid var(--border)' }}>
+                        {/* Language tabs */}
+                        <div style={{ display: 'flex', gap: 0, overflowX: 'auto', borderBottom: '1px solid var(--border)', background: 'rgba(124,58,237,0.04)' }}>
+                          {MANUAL_LANGS.filter(l => manualTranslations[m.name]?.[l.code]).map(l => (
+                            <button key={l.code} onClick={() => setManualViewLang(prev => ({ ...prev, [m.name]: l.code }))}
+                              style={{ padding: '8px 13px', background: 'none', border: 'none', borderBottom: currentLang === l.code ? '2px solid #a78bfa' : '2px solid transparent', marginBottom: -1, color: currentLang === l.code ? '#a78bfa' : 'var(--text-secondary)', fontWeight: currentLang === l.code ? 700 : 400, cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
+                              <span>{l.flag}</span>
+                              <span>{l.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                        {/* Content */}
+                        <div style={{ padding: '16px 20px', maxHeight: 380, overflowY: 'auto' }}>
+                          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.82rem', lineHeight: 1.7, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', margin: 0 }}>
+                            {translatedText}
+                          </pre>
+                        </div>
+                      </div>
                     )}
-                    {activeNucleo === 'geral' && (
-                      <button onClick={async () => {
-                        if (!confirm('Excluir este manual?')) return;
-                        const res = await fetch('/api/admin/manual', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) });
-                        if (res.ok) { setManuais(prev => prev.filter(x => x.name !== m.name)); setManualMsg('Manual excluído.'); }
-                        else { const j = await res.json(); setManualMsg('Erro: ' + j.error); }
-                      }}
-                        style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                        🗑
-                      </button>
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
 
