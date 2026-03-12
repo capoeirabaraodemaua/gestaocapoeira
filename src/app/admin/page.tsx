@@ -4058,103 +4058,200 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {loadingRascunhos ? (
             <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando cadastros incompletos...</div>
           ) : (() => {
-            // Filter drafts by nucleo if not geral
             const filteredRascunhos = !nucleoFilter ? rascunhos : rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter);
+            const totalOk = filteredRascunhos.filter((r: any) => (r.dados_pendentes || []).length === 0).length;
+            const totalPend = filteredRascunhos.filter((r: any) => (r.dados_pendentes || []).length > 0).length;
             return filteredRascunhos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>Nenhum cadastro incompleto{nucleoFilter ? ` para ${nucleoFilter}` : ''}.</div>
+              <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>✅ Nenhum cadastro em rascunho{nucleoFilter ? ` para ${nucleoFilter}` : ''}.</div>
             ) : (
-            <div style={{ display: 'grid', gap: 10 }}>
-              {filteredRascunhos.map((r: any) => (
-                <div key={r.id} style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.25)', borderLeft: '4px solid #f59e0b', borderRadius: 12, overflow: 'hidden' }}>
-                  <div style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
-                    onClick={() => setRascunhoExpanded(rascunhoExpanded === r.id ? null : r.id)}>
-                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: 'rgba(251,191,36,0.15)', border: '2px solid rgba(251,191,36,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>📝</div>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.92rem' }}>{r.nome_completo || '(sem nome)'}</div>
-                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                        {r.nucleo || '—'} · {r.telefone || '—'} · {r.updated_at ? new Date(r.updated_at).toLocaleDateString('pt-BR') : '—'}
-                      </div>
-                    </div>
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" style={{ transform: rascunhoExpanded === r.id ? 'rotate(90deg)' : 'none', transition: '0.2s' }}><path d="M9 18l6-6-6-6"/></svg>
+              <div style={{ display: 'grid', gap: 12 }}>
+                {/* Summary bar */}
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 4 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 8, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, color: '#4ade80' }}>
+                    ✅ {totalOk} completo{totalOk !== 1 ? 's' : ''} — prontos para finalizar
                   </div>
-
-                  {rascunhoExpanded === r.id && (
-                    <div style={{ borderTop: '1px solid var(--border)', padding: '16px' }}>
-
-                      {/* Data preview */}
-                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px,1fr))', gap: 8, marginBottom: 14, fontSize: '0.78rem' }}>
-                        {[
-                          ['Nome', r.nome_completo], ['CPF', r.cpf], ['Identidade', r.identidade],
-                          ['Nascimento', r.data_nascimento], ['Telefone', r.telefone], ['E-mail', r.email],
-                          ['Núcleo', r.nucleo], ['Graduação', r.graduacao], ['CEP', r.cep],
-                          ['Endereço', r.endereco ? `${r.endereco}, ${r.numero}` : null], ['Bairro', r.bairro], ['Cidade/UF', r.cidade ? `${r.cidade}/${r.estado}` : null],
-                        ].filter(([, v]) => v).map(([l, v]) => (
-                          <div key={l as string} style={{ background: 'var(--bg-input)', borderRadius: 7, padding: '7px 10px' }}>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.68rem' }}>{l as string}</span>
-                            <div style={{ fontWeight: 600, marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v as string}</div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Actions */}
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                        {/* Edit draft */}
-                        <button onClick={() => { setRascunhoEditId(r.id); setRascunhoEditForm({ ...r }); setRascunhoFotoFile(null); }}
-                          style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          ✏ Editar
-                        </button>
-                        {/* Finalize — turn draft into full student */}
-                        <button onClick={async () => {
-                          if (!r.nome_completo || !r.cpf) { alert('Preencha pelo menos Nome e CPF antes de finalizar.'); return; }
-                          if (!confirm(`Finalizar cadastro de ${r.nome_completo}? O rascunho será removido e o aluno incluído no sistema.`)) return;
-                          setRascunhoSaving(true);
-                          try {
-                            const payload = { ...r };
-                            delete payload.id; delete payload.updated_at; delete payload.dados_pendentes;
-                            payload.created_at = new Date().toISOString();
-                            const { data: inserted, error: insErr } = await supabase.from('students').insert([payload]).select().single();
-                            if (insErr) { alert('Erro ao inserir aluno: ' + insErr.message); return; }
-                            // Remove draft
-                            await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
-                            setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
-                            setRascunhosCount(c => Math.max(0, c - 1));
-                            alert(`✅ ${r.nome_completo} cadastrado com sucesso!`);
-                          } catch (e: any) { alert('Erro: ' + e.message); }
-                          setRascunhoSaving(false);
-                        }}
-                          disabled={rascunhoSaving}
-                          style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          ✅ Finalizar Cadastro
-                        </button>
-                        {/* Send WhatsApp with pending list */}
-                        {r.telefone && (r.dados_pendentes || []).length > 0 && (() => {
-                          const tel = (r.telefone || '').replace(/\D/g, '');
-                          const phone = tel.startsWith('55') ? tel : `55${tel}`;
-                          const nome = (r.nome_completo || 'Aluno').split(' ')[0];
-                          const msg = encodeURIComponent(`Olá ${nome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá está incompleto.\n\nDados pendentes:\n${(r.dados_pendentes as string[]).map((p: string) => `• ${p}`).join('\n')}\n\nAcesse o formulário e complete seu cadastro para ter acesso completo. 🥋`);
-                          return (
-                            <a href={`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`} target="_blank" rel="noreferrer"
-                              style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#16a34a', color: '#fff', borderRadius: 8, padding: '8px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none' }}>
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                              Enviar pendências por WhatsApp
-                            </a>
-                          );
-                        })()}
-                        <button onClick={async () => {
-                          if (!confirm('Excluir este rascunho?')) return;
-                          await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
-                          setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
-                          setRascunhosCount(c => Math.max(0, c - 1));
-                        }}
-                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          🗑 Excluir Rascunho
-                        </button>
-                      </div>
+                  {totalPend > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.25)', borderRadius: 8, padding: '6px 12px', fontSize: '0.78rem', fontWeight: 700, color: '#fbbf24' }}>
+                      ⚠️ {totalPend} com dados pendentes
                     </div>
                   )}
                 </div>
-              ))}
-            </div>
+
+                {filteredRascunhos.map((r: any) => {
+                  const pendentes: string[] = r.dados_pendentes || [];
+                  const isCompleto = pendentes.length === 0;
+                  const borderColor = isCompleto ? '#22c55e' : '#f59e0b';
+                  const bgAccent = isCompleto ? 'rgba(34,197,94,0.04)' : 'rgba(251,191,36,0.04)';
+
+                  // Build WhatsApp link
+                  const waPhone = (() => {
+                    const tel = (r.telefone || '').replace(/\D/g, '');
+                    return tel.startsWith('55') ? tel : `55${tel}`;
+                  })();
+                  const waNome = (r.nome_completo || 'Aluno').split(' ')[0];
+                  const waMsg = isCompleto
+                    ? encodeURIComponent(`Olá ${waNome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá está completo e pronto para ser finalizado pelo responsável do núcleo. Em breve você receberá a confirmação. 🥋`)
+                    : encodeURIComponent(`Olá ${waNome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá precisa de atenção.\n\n📋 *Dados que ainda precisam ser preenchidos:*\n${pendentes.map((p: string) => `• ${p}`).join('\n')}\n\nAcesse o link do formulário, corrija as informações e salve novamente para completar seu cadastro. 🥋`);
+
+                  return (
+                    <div key={r.id} style={{ background: 'var(--bg-card)', border: `2px solid ${borderColor}33`, borderLeft: `4px solid ${borderColor}`, borderRadius: 12, overflow: 'hidden', background: bgAccent as any }}>
+                      {/* Card header — click to expand */}
+                      <div style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
+                        onClick={() => setRascunhoExpanded(rascunhoExpanded === r.id ? null : r.id)}>
+                        <div style={{ width: 40, height: 40, borderRadius: '50%', background: isCompleto ? 'rgba(34,197,94,0.15)' : 'rgba(251,191,36,0.15)', border: `2px solid ${borderColor}55`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>
+                          {isCompleto ? '✅' : '📝'}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                            <span style={{ fontWeight: 700, fontSize: '0.95rem' }}>{r.nome_completo || '(sem nome)'}</span>
+                            {isCompleto ? (
+                              <span style={{ background: 'rgba(34,197,94,0.15)', color: '#4ade80', border: '1px solid rgba(34,197,94,0.3)', borderRadius: 20, padding: '2px 10px', fontSize: '0.68rem', fontWeight: 700 }}>
+                                ✅ COMPLETO — PRONTO PARA FINALIZAR
+                              </span>
+                            ) : (
+                              <span style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 20, padding: '2px 10px', fontSize: '0.68rem', fontWeight: 700 }}>
+                                ⚠️ {pendentes.length} DADO{pendentes.length !== 1 ? 'S' : ''} PENDENTE{pendentes.length !== 1 ? 'S' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 3, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                            <span>📍 {r.nucleo || '—'}</span>
+                            <span>📞 {r.telefone || '—'}</span>
+                            <span>🕐 {r.updated_at ? new Date(r.updated_at).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</span>
+                          </div>
+                        </div>
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-secondary)" strokeWidth="2" style={{ transform: rascunhoExpanded === r.id ? 'rotate(90deg)' : 'none', transition: '0.2s', flexShrink: 0 }}><path d="M9 18l6-6-6-6"/></svg>
+                      </div>
+
+                      {rascunhoExpanded === r.id && (
+                        <div style={{ borderTop: `1px solid ${borderColor}33`, padding: '16px' }}>
+
+                          {/* ── Status diagnosis ── */}
+                          {isCompleto ? (
+                            <div style={{ marginBottom: 16, padding: '12px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 10 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#4ade80', marginBottom: 4 }}>✅ Cadastro completo</div>
+                              <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+                                Todos os dados obrigatórios foram preenchidos. Este rascunho está pronto para ser <strong style={{ color: '#4ade80' }}>finalizado</strong> — clique em "✅ Finalizar Cadastro" abaixo para incluir o aluno no sistema.
+                              </div>
+                            </div>
+                          ) : (
+                            <div style={{ marginBottom: 16 }}>
+                              <div style={{ padding: '12px 14px', background: 'rgba(245,158,11,0.08)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, marginBottom: 10 }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#fbbf24', marginBottom: 8 }}>
+                                  ⚠️ Por que está em rascunho? — Dados obrigatórios faltando:
+                                </div>
+                                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                                  {pendentes.map((p: string) => (
+                                    <span key={p} style={{ background: 'rgba(245,158,11,0.15)', color: '#fbbf24', border: '1px solid rgba(245,158,11,0.35)', borderRadius: 6, padding: '3px 10px', fontSize: '0.73rem', fontWeight: 700 }}>
+                                      ✗ {p}
+                                    </span>
+                                  ))}
+                                </div>
+                              </div>
+                              {r.telefone ? (
+                                <div style={{ padding: '9px 13px', background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 8, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                                  💬 O aluno pode ser notificado via WhatsApp para preencher os dados que faltam. Use o botão abaixo.
+                                </div>
+                              ) : (
+                                <div style={{ padding: '9px 13px', background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.2)', borderRadius: 8, fontSize: '0.76rem', color: '#f87171' }}>
+                                  📵 Telefone não cadastrado — não é possível notificar o aluno via WhatsApp.
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* ── Data preview ── */}
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(175px,1fr))', gap: 7, marginBottom: 14, fontSize: '0.78rem' }}>
+                            {[
+                              ['Nome', r.nome_completo], ['CPF', r.cpf], ['Identidade', r.identidade],
+                              ['Nascimento', r.data_nascimento], ['Telefone', r.telefone], ['E-mail', r.email],
+                              ['Núcleo', r.nucleo], ['Graduação', r.graduacao], ['CEP', r.cep],
+                              ['Endereço', r.endereco ? `${r.endereco}, ${r.numero}` : null],
+                              ['Bairro', r.bairro], ['Cidade/UF', r.cidade ? `${r.cidade}/${r.estado}` : null],
+                              ['Responsável', r.nome_responsavel], ['CPF Resp.', r.cpf_responsavel],
+                            ].map(([l, v]) => (
+                              <div key={l as string} style={{ background: v ? 'var(--bg-input)' : 'rgba(220,38,38,0.06)', border: `1px solid ${v ? 'var(--border)' : 'rgba(220,38,38,0.2)'}`, borderRadius: 7, padding: '7px 10px' }}>
+                                <div style={{ color: 'var(--text-secondary)', fontSize: '0.67rem', marginBottom: 2 }}>{l as string}</div>
+                                <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: v ? 'var(--text-primary)' : '#f87171', fontStyle: v ? 'normal' : 'italic', fontSize: '0.8rem' }}>
+                                  {(v as string) || '— pendente'}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+
+                          {/* ── Actions ── */}
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                            <button onClick={() => { setRascunhoEditId(r.id); setRascunhoEditForm({ ...r }); setRascunhoFotoFile(null); }}
+                              style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                              ✏ Editar
+                            </button>
+
+                            <button
+                              onClick={async () => {
+                                if (!isCompleto) {
+                                  if (!confirm(`Este cadastro ainda tem ${pendentes.length} dado(s) pendente(s): ${pendentes.join(', ')}.\n\nDeseja finalizar mesmo assim?`)) return;
+                                } else {
+                                  if (!confirm(`Finalizar cadastro de ${r.nome_completo}?\n\nO rascunho será removido e o aluno incluído no sistema.`)) return;
+                                }
+                                if (!r.nome_completo || !r.cpf) { alert('Preencha pelo menos Nome e CPF antes de finalizar.'); return; }
+                                setRascunhoSaving(true);
+                                try {
+                                  const payload = { ...r };
+                                  delete payload.id; delete payload.updated_at; delete payload.dados_pendentes;
+                                  payload.created_at = new Date().toISOString();
+                                  const { error: insErr } = await supabase.from('students').insert([payload]).select().single();
+                                  if (insErr) { alert('Erro ao inserir aluno: ' + insErr.message); setRascunhoSaving(false); return; }
+                                  await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
+                                  setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
+                                  setRascunhosCount(c => Math.max(0, c - 1));
+                                  alert(`✅ ${r.nome_completo} cadastrado com sucesso!`);
+                                } catch (e: any) { alert('Erro: ' + e.message); }
+                                setRascunhoSaving(false);
+                              }}
+                              disabled={rascunhoSaving}
+                              style={{
+                                background: isCompleto ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'rgba(22,163,74,0.1)',
+                                border: isCompleto ? 'none' : '1px solid rgba(22,163,74,0.3)',
+                                color: isCompleto ? '#fff' : '#4ade80',
+                                borderRadius: 8, padding: '8px 16px', cursor: rascunhoSaving ? 'wait' : 'pointer', fontSize: '0.78rem', fontWeight: 700,
+                                boxShadow: isCompleto ? '0 2px 8px rgba(22,163,74,0.4)' : 'none',
+                              }}>
+                              {rascunhoSaving ? '⏳ Finalizando...' : isCompleto ? '✅ Finalizar Cadastro' : '⚠️ Finalizar com pendências'}
+                            </button>
+
+                            {/* WhatsApp notification */}
+                            {r.telefone && (
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=${waPhone}&text=${waMsg}`}
+                                target="_blank" rel="noreferrer"
+                                style={{
+                                  display: 'flex', alignItems: 'center', gap: 6,
+                                  background: isCompleto ? 'rgba(37,211,102,0.12)' : '#16a34a',
+                                  color: isCompleto ? '#25d366' : '#fff',
+                                  border: isCompleto ? '1px solid rgba(37,211,102,0.3)' : 'none',
+                                  borderRadius: 8, padding: '8px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none'
+                                }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                {isCompleto ? '💬 Avisar que está pronto' : '💬 Cobrar dados pendentes'}
+                              </a>
+                            )}
+
+                            <button onClick={async () => {
+                              if (!confirm('Excluir este rascunho permanentemente?')) return;
+                              await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
+                              setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
+                              setRascunhosCount(c => Math.max(0, c - 1));
+                            }}
+                              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, marginLeft: 'auto' }}>
+                              🗑 Excluir
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
             );
           })()}
         </div>
