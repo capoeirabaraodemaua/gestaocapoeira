@@ -5,6 +5,10 @@ import path from "node:path";
 const loaderPath = require.resolve('orchids-visual-edits/loader.js');
 
 const nextConfig: NextConfig = {
+  // Disable Next.js fetch cache globally — prevents stale reads from Supabase Storage
+  experimental: {
+    fetchCache: 'force-no-store',
+  } as any,
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '**' },

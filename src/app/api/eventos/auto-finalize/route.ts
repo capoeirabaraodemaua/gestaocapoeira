@@ -6,32 +6,39 @@ export const dynamic = 'force-dynamic';
 const BUCKET = 'photos';
 const KEY = 'eventos/eventos.json';
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
 const supabaseWrite = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
 async function getAll() {
-  const { data, error } = await supabase.storage.from(BUCKET).download(KEY);
-  if (error || !data) return [];
-  try { return JSON.parse(await data.text()) as any[]; } catch { return []; }
+  const url = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/${BUCKET}/${KEY}`;
+  try {
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        'Cache-Control': 'no-cache, no-store',
+        Pragma: 'no-cache',
+      },
+      cache: 'no-store',
+    });
+    if (!res.ok) return [];
+    return JSON.parse(await res.text()) as any[];
+  } catch {
+    return [];
+  }
 }
 
 async function saveAll(list: any[]) {
   const blob = new Blob([JSON.stringify(list)], { type: 'application/json' });
-  return supabaseWrite.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+  const { error: updateErr } = await supabaseWrite.storage
+    .from(BUCKET)
+    .update(KEY, blob, { contentType: 'application/json' });
+  if (updateErr) {
+    await supabaseWrite.storage.from(BUCKET).upload(KEY, blob, { contentType: 'application/json' });
+  }
 }
 
-/**
- * GET /api/eventos/auto-finalize
- * Called on page load from the admin panel.
- * Finds all non-finalized events whose datetime has passed and applies graduations.
- * Returns { applied: number, events: string[] }
- */
 export async function GET() {
   const now = new Date();
   const list = await getAll();
@@ -39,8 +46,7 @@ export async function GET() {
   const toFinalize = list.filter((ev: any) => {
     if (ev.finalizado) return false;
     if (!ev.data || !ev.hora) return false;
-    // Build datetime in local Brasília time: compare UTC to event local time
-    const evDt = new Date(`${ev.data}T${ev.hora}:00-03:00`); // Brasília = UTC-3
+    const evDt = new Date(`${ev.data}T${ev.hora}:00-03:00`);
     return now >= evDt;
   });
 
@@ -70,8 +76,5 @@ export async function GET() {
 
   await saveAll(updated);
 
-  return NextResponse.json({
-    applied: appliedEvents.length,
-    events: appliedEvents,
-  });
+  return NextResponse.json({ applied: appliedEvents.length, events: appliedEvents });
 }
