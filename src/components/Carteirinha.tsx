@@ -137,16 +137,16 @@ export default function Carteirinha({ data }: Props) {
       {/* Main body */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
 
-        {/* LEFT — photo + cord */}
+        {/* LEFT — photo + cord + QR */}
         <div style={{
-          width: 110,
+          width: 116,
           background: 'linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%)',
           borderRight: '2px solid #bfdbfe',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           padding: '10px 8px 8px',
-          gap: 7,
+          gap: 5,
           flexShrink: 0,
         }}>
           {data.foto_url ? (
@@ -169,6 +169,13 @@ export default function Carteirinha({ data }: Props) {
           </div>
           <div style={{ color: '#1e40af', fontSize: '0.44rem', textTransform: 'uppercase', letterSpacing: '0.07em', textAlign: 'center', fontWeight: 700 }}>
             {data.nucleo}
+          </div>
+          {/* QR Code — below nucleo, full and scannable */}
+          <div style={{ background: '#fff', borderRadius: 5, padding: 3, border: '1px solid #bfdbfe', boxShadow: '0 1px 4px rgba(29,78,216,0.1)', marginTop: 2 }}>
+            <QRCodeCanvas value={qrValue} size={80} />
+          </div>
+          <div style={{ color: '#93c5fd', fontSize: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', fontWeight: 700, lineHeight: 1 }}>
+            scan
           </div>
         </div>
 
@@ -227,26 +234,6 @@ export default function Carteirinha({ data }: Props) {
           </div>
         </div>
 
-        {/* RIGHT — QR Code */}
-        <div style={{
-          width: 50,
-          background: 'linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%)',
-          borderLeft: '1.5px solid #bfdbfe',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          padding: '4px 3px',
-          gap: 2,
-          flexShrink: 0,
-        }}>
-          <div style={{ background: '#fff', borderRadius: 4, padding: 2, border: '1px solid #bfdbfe', overflow: 'hidden', boxShadow: '0 1px 4px rgba(29,78,216,0.1)' }}>
-            <QRCodeCanvas value={qrValue} size={38} />
-          </div>
-          <div style={{ color: '#93c5fd', fontSize: '0.3rem', textTransform: 'uppercase', letterSpacing: '0.06em', textAlign: 'center', fontWeight: 700 }}>
-            scan
-          </div>
-        </div>
       </div>
 
       {/* Footer — validity + emission */}

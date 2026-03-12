@@ -1195,7 +1195,18 @@ export default function AdminPage() {
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
-                  fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(d); setLoadingEventos(false); }).catch(() => setLoadingEventos(false));
+                  // First run auto-finalize check, then reload eventos list
+                  fetch('/api/eventos/auto-finalize')
+                    .then(r => r.json())
+                    .then(af => {
+                      if (af.applied > 0) {
+                        setEventoMsg(`✓ ${af.applied} evento(s) finalizado(s) automaticamente: ${af.events.join(', ')}`);
+                      }
+                    })
+                    .catch(() => {})
+                    .finally(() => {
+                      fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(d); setLoadingEventos(false); }).catch(() => setLoadingEventos(false));
+                    });
                 }
               }}
               style={{
@@ -5495,7 +5506,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                     {/* Actions */}
                     <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
-                      {!ev.finalizado && (<>
+                      {!ev.finalizado && (
                         <button onClick={() => {
                           setEventoEditId(ev.id);
                           setEventoForm({ ...ev });
@@ -5505,28 +5516,91 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         }} style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)', color: '#38bdf8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                           ✏ {t('admin_edit')}
                         </button>
-                        <button
-                          disabled={eventoFinalizing === ev.id}
-                          onClick={async () => {
-                            if (!confirm(`Finalizar evento "${ev.nome}"? Isso atualizará as graduações de ${(ev.participantes || []).length} alunos.`)) return;
-                            setEventoFinalizing(ev.id); setEventoMsg('');
-                            const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _finalize: ev.id }) });
-                            const json = await res.json();
-                            setEventoFinalizing(null);
-                            if (json.ok) {
-                              setEventoMsg(`${t('admin_event_finalized_msg')} ${json.applied || 0} graduações atualizadas.`);
-                              const d = await fetch('/api/eventos').then(r => r.json());
-                              setEventos(d);
-                            } else {
-                              setEventoMsg('Erro: ' + (json.errors || []).join(', '));
-                            }
-                          }}
-                          style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: eventoFinalizing === ev.id ? 0.6 : 1 }}>
-                          {eventoFinalizing === ev.id ? '⏳ Finalizando...' : t('admin_event_finalize')}
-                        </button>
-                      </>)}
+                      )}
 
-                      {/* Excluir — disponível sempre, inclusive após finalizar */}
+                      {/* Auto-finalize info */}
+                      {!ev.finalizado && ev.data && ev.hora && (() => {
+                        const evDt = new Date(`${ev.data}T${ev.hora}:00`);
+                        const now = new Date();
+                        const isReady = now >= evDt;
+                        return isReady ? (
+                          <button
+                            disabled={eventoFinalizing === ev.id}
+                            onClick={async () => {
+                              if (!confirm(`Aplicar graduações do evento "${ev.nome}"? Isso atualizará ${(ev.participantes || []).length} aluno(s).`)) return;
+                              setEventoFinalizing(ev.id); setEventoMsg('');
+                              const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _finalize: ev.id }) });
+                              const json = await res.json();
+                              setEventoFinalizing(null);
+                              if (json.ok) {
+                                setEventoMsg(`✓ ${json.applied || 0} graduação(ões) atualizada(s)!`);
+                                const d = await fetch('/api/eventos').then(r => r.json());
+                                setEventos(d);
+                              } else {
+                                setEventoMsg('Erro: ' + (json.errors || []).join(', '));
+                              }
+                            }}
+                            style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: eventoFinalizing === ev.id ? 0.6 : 1, boxShadow: '0 2px 8px rgba(22,163,74,0.4)' }}>
+                            {eventoFinalizing === ev.id ? '⏳ Aplicando...' : '✅ Aplicar Graduações'}
+                          </button>
+                        ) : (
+                          <span style={{ fontSize: '0.72rem', color: '#94a3b8', background: 'rgba(148,163,184,0.08)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 7, padding: '5px 10px' }}>
+                            🕐 Graduações aplicadas automaticamente em {new Date(`${ev.data}T${ev.hora}:00`).toLocaleString('pt-BR', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' })}
+                          </span>
+                        );
+                      })()}
+
+                      {/* Imprimir PDF */}
+                      {(ev.participantes || []).length > 0 && (
+                        <button
+                          onClick={() => {
+                            const dataFmt = ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                            const rows = (ev.participantes || []).map((p: any, i: number) => `
+                              <tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                                <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:600">${p.nome_completo}</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.85em">${p.nucleo || '—'}</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#d97706;font-weight:600">${p.graduacao_atual}</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;color:#64748b">→</td>
+                                <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#16a34a;font-weight:700">${p.nova_graduacao || p.graduacao_atual}</td>
+                              </tr>`).join('');
+                            const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${ev.nome}</title>
+                            <style>body{font-family:Arial,sans-serif;margin:0;padding:24px;color:#1e293b}
+                            h1{font-size:1.4rem;margin:0 0 4px}h2{font-size:0.9rem;color:#64748b;font-weight:400;margin:0 0 20px}
+                            .badge{display:inline-block;background:#0ea5e9;color:#fff;border-radius:4px;padding:2px 10px;font-size:0.75rem;font-weight:700;margin-bottom:8px}
+                            .info{display:flex;gap:24px;margin-bottom:20px;font-size:0.85rem;color:#475569}
+                            .info strong{color:#1e293b}
+                            table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0;border-radius:8px;overflow:hidden}
+                            thead tr{background:#1e3a8a;color:#fff}
+                            thead td{padding:10px 12px;font-size:0.8rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+                            .footer{margin-top:30px;border-top:1px solid #e2e8f0;padding-top:12px;font-size:0.75rem;color:#94a3b8;text-align:center}
+                            @media print{body{padding:16px}}</style></head>
+                            <body>
+                            <div class="badge">${ev.tipo === 'batizado' ? '🥋 Batizado' : '🎓 Troca de Graduação'}</div>
+                            <h1>${ev.nome}</h1>
+                            <h2>Associação Cultural de Capoeira Barão de Mauá</h2>
+                            <div class="info">
+                              <span>📅 <strong>${dataFmt}</strong> às <strong>${ev.hora || '—'}</strong></span>
+                              ${ev.local ? `<span>📍 <strong>${ev.local}</strong></span>` : ''}
+                              ${ev.nucleo ? `<span>🏫 <strong>${ev.nucleo}</strong></span>` : ''}
+                              <span>👥 <strong>${(ev.participantes||[]).length} participante(s)</strong></span>
+                            </div>
+                            <table>
+                              <thead><tr>
+                                <td>Aluno</td><td>Núcleo</td><td>Graduação Atual</td><td></td><td>Nova Graduação</td>
+                              </tr></thead>
+                              <tbody>${rows}</tbody>
+                            </table>
+                            <div class="footer">Relatório gerado em ${new Date().toLocaleString('pt-BR')} — ACCBM</div>
+                            </body></html>`;
+                            const w = window.open('', '_blank');
+                            if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+                          }}
+                          style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          🖨 Imprimir PDF
+                        </button>
+                      )}
+
+                      {/* Excluir */}
                       <button onClick={async () => {
                         if (!confirm(`Excluir o evento "${ev.nome}"? Esta ação não pode ser desfeita.`)) return;
                         const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: ev.id }) });
@@ -5534,7 +5608,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           setEventos(prev => prev.filter((x: any) => x.id !== ev.id));
                           setEventoMsg(t('admin_event_deleted'));
                         }
-                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, marginLeft: ev.finalizado ? 0 : 'auto' }}>
+                      }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, marginLeft: 'auto' }}>
                         🗑 {t('admin_delete')}
                       </button>
                     </div>
