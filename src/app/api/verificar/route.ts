@@ -8,37 +8,60 @@ const admin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
 
-const FIELDS = 'id,nome_completo,nucleo,graduacao,tipo_graduacao,foto_url,menor_de_idade,nome_pai,nome_mae,nome_responsavel,cpf_responsavel,ordem_inscricao,apelido,nome_social,sexo';
-
 export async function GET(req: NextRequest) {
-  const idParam = req.nextUrl.searchParams.get('id');
+  const idParam  = req.nextUrl.searchParams.get('id');
   const matParam = req.nextUrl.searchParams.get('mat');
 
-  let query;
-
-  if (idParam) {
-    // Lookup by UUID — most reliable
-    query = admin.from('students').select(FIELDS).eq('id', idParam).single();
-  } else if (matParam) {
-    // Lookup by matricula number: ACCBM-000001 → extract digits
-    const match = matParam.match(/(\d+)$/);
-    if (!match) return NextResponse.json({ error: 'invalid mat' }, { status: 400 });
-    const num = parseInt(match[1], 10);
-    query = admin.from('students').select(FIELDS).eq('ordem_inscricao', num).single();
-  } else {
+  if (!idParam && !matParam) {
     return NextResponse.json({ error: 'id or mat required' }, { status: 400 });
   }
 
-  const { data, error } = await query;
+  let row: Record<string, any> | null = null;
 
-  if (error || !data) {
+  if (idParam) {
+    // Primary lookup: by UUID — always works
+    const { data, error } = await admin
+      .from('students')
+      .select('*')           // select('*') returns only existing columns — never fails on missing cols
+      .eq('id', idParam)
+      .single();
+    if (!error && data) row = data as Record<string, any>;
+  } else {
+    // Lookup by matrícula number: ACCBM-000001 → extract digits
+    const match = matParam!.match(/(\d+)$/);
+    if (!match) return NextResponse.json({ error: 'invalid mat' }, { status: 400 });
+    const num = parseInt(match[1], 10);
+
+    // Try by ordem_inscricao (may not exist → falls back to empty)
+    const { data } = await admin
+      .from('students')
+      .select('*')
+      .eq('ordem_inscricao', num)
+      .single();
+    if (data) row = data as Record<string, any>;
+  }
+
+  if (!row) {
     return NextResponse.json({ error: 'not found' }, { status: 404 });
   }
 
-  // Normalize field names for CarteirinhaData
+  // Normalize field aliases for CarteirinhaData / verificar page
   return NextResponse.json({
-    ...data,
-    inscricao_numero: (data as any).ordem_inscricao ?? null,
-    student_id: (data as any).id,
+    ...row,
+    // Ensure expected field names are present
+    nome_completo:    row.nome_completo    ?? '',
+    nucleo:           row.nucleo           ?? '',
+    graduacao:        row.graduacao        ?? '',
+    tipo_graduacao:   row.tipo_graduacao   ?? 'adulta',
+    foto_url:         row.foto_url         ?? null,
+    menor_de_idade:   row.menor_de_idade   ?? false,
+    nome_pai:         row.nome_pai         ?? null,
+    nome_mae:         row.nome_mae         ?? null,
+    nome_responsavel: row.nome_responsavel ?? null,
+    apelido:          row.apelido          ?? null,
+    nome_social:      row.nome_social      ?? null,
+    sexo:             row.sexo             ?? null,
+    inscricao_numero: row.ordem_inscricao  ?? null,
+    student_id:       row.id,
   });
 }
