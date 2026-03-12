@@ -72,6 +72,9 @@ async function carregarTermosEnviados(studentIds: string[]): Promise<Record<stri
 interface Student {
   id: string;
   nome_completo: string;
+  apelido?: string | null;
+  nome_social?: string | null;
+  sexo?: string | null;
   cpf: string;
   identidade: string;
   data_nascimento: string;
@@ -492,6 +495,10 @@ export default function AdminPage() {
     { code: 'de',    flag: '🇩🇪', label: 'Deutsch' },
   ];
 
+  // ── DB maintenance state (Admin Geral only) ───────────────────────────────
+  const [dbMaintLoading, setDbMaintLoading] = useState(false);
+  const [dbMaintMsg, setDbMaintMsg] = useState('');
+
   // ── Eventos state ──────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
@@ -713,6 +720,9 @@ export default function AdminPage() {
         .from('students')
         .update({
           nome_completo: editForm.nome_completo,
+          apelido: (editForm as any).apelido || null,
+          nome_social: (editForm as any).nome_social || null,
+          sexo: (editForm as any).sexo || null,
           cpf: editForm.cpf,
           identidade: editForm.identidade,
           data_nascimento: editForm.data_nascimento,
@@ -1266,6 +1276,48 @@ export default function AdminPage() {
             </>
           )}
         </div>
+
+        {/* ── Botões de manutenção — somente Admin Geral ── */}
+        {activeNucleo === 'geral' && (
+          <div style={{ marginBottom: 14, padding: '10px 14px', background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.2)', borderRadius: 12, display: 'flex', flexWrap: 'wrap', gap: 10, alignItems: 'center' }}>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, flexShrink: 0 }}>🔧 Manutenção do Banco:</span>
+            <button
+              disabled={dbMaintLoading}
+              onClick={async () => {
+                setDbMaintLoading(true); setDbMaintMsg('');
+                const r = await fetch('/api/add-columns').catch(() => null);
+                const j = r ? await r.json().catch(() => ({})) : {};
+                setDbMaintMsg(j.success ? '✓ Colunas ativadas com sucesso!' : (j.message || j.error || 'Verifique o console.'));
+                setDbMaintLoading(false);
+              }}
+              style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
+              {dbMaintLoading ? '⏳ Aguarde...' : '⚡ Ativar Novas Colunas'}
+            </button>
+            <button
+              disabled={dbMaintLoading}
+              onClick={async () => {
+                if (!confirm('Isso irá detectar e preencher automaticamente o campo de sexo para alunos sem essa informação, baseado no nome. Continuar?')) return;
+                setDbMaintLoading(true); setDbMaintMsg('');
+                const r = await fetch('/api/auto-sexo').catch(() => null);
+                const j = r ? await r.json().catch(() => ({})) : {};
+                if (j.updated !== undefined) {
+                  setDbMaintMsg(`✓ ${j.updated} aluno(s) atualizados, ${j.skipped || 0} não identificados.`);
+                  fetchStudents();
+                } else {
+                  setDbMaintMsg(j.error || 'Erro ao detectar sexo.');
+                }
+                setDbMaintLoading(false);
+              }}
+              style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
+              {dbMaintLoading ? '⏳ Aguarde...' : '🔍 Detectar Sexo Automático'}
+            </button>
+            {dbMaintMsg && (
+              <span style={{ fontSize: '0.75rem', fontWeight: 600, color: dbMaintMsg.startsWith('✓') ? '#4ade80' : '#f87171' }}>
+                {dbMaintMsg}
+              </span>
+            )}
+          </div>
+        )}
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
@@ -4447,6 +4499,25 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="detail-item detail-full">
                 <span className="detail-label">Nome Completo</span>
                 <input className="edit-input" name="nome_completo" value={editForm.nome_completo || ''} onChange={handleEditChange} />
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Apelido</span>
+                <input className="edit-input" name="apelido" value={(editForm as any).apelido || ''} onChange={handleEditChange} placeholder="Apelido (opcional)" />
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Nome Social</span>
+                <input className="edit-input" name="nome_social" value={(editForm as any).nome_social || ''} onChange={handleEditChange} placeholder="Nome social (opcional)" />
+              </div>
+              <div className="detail-item detail-full">
+                <span className="detail-label">Sexo</span>
+                <select className="edit-input" name="sexo" value={(editForm as any).sexo || ''} onChange={handleEditChange}>
+                  <option value="">Não informado</option>
+                  <option value="masculino">Masculino</option>
+                  <option value="feminino">Feminino</option>
+                  <option value="nao-binario">Não Binário</option>
+                  <option value="outros">Outros</option>
+                  <option value="nao-informado">Prefiro não informar</option>
+                </select>
               </div>
               <div className="detail-item">
                 <span className="detail-label">CPF</span>
