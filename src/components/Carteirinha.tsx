@@ -56,18 +56,12 @@ export default function Carteirinha({ data }: Props) {
   const emissaoStr = hoje.toLocaleDateString('pt-BR');
   const validadeStr = validade.toLocaleDateString('pt-BR');
 
-  // QR code data — compact format for easy scanning
+  // QR code — URL de verificação pública da carteirinha
   const matriculaStr = data.inscricao_numero != null ? `ACCBM-${String(data.inscricao_numero).padStart(6, '0')}` : '';
-  const qrLines = [
-    'ACCBM',
-    `Nome:${data.nome_social || data.nome}`,
-    data.cpf ? `CPF:${data.cpf}` : '',
-    `Nucleo:${data.nucleo}`,
-    `Corda:${data.graduacao}`,
-    matriculaStr ? `Mat:${matriculaStr}` : '',
-    `Val:${validadeStr}`,
-  ].filter(Boolean);
-  const qrValue = qrLines.join('|');
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
+  const qrValue = matriculaStr
+    ? `${baseUrl}/verificar?mat=${matriculaStr}`
+    : `${baseUrl}/verificar`;
 
   const displayName = data.nome_social || data.nome;
 
