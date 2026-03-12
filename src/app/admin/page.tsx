@@ -4937,8 +4937,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0ea5e9' }}>📅 Eventos — Batizado & Troca de Graduação</div>
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie batizados e trocas de graduação. Ao finalizar, as graduações são atualizadas automaticamente.</div>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#0ea5e9' }}>{t('admin_event_title')}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>{t('admin_event_subtitle')}</div>
               </div>
               <button
                 onClick={() => {
@@ -4964,8 +4964,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             ) : eventosFiltrados.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
                 <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📅</div>
-                <div style={{ fontWeight: 700 }}>Nenhum evento cadastrado ainda.</div>
-                <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em "+ Novo Evento" para criar o primeiro.</div>
+                <div style={{ fontWeight: 700 }}>{t('admin_event_none')}</div>
+                <div style={{ marginTop: 6, fontSize: '0.78rem' }}>{t('admin_event_none_hint')}</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -4989,7 +4989,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           {ev.finalizado ? t('admin_event_finalized') : t('admin_event_pending')}
                         </span>
                         <span style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
-                          {(ev.participantes || []).length} alunos
+                          {(ev.participantes || []).length} {t('admin_students_count')}
                         </span>
                       </div>
                     </div>
@@ -4997,7 +4997,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {/* Participants list */}
                     {(ev.participantes || []).length > 0 && (
                       <div style={{ padding: '10px 14px', borderBottom: '1px solid var(--border)' }}>
-                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Participantes</div>
+                        <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin_event_participants')}</div>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4, maxHeight: 200, overflowY: 'auto' }}>
                           {ev.participantes.map((p: any, i: number) => (
                             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '5px 8px', background: 'var(--bg)', borderRadius: 8, fontSize: '0.8rem' }}>
@@ -5037,7 +5037,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             const json = await res.json();
                             setEventoFinalizing(null);
                             if (json.ok) {
-                              setEventoMsg(`✓ Evento finalizado! ${json.applied || 0} graduações atualizadas.`);
+                              setEventoMsg(`${t('admin_event_finalized_msg')} ${json.applied || 0} graduações atualizadas.`);
                               const d = await fetch('/api/eventos').then(r => r.json());
                               setEventos(d);
                             } else {
@@ -5052,7 +5052,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: ev.id }) });
                           if (res.ok) {
                             setEventos(prev => prev.filter((x: any) => x.id !== ev.id));
-                            setEventoMsg('Evento excluído.');
+                            setEventoMsg(t('admin_event_deleted'));
                           }
                         }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                           🗑
@@ -5075,7 +5075,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div style={{ background: 'linear-gradient(135deg,#0c4a6e,#0ea5e9)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
               <div>
                 <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>
-                  {eventoEditId ? '✏ Editar Evento' : '📅 Novo Evento'}
+                  {eventoEditId ? t('admin_event_edit_title') : t('admin_event_new_title')}
                 </div>
                 <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
                   {eventoForm.tipo === 'batizado' ? t('admin_event_batizado') : t('admin_event_troca')}
@@ -5086,7 +5086,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Tipo selector */}
             <div style={{ marginBottom: 16 }}>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tipo de Evento</label>
+              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin_event_type_label')}</label>
               <div style={{ display: 'flex', gap: 10 }}>
                 {[{ v: 'batizado', label: `🥋 ${t('admin_event_batizado')}` }, { v: 'troca', label: `🎓 ${t('admin_event_troca')}` }].map(opt => (
                   <button key={opt.v} onClick={() => setEventoForm((f: any) => ({ ...f, tipo: opt.v }))}
@@ -5100,32 +5100,32 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {/* Fields */}
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px 16px', marginBottom: 16 }}>
               <div style={{ gridColumn: '1/-1' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>Nome do Evento *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>{t('admin_event_name_label')} *</label>
                 <input value={eventoForm.nome || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nome: e.target.value }))}
                   placeholder={eventoForm.tipo === 'batizado' ? 'Ex: Batizado 2025 — ACCBM' : 'Ex: Troca de Cordas — Março 2025'}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.9rem', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📅 Data *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📅 {t('admin_event_date_label')} *</label>
                 <input type="date" value={eventoForm.data || ''} onChange={e => setEventoForm((f: any) => ({ ...f, data: e.target.value }))}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>🕐 Hora *</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>🕐 {t('admin_event_time_label')} *</label>
                 <input type="time" value={eventoForm.hora || ''} onChange={e => setEventoForm((f: any) => ({ ...f, hora: e.target.value }))}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📍 Local</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📍 {t('admin_event_local_label')}</label>
                 <input value={eventoForm.local || ''} onChange={e => setEventoForm((f: any) => ({ ...f, local: e.target.value }))}
                   placeholder="Ex: Poliesportivo Edson Alves"
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>Núcleo (opcional)</label>
+                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>{t('admin_event_nucleo_label')}</label>
                 <select value={eventoForm.nucleo || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nucleo: e.target.value }))}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}>
-                  <option value="">Todos os núcleos</option>
+                  <option value="">{t('admin_event_all_nucleos')}</option>
                   <option>Poliesportivo Edson Alves</option>
                   <option>Poliesportivo do Ipiranga</option>
                   <option>Saracuruna</option>
@@ -5138,7 +5138,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {/* Participants section */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)' }}>
-                👥 Participantes ({(eventoForm.participantes || []).length})
+                👥 {t('admin_event_participants')} ({(eventoForm.participantes || []).length})
               </div>
 
               {/* Search to add participant */}
@@ -5146,7 +5146,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input
                   value={eventoParticipantSearch}
                   onChange={e => setEventoParticipantSearch(e.target.value)}
-                  placeholder="Buscar aluno por nome ou CPF para adicionar..."
+                  placeholder={t('admin_event_search_student')}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.85rem', boxSizing: 'border-box' }}
                 />
                 {eventoParticipantSearch.trim().length >= 2 && (() => {
@@ -5156,7 +5156,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     !alreadyIds.has(s.id) &&
                     (s.nome_completo.toLowerCase().includes(q) || (s.cpf || '').includes(q))
                   ).slice(0, 8);
-                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6 }}>Nenhum aluno encontrado.</div>;
+                  if (!results.length) return <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: 6 }}>{t('admin_event_student_none')}</div>;
                   return (
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 10, marginTop: 4, overflow: 'hidden' }}>
                       {results.map(s => (
@@ -5220,8 +5220,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <button
                 disabled={eventoSaving}
                 onClick={async () => {
-                  if (!eventoForm.nome?.trim()) { setEventoMsg('Informe o nome do evento.'); return; }
-                  if (!eventoForm.data) { setEventoMsg('Informe a data do evento.'); return; }
+                  if (!eventoForm.nome?.trim()) { setEventoMsg(t('admin_event_name_required')); return; }
+                  if (!eventoForm.data) { setEventoMsg(t('admin_event_date_required')); return; }
                   setEventoSaving(true); setEventoMsg('');
                   const payload = eventoEditId ? { ...eventoForm, id: eventoEditId } : eventoForm;
                   const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
@@ -5229,7 +5229,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   setEventoSaving(false);
                   if (json.ok) {
                     setShowEventoForm(false);
-                    setEventoMsg('✓ Evento salvo com sucesso!');
+                    setEventoMsg(t('admin_event_saved'));
                     const d = await fetch('/api/eventos').then(r => r.json());
                     setEventos(d);
                   } else {

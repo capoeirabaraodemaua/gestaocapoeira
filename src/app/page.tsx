@@ -807,26 +807,45 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {/* Sexo */}
               <div className="form-group full-width">
                 <label>{t('form_sex')}</label>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px 14px', marginTop: 4 }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginTop: 6 }}>
                   {[
-                    { v: 'masculino', label: t('form_sex_male') },
-                    { v: 'feminino', label: t('form_sex_female') },
-                    { v: 'nao-binario', label: t('form_sex_nonbinary') },
-                    { v: 'outros', label: t('form_sex_other') },
-                    { v: 'nao-informado', label: t('form_sex_undisclosed') },
-                  ].map(opt => (
-                    <label key={opt.v} style={{ display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer', fontSize: '0.88rem', color: form.sexo === opt.v ? 'var(--accent)' : 'var(--text-primary)', fontWeight: form.sexo === opt.v ? 700 : 400 }}>
-                      <input
-                        type="radio"
-                        name="sexo"
-                        value={opt.v}
-                        checked={form.sexo === opt.v}
-                        onChange={handleChange}
-                        style={{ accentColor: 'var(--accent)' }}
-                      />
-                      {opt.label}
-                    </label>
-                  ))}
+                    { v: 'masculino', label: t('form_sex_male'), icon: '♂' },
+                    { v: 'feminino', label: t('form_sex_female'), icon: '♀' },
+                    { v: 'nao-binario', label: t('form_sex_nonbinary'), icon: '⚧' },
+                    { v: 'outros', label: t('form_sex_other'), icon: '◈' },
+                    { v: 'nao-informado', label: t('form_sex_undisclosed'), icon: '—' },
+                  ].map(opt => {
+                    const selected = form.sexo === opt.v;
+                    return (
+                      <button
+                        key={opt.v}
+                        type="button"
+                        onClick={() => {
+                          const e = { target: { name: 'sexo', value: opt.v } } as React.ChangeEvent<HTMLInputElement>;
+                          handleChange(e);
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          padding: '7px 16px',
+                          borderRadius: 999,
+                          border: selected ? '2px solid var(--accent)' : '2px solid var(--border)',
+                          background: selected ? 'var(--accent)' : 'var(--bg-input, var(--bg-card))',
+                          color: selected ? '#fff' : 'var(--text-secondary)',
+                          fontSize: '0.84rem',
+                          fontWeight: selected ? 700 : 400,
+                          cursor: 'pointer',
+                          transition: 'all 0.15s',
+                          outline: 'none',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        <span style={{ fontSize: '0.95rem', lineHeight: 1 }}>{opt.icon}</span>
+                        {opt.label}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
               <div className="form-group">

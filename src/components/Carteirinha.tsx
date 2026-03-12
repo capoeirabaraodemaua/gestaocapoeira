@@ -232,25 +232,22 @@ export default function Carteirinha({ data }: Props) {
 
         {/* RIGHT — QR Code */}
         <div style={{
-          width: 78,
+          width: 60,
           background: 'linear-gradient(180deg, #f0f9ff 0%, #dbeafe 100%)',
-          borderLeft: '2px solid #bfdbfe',
+          borderLeft: '1.5px solid #bfdbfe',
           display: 'flex',
           flexDirection: 'column',
           alignItems: 'center',
           justifyContent: 'center',
           padding: '6px 4px',
-          gap: 4,
+          gap: 3,
           flexShrink: 0,
         }}>
-          <div style={{ background: '#fff', borderRadius: 6, padding: 3, border: '1px solid #bfdbfe', overflow: 'hidden' }}>
-            <QRCodeCanvas value={qrValue} size={62} />
+          <div style={{ background: '#fff', borderRadius: 5, padding: 2, border: '1px solid #bfdbfe', overflow: 'hidden' }}>
+            <QRCodeCanvas value={qrValue} size={46} />
           </div>
-          <div style={{ color: '#1e40af', fontSize: '0.38rem', textTransform: 'uppercase', letterSpacing: '0.05em', textAlign: 'center', fontWeight: 700 }}>
-            QR Code
-          </div>
-          <div style={{ color: '#64748b', fontSize: '0.36rem', textAlign: 'center', lineHeight: 1.3 }}>
-            Dados do<br/>associado
+          <div style={{ color: '#1e40af', fontSize: '0.34rem', textTransform: 'uppercase', letterSpacing: '0.04em', textAlign: 'center', fontWeight: 700 }}>
+            QR
           </div>
         </div>
       </div>
