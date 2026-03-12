@@ -349,8 +349,10 @@ export default function AdminPage() {
   const [editing, setEditing] = useState<Student | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({});
   const [saving, setSaving] = useState(false);
+  const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
+  const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual'>('alunos');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -453,6 +455,20 @@ export default function AdminPage() {
   const [rascunhoExpanded, setRascunhoExpanded] = useState<string | null>(null);
   const [rascunhosCount, setRascunhosCount] = useState(0);
   const [showDadosFaltantes, setShowDadosFaltantes] = useState(false);
+  const [rascunhoEditId, setRascunhoEditId] = useState<string | null>(null);
+  const [rascunhoEditForm, setRascunhoEditForm] = useState<any>({});
+  const [rascunhoSaving, setRascunhoSaving] = useState(false);
+  const [rascunhoFotoFile, setRascunhoFotoFile] = useState<File | null>(null);
+  const rascunhoFotoRef = useRef<HTMLInputElement>(null);
+  const [showRascunhoNew, setShowRascunhoNew] = useState(false);
+  const [newRascunhoForm, setNewRascunhoForm] = useState<any>({});
+
+  // ── Manual do Administrador state ─────────────────────────────────────────
+  const [manuais, setManuais] = useState<Array<{ name: string; size: number; created_at: string; url: string | null }>>([]);
+  const [loadingManuais, setLoadingManuais] = useState(false);
+  const [uploadingManual, setUploadingManual] = useState(false);
+  const [manualMsg, setManualMsg] = useState('');
+  const manualFileRef = useRef<HTMLInputElement>(null);
 
   // ── Responsáveis por núcleo ───────────────────────────────────────────────
   const [responsaveis, setResponsaveis] = useState<Array<{ nucleo_key: string; nucleo_label: string; nome: string; cpf: string }>>([]);
@@ -631,6 +647,7 @@ export default function AdminPage() {
   const openEdit = (student: Student) => {
     setEditing(student);
     setEditForm({ ...student });
+    setEditFotoFile(null);
     setSelected(null);
   };
 
@@ -645,36 +662,55 @@ export default function AdminPage() {
   const saveEdit = async () => {
     if (!editing) return;
     setSaving(true);
-    const { error } = await supabase
-      .from('students')
-      .update({
-        nome_completo: editForm.nome_completo,
-        cpf: editForm.cpf,
-        identidade: editForm.identidade,
-        data_nascimento: editForm.data_nascimento,
-        telefone: editForm.telefone,
-        cep: editForm.cep,
-        endereco: editForm.endereco,
-        numero: editForm.numero,
-        complemento: editForm.complemento,
-        bairro: editForm.bairro,
-        cidade: editForm.cidade,
-        estado: editForm.estado,
-        graduacao: editForm.graduacao,
-        tipo_graduacao: editForm.tipo_graduacao,
-        nucleo: editForm.nucleo,
-        nome_pai: editForm.nome_pai,
-        nome_mae: editForm.nome_mae,
-        nome_responsavel: editForm.nome_responsavel,
-        cpf_responsavel: editForm.cpf_responsavel,
-      })
-      .eq('id', editing.id);
-    setSaving(false);
-    if (error) {
-      alert('Erro ao salvar. Tente novamente.');
-    } else {
-      setEditing(null);
-      fetchStudents();
+    try {
+      let foto_url = editForm.foto_url ?? null;
+
+      // Upload new photo if selected
+      if (editFotoFile) {
+        const ext = editFotoFile.name.split('.').pop() || 'jpg';
+        const path = `fotos/${editing.id}_${Date.now()}.${ext}`;
+        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, editFotoFile, { upsert: true });
+        if (!upErr) {
+          const { data: pubData } = supabase.storage.from(BUCKET).getPublicUrl(path);
+          foto_url = pubData.publicUrl;
+        }
+      }
+
+      const { error } = await supabase
+        .from('students')
+        .update({
+          nome_completo: editForm.nome_completo,
+          cpf: editForm.cpf,
+          identidade: editForm.identidade,
+          data_nascimento: editForm.data_nascimento,
+          telefone: editForm.telefone,
+          cep: editForm.cep,
+          endereco: editForm.endereco,
+          numero: editForm.numero,
+          complemento: editForm.complemento,
+          bairro: editForm.bairro,
+          cidade: editForm.cidade,
+          estado: editForm.estado,
+          graduacao: editForm.graduacao,
+          tipo_graduacao: editForm.tipo_graduacao,
+          nucleo: editForm.nucleo,
+          nome_pai: editForm.nome_pai,
+          nome_mae: editForm.nome_mae,
+          nome_responsavel: editForm.nome_responsavel,
+          cpf_responsavel: editForm.cpf_responsavel,
+          foto_url,
+        })
+        .eq('id', editing.id);
+
+      if (error) {
+        alert('Erro ao salvar. Tente novamente.');
+      } else {
+        setEditing(null);
+        setEditFotoFile(null);
+        fetchStudents();
+      }
+    } finally {
+      setSaving(false);
     }
   };
 
@@ -959,6 +995,7 @@ export default function AdminPage() {
             { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04', geralOnly: false },
             { key: 'rascunhos',       label: `📋 Cadastro de Responsável${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`,  activeColor: '#f59e0b', geralOnly: false },
             { key: 'dados-faltantes', label: `⚠ Dados Faltantes${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
+            { key: 'manual',          label: '📖 Manual do Admin', activeColor: '#7c3aed', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -996,6 +1033,10 @@ export default function AdminPage() {
                 if (tab.key === 'dados-faltantes') {
                   setLoadingRascunhos(true);
                   fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
+                }
+                if (tab.key === 'manual') {
+                  setLoadingManuais(true); setManualMsg('');
+                  fetch('/api/admin/manual').then(r => r.json()).then(d => { setManuais(d.files || []); setLoadingManuais(false); }).catch(() => setLoadingManuais(false));
                 }
               }}
               style={{
@@ -3570,6 +3611,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie responsáveis por núcleo e acompanhe cadastros incompletos</div>
             </div>
             <div style={{ display: 'flex', gap: 8 }}>
+              <button onClick={() => { setShowRascunhoNew(true); setNewRascunhoForm({ nucleo: nucleoFilter || '' }); }}
+                style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>+ Novo Rascunho</button>
               <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
             </div>
@@ -3820,6 +3863,34 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                       {/* Actions */}
                       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {/* Edit draft */}
+                        <button onClick={() => { setRascunhoEditId(r.id); setRascunhoEditForm({ ...r }); setRascunhoFotoFile(null); }}
+                          style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          ✏ Editar
+                        </button>
+                        {/* Finalize — turn draft into full student */}
+                        <button onClick={async () => {
+                          if (!r.nome_completo || !r.cpf) { alert('Preencha pelo menos Nome e CPF antes de finalizar.'); return; }
+                          if (!confirm(`Finalizar cadastro de ${r.nome_completo}? O rascunho será removido e o aluno incluído no sistema.`)) return;
+                          setRascunhoSaving(true);
+                          try {
+                            const payload = { ...r };
+                            delete payload.id; delete payload.updated_at; delete payload.dados_pendentes;
+                            payload.created_at = new Date().toISOString();
+                            const { data: inserted, error: insErr } = await supabase.from('students').insert([payload]).select().single();
+                            if (insErr) { alert('Erro ao inserir aluno: ' + insErr.message); return; }
+                            // Remove draft
+                            await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
+                            setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
+                            setRascunhosCount(c => Math.max(0, c - 1));
+                            alert(`✅ ${r.nome_completo} cadastrado com sucesso!`);
+                          } catch (e: any) { alert('Erro: ' + e.message); }
+                          setRascunhoSaving(false);
+                        }}
+                          disabled={rascunhoSaving}
+                          style={{ background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          ✅ Finalizar Cadastro
+                        </button>
                         {/* Send WhatsApp with pending list */}
                         {r.telefone && (r.dados_pendentes || []).length > 0 && (() => {
                           const tel = (r.telefone || '').replace(/\D/g, '');
@@ -3838,6 +3909,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           if (!confirm('Excluir este rascunho?')) return;
                           await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
                           setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
+                          setRascunhosCount(c => Math.max(0, c - 1));
                         }}
                           style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                           🗑 Excluir Rascunho
@@ -4284,8 +4356,40 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 700 }}>
             <h2>
               Editar Cadastro
-              <button className="modal-close" onClick={() => setEditing(null)}>&times;</button>
+              <button className="modal-close" onClick={() => { setEditing(null); setEditFotoFile(null); }}>&times;</button>
             </h2>
+
+            {/* Foto do aluno */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18, padding: '12px 16px', background: 'var(--bg-input)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div style={{ flexShrink: 0 }}>
+                {editFotoFile ? (
+                  <img src={URL.createObjectURL(editFotoFile)} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent)' }} />
+                ) : editForm.foto_url ? (
+                  <img src={editForm.foto_url} alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid var(--accent)' }} />
+                ) : (
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(220,38,38,0.1)', border: '3px solid rgba(220,38,38,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                  </div>
+                )}
+              </div>
+              <div>
+                <div style={{ fontWeight: 600, fontSize: '0.82rem', marginBottom: 8, color: 'var(--text-primary)' }}>Foto do Aluno</div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button type="button" onClick={() => editFotoRef.current?.click()}
+                    style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: 'var(--accent)', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                    📷 {editFotoFile || editForm.foto_url ? 'Trocar Foto' : 'Adicionar Foto'}
+                  </button>
+                  {(editFotoFile || editForm.foto_url) && (
+                    <button type="button" onClick={() => { setEditFotoFile(null); setEditForm(p => ({ ...p, foto_url: null })); }}
+                      style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#f87171', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                      🗑 Remover Foto
+                    </button>
+                  )}
+                  <input ref={editFotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setEditFotoFile(f); e.target.value = ''; }} />
+                </div>
+                {editFotoFile && <div style={{ marginTop: 4, fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Nova foto selecionada: {editFotoFile.name}</div>}
+              </div>
+            </div>
 
             <div className="detail-grid" style={{ gap: 14 }}>
               <div className="detail-item detail-full">
@@ -4698,6 +4802,283 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           })()}
         </div>
       )}
+
+      {/* ===== ABA MANUAL DO ADMINISTRADOR ===== */}
+      {activeTab === 'manual' && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>📖 Manual do Administrador do Sistema</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Documentos PDF disponíveis para todos os responsáveis de núcleo</div>
+            </div>
+            {activeNucleo === 'geral' && (
+              <button onClick={() => manualFileRef.current?.click()}
+                disabled={uploadingManual}
+                style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: uploadingManual ? 0.7 : 1 }}>
+                {uploadingManual ? '⏳ Enviando...' : '⬆ Subir PDF'}
+              </button>
+            )}
+            <input ref={manualFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={async e => {
+              const file = e.target.files?.[0]; if (!file) return;
+              setUploadingManual(true); setManualMsg('');
+              try {
+                const fd = new FormData(); fd.append('file', file);
+                const res = await fetch('/api/admin/manual', { method: 'POST', body: fd });
+                const json = await res.json();
+                if (res.ok && json.ok) {
+                  setManualMsg('✓ Manual enviado com sucesso!');
+                  // Reload list
+                  const d = await fetch('/api/admin/manual').then(r => r.json());
+                  setManuais(d.files || []);
+                } else {
+                  setManualMsg('Erro: ' + (json.error || 'falha'));
+                }
+              } catch (err: any) { setManualMsg('Erro: ' + err.message); }
+              setUploadingManual(false);
+              e.target.value = '';
+            }} />
+          </div>
+
+          {manualMsg && (
+            <div style={{ marginBottom: 12, padding: '10px 14px', borderRadius: 10, background: manualMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, color: manualMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600, fontSize: '0.85rem' }}>
+              {manualMsg}
+            </div>
+          )}
+
+          {loadingManuais ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando manuais...</div>
+          ) : manuais.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📄</div>
+              <div style={{ fontWeight: 700 }}>Nenhum manual disponível ainda.</div>
+              {activeNucleo === 'geral' && <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em "Subir PDF" para adicionar o primeiro manual.</div>}
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {manuais.map(m => (
+                <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ fontSize: '1.8rem', flexShrink: 0 }}>📄</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {m.name.replace(/^\d+_/, '')}
+                    </div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      {m.size ? `${(m.size / 1024).toFixed(0)} KB · ` : ''}
+                      {m.created_at ? new Date(m.created_at).toLocaleDateString('pt-BR') : ''}
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                    {m.url && (
+                      <a href={m.url} target="_blank" rel="noopener noreferrer" download
+                        style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                        ⬇ Baixar
+                      </a>
+                    )}
+                    {activeNucleo === 'geral' && (
+                      <button onClick={async () => {
+                        if (!confirm('Excluir este manual?')) return;
+                        const res = await fetch('/api/admin/manual', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) });
+                        if (res.ok) { setManuais(prev => prev.filter(x => x.name !== m.name)); setManualMsg('Manual excluído.'); }
+                        else { const j = await res.json(); setManualMsg('Erro: ' + j.error); }
+                      }}
+                        style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '7px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+            <strong style={{ color: 'var(--text-primary)' }}>ℹ Como usar:</strong><br/>
+            • Cada responsável de núcleo pode visualizar e baixar os manuais disponíveis.<br/>
+            • Somente o Admin Geral pode subir ou excluir manuais.<br/>
+            • Apenas arquivos PDF são aceitos.<br/>
+            • Os links de download são válidos por 1 hora; recarregue a página para renovar.
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Editar Rascunho ── */}
+      {rascunhoEditId && (
+        <div className="modal-overlay" onClick={() => setRascunhoEditId(null)} style={{ zIndex: 1200 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '96vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>✏ Editar Rascunho</div>
+                <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>{rascunhoEditForm.nome_completo || 'Novo cadastro'}</div>
+              </div>
+              <button onClick={() => setRascunhoEditId(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+
+            {/* Foto */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 18 }}>
+              <div style={{ position: 'relative', flexShrink: 0 }}>
+                {rascunhoEditForm.foto_url || rascunhoFotoFile ? (
+                  <img src={rascunhoFotoFile ? URL.createObjectURL(rascunhoFotoFile) : rascunhoEditForm.foto_url}
+                    alt="" style={{ width: 64, height: 64, borderRadius: '50%', objectFit: 'cover', border: '3px solid #f59e0b' }} />
+                ) : (
+                  <div style={{ width: 64, height: 64, borderRadius: '50%', background: 'rgba(245,158,11,0.15)', border: '3px solid rgba(245,158,11,0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.8rem' }}>👤</div>
+                )}
+              </div>
+              <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <button type="button" onClick={() => rascunhoFotoRef.current?.click()}
+                  style={{ background: 'rgba(245,158,11,0.12)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                  📷 Alterar Foto
+                </button>
+                {(rascunhoEditForm.foto_url || rascunhoFotoFile) && (
+                  <button type="button" onClick={() => { setRascunhoEditForm((p: any) => ({ ...p, foto_url: null })); setRascunhoFotoFile(null); }}
+                    style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 7, padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                    🗑 Remover Foto
+                  </button>
+                )}
+                <input ref={rascunhoFotoRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) setRascunhoFotoFile(f); }} />
+              </div>
+            </div>
+
+            <div className="detail-grid" style={{ gap: 12 }}>
+              {[
+                ['Nome Completo', 'nome_completo', 'text', 'detail-full'],
+                ['CPF', 'cpf', 'text', ''],
+                ['Identidade (RG)', 'identidade', 'text', ''],
+                ['Data de Nascimento', 'data_nascimento', 'date', ''],
+                ['Telefone', 'telefone', 'text', ''],
+                ['E-mail', 'email', 'email', ''],
+              ].map(([label, name, type, cls]) => (
+                <div key={name as string} className={`detail-item ${cls}`}>
+                  <span className="detail-label">{label as string}</span>
+                  <input className="edit-input" type={type as string} name={name as string} value={rascunhoEditForm[name as string] || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, [name as string]: e.target.value }))} />
+                </div>
+              ))}
+              <div className="detail-item">
+                <span className="detail-label">Núcleo</span>
+                <select className="edit-input" value={rascunhoEditForm.nucleo || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
+                  <option value="">Selecione</option>
+                  <option value="Saracuruna">Núcleo Saracuruna</option>
+                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
+                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
+                  <option value="Vila Urussaí">Vila Urussaí</option>
+                  <option value="Jayme Fichman">Jayme Fichman</option>
+                </select>
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Graduação</span>
+                <select className="edit-input" value={rascunhoEditForm.graduacao || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, graduacao: e.target.value }))}>
+                  <option value="">Selecione</option>
+                  {graduacoes.map(g => <option key={g} value={g}>{g}</option>)}
+                </select>
+              </div>
+              <div className="detail-full" style={{ paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 4 }}>
+                <span className="detail-label" style={{ marginBottom: 6 }}>Endereço</span>
+              </div>
+              {[
+                ['CEP', 'cep', ''], ['Estado', 'estado', ''], ['Endereço', 'endereco', 'detail-full'],
+                ['Número', 'numero', ''], ['Bairro', 'bairro', ''], ['Cidade', 'cidade', ''],
+              ].map(([label, name, cls]) => (
+                <div key={name as string} className={`detail-item ${cls}`}>
+                  <span className="detail-label">{label as string}</span>
+                  <input className="edit-input" name={name as string} value={rascunhoEditForm[name as string] || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, [name as string]: e.target.value }))} />
+                </div>
+              ))}
+              {[
+                ['Nome do Pai', 'nome_pai'], ['Nome da Mãe', 'nome_mae'], ['Nome do Responsável', 'nome_responsavel'], ['CPF do Responsável', 'cpf_responsavel'],
+              ].map(([label, name]) => (
+                <div key={name as string} className="detail-item">
+                  <span className="detail-label">{label as string}</span>
+                  <input className="edit-input" name={name as string} value={rascunhoEditForm[name as string] || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, [name as string]: e.target.value }))} />
+                </div>
+              ))}
+            </div>
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setRascunhoEditId(null)}
+                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+              <button disabled={rascunhoSaving} onClick={async () => {
+                setRascunhoSaving(true);
+                try {
+                  let foto_url = rascunhoEditForm.foto_url || null;
+                  if (rascunhoFotoFile) {
+                    // Upload photo to Supabase storage
+                    const ext = rascunhoFotoFile.name.split('.').pop() || 'jpg';
+                    const path = `rascunho-fotos/${rascunhoEditId}_${Date.now()}.${ext}`;
+                    const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, rascunhoFotoFile, { upsert: true });
+                    if (!upErr) { const { data: pubData } = supabase.storage.from(BUCKET).getPublicUrl(path); foto_url = pubData.publicUrl; }
+                  }
+                  const updated = { ...rascunhoEditForm, foto_url, updated_at: new Date().toISOString() };
+                  await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+                  setRascunhos(prev => prev.map((x: any) => x.id === rascunhoEditId ? updated : x));
+                  setRascunhoEditId(null);
+                  setRascunhoFotoFile(null);
+                } catch (err: any) { alert('Erro: ' + err.message); }
+                setRascunhoSaving(false);
+              }}
+                style={{ flex: 2, padding: 10, background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', color: '#fff', borderRadius: 10, cursor: rascunhoSaving ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.95rem', opacity: rascunhoSaving ? 0.7 : 1 }}>
+                {rascunhoSaving ? '⏳ Salvando...' : '💾 Salvar Rascunho'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Modal Novo Rascunho ── */}
+      {showRascunhoNew && (
+        <div className="modal-overlay" onClick={() => setShowRascunhoNew(false)} style={{ zIndex: 1200 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '96vw', maxHeight: '90vh', overflowY: 'auto' }}>
+            <div style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+              <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>➕ Novo Rascunho de Cadastro</div>
+              <button onClick={() => setShowRascunhoNew(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>×</button>
+            </div>
+            <div className="detail-grid" style={{ gap: 12 }}>
+              {[
+                ['Nome Completo', 'nome_completo', 'text', 'detail-full'],
+                ['CPF', 'cpf', 'text', ''], ['Identidade', 'identidade', 'text', ''],
+                ['Nascimento', 'data_nascimento', 'date', ''], ['Telefone', 'telefone', 'text', ''],
+                ['E-mail', 'email', 'email', ''],
+              ].map(([label, name, type, cls]) => (
+                <div key={name as string} className={`detail-item ${cls}`}>
+                  <span className="detail-label">{label as string}</span>
+                  <input className="edit-input" type={type as string} value={newRascunhoForm[name as string] || ''} onChange={e => setNewRascunhoForm((p: any) => ({ ...p, [name as string]: e.target.value }))} />
+                </div>
+              ))}
+              <div className="detail-item">
+                <span className="detail-label">Núcleo</span>
+                <select className="edit-input" value={newRascunhoForm.nucleo || ''} onChange={e => setNewRascunhoForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
+                  <option value="">Selecione</option>
+                  <option value="Saracuruna">Saracuruna</option>
+                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
+                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
+                  <option value="Vila Urussaí">Vila Urussaí</option>
+                  <option value="Jayme Fichman">Jayme Fichman</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+              <button onClick={() => setShowRascunhoNew(false)}
+                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+              <button onClick={async () => {
+                setRascunhoSaving(true);
+                try {
+                  const id = `r_${Date.now()}`;
+                  const payload = { ...newRascunhoForm, id, updated_at: new Date().toISOString() };
+                  await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                  setRascunhos(prev => [payload, ...prev]);
+                  setRascunhosCount(c => c + 1);
+                  setShowRascunhoNew(false);
+                  setNewRascunhoForm({});
+                } catch (err: any) { alert('Erro: ' + err.message); }
+                setRascunhoSaving(false);
+              }}
+                disabled={rascunhoSaving}
+                style={{ flex: 2, padding: 10, background: 'linear-gradient(135deg,#f59e0b,#d97706)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700 }}>
+                {rascunhoSaving ? '⏳ Salvando...' : '💾 Criar Rascunho'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
