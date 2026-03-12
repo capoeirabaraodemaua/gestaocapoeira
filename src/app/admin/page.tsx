@@ -7,6 +7,7 @@ import { getCheckins, getHistorico, removeCheckin, CheckinRecord } from '@/lib/c
 import Link from 'next/link';
 import Carteirinha from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface PresencaCount {
   student_id: string;
@@ -252,6 +253,7 @@ function GpsMap({ checkins, containerRef, leafletMapRef }: {
 }
 
 export default function AdminPage() {
+  const { t } = useLanguage();
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [loginUser, setLoginUser] = useState('');
@@ -983,19 +985,19 @@ export default function AdminPage() {
         {/* Tabs */}
         <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap', overflowX: 'auto' }}>
           {([
-            { key: 'alunos',       label: '👥 Alunos',        activeColor: '#dc2626', geralOnly: false },
-            { key: 'presencas',    label: '📊 Presenças',     activeColor: '#dc2626', geralOnly: false },
-            { key: 'relatorio',    label: '📋 Relatório',     activeColor: '#dc2626', geralOnly: false },
-            { key: 'ranking',      label: '🏆 Ranking',       activeColor: '#dc2626', geralOnly: false },
-            { key: 'certificado',  label: '🎓 Certificado',   activeColor: '#dc2626', geralOnly: false },
-            { key: 'financeiro',   label: `💰 Financeiro${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 ? ` 🔔${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length}` : ''}`,   activeColor: '#16a34a', geralOnly: false },
-            { key: 'doacoes',      label: '🤲 Doações',       activeColor: '#8b5cf6', geralOnly: true },
-            { key: 'editais',      label: '📜 Editais',       activeColor: '#0891b2', geralOnly: true },
-            { key: 'materiais',    label: '🛒 Materiais',     activeColor: '#ea580c', geralOnly: false },
-            { key: 'patrimonio',   label: '🏛 Patrimônio',    activeColor: '#ca8a04', geralOnly: false },
-            { key: 'rascunhos',       label: `📋 Cadastro de Responsável${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`,  activeColor: '#f59e0b', geralOnly: false },
-            { key: 'dados-faltantes', label: `⚠ Dados Faltantes${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
-            { key: 'manual',          label: '📖 Manual do Admin', activeColor: '#7c3aed', geralOnly: false },
+            { key: 'alunos',       label: t('admin_students'),  activeColor: '#dc2626', geralOnly: false },
+            { key: 'presencas',    label: t('admin_attendance'), activeColor: '#dc2626', geralOnly: false },
+            { key: 'relatorio',    label: t('admin_report'),     activeColor: '#dc2626', geralOnly: false },
+            { key: 'ranking',      label: t('admin_ranking'),    activeColor: '#dc2626', geralOnly: false },
+            { key: 'certificado',  label: t('admin_certificate'),activeColor: '#dc2626', geralOnly: false },
+            { key: 'financeiro',   label: `${t('admin_financial')}${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 ? ` 🔔${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length}` : ''}`, activeColor: '#16a34a', geralOnly: false },
+            { key: 'doacoes',      label: t('admin_donations'),  activeColor: '#8b5cf6', geralOnly: true },
+            { key: 'editais',      label: t('admin_notices'),    activeColor: '#0891b2', geralOnly: true },
+            { key: 'materiais',    label: t('admin_materials'),  activeColor: '#ea580c', geralOnly: false },
+            { key: 'patrimonio',   label: t('admin_patrimony'),  activeColor: '#ca8a04', geralOnly: false },
+            { key: 'rascunhos',       label: `${t('admin_drafts')}${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
+            { key: 'dados-faltantes', label: `${t('admin_missing_data')}${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
+            { key: 'manual',          label: t('admin_manual'),  activeColor: '#7c3aed', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -1306,13 +1308,13 @@ export default function AdminPage() {
                             onClick={() => setSelected(student)}
                             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--accent)', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                           >
-                            Ver
+                            {t('admin_view')}
                           </button>
                           <button
                             onClick={() => openEdit(student)}
                             style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                           >
-                            Editar
+                            {t('admin_edit')}
                           </button>
                           <button
                             onClick={() => { setChartStudent(student); fetchHistorico(); }}
@@ -4505,7 +4507,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 disabled={saving}
                 style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg, var(--accent), #b0452a)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.95rem', opacity: saving ? 0.6 : 1 }}
               >
-                {saving ? 'Salvando...' : 'Salvar Alterações'}
+                {saving ? t('admin_saving') : t('admin_save')}
               </button>
             </div>
           </div>
@@ -4522,7 +4524,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <path d="M12 8v4M12 16h.01"/>
               </svg>
               <h2 style={{ fontSize: '1.2rem', marginBottom: 0, display: 'block', WebkitTextFillColor: 'var(--text-primary)' }}>
-                Confirmar Exclusão
+                {t('admin_confirm_delete')}
               </h2>
             </div>
             <p style={{ color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.6 }}>
@@ -4532,14 +4534,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {deleteConfirm.nome_completo}?
             </p>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 24 }}>
-              Esta ação não pode ser desfeita.
+              {t('admin_delete_warning')}
             </p>
             <div style={{ display: 'flex', gap: 10 }}>
               <button
                 onClick={() => setDeleteConfirm(null)}
                 style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
               >
-                Cancelar
+                {t('admin_cancel')}
               </button>
               <button
                 onClick={confirmDelete}

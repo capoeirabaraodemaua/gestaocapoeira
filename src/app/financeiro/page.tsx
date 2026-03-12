@@ -4,6 +4,7 @@ import { useState, useRef, useEffect } from 'react';
 import { supabase } from '@/lib/supabase';
 import type { FichaFinanceira, Mensalidade, Parcela, UniformeItem } from '@/app/api/financeiro/route';
 import type { FinanceiroConfig } from '@/app/api/financeiro/config/route';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 function formatMoeda(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
@@ -64,6 +65,7 @@ const DEFAULT_CONFIG: FinanceiroConfig = {
 };
 
 export default function FinanceiroPage() {
+  const { t } = useLanguage();
   const [step, setStep] = useState<'login' | 'sheet'>('login');
   const [cpfInput, setCpfInput] = useState('');
   const [erro, setErro] = useState('');
@@ -317,7 +319,7 @@ export default function FinanceiroPage() {
       <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.15),rgba(30,58,138,0.2))', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
         <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'linear-gradient(135deg,#dc2626,#1d4ed8)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0 }}>💰</div>
         <div>
-          <div style={{ fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.02em' }}>Ficha Financeira</div>
+          <div style={{ fontWeight: 900, fontSize: '1.05rem', letterSpacing: '0.02em' }}>{t('financial_title')}</div>
           <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem' }}>Associação Cultural de Capoeira Barão de Mauá</div>
         </div>
         {step === 'sheet' && (
@@ -335,7 +337,7 @@ export default function FinanceiroPage() {
           <div style={{ maxWidth: 380, margin: '40px auto' }}>
             <div style={{ textAlign: 'center', marginBottom: 28 }}>
               <div style={{ fontSize: '3rem', marginBottom: 8 }}>🔒</div>
-              <div style={{ fontWeight: 800, fontSize: '1.3rem', marginBottom: 6 }}>Acesse sua Ficha Financeira</div>
+              <div style={{ fontWeight: 800, fontSize: '1.3rem', marginBottom: 6 }}>{t('financial_title')}</div>
               <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.85rem' }}>Use seu CPF ou Numeração Única do documento</div>
             </div>
             <div style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '28px 24px', display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -367,7 +369,7 @@ export default function FinanceiroPage() {
               {erro && <div style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '10px 14px', color: '#f87171', fontSize: '0.82rem', fontWeight: 600, whiteSpace: 'pre-line' }}>⚠ {erro}</div>}
               <button onClick={handleLogin} disabled={loadingLogin}
                 style={{ padding: '13px', background: 'linear-gradient(135deg,#dc2626,#1d4ed8)', border: 'none', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 800, fontSize: '1rem', opacity: loadingLogin ? 0.6 : 1 }}>
-                {loadingLogin ? '⏳ Verificando...' : '🔓 Acessar Ficha'}
+                {loadingLogin ? t('common_loading') : `🔓 ${t('financial_access')}`}
               </button>
               <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem' }}>
                 Use o CPF ou a numeração do seu documento de identidade cadastrado.
@@ -399,10 +401,10 @@ export default function FinanceiroPage() {
             {/* Section tabs */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
               {([
-                { key: 'batizado',      label: '🥋 Batizado',      color: '#7c3aed' },
-                { key: 'mensalidades',  label: '📅 Mensalidades',   color: '#0891b2' },
-                { key: 'contribuicao',  label: '🤝 Contribuição',   color: '#16a34a' },
-                { key: 'uniformes',     label: '👕 Uniformes',      color: '#d97706' },
+                { key: 'batizado',      label: `🥋 ${t('financial_batizado')}`,     color: '#7c3aed' },
+                { key: 'mensalidades',  label: `📅 ${t('financial_mensalidades')}`,  color: '#0891b2' },
+                { key: 'contribuicao',  label: `🤝 ${t('financial_contribuicao')}`,  color: '#16a34a' },
+                { key: 'uniformes',     label: `👕 ${t('financial_uniformes')}`,     color: '#d97706' },
               ] as const).map(s => (
                 <button key={s.key} onClick={() => setActiveSection(s.key)}
                   style={{ padding: '8px 14px', borderRadius: 10, cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, flexShrink: 0, border: activeSection === s.key ? 'none' : '1px solid rgba(255,255,255,0.1)', background: activeSection === s.key ? `${s.color}` : 'rgba(255,255,255,0.05)', color: '#fff', transition: 'all 0.2s' }}>

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import { LanguageProvider } from "@/lib/i18n/LanguageContext";
+import LanguageButton from "@/components/LanguageButton";
 
 export const metadata: Metadata = {
   title: "Sistema de Gestão de Alunos ACCBM",
@@ -33,7 +35,10 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="apple-touch-icon" href="/icon-192.png" />
       </head>
       <body>
-        {children}
+        <LanguageProvider>
+          {children}
+          <LanguageButton />
+        </LanguageProvider>
         <script
           dangerouslySetInnerHTML={{
             __html: `

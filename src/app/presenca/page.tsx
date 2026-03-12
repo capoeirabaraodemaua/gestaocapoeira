@@ -5,6 +5,7 @@ import { supabase } from '@/lib/supabase';
 import { registerCheckin, getCheckins } from '@/lib/checkins';
 import { capturarGPS, iniciarWatchGPS, detectarLocal, LocalDetectado, LOCAIS } from '@/lib/locais';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Student {
   id: string;
@@ -18,6 +19,7 @@ interface Student {
 }
 
 export default function PresencaPage() {
+  const { t } = useLanguage();
   const [search, setSearch] = useState('');
   const [students, setStudents] = useState<Student[]>([]);
   const [filtered, setFiltered] = useState<Student[]>([]);
@@ -447,10 +449,10 @@ Axé!`
       <div style={{ background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)', padding: '28px 20px', textAlign: 'center', position: 'relative' }}>
         <Link href="/" style={{ position: 'absolute', left: 16, top: 18, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-          Voltar
+          {t('common_back')}
         </Link>
         <img src="/logo.png" alt="Logo" style={{ width: 56, height: 56, objectFit: 'contain', marginBottom: 10 }} />
-        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>Registrar Presença</h1>
+        <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>{t('attendance_title')}</h1>
         <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', marginTop: 6 }}>{hoje}</p>
       </div>
 
@@ -578,10 +580,10 @@ Axé!`
 
         {/* Busca */}
         <div className="form-section">
-          <h2 className="form-section-title">Buscar Aluno</h2>
+          <h2 className="form-section-title">{t('common_name')}</h2>
           <div style={{ position: 'relative' }}>
             <input
-              placeholder="Digite seu nome ou CPF..."
+              placeholder={t('attendance_search')}
               value={search}
               onChange={e => setSearch(e.target.value)}
               style={{ width: '100%', fontSize: '1rem', padding: '14px 16px 14px 44px' }}
@@ -632,7 +634,7 @@ Axé!`
                         opacity: registering ? 0.6 : 1, transition: 'all 0.15s',
                       }}
                     >
-                      {registering ? '...' : jaRegistrado ? 'Registrado' : '✓ Registrar'}
+                      {registering ? '...' : jaRegistrado ? t('attendance_already').split('.')[0] : `✓ ${t('attendance_register')}`}
                     </button>
                   </div>
                 );

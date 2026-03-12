@@ -6,10 +6,12 @@ import { graduacoes, getCordaColors, nomenclaturaGraduacao } from '@/lib/graduac
 import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type SuccessData = CarteirinhaData;
 
 export default function Home() {
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftMsg, setDraftMsg] = useState('');
@@ -621,7 +623,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-              Fazer Cadastro
+              {t('nav_register')}
             </button>
             <a
               href="/presenca"
@@ -641,7 +643,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-              Registrar Presença
+              {t('nav_attendance')}
             </a>
             <button
               type="button"
@@ -664,7 +666,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              Credencial do Aluno
+              {t('nav_card')}
             </button>
             <button
               type="button"
@@ -687,7 +689,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              Ficha Financeira
+              {t('nav_financial')}
             </button>
             <a
               href="/organograma"
@@ -737,12 +739,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <form onSubmit={handleSubmit}>
             {/* Núcleo */}
             <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
-              <h2 className="form-section-title">Núcleo de Treinamento</h2>
+              <h2 className="form-section-title">{t('common_nucleus')}</h2>
               <div className="form-grid">
                 <div className="form-group full-width">
-                  <label>Selecione o Núcleo <span className="required">*</span></label>
+                  <label>{t('form_select_nucleus')} <span className="required">*</span></label>
                   <select value={nucleo} onChange={(e) => setNucleo(e.target.value)} required>
-                    <option value="">Selecione o núcleo</option>
+                    <option value="">{t('form_select_nucleus')}</option>
                     <option value="Saracuruna">Núcleo Saracuruna</option>
                     <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves – Mauá</option>
                     <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga – Mauá</option>
@@ -755,10 +757,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Dados Pessoais */}
           <div className="form-section">
-            <h2 className="form-section-title">Dados Pessoais</h2>
+            <h2 className="form-section-title">{t('form_personal')}</h2>
             <div className="form-grid">
               <div className="form-group full-width">
-                <label>Nome Completo <span className="required">*</span></label>
+                <label>{t('form_full_name')} <span className="required">*</span></label>
                 <input
                   name="nome_completo"
                   value={form.nome_completo}
@@ -813,7 +815,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Data de Nascimento <span className="required">*</span></label>
+                <label>{t('form_birthdate')} <span className="required">*</span></label>
                 <input
                   type="date"
                   name="data_nascimento"
@@ -841,7 +843,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Telefone <span className="required">*</span></label>
+                <label>{t('form_phone')} <span className="required">*</span></label>
                 <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} required placeholder="(00) 00000-0000" />
               </div>
               <div className="form-group">
@@ -924,7 +926,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* Foto */}
           <div className="form-section">
-            <h2 className="form-section-title">Foto do Aluno</h2>
+            <h2 className="form-section-title">{t('form_photo')}</h2>
             <div className="photo-upload">
               <div className="photo-preview" onClick={() => fileRef.current?.click()}>
                 {photoPreview ? (
@@ -936,7 +938,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       <circle cx="12" cy="10" r="3" />
                       <path d="M6 21v-1a6 6 0 0112 0v1" />
                     </svg>
-                    Clique para adicionar foto
+                    {t('form_add_photo')}
                   </div>
                 )}
               </div>
@@ -946,7 +948,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* Endereço */}
           <div className="form-section">
-            <h2 className="form-section-title">Endereço</h2>
+            <h2 className="form-section-title">{t('form_address')}</h2>
             <div className="form-grid">
               <div className="form-group">
                 <label>CEP <span className="required">*</span></label>
@@ -981,7 +983,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* Graduação */}
           <div className="form-section">
-            <h2 className="form-section-title">Graduação</h2>
+            <h2 className="form-section-title">{t('common_graduation')}</h2>
             <div className="form-grid">
               <div className="form-group">
                 <label>Tipo <span className="required">*</span></label>
@@ -1052,7 +1054,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           <div style={{ display: 'flex', gap: 10, flexDirection: 'column' }}>
             <button type="submit" className="btn-submit" disabled={loading || !!(duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email)}>
-              {loading ? 'Enviando...' : 'Finalizar Cadastro'}
+              {loading ? t('form_saving') : t('form_submit')}
             </button>
             <button type="button" onClick={handleSaveDraft} disabled={draftLoading}
               style={{
@@ -1061,7 +1063,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 color: '#ca8a04', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
               }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              {draftLoading ? 'Salvando...' : draftId ? '💾 Atualizar Rascunho' : '💾 Salvar como Rascunho'}
+              {draftLoading ? t('form_saving') : draftId ? `💾 ${t('form_save_draft')}` : `💾 ${t('form_save_draft')}`}
             </button>
             <p style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
               Ainda não tem todos os dados? Salve como rascunho e complete depois.
@@ -1322,8 +1324,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {adminScreen === 'login' ? (
               <>
                 <div style={{ textAlign: 'center', fontSize: '26px' }}>🔐</div>
-                <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '15px', fontWeight: 700 }}>Painel Administrativo</h2>
-                <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0, fontSize: '12px' }}>Digite seu CPF para acessar o painel</p>
+                <h2 style={{ color: '#fff', textAlign: 'center', margin: 0, fontSize: '15px', fontWeight: 700 }}>{t('admin_title')}</h2>
+                <p style={{ color: 'rgba(255,255,255,0.5)', textAlign: 'center', margin: 0, fontSize: '12px' }}>{t('admin_cpf_label')}</p>
                 <p style={{ color: 'rgba(255,255,255,0.35)', textAlign: 'center', margin: 0, fontSize: '11px' }}>Responsável por núcleo ou administrador geral</p>
                 <input
                   type="text"

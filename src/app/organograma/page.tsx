@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import Link from 'next/link';
+import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const SUPER_ADMIN_CPF = '09856925703';
 const BUCKET = 'photos';
@@ -101,6 +102,7 @@ function CargoCard({
 }
 
 export default function OrganogramaPage() {
+  const { t } = useLanguage();
   const [data, setData] = useState<Organograma>(EMPTY);
   const [loading, setLoading] = useState(true);
   const [editMode, setEditMode] = useState(false);
@@ -202,14 +204,14 @@ export default function OrganogramaPage() {
       <div style={{ maxWidth: 900, margin: '0 auto 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
           <Link href="/" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-            ← Voltar
+            ← {t('common_back')}
           </Link>
           <div style={{ display: 'flex', gap: 8 }}>
             {isAdmin && editMode ? (
               <>
                 <button onClick={saveDraft} disabled={saving}
                   style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: saving ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
-                  {saving ? 'Salvando...' : '💾 Salvar'}
+                  {saving ? t('admin_saving') : `💾 ${t('admin_save').split(' ')[0]}`}
                 </button>
                 <button onClick={() => { setEditMode(false); setDraft(data); }}
                   style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>
