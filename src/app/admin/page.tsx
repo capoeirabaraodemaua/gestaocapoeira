@@ -402,6 +402,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterNucleo, setFilterNucleo] = useState('');
+  const [filterGraduacao, setFilterGraduacao] = useState('');
+  const [sortOrder, setSortOrder] = useState<'nome-asc' | 'nome-desc' | 'grad-asc' | 'grad-desc' | 'data-asc' | 'data-desc'>('nome-asc');
   const [selected, setSelected] = useState<Student | null>(null);
   const [editing, setEditing] = useState<Student | null>(null);
   const [editForm, setEditForm] = useState<EditForm>({});
@@ -730,7 +732,16 @@ export default function AdminPage() {
       (s.graduacao || '').toLowerCase().includes(search.toLowerCase());
     const matchNucleo = !filterNucleo || s.nucleo === filterNucleo;
     const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter;
-    return matchSearch && matchNucleo && matchProfile;
+    const matchGraduacao = !filterGraduacao || s.graduacao === filterGraduacao;
+    return matchSearch && matchNucleo && matchProfile && matchGraduacao;
+  }).sort((a, b) => {
+    if (sortOrder === 'nome-asc') return a.nome_completo.localeCompare(b.nome_completo, 'pt-BR');
+    if (sortOrder === 'nome-desc') return b.nome_completo.localeCompare(a.nome_completo, 'pt-BR');
+    if (sortOrder === 'grad-asc') return graduacoes.indexOf(a.graduacao) - graduacoes.indexOf(b.graduacao);
+    if (sortOrder === 'grad-desc') return graduacoes.indexOf(b.graduacao) - graduacoes.indexOf(a.graduacao);
+    if (sortOrder === 'data-asc') return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+    if (sortOrder === 'data-desc') return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    return 0;
   });
 
   // For stats, only count students visible to this profile
@@ -1073,6 +1084,37 @@ export default function AdminPage() {
                 <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
                 <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
                 <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+              </select>
+              <select
+                className="search-input"
+                style={{ width: 190 }}
+                value={filterGraduacao}
+                onChange={(e) => setFilterGraduacao(e.target.value)}
+              >
+                <option value="">Todas as graduações</option>
+                <optgroup label="── Adulto ──">
+                  {graduacoes.filter(g => !g.includes('ponta') && !['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                    <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
+                  ))}
+                </optgroup>
+                <optgroup label="── Infantil ──">
+                  {graduacoes.filter(g => g.includes('ponta') || ['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                    <option key={g} value={g}>{g}</option>
+                  ))}
+                </optgroup>
+              </select>
+              <select
+                className="search-input"
+                style={{ width: 195 }}
+                value={sortOrder}
+                onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
+              >
+                <option value="nome-asc">Nome A → Z</option>
+                <option value="nome-desc">Nome Z → A</option>
+                <option value="grad-asc">Graduação ↑ menor → maior</option>
+                <option value="grad-desc">Graduação ↓ maior → menor</option>
+                <option value="data-asc">Cadastro mais antigo</option>
+                <option value="data-desc">Cadastro mais recente</option>
               </select>
             </>}
           </div>

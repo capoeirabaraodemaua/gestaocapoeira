@@ -30,6 +30,8 @@ const NIVEIS: { key: keyof Omit<Hierarquia,'updated_at'>; label: string; icon: s
   { key: 'alunos_graduados',label: 'Alunos Graduados',  icon: '🎽', cor: 'linear-gradient(135deg,#16a34a,#15803d)', border: '#16a34a', badge: '#4ade80', desc: 'Alunos graduados' },
 ];
 
+type NivelKey = keyof Omit<Hierarquia, 'updated_at'>;
+
 export default function HierarquiaPage() {
   const { t } = useLanguage();
   const [data, setData] = useState<Hierarquia>(EMPTY);
@@ -44,6 +46,8 @@ export default function HierarquiaPage() {
   const [isAdmin, setIsAdmin] = useState(false);
   const [uploadingKey, setUploadingKey] = useState<string | null>(null);
   const [expandedNivel, setExpandedNivel] = useState<string | null>('mestres');
+  // Reorder state: which nivel is in reorder mode
+  const [reorderNivel, setReorderNivel] = useState<NivelKey | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const pendingUploadKey = useRef<{ nivel: string; idx: number } | null>(null);
 
@@ -75,7 +79,7 @@ export default function HierarquiaPage() {
     const url = await uploadFoto(file, pending.nivel, pending.idx);
     if (url) {
       setDraft(prev => {
-        const nivel = pending.nivel as keyof Omit<Hierarquia,'updated_at'>;
+        const nivel = pending.nivel as NivelKey;
         const arr = [...prev[nivel]];
         arr[pending.idx] = { ...arr[pending.idx], foto_url: url };
         return { ...prev, [nivel]: arr };
@@ -85,21 +89,42 @@ export default function HierarquiaPage() {
     e.target.value = '';
   };
 
-  const addMembro = (nivel: keyof Omit<Hierarquia,'updated_at'>) => {
+  const addMembro = (nivel: NivelKey) => {
     setDraft(prev => ({
       ...prev,
       [nivel]: [...prev[nivel], { id: `m_${Date.now()}`, nome: '', nucleo: '', foto_url: null }],
     }));
   };
 
-  const removeMembro = (nivel: keyof Omit<Hierarquia,'updated_at'>, idx: number) => {
+  const removeMembro = (nivel: NivelKey, idx: number) => {
     setDraft(prev => ({ ...prev, [nivel]: prev[nivel].filter((_, i) => i !== idx) }));
   };
 
-  const updateMembro = (nivel: keyof Omit<Hierarquia,'updated_at'>, idx: number, field: string, value: string) => {
+  const updateMembro = (nivel: NivelKey, idx: number, field: string, value: string) => {
     setDraft(prev => {
       const arr = [...prev[nivel]];
       arr[idx] = { ...arr[idx], [field]: value };
+      return { ...prev, [nivel]: arr };
+    });
+  };
+
+  // Move member up or down within a nivel
+  const moveMembro = (nivel: NivelKey, idx: number, direction: 'up' | 'down') => {
+    setDraft(prev => {
+      const arr = [...prev[nivel]];
+      const newIdx = direction === 'up' ? idx - 1 : idx + 1;
+      if (newIdx < 0 || newIdx >= arr.length) return prev;
+      [arr[idx], arr[newIdx]] = [arr[newIdx], arr[idx]];
+      return { ...prev, [nivel]: arr };
+    });
+  };
+
+  // Sort members alphabetically within a nivel (keeps manual seniority as fallback)
+  const sortAlpha = (nivel: NivelKey) => {
+    setDraft(prev => {
+      const arr = [...prev[nivel]].sort((a, b) =>
+        (a.nome || '').localeCompare(b.nome || '', 'pt-BR', { sensitivity: 'base' })
+      );
       return { ...prev, [nivel]: arr };
     });
   };
@@ -110,7 +135,7 @@ export default function HierarquiaPage() {
       const res = await fetch('/api/hierarquia', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(draft) });
       const json = await res.json();
       if (res.ok && json.ok) {
-        setData(json.data); setSaveMsg('✓ Salvo!'); setEditMode(false);
+        setData(json.data); setSaveMsg('✓ Salvo!'); setEditMode(false); setReorderNivel(null);
       } else { setSaveMsg('Erro: ' + (json.error || 'falha ao salvar')); }
     } catch (e: any) {
       setSaveMsg('Erro: ' + e.message);
@@ -134,9 +159,9 @@ export default function HierarquiaPage() {
               <>
                 <button onClick={saveDraft} disabled={saving}
                   style={{ background: 'linear-gradient(135deg,#ca8a04,#a16207)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 18px', cursor: saving ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
-                  {saving ? t('admin_saving') : `💾 ${t('admin_save').split(' ')[0]}`}
+                  {saving ? t('admin_saving') : `💾 Salvar`}
                 </button>
-                <button onClick={() => { setEditMode(false); setDraft(data); }}
+                <button onClick={() => { setEditMode(false); setDraft(data); setReorderNivel(null); }}
                   style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: 'rgba(255,255,255,0.7)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>
                   {t('admin_cancel')}
                 </button>
@@ -172,13 +197,14 @@ export default function HierarquiaPage() {
           {NIVEIS.map(nivel => {
             const membros = (currentData as any)[nivel.key] as Membro[];
             const isExpanded = expandedNivel === nivel.key || editMode;
+            const isReordering = reorderNivel === nivel.key;
+
             return (
               <div key={nivel.key} style={{ background: 'rgba(255,255,255,0.03)', border: `2px solid ${nivel.border}30`, borderRadius: 16, overflow: 'hidden' }}>
                 {/* Level header */}
                 <div
                   style={{ background: `${nivel.cor.replace('linear-gradient(135deg,','').split(',')[0]}12`, borderBottom: isExpanded ? `1px solid ${nivel.border}20` : 'none', padding: '14px 20px', cursor: editMode ? 'default' : 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
                   onClick={() => !editMode && setExpandedNivel(isExpanded ? null : nivel.key)}>
-                  {/* Level icons strip */}
                   <div style={{ width: 44, height: 44, borderRadius: 12, background: nivel.cor, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0, boxShadow: `0 4px 12px ${nivel.border}40` }}>
                     {nivel.icon}
                   </div>
@@ -194,15 +220,86 @@ export default function HierarquiaPage() {
                   </div>
                 </div>
 
-                {/* Members grid */}
+                {/* Members grid / reorder list */}
                 {isExpanded && (
                   <div style={{ padding: '16px 20px' }}>
+
+                    {/* Reorder toolbar (edit mode only) */}
+                    {editMode && membros.length > 1 && (
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14, flexWrap: 'wrap' }}>
+                        <button
+                          onClick={() => setReorderNivel(isReordering ? null : nivel.key)}
+                          style={{
+                            background: isReordering ? `${nivel.border}30` : 'rgba(255,255,255,0.06)',
+                            border: `1px solid ${isReordering ? nivel.border + '60' : 'rgba(255,255,255,0.12)'}`,
+                            color: isReordering ? nivel.badge : 'rgba(255,255,255,0.55)',
+                            borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: '0.74rem', fontWeight: 700,
+                          }}>
+                          {isReordering ? '✓ Concluir ordem' : '↕ Reordenar por antiguidade'}
+                        </button>
+                        <button
+                          onClick={() => {
+                            if (confirm(`Ordenar os membros de "${nivel.label}" em ordem alfabética?`)) {
+                              sortAlpha(nivel.key);
+                            }
+                          }}
+                          style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.45)', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: '0.74rem' }}>
+                          🔤 Ordenar por nome
+                        </button>
+                        {isReordering && (
+                          <span style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.35)', fontStyle: 'italic' }}>
+                            Use ↑↓ para ajustar quem recebeu a graduação primeiro
+                          </span>
+                        )}
+                      </div>
+                    )}
+
                     {membros.length === 0 && !editMode ? (
                       <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.25)', fontSize: '0.82rem', padding: '16px 0' }}>Nenhum membro neste nível</div>
+                    ) : isReordering ? (
+                      /* ── Reorder list view ── */
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {membros.map((m, idx) => (
+                          <div key={m.id} style={{ display: 'flex', alignItems: 'center', gap: 10, background: `${nivel.border}10`, border: `1px solid ${nivel.border}30`, borderRadius: 10, padding: '8px 12px' }}>
+                            <span style={{ minWidth: 26, height: 26, borderRadius: '50%', background: `${nivel.border}25`, border: `1px solid ${nivel.border}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.72rem', fontWeight: 800, color: nivel.badge, flexShrink: 0 }}>
+                              {idx + 1}º
+                            </span>
+                            {m.foto_url
+                              ? <img src={m.foto_url} alt="" style={{ width: 34, height: 34, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${nivel.border}`, flexShrink: 0 }} />
+                              : <div style={{ width: 34, height: 34, borderRadius: '50%', background: `${nivel.border}18`, border: `2px solid ${nivel.border}40`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>👤</div>
+                            }
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#fff', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.nome || '—'}</div>
+                              {m.nucleo && <div style={{ fontSize: '0.68rem', color: nivel.badge, opacity: 0.8 }}>{m.nucleo}</div>}
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, flexShrink: 0 }}>
+                              <button
+                                disabled={idx === 0}
+                                onClick={() => moveMembro(nivel.key, idx, 'up')}
+                                style={{ width: 28, height: 24, borderRadius: 5, background: idx === 0 ? 'rgba(255,255,255,0.03)' : `${nivel.border}20`, border: `1px solid ${idx === 0 ? 'rgba(255,255,255,0.07)' : nivel.border + '40'}`, color: idx === 0 ? 'rgba(255,255,255,0.2)' : nivel.badge, cursor: idx === 0 ? 'default' : 'pointer', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                ↑
+                              </button>
+                              <button
+                                disabled={idx === membros.length - 1}
+                                onClick={() => moveMembro(nivel.key, idx, 'down')}
+                                style={{ width: 28, height: 24, borderRadius: 5, background: idx === membros.length - 1 ? 'rgba(255,255,255,0.03)' : `${nivel.border}20`, border: `1px solid ${idx === membros.length - 1 ? 'rgba(255,255,255,0.07)' : nivel.border + '40'}`, color: idx === membros.length - 1 ? 'rgba(255,255,255,0.2)' : nivel.badge, cursor: idx === membros.length - 1 ? 'default' : 'pointer', fontSize: '0.7rem', fontWeight: 900, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                                ↓
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
                     ) : (
+                      /* ── Normal grid view ── */
                       <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
                         {membros.map((m, idx) => (
                           <div key={m.id} style={{ background: `${nivel.border}08`, border: `1px solid ${nivel.border}25`, borderRadius: 12, padding: '12px', width: 130, textAlign: 'center', position: 'relative' }}>
+                            {/* Seniority badge on view mode */}
+                            {!editMode && membros.length > 1 && (
+                              <div style={{ position: 'absolute', top: 6, left: 6, background: `${nivel.border}25`, border: `1px solid ${nivel.border}40`, borderRadius: 10, padding: '1px 7px', fontSize: '0.6rem', fontWeight: 800, color: nivel.badge }}>
+                                {idx + 1}º
+                              </div>
+                            )}
                             <div style={{ position: 'relative', display: 'inline-block' }}>
                               {m.foto_url
                                 ? <img src={m.foto_url} alt="" style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: `2px solid ${nivel.border}` }} />
