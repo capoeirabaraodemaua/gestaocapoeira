@@ -622,6 +622,16 @@ export default function AdminPage() {
     fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); }).catch(() => {});
   }, []);
 
+  // Reload eventos whenever the eventos tab becomes active
+  useEffect(() => {
+    if (activeTab !== 'eventos') return;
+    fetch('/api/eventos')
+      .then(r => r.json())
+      .then(d => { setEventos(Array.isArray(d) ? d : []); setLoadingEventos(false); })
+      .catch(() => setLoadingEventos(false));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab]);
+
   // Auto-refresh presencas every 30s when GPS map is visible
   useEffect(() => {
     if (!showGpsMap) return;
@@ -5376,7 +5386,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
             )}
 
-            {loadingEventos ? (
+            {loadingEventos && eventosFiltrados.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>{t('common_loading')}</div>
             ) : eventosFiltrados.length === 0 ? (
               <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
