@@ -45,16 +45,55 @@ export default function Home() {
   const [manageSaving, setManageSaving] = useState(false);
   const [manageMsg, setManageMsg] = useState('');
 
+  // Background changer state
+  const [bgUrl, setBgUrl] = useState<string | null>(null);
+  const [bgModalOpen, setBgModalOpen] = useState(false);
+  const [bgCpf, setBgCpf] = useState('');
+  const [bgCpfOk, setBgCpfOk] = useState(false);
+  const [bgCpfError, setBgCpfError] = useState('');
+  const [bgUploading, setBgUploading] = useState(false);
+  const [bgUploadMsg, setBgUploadMsg] = useState('');
+  const bgFileRef = useRef<HTMLInputElement>(null);
+
   // Load admin config CPF on mount
   useEffect(() => {
     fetch('/api/admin/config').then(r => r.json()).then(d => {
       if (d.super_admin_cpf) setAdminConfigCpf(d.super_admin_cpf);
     }).catch(() => {});
+    // Load background URL
+    fetch('/api/admin/background').then(r => r.json()).then(d => {
+      if (d.url) setBgUrl(d.url);
+    }).catch(() => {});
   }, []);
+
+  // Login attempt limiting (max 5 attempts, 5-min lockout, stored in sessionStorage)
+  const MAX_LOGIN_ATTEMPTS = 5;
+  const LOCKOUT_MS = 5 * 60 * 1000;
+
+  function getLoginState() {
+    try {
+      const raw = sessionStorage.getItem('login_attempts');
+      if (!raw) return { count: 0, lockedUntil: 0 };
+      return JSON.parse(raw) as { count: number; lockedUntil: number };
+    } catch { return { count: 0, lockedUntil: 0 }; }
+  }
+  function setLoginState(count: number, lockedUntil: number) {
+    sessionStorage.setItem('login_attempts', JSON.stringify({ count, lockedUntil }));
+  }
 
   async function handleAdminAccess() {
     const digits = adminCpf.replace(/\D/g, '');
     if (!digits) { setAdminErro('Digite seu CPF.'); return; }
+
+    // Lockout check
+    const ls = getLoginState();
+    const now = Date.now();
+    if (ls.lockedUntil > now) {
+      const secs = Math.ceil((ls.lockedUntil - now) / 1000);
+      setAdminErro(`Muitas tentativas. Aguarde ${secs}s antes de tentar novamente.`);
+      return;
+    }
+
     setAdminLoading(true);
     setAdminErro('');
     // Super admin CPF
@@ -77,7 +116,17 @@ export default function Home() {
         return;
       }
     } catch {}
-    setAdminErro('CPF não autorizado.');
+    // Increment failed attempt
+    const ls2 = getLoginState();
+    const newCount = ls2.count + 1;
+    if (newCount >= MAX_LOGIN_ATTEMPTS) {
+      const lockUntil = Date.now() + LOCKOUT_MS;
+      setLoginState(0, lockUntil);
+      setAdminErro(`CPF não autorizado. Conta bloqueada por 5 minutos após ${MAX_LOGIN_ATTEMPTS} tentativas falhas.`);
+    } else {
+      setLoginState(newCount, 0);
+      setAdminErro(`CPF não autorizado. Tentativa ${newCount}/${MAX_LOGIN_ATTEMPTS}.`);
+    }
     setAdminCpf('');
     setAdminLoading(false);
   }
@@ -117,6 +166,8 @@ export default function Home() {
     }
     setManageSaving(false);
   }
+
+  const [honeypot, setHoneypot] = useState('');
 
   const [form, setForm] = useState({
     nome_completo: '',
@@ -318,6 +369,8 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    // Honeypot bot detection — bots fill hidden fields, humans don't
+    if (honeypot) return;
     if (duplicateErrors.cpf || duplicateErrors.identidade || duplicateErrors.nome_completo || duplicateErrors.email) {
       alert('Corrija os campos duplicados antes de enviar.');
       return;
@@ -595,7 +648,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ── Hero Banner — imagem de fundo em tela cheia, com logo sobreposto ── */}
       <div className="hero-banner" style={{ position: 'relative' }}>
         <img
-          src="/wallpaper-capoeira.jpg"
+          src={bgUrl || '/wallpaper-capoeira.jpg'}
           alt="Capoeira Barão de Mauá"
           style={{
             position: 'absolute', top: 0, left: 0,
@@ -604,7 +657,152 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             display: 'block',
           }}
         />
+        {/* Floating background changer button */}
+        <button
+          type="button"
+          onClick={() => { setBgModalOpen(true); setBgCpf(''); setBgCpfOk(false); setBgCpfError(''); setBgUploadMsg(''); }}
+          title="Alterar imagem de fundo"
+          style={{
+            position: 'absolute', bottom: 8, right: 8,
+            background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.3)',
+            borderRadius: 8, color: '#fff', fontSize: '0.72rem', fontWeight: 700,
+            padding: '5px 10px', cursor: 'pointer', zIndex: 10,
+            display: 'flex', alignItems: 'center', gap: 5,
+            backdropFilter: 'blur(4px)',
+          }}
+        >
+          🖼 Alterar Fundo
+        </button>
       </div>
+
+      {/* Background changer modal */}
+      {bgModalOpen && (
+        <div
+          onClick={(e) => { if (e.target === e.currentTarget) setBgModalOpen(false); }}
+          style={{
+            position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 2000,
+          }}
+        >
+          <div style={{
+            background: '#fff', borderRadius: 16, padding: '28px 28px 24px',
+            minWidth: 320, maxWidth: 420, width: '90%', boxShadow: '0 8px 40px rgba(0,0,0,0.3)',
+            position: 'relative',
+          }}>
+            <button
+              onClick={() => setBgModalOpen(false)}
+              style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#64748b' }}
+            >×</button>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1e3a8a', marginBottom: 16 }}>
+              🖼 Alterar Imagem de Fundo
+            </div>
+
+            {!bgCpfOk ? (
+              <>
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 12 }}>
+                  Digite o CPF do Administrador Geral para continuar.
+                </p>
+                <input
+                  type="text"
+                  placeholder="CPF do Admin Geral"
+                  value={bgCpf}
+                  onChange={e => setBgCpf(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') {
+                    const digits = bgCpf.replace(/\D/g, '');
+                    if (digits === adminConfigCpf) { setBgCpfOk(true); setBgCpfError(''); }
+                    else setBgCpfError('CPF não autorizado.');
+                  }}}
+                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid #cbd5e1', marginBottom: 8, fontSize: '0.9rem' }}
+                />
+                {bgCpfError && <div style={{ color: '#dc2626', fontSize: '0.8rem', marginBottom: 8 }}>{bgCpfError}</div>}
+                <button
+                  onClick={() => {
+                    const digits = bgCpf.replace(/\D/g, '');
+                    if (digits === adminConfigCpf) { setBgCpfOk(true); setBgCpfError(''); }
+                    else setBgCpfError('CPF não autorizado.');
+                  }}
+                  style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: 'pointer', width: '100%' }}
+                >
+                  Verificar
+                </button>
+              </>
+            ) : (
+              <>
+                {bgUrl && (
+                  <div style={{ marginBottom: 14, textAlign: 'center' }}>
+                    <img src={bgUrl} alt="Fundo atual" style={{ maxWidth: '100%', maxHeight: 120, objectFit: 'contain', borderRadius: 8, border: '1px solid #e2e8f0' }} />
+                    <div style={{ fontSize: '0.72rem', color: '#94a3b8', marginTop: 4 }}>Imagem atual</div>
+                  </div>
+                )}
+                <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 12 }}>
+                  Selecione uma imagem (JPG, PNG, WEBP) para o fundo da página inicial.
+                </p>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={bgFileRef}
+                  style={{ display: 'none' }}
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    setBgUploading(true); setBgUploadMsg('');
+                    try {
+                      const fd = new FormData();
+                      fd.append('file', file);
+                      const res = await fetch('/api/admin/background', { method: 'POST', body: fd });
+                      const json = await res.json();
+                      if (!res.ok) throw new Error(json.error || 'Falha no upload');
+                      const uploadedUrl = json.url as string;
+                      // Save config
+                      await fetch('/api/admin/background', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ url: uploadedUrl }),
+                      });
+                      setBgUrl(uploadedUrl);
+                      setBgUploadMsg('✓ Imagem atualizada com sucesso!');
+                    } catch (err: any) {
+                      setBgUploadMsg('Erro: ' + err.message);
+                    }
+                    setBgUploading(false);
+                    if (bgFileRef.current) bgFileRef.current.value = '';
+                  }}
+                />
+                <button
+                  onClick={() => bgFileRef.current?.click()}
+                  disabled={bgUploading}
+                  style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: bgUploading ? 'not-allowed' : 'pointer', width: '100%', marginBottom: 8, opacity: bgUploading ? 0.7 : 1 }}
+                >
+                  {bgUploading ? 'Enviando...' : '📤 Escolher Imagem'}
+                </button>
+                {bgUrl && (
+                  <button
+                    onClick={async () => {
+                      setBgUploading(true); setBgUploadMsg('');
+                      try {
+                        await fetch('/api/admin/background', { method: 'DELETE' });
+                        setBgUrl(null);
+                        setBgUploadMsg('✓ Imagem removida. Fundo padrão restaurado.');
+                      } catch { setBgUploadMsg('Erro ao remover imagem.'); }
+                      setBgUploading(false);
+                    }}
+                    disabled={bgUploading}
+                    style={{ background: 'none', color: '#dc2626', border: '1.5px solid #dc2626', borderRadius: 8, padding: '7px 16px', fontWeight: 700, cursor: 'pointer', width: '100%', fontSize: '0.82rem' }}
+                  >
+                    🗑 Remover / Restaurar Padrão
+                  </button>
+                )}
+                {bgUploadMsg && (
+                  <div style={{ marginTop: 10, fontSize: '0.82rem', color: bgUploadMsg.startsWith('✓') ? '#16a34a' : '#dc2626', fontWeight: 600 }}>
+                    {bgUploadMsg}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       <div className="container" style={{ marginTop: 0 }}>
           {/* Action tabs */}
@@ -743,6 +941,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {activeSection === 'ficha' && (
           <form onSubmit={handleSubmit}>
+            {/* Honeypot — hidden from humans, bots fill it — do not remove */}
+            <div style={{ position: 'absolute', left: '-9999px', top: '-9999px', width: 1, height: 1, overflow: 'hidden' }} aria-hidden="true">
+              <label htmlFor="website">Website</label>
+              <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e => setHoneypot(e.target.value)} />
+            </div>
             {/* Núcleo */}
             <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
               <h2 className="form-section-title">{t('common_nucleus')}</h2>

@@ -275,6 +275,33 @@ export default function AdminPage() {
 
   const SUPER_ADMIN_CPF = '09856925703';
 
+  // Admin action logger
+  async function logAdminAction(action: string, details?: string) {
+    try {
+      const nucleo = activeNucleo || 'unknown';
+      const user = loginUser || 'admin';
+      await fetch('/api/admin/logs', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, user, nucleo, details }),
+      });
+    } catch {}
+  }
+
+  // Login attempt limiting
+  const ADMIN_MAX_ATTEMPTS = 5;
+  const ADMIN_LOCKOUT_MS = 5 * 60 * 1000;
+  function getAdminLoginState() {
+    try {
+      const raw = sessionStorage.getItem('admin_panel_login_attempts');
+      if (!raw) return { count: 0, lockedUntil: 0 };
+      return JSON.parse(raw) as { count: number; lockedUntil: number };
+    } catch { return { count: 0, lockedUntil: 0 }; }
+  }
+  function setAdminLoginState(count: number, lockedUntil: number) {
+    sessionStorage.setItem('admin_panel_login_attempts', JSON.stringify({ count, lockedUntil }));
+  }
+
   // Autenticar com base no sessionStorage (set pelo modal da página principal ou pelo formulário de login)
   useEffect(() => {
     const stored = sessionStorage.getItem('admin_auth') as NucleoKey | null;
@@ -286,6 +313,16 @@ export default function AdminPage() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // Lockout check
+    const als = getAdminLoginState();
+    const now = Date.now();
+    if (als.lockedUntil > now) {
+      const secs = Math.ceil((als.lockedUntil - now) / 1000);
+      setLoginError(`Muitas tentativas incorretas. Aguarde ${secs}s para tentar novamente.`);
+      return;
+    }
+
     // Try user/pass profiles first
     const profiles = getProfiles();
     const match = profiles.find(p => p.user === loginUser.trim() && p.pass === loginPass);
@@ -293,7 +330,9 @@ export default function AdminPage() {
       sessionStorage.setItem('admin_auth', match.nucleo);
       setAuthed(true);
       setActiveNucleo(match.nucleo);
+      setAdminLoginState(0, 0);
       setLoginError('');
+      fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginUser.trim(), nucleo: match.nucleo }) }).catch(() => {});
       return;
     }
     // Try CPF-based login — aceita CPF no campo usuário OU no campo senha
@@ -306,7 +345,9 @@ export default function AdminPage() {
         sessionStorage.setItem('admin_auth', 'geral');
         setAuthed(true);
         setActiveNucleo('geral');
+        setAdminLoginState(0, 0);
         setLoginError('');
+        fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: 'admin_geral', nucleo: 'geral' }) }).catch(() => {});
         return;
       }
       // Check responsáveis config (cpf or cpf2)
@@ -321,12 +362,23 @@ export default function AdminPage() {
           sessionStorage.setItem('admin_auth', resp.nucleo_key);
           setAuthed(true);
           setActiveNucleo(resp.nucleo_key as NucleoKey);
+          setAdminLoginState(0, 0);
           setLoginError('');
+          fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: cpfDigits.slice(-4), nucleo: resp.nucleo_key }) }).catch(() => {});
           return;
         }
       } catch {}
     }
-    setLoginError('Usuário, senha ou CPF incorretos.');
+    // Increment failed login attempt
+    const als2 = getAdminLoginState();
+    const newCount = als2.count + 1;
+    if (newCount >= ADMIN_MAX_ATTEMPTS) {
+      setAdminLoginState(0, Date.now() + ADMIN_LOCKOUT_MS);
+      setLoginError(`Credenciais incorretas. Acesso bloqueado por 5 minutos após ${ADMIN_MAX_ATTEMPTS} tentativas.`);
+    } else {
+      setAdminLoginState(newCount, 0);
+      setLoginError(`Usuário, senha ou CPF incorretos. Tentativa ${newCount}/${ADMIN_MAX_ATTEMPTS}.`);
+    }
   };
 
   const handleChangeCreds = (e: React.FormEvent) => {
@@ -498,6 +550,7 @@ export default function AdminPage() {
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
   const [dbMaintLoading, setDbMaintLoading] = useState(false);
   const [dbMaintMsg, setDbMaintMsg] = useState('');
+  const [dbSqlModal, setDbSqlModal] = useState<{ sql: string; missing: string[] } | null>(null);
 
   // ── Eventos state ──────────────────────────────────────────────────────────
   const [eventos, setEventos] = useState<any[]>([]);
@@ -748,6 +801,7 @@ export default function AdminPage() {
       if (error) {
         alert('Erro ao salvar. Tente novamente.');
       } else {
+        logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
         setEditFotoFile(null);
         fetchStudents();
@@ -763,6 +817,7 @@ export default function AdminPage() {
     if (error) {
       alert('Erro ao excluir. Tente novamente.');
     } else {
+      logAdminAction('delete_student', `id:${deleteConfirm.id} nome:${deleteConfirm.nome_completo}`);
       setDeleteConfirm(null);
       setSelected(null);
       fetchStudents();
@@ -1284,14 +1339,21 @@ export default function AdminPage() {
             <button
               disabled={dbMaintLoading}
               onClick={async () => {
-                setDbMaintLoading(true); setDbMaintMsg('');
+                setDbMaintLoading(true); setDbMaintMsg(''); setDbSqlModal(null);
                 const r = await fetch('/api/add-columns').catch(() => null);
                 const j = r ? await r.json().catch(() => ({})) : {};
-                setDbMaintMsg(j.success ? '✓ Colunas ativadas com sucesso!' : (j.message || j.error || 'Verifique o console.'));
+                if (j.success) {
+                  setDbMaintMsg('✓ Todas as colunas estão ativas!');
+                } else if (j.sql) {
+                  setDbSqlModal({ sql: j.sql, missing: j.missing || [] });
+                  setDbMaintMsg('');
+                } else {
+                  setDbMaintMsg('❌ ' + (j.message || j.error || 'Erro desconhecido.'));
+                }
                 setDbMaintLoading(false);
               }}
               style={{ background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, opacity: dbMaintLoading ? 0.7 : 1 }}>
-              {dbMaintLoading ? '⏳ Aguarde...' : '⚡ Ativar Novas Colunas'}
+              {dbMaintLoading ? '⏳ Verificando...' : '⚡ Ativar Novas Colunas'}
             </button>
             <button
               disabled={dbMaintLoading}
@@ -1304,7 +1366,7 @@ export default function AdminPage() {
                   setDbMaintMsg(`✓ ${j.updated} aluno(s) atualizados, ${j.skipped || 0} não identificados.`);
                   fetchStudents();
                 } else {
-                  setDbMaintMsg(j.error || 'Erro ao detectar sexo.');
+                  setDbMaintMsg('❌ ' + (j.error || 'Erro ao detectar sexo.'));
                 }
                 setDbMaintLoading(false);
               }}
@@ -1316,6 +1378,58 @@ export default function AdminPage() {
                 {dbMaintMsg}
               </span>
             )}
+          </div>
+        )}
+
+        {/* ── Modal SQL — Ativar colunas manualmente ── */}
+        {dbSqlModal && (
+          <div className="modal-overlay" onClick={() => setDbSqlModal(null)} style={{ zIndex: 1500 }}>
+            <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 680, width: '96vw' }}>
+              <div style={{ background: 'linear-gradient(135deg,#4f46e5,#6366f1)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+                <div>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>⚡ Ativar Colunas no Banco de Dados</div>
+                  <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.75rem', marginTop: 2 }}>
+                    {dbSqlModal.missing.length} coluna(s) pendente(s): <strong>{dbSqlModal.missing.join(', ')}</strong>
+                  </div>
+                </div>
+                <button onClick={() => setDbSqlModal(null)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
+              </div>
+
+              <div style={{ marginBottom: 12, padding: '10px 14px', background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 10, fontSize: '0.8rem', color: '#fcd34d', lineHeight: 1.6 }}>
+                <strong>Como ativar:</strong> Copie o SQL abaixo → acesse o <strong>Supabase Dashboard</strong> → <strong>SQL Editor</strong> → cole e clique em <strong>Run</strong>.
+              </div>
+
+              <div style={{ position: 'relative', marginBottom: 16 }}>
+                <textarea
+                  readOnly
+                  value={dbSqlModal.sql}
+                  style={{ width: '100%', minHeight: 200, padding: '12px 14px', background: '#0f172a', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 10, color: '#a5f3fc', fontFamily: 'monospace', fontSize: '0.8rem', lineHeight: 1.6, resize: 'vertical', boxSizing: 'border-box' }}
+                  onClick={e => (e.target as HTMLTextAreaElement).select()}
+                />
+                <button
+                  onClick={() => {
+                    navigator.clipboard.writeText(dbSqlModal.sql).then(() => {
+                      setDbMaintMsg('✓ SQL copiado para a área de transferência!');
+                      setDbSqlModal(null);
+                    });
+                  }}
+                  style={{ position: 'absolute', top: 10, right: 10, background: 'rgba(99,102,241,0.85)', border: 'none', color: '#fff', borderRadius: 7, padding: '5px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                  📋 Copiar SQL
+                </button>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+                <a href={`${process.env.NEXT_PUBLIC_SUPABASE_URL?.replace('.supabase.co', '') || ''}`}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: '#818cf8', fontSize: '0.78rem', textDecoration: 'none' }}>
+                  🔗 Abrir Supabase Dashboard →
+                </a>
+                <button onClick={() => setDbSqlModal(null)}
+                  style={{ padding: '8px 18px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 9, cursor: 'pointer', fontWeight: 600 }}>
+                  Fechar
+                </button>
+              </div>
+            </div>
           </div>
         )}
 

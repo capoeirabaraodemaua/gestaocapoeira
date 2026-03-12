@@ -1,36 +1,83 @@
 import type { NextConfig } from "next";
 import path from "node:path";
 
-// Loader path from orchids-visual-edits - use direct resolve to get the actual file
+// Loader path from orchids-visual-edits
 const loaderPath = require.resolve('orchids-visual-edits/loader.js');
 
 const nextConfig: NextConfig = {
   images: {
     remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**',
-      },
-      {
-        protocol: 'http',
-        hostname: '**',
-      },
+      { protocol: 'https', hostname: '**' },
+      { protocol: 'http', hostname: '**' },
     ],
   },
   outputFileTracingRoot: path.resolve(__dirname, '../../'),
-  typescript: {
-    ignoreBuildErrors: true,
-  },
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
+  typescript: { ignoreBuildErrors: true },
+  eslint: { ignoreDuringBuilds: true },
   turbopack: {
     rules: {
-      "*.{jsx,tsx}": {
-        loaders: [loaderPath]
-      }
+      "*.{jsx,tsx}": { loaders: [loaderPath] }
     }
-  }
+  },
+
+  // ── Security Headers ──────────────────────────────────────────────────────
+  async headers() {
+    return [
+      {
+        // Apply to all routes
+        source: '/(.*)',
+        headers: [
+          // Prevent clickjacking
+          { key: 'X-Frame-Options', value: 'DENY' },
+          // Prevent MIME sniffing
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          // XSS protection (legacy browsers)
+          { key: 'X-XSS-Protection', value: '1; mode=block' },
+          // Referrer policy
+          { key: 'Referrer-Policy', value: 'strict-origin-when-cross-origin' },
+          // Permissions policy — restrict browser features
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(self), payment=()' },
+          // Force HTTPS for 1 year
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000; includeSubDomains; preload' },
+          // Content Security Policy
+          {
+            key: 'Content-Security-Policy',
+            value: [
+              "default-src 'self'",
+              "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.google.com https://www.gstatic.com https://unpkg.com",
+              "style-src 'self' 'unsafe-inline' https://unpkg.com",
+              "img-src 'self' data: blob: https: http:",
+              "font-src 'self' data:",
+              "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co",
+              "frame-src https://www.google.com https://recaptcha.google.com",
+              "worker-src 'self' blob:",
+              "media-src 'self' blob: https:",
+            ].join('; '),
+          },
+        ],
+      },
+      {
+        // noindex for all internal/admin pages
+        source: '/(admin|financeiro|presenca|carteirinha|organograma|hierarquia|termo|api)(.*)',
+        headers: [
+          { key: 'X-Robots-Tag', value: 'noindex, nofollow, noarchive' },
+        ],
+      },
+    ];
+  },
+
+  // ── Redirects — enforce HTTPS ─────────────────────────────────────────────
+  async redirects() {
+    return [
+      // Redirect www to non-www (adjust as needed)
+      {
+        source: '/(.*)',
+        has: [{ type: 'host', value: 'www.accbm.com.br' }],
+        destination: 'https://accbm.com.br/:path*',
+        permanent: true,
+      },
+    ];
+  },
 } as NextConfig;
 
 export default nextConfig;
