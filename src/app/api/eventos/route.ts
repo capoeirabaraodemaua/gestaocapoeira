@@ -20,6 +20,9 @@ export interface EventoParticipant {
   graduacao_atual: string;
   nova_graduacao: string;
   tipo_graduacao: string; // 'adulta' | 'infantil'
+  cpf?: string | null;
+  inscricao_numero?: number | null;
+  data_nascimento?: string | null;
 }
 
 export interface Evento {
