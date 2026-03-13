@@ -568,6 +568,7 @@ export default function AdminPage() {
   const [responsaveis, setResponsaveis] = useState<Array<{ nucleo_key: string; nucleo_label: string; nome: string; cpf: string }>>([]);
   const [loadingResponsaveis, setLoadingResponsaveis] = useState(false);
   const [responsaveisMsg, setResponsaveisMsg] = useState('');
+  const [responsaveisSavedMsg, setResponsaveisSavedMsg] = useState<Record<string, string>>({});
 
   // ── Relatório de Alunos ────────────────────────────────────────────────────
   const [relAlunosOpen, setRelAlunosOpen] = useState(false);
@@ -4005,6 +4006,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
                               />
                             </div>
+                            {/* Mensagem de confirmação abaixo do Responsável 2 */}
+                            {responsaveisSavedMsg[n.key] && (
+                              <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                                {responsaveisSavedMsg[n.key]}
+                              </div>
+                            )}
                           </div>
 
                           {/* Botão salvar individual do núcleo */}
@@ -4014,23 +4022,31 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
                               const currentList: any[] = cfg.responsaveis || [];
                               const thisEntry = responsaveis.find((r: any) => r.nucleo_key === n.key) as any;
-                              if (!thisEntry?.nome?.trim() || !thisEntry?.cpf?.trim()) {
-                                setResponsaveisMsg('Preencha pelo menos o nome e CPF do Responsável 1.');
-                                setTimeout(() => setResponsaveisMsg(''), 3000);
-                                return;
-                              }
                               const entry = {
-                                ...thisEntry,
-                                nome2: thisEntry.nome2?.trim() || undefined,
-                                cpf2: thisEntry.cpf2?.trim() ? thisEntry.cpf2.replace(/\D/g,'') : undefined,
+                                nucleo_key: n.key,
+                                nucleo_label: n.label,
+                                nome: thisEntry?.nome?.trim() || '',
+                                cpf: thisEntry?.cpf?.trim() || '',
+                                nome2: thisEntry?.nome2?.trim() || undefined,
+                                cpf2: thisEntry?.cpf2?.trim() ? thisEntry.cpf2.replace(/\D/g,'') : undefined,
                               };
                               const idx = currentList.findIndex((r: any) => r.nucleo_key === n.key);
                               const updated = idx >= 0
                                 ? currentList.map((r: any) => r.nucleo_key === n.key ? entry : r)
                                 : [...currentList, entry];
                               const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                              if (res.ok) { setResponsaveisMsg(`✓ ${n.label} salvo!`); } else { setResponsaveisMsg('Erro ao salvar.'); }
-                              setTimeout(() => setResponsaveisMsg(''), 3000);
+                              if (res.ok) {
+                                setResponsaveis(updated);
+                                const savedNome2 = entry.nome2;
+                                const msg = savedNome2
+                                  ? `✓ ${n.label} salvo! Responsável 2: ${savedNome2}`
+                                  : `✓ ${n.label} salvo com sucesso!`;
+                                setResponsaveisSavedMsg(prev => ({ ...prev, [n.key]: msg }));
+                                setTimeout(() => setResponsaveisSavedMsg(prev => { const c = {...prev}; delete c[n.key]; return c; }), 4000);
+                              } else {
+                                setResponsaveisMsg('Erro ao salvar.');
+                                setTimeout(() => setResponsaveisMsg(''), 3000);
+                              }
                             }}
                               style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 7, padding: '7px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem' }}>
                               💾 Salvar
