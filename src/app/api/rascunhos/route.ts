@@ -64,6 +64,16 @@ const REQUIRED_FIELDS: Record<string, string> = {
   tipo_graduacao: 'Tipo de Graduação',
 };
 
+function isMenorDeIdade(data_nascimento?: string): boolean {
+  if (!data_nascimento) return false;
+  const birth = new Date(data_nascimento + 'T12:00:00');
+  const today = new Date();
+  let age = today.getFullYear() - birth.getFullYear();
+  const m = today.getMonth() - birth.getMonth();
+  if (m < 0 || (m === 0 && today.getDate() < birth.getDate())) age--;
+  return age < 18;
+}
+
 function calcularPendencias(data: Partial<RascunhoData>): string[] {
   const pendentes: string[] = [];
   for (const [field, label] of Object.entries(REQUIRED_FIELDS)) {
@@ -72,8 +82,9 @@ function calcularPendencias(data: Partial<RascunhoData>): string[] {
       pendentes.push(label);
     }
   }
-  // Minor-specific checks
-  if (data.menor_de_idade) {
+  // Responsável só é exigido para menores — detectado pela data de nascimento
+  const menor = data.menor_de_idade ?? isMenorDeIdade(data.data_nascimento);
+  if (menor) {
     if (!data.nome_responsavel?.trim()) pendentes.push('Nome do Responsável');
     if (!data.cpf_responsavel?.trim()) pendentes.push('CPF do Responsável');
   }

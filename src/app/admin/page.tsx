@@ -569,6 +569,20 @@ export default function AdminPage() {
   const [loadingResponsaveis, setLoadingResponsaveis] = useState(false);
   const [responsaveisMsg, setResponsaveisMsg] = useState('');
 
+  // ── Relatório de Alunos ────────────────────────────────────────────────────
+  const [relAlunosOpen, setRelAlunosOpen] = useState(false);
+  const [relAlunosNucleo, setRelAlunosNucleo] = useState('');
+  const [relAlunosMes, setRelAlunosMes] = useState(() => {
+    const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
+  });
+  interface RelAlunoItem { id: string; nome: string; graduacao: string; dias: number; custom?: boolean; }
+  const [relAlunosList, setRelAlunosList] = useState<RelAlunoItem[]>([]);
+  const [relAlunosEdit, setRelAlunosEdit] = useState<string|null>(null);
+  const [relAlunosEditVal, setRelAlunosEditVal] = useState<{nome:string;graduacao:string;dias:number}>({nome:'',graduacao:'',dias:0});
+  const [relAlunosNewNome, setRelAlunosNewNome] = useState('');
+  const [relAlunosNewGrad, setRelAlunosNewGrad] = useState('');
+  const [relAlunosNewDias, setRelAlunosNewDias] = useState('');
+
   // ── Gráfico individual por aluno ──────────────────────────────────────────
   const [indivChartOpen, setIndivChartOpen] = useState(false);
   const [indivSearch, setIndivSearch] = useState('');
@@ -2347,6 +2361,26 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M3 3v18h18"/><path d="M7 16l4-4 4 4 4-4"/></svg>
               Gráfico Individual
+            </button>
+            <button
+              onClick={() => {
+                const mesAtual = relAlunosMes;
+                const nucleo = nucleoFilter || relAlunosNucleo;
+                const mesStudents = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
+                  .filter(s => !nucleo || s.nucleo === nucleo);
+                const list: RelAlunoItem[] = mesStudents.map(s => {
+                  const dias = (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mesAtual)).length;
+                  return { id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—', dias };
+                });
+                list.sort((a,b) => b.dias - a.dias);
+                setRelAlunosList(list);
+                setRelAlunosNucleo(nucleo || '');
+                setRelAlunosOpen(true);
+              }}
+              style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', border: 'none', color: '#fff', padding: '6px 16px', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18M9 21V9"/></svg>
+              Relatório de Alunos
             </button>
           </div>
 
@@ -4169,7 +4203,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 } else {
                                   if (!confirm(`Finalizar cadastro de ${r.nome_completo}?\n\nO rascunho será removido e o aluno incluído no sistema.`)) return;
                                 }
-                                if (!r.nome_completo) { alert('Preencha pelo menos o Nome Completo antes de finalizar.'); return; }
                                 setRascunhoSaving(true);
                                 try {
                                   const payload: Record<string, any> = { ...r };
@@ -4246,6 +4279,178 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       )}
 
       </div>
+
+      {/* ── Modal Relatório de Alunos ── */}
+      {relAlunosOpen && (
+        <div className="modal-overlay" onClick={() => setRelAlunosOpen(false)} style={{ zIndex: 1100 }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 780, width: '96vw', maxHeight: '92vh', overflowY: 'auto' }}>
+            <div style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', borderRadius: '12px 12px 0 0', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', margin: '-24px -24px 20px -24px' }}>
+              <div>
+                <div style={{ color: '#fff', fontWeight: 800, fontSize: '1rem' }}>📋 Relatório de Alunos</div>
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.75rem', marginTop: 2 }}>Presenças mensais por aluno</div>
+              </div>
+              <button onClick={() => setRelAlunosOpen(false)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 8, width: 32, height: 32, cursor: 'pointer', fontSize: '1.2rem' }}>×</button>
+            </div>
+
+            {/* Filtros */}
+            <div style={{ display: 'flex', gap: 10, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Mês de referência</span>
+                <input type="month" value={relAlunosMes} onChange={e => {
+                  setRelAlunosMes(e.target.value);
+                  const mes = e.target.value;
+                  const nucleo = relAlunosNucleo;
+                  const base = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
+                    .filter(s => !nucleo || s.nucleo === nucleo);
+                  const list: RelAlunoItem[] = base.map(s => ({
+                    id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
+                    dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mes)).length,
+                  }));
+                  list.sort((a,b) => b.dias - a.dias);
+                  const custom = relAlunosList.filter(x => x.custom);
+                  setRelAlunosList([...list, ...custom]);
+                }} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+              </div>
+              {!nucleoFilter && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Núcleo</span>
+                  <select value={relAlunosNucleo} onChange={e => {
+                    const nucleo = e.target.value;
+                    setRelAlunosNucleo(nucleo);
+                    const base = students.filter(s => !nucleo || s.nucleo === nucleo);
+                    const list: RelAlunoItem[] = base.map(s => ({
+                      id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
+                      dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(relAlunosMes)).length,
+                    }));
+                    list.sort((a,b) => b.dias - a.dias);
+                    setRelAlunosList(list);
+                  }} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
+                    <option value="">Todos os núcleos</option>
+                    <option value="Saracuruna">Saracuruna</option>
+                    <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
+                    <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
+                    <option value="Vila Urussaí">Vila Urussaí</option>
+                    <option value="Jayme Fichman">Jayme Fichman</option>
+                  </select>
+                </div>
+              )}
+              <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+                <button onClick={() => {
+                  const mesLabel = relAlunosMes ? new Date(relAlunosMes + '-01T12:00:00').toLocaleString('pt-BR', { month: 'long', year: 'numeric' }) : relAlunosMes;
+                  const nucleoLabel = relAlunosNucleo || (nucleoFilter || 'Todos os Núcleos');
+                  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                  const rows = relAlunosList.map((al, i) => `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:0.82em;color:#1d4ed8;font-weight:700">${i+1}</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700">${al.nome}</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:600">${al.graduacao}</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:800;color:${al.dias>0?'#15803d':'#94a3b8'}">${al.dias}</td>
+                  </tr>`).join('');
+                  const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Alunos</title>
+                  <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:12px}
+                  .header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:3px solid #0891b2;margin-bottom:14px}
+                  .header img{height:72px;width:72px;object-fit:contain;flex-shrink:0}
+                  .assoc{font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px}
+                  .title{font-size:1.2rem;font-weight:800;color:#0891b2;margin:0 0 2px}
+                  .sub{font-size:0.82rem;color:#64748b;margin-bottom:4px}
+                  table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0}
+                  thead tr{background:#0891b2;color:#fff}
+                  thead td{padding:9px 12px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+                  .footer{margin-top:20px;display:flex;justify-content:space-between;border-top:2px solid #e2e8f0;padding-top:12px;font-size:0.72rem;color:#64748b}
+                  .sig{width:180px;text-align:center}.sig-line{border-top:1px solid #334155;margin:36px 0 4px}
+                  @media print{body{padding:14px};@page{size:A4;margin:1cm}}</style></head>
+                  <body>
+                  <div class="header">
+                    <img src="${origin}/logo-barao-maua.png" alt="ACCBM" onerror="this.src='${origin}/logo-accbm.jpeg'"/>
+                    <div><div class="assoc">Associação Cultural de Capoeira Barão de Mauá</div>
+                    <div class="title">📋 Relatório de Alunos</div>
+                    <div class="sub">Núcleo: <strong>${nucleoLabel}</strong> &nbsp;|&nbsp; Mês: <strong>${mesLabel}</strong> &nbsp;|&nbsp; Total: <strong>${relAlunosList.length} alunos</strong></div></div>
+                  </div>
+                  <table><thead><tr><td>#</td><td>Nome Completo</td><td>Graduação Atual</td><td style="text-align:center">Dias Treinados</td></tr></thead>
+                  <tbody>${rows}</tbody></table>
+                  <div class="footer">
+                    <div>Gerado em ${new Date().toLocaleString('pt-BR')}</div>
+                    <div class="sig"><div class="sig-line"></div>Responsável / Mestre</div>
+                  </div></body></html>`;
+                  const w = window.open('', '_blank');
+                  if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+                }} style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', border: 'none', color: '#fff', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                  🖨 Imprimir / PDF
+                </button>
+              </div>
+            </div>
+
+            {/* Tabela de alunos */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'hidden', marginBottom: 16 }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ background: 'rgba(8,145,178,0.12)' }}>
+                    <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>#</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Nome Completo</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Graduação</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Dias</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Ações</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {relAlunosList.map((al, i) => (
+                    <tr key={al.id} style={{ borderTop: '1px solid var(--border)' }}>
+                      {relAlunosEdit === al.id ? (
+                        <>
+                          <td style={{ padding: '6px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{i+1}</td>
+                          <td style={{ padding: '6px 8px' }}><input value={relAlunosEditVal.nome} onChange={e => setRelAlunosEditVal(v => ({...v, nome: e.target.value}))} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} /></td>
+                          <td style={{ padding: '6px 8px' }}><input value={relAlunosEditVal.graduacao} onChange={e => setRelAlunosEditVal(v => ({...v, graduacao: e.target.value}))} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} /></td>
+                          <td style={{ padding: '6px 8px' }}><input type="number" min="0" value={relAlunosEditVal.dias} onChange={e => setRelAlunosEditVal(v => ({...v, dias: Number(e.target.value)}))} style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem', textAlign: 'center' }} /></td>
+                          <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <button onClick={() => { setRelAlunosList(list => list.map(x => x.id === al.id ? {...x, ...relAlunosEditVal} : x)); setRelAlunosEdit(null); }} style={{ background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem', marginRight: 4 }}>✓</button>
+                            <button onClick={() => setRelAlunosEdit(null)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>✕</button>
+                          </td>
+                        </>
+                      ) : (
+                        <>
+                          <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{i+1}</td>
+                          <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: '0.88rem' }}>{al.nome}</td>
+                          <td style={{ padding: '8px 12px', fontSize: '0.82rem', color: '#b45309' }}>{al.graduacao}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 800, color: al.dias > 0 ? '#16a34a' : 'var(--text-secondary)', fontSize: '0.95rem' }}>{al.dias}</td>
+                          <td style={{ padding: '8px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
+                            <button onClick={() => { setRelAlunosEdit(al.id); setRelAlunosEditVal({nome: al.nome, graduacao: al.graduacao, dias: al.dias}); }} style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem', marginRight: 4 }}>✏</button>
+                            <button onClick={() => setRelAlunosList(list => list.filter(x => x.id !== al.id))} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                          </td>
+                        </>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Adicionar aluno manual */}
+            <div style={{ border: '1px solid var(--border)', borderRadius: 10, padding: '12px 14px', background: 'rgba(8,145,178,0.04)' }}>
+              <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 700, marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>➕ Adicionar aluno manualmente</div>
+              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                <div style={{ flex: 2, minWidth: 160 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Nome</div>
+                  <input value={relAlunosNewNome} onChange={e => setRelAlunosNewNome(e.target.value)} placeholder="Nome completo" style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
+                </div>
+                <div style={{ flex: 1, minWidth: 120 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Graduação</div>
+                  <input value={relAlunosNewGrad} onChange={e => setRelAlunosNewGrad(e.target.value)} placeholder="Ex: Corda Crua" style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
+                </div>
+                <div style={{ width: 80 }}>
+                  <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Dias</div>
+                  <input type="number" min="0" value={relAlunosNewDias} onChange={e => setRelAlunosNewDias(e.target.value)} placeholder="0" style={{ width: '100%', padding: '6px 10px', borderRadius: 7, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem', textAlign: 'center' }} />
+                </div>
+                <button onClick={() => {
+                  if (!relAlunosNewNome.trim()) return;
+                  setRelAlunosList(list => [...list, { id: `custom_${Date.now()}`, nome: relAlunosNewNome.trim(), graduacao: relAlunosNewGrad || '—', dias: Number(relAlunosNewDias) || 0, custom: true }]);
+                  setRelAlunosNewNome(''); setRelAlunosNewGrad(''); setRelAlunosNewDias('');
+                }} style={{ background: 'linear-gradient(135deg,#0891b2,#0e7490)', border: 'none', color: '#fff', borderRadius: 8, padding: '7px 16px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                  ✅ Incluir
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Modal Gráfico Individual por Aluno ── */}
       {indivChartOpen && (
@@ -5959,16 +6164,63 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {/* Participants list */}
               {(eventoForm.participantes || []).length > 0 && (
                 <div style={{ borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)' }}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px 36px', gap: 6, padding: '7px 10px', background: 'linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.05))', borderBottom: '1px solid var(--border)' }}>
-                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>#</div>
-                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aluno</div>
-                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Grad. Atual</div>
-                    <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nova Grad.</div>
-                    <div />
+                  <div style={{ display: 'flex', alignItems: 'center', padding: '7px 10px', background: 'linear-gradient(135deg,rgba(14,165,233,0.12),rgba(14,165,233,0.05))', borderBottom: '1px solid var(--border)', gap: 8 }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px', gap: 6, flex: 1 }}>
+                      <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' }}>#</div>
+                      <div style={{ fontSize: '0.63rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Aluno</div>
+                      <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#f59e0b', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Grad. Atual</div>
+                      <div style={{ fontSize: '0.63rem', fontWeight: 700, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Nova Grad.</div>
+                    </div>
+                    <button onClick={() => {
+                      const origin = typeof window !== 'undefined' ? window.location.origin : '';
+                      const dataFmt = eventoForm.data ? new Date(eventoForm.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
+                      const rows = (eventoForm.participantes || []).map((p: any, i: number) => {
+                        const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
+                        return `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#1d4ed8;font-weight:700">${i+1}</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-weight:700">${p.nome_completo}</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b">${p.nucleo||'—'}</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:700">${p.graduacao_atual}</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8">→</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:${mudou?'#15803d':'#94a3b8'};font-weight:${mudou?'800':'400'}">${p.nova_graduacao||p.graduacao_atual}</td>
+                          <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;border-left:1px dashed #e2e8f0"></td>
+                        </tr>`;
+                      }).join('');
+                      const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>${eventoForm.nome||'Evento'}</title>
+                      <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:12px}
+                      .header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:3px solid #1e3a8a;margin-bottom:14px}
+                      .header img{height:72px;width:72px;object-fit:contain;flex-shrink:0}
+                      .assoc{font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px}
+                      .title{font-size:1.2rem;font-weight:800;color:#1e3a8a;margin:0 0 2px}
+                      table{width:100%;border-collapse:collapse;border:1px solid #e2e8f0}
+                      thead tr{background:#1e3a8a;color:#fff}
+                      thead td{padding:9px 10px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
+                      .footer{margin-top:20px;display:flex;justify-content:space-between;border-top:2px solid #e2e8f0;padding-top:12px}
+                      .sig{width:190px;text-align:center}.sig-line{border-top:1px solid #334155;margin:36px 0 4px;font-size:0.68rem;color:#64748b}
+                      @media print{body{padding:14px};@page{size:landscape;margin:1cm}}</style></head>
+                      <body>
+                      <div class="header">
+                        <img src="${origin}/logo-barao-maua.png" alt="ACCBM" onerror="this.src='${origin}/logo-accbm.jpeg'"/>
+                        <div><div class="assoc">Associação Cultural de Capoeira Barão de Mauá</div>
+                        <div class="title">${eventoForm.tipo==='batizado'?'Batizado':'Troca de Graduação'}: ${eventoForm.nome||'—'}</div>
+                        <div style="font-size:0.82rem;color:#64748b">Data: <strong>${dataFmt}</strong>${eventoForm.hora?` &nbsp;|&nbsp; Horário: <strong>${eventoForm.hora}</strong>`:''}${eventoForm.local?` &nbsp;|&nbsp; Local: <strong>${eventoForm.local}</strong>`:''} &nbsp;|&nbsp; Participantes: <strong>${(eventoForm.participantes||[]).length}</strong></div></div>
+                      </div>
+                      <table><thead><tr><td>#</td><td>Nome Completo</td><td>Núcleo</td><td>Graduação Atual</td><td></td><td>Nova Graduação</td><td>Assinatura</td></tr></thead>
+                      <tbody>${rows}</tbody></table>
+                      <div class="footer">
+                        <div class="sig"><div class="sig-line">Responsável / Mestre</div></div>
+                        <div style="text-align:center;font-size:0.65rem;color:#94a3b8">Gerado em ${new Date().toLocaleString('pt-BR')}<br/><strong>ACCBM — Associação Cultural de Capoeira Barão de Mauá</strong></div>
+                        <div class="sig"><div class="sig-line">Secretário(a)</div></div>
+                      </div></body></html>`;
+                      const w = window.open('', '_blank');
+                      if (w) { w.document.write(html); w.document.close(); w.focus(); setTimeout(() => w.print(), 400); }
+                    }} style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 7, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+                      🖨 PDF
+                    </button>
                   </div>
                   <div style={{ maxHeight: 300, overflowY: 'auto' }}>
                     {eventoForm.participantes.map((p: any, idx: number) => (
-                      <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px 36px', alignItems: 'center', gap: 6, padding: '8px 10px', background: idx % 2 === 0 ? 'var(--bg)' : 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)' }}>
+                      <div key={p.student_id} style={{ display: 'grid', gridTemplateColumns: '28px 1fr 140px 140px 36px', alignItems: 'center', gap: 6, padding: '8px 10px', background: idx % 2 === 0 ? 'var(--bg)' : 'rgba(255,255,255,0.02)', borderBottom: '1px solid var(--border)', paddingRight: 46 }}>
                         <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', fontWeight: 700, textAlign: 'center' }}>{idx + 1}</div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontWeight: 600, fontSize: '0.82rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.nome_completo}</div>

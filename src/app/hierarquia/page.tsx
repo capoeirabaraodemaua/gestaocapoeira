@@ -181,6 +181,9 @@ export default function HierarquiaPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <img src="/logo-barao-maua.png" alt="ACCBM" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-accbm.jpeg'; }} style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(251,191,36,0.4))' }} />
+          </div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>ACCBM</div>
           <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, background: 'linear-gradient(90deg,#fbbf24,#f87171,#a78bfa)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
             Hierarquia da Capoeira

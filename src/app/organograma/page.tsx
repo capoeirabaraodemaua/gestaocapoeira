@@ -233,6 +233,9 @@ export default function OrganogramaPage() {
         </div>
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>
+          <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+            <img src="/logo-barao-maua.png" alt="ACCBM" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-accbm.jpeg'; }} style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(167,139,250,0.4))' }} />
+          </div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
             Associação Cultural de Capoeira
           </div>
