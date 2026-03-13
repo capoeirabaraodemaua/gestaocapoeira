@@ -260,6 +260,7 @@ export default function AdminPage() {
   const { t } = useLanguage();
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
+  const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -309,6 +310,10 @@ export default function AdminPage() {
     if (stored) {
       setAuthed(true);
       setActiveNucleo(stored);
+      try {
+        const storedNucleos = JSON.parse(sessionStorage.getItem('admin_auth_nucleos') || '[]') as NucleoKey[];
+        if (storedNucleos.length > 0) setAvailableNucleos(storedNucleos);
+      } catch {}
     }
   }, []);
 
@@ -351,21 +356,25 @@ export default function AdminPage() {
         fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: 'admin_geral', nucleo: 'geral' }) }).catch(() => {});
         return;
       }
-      // Check responsáveis config (cpf or cpf2)
+      // Check responsáveis config (cpf or cpf2) — busca TODOS os núcleos do responsável
       try {
         const res = await fetch('/api/admin/responsaveis');
         const cfg = await res.json();
-        const resp = (cfg.responsaveis || []).find((r: any) =>
+        const allMatches: any[] = (cfg.responsaveis || []).filter((r: any) =>
           (r.cpf || '').replace(/\D/g,'') === cpfDigits ||
           (r.cpf2 || '').replace(/\D/g,'') === cpfDigits
         );
-        if (resp) {
-          sessionStorage.setItem('admin_auth', resp.nucleo_key);
+        if (allMatches.length > 0) {
+          const nucleosList = allMatches.map((r: any) => r.nucleo_key as NucleoKey);
+          const firstNucleo = nucleosList[0];
+          sessionStorage.setItem('admin_auth', firstNucleo);
+          sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
           setAuthed(true);
-          setActiveNucleo(resp.nucleo_key as NucleoKey);
+          setActiveNucleo(firstNucleo);
+          setAvailableNucleos(nucleosList);
           setAdminLoginState(0, 0);
           setLoginError('');
-          fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: cpfDigits.slice(-4), nucleo: resp.nucleo_key }) }).catch(() => {});
+          fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: cpfDigits.slice(-4), nucleo: nucleosList.join(',') }) }).catch(() => {});
           return;
         }
       } catch {}
@@ -1072,9 +1081,34 @@ export default function AdminPage() {
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
             Voltar ao formulário
           </Link>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            {/* Current profile badge */}
-            {currentProfile && (
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {/* Botões de troca de núcleo — visível quando responsável gerencia mais de um */}
+            {availableNucleos.length > 1 && availableNucleos.map(nk => {
+              const prof = getProfiles().find(p => p.nucleo === nk);
+              if (!prof) return null;
+              const isActive = activeNucleo === nk;
+              return (
+                <button
+                  key={nk}
+                  onClick={() => {
+                    setActiveNucleo(nk);
+                    sessionStorage.setItem('admin_auth', nk);
+                    setActiveTab('alunos');
+                  }}
+                  style={{
+                    padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem',
+                    background: isActive ? prof.color : `${prof.color}22`,
+                    border: `1px solid ${prof.color}88`,
+                    color: isActive ? '#fff' : prof.color,
+                    transition: 'all 0.15s',
+                  }}
+                >
+                  {isActive ? '✓ ' : ''}{prof.label}
+                </button>
+              );
+            })}
+            {/* Current profile badge — só mostra quando tem 1 núcleo */}
+            {availableNucleos.length <= 1 && currentProfile && (
               <div style={{ padding: '4px 10px', borderRadius: 20, background: `${currentProfile.color}22`, border: `1px solid ${currentProfile.color}55`, color: currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
                 {currentProfile.label}
               </div>
@@ -1087,7 +1121,7 @@ export default function AdminPage() {
               Alterar senha
             </button>
             <button
-              onClick={() => { sessionStorage.removeItem('admin_auth'); setAuthed(false); setActiveNucleo(null); }}
+              onClick={() => { sessionStorage.removeItem('admin_auth'); sessionStorage.removeItem('admin_auth_nucleos'); setAuthed(false); setActiveNucleo(null); setAvailableNucleos([]); }}
               style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#dc2626', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
