@@ -7,12 +7,11 @@ import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
-import { LANGUAGE_FLAGS, LANGUAGE_NAMES, Language } from '@/lib/i18n/translations';
 
 type SuccessData = CarteirinhaData;
 
 export default function Home() {
-  const { t, lang, setLang } = useLanguage();
+  const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftMsg, setDraftMsg] = useState('');
@@ -659,36 +658,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           🖼 Alterar Fundo
         </button>
 
-        {/* Language flags row — top-right of hero */}
-        <div style={{
-          position: 'absolute', top: 8, right: 8,
-          display: 'flex', gap: 4, flexWrap: 'wrap', justifyContent: 'flex-end',
-          zIndex: 10, maxWidth: '60%',
-        }}>
-          {(['pt', 'pt-PT', 'en', 'es', 'fr', 'it', 'sv', 'af', 'nl', 'ja', 'ko', 'zh', 'de'] as Language[]).map((l) => (
-            <button
-              key={l}
-              type="button"
-              title={LANGUAGE_NAMES[l]}
-              onClick={() => setLang(l)}
-              style={{
-                background: lang === l ? 'rgba(255,255,255,0.95)' : 'rgba(0,0,0,0.4)',
-                border: lang === l ? '2px solid #fbbf24' : '1.5px solid rgba(255,255,255,0.35)',
-                borderRadius: 6,
-                padding: '3px 5px',
-                cursor: 'pointer',
-                fontSize: '18px',
-                lineHeight: 1,
-                transition: 'all 0.15s',
-                backdropFilter: 'blur(4px)',
-                boxShadow: lang === l ? '0 2px 8px rgba(0,0,0,0.3)' : 'none',
-                transform: lang === l ? 'scale(1.15)' : 'scale(1)',
-              }}
-            >
-              {LANGUAGE_FLAGS[l]}
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* Background changer modal */}
