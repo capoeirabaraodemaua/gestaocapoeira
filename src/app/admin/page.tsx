@@ -436,6 +436,7 @@ export default function AdminPage() {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const leafletMapRef = useRef<any>(null);
   const [showCarteirinha, setShowCarteirinha] = useState(false);
+  const [adminMatriculaNum, setAdminMatriculaNum] = useState<number | null>(null);
   const adminCardRef = useRef<HTMLDivElement>(null);
   const certRef = useRef<HTMLDivElement>(null);
 
@@ -4901,7 +4902,23 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {/* Carteirinha toggle */}
             <div style={{ marginTop: 20 }}>
               <button
-                onClick={() => setShowCarteirinha(v => !v)}
+                onClick={async () => {
+                  const next = !showCarteirinha;
+                  setShowCarteirinha(next);
+                  if (next && !(selected as any).ordem_inscricao) {
+                    try {
+                      const r = await fetch('/api/fix-matriculas', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: selected.id, cpf: selected.cpf }),
+                      });
+                      const d = await r.json();
+                      setAdminMatriculaNum(d.matricula ?? null);
+                    } catch { setAdminMatriculaNum(null); }
+                  } else {
+                    setAdminMatriculaNum((selected as any).ordem_inscricao ?? null);
+                  }
+                }}
                 style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fbbf24', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7 }}
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
@@ -4923,8 +4940,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       nome_mae: selected.nome_mae || '',
                       nome_responsavel: selected.nome_responsavel,
                       cpf_responsavel: selected.cpf_responsavel,
-                      inscricao_numero: selected.ordem_inscricao ?? null,
+                      inscricao_numero: adminMatriculaNum ?? (selected as any).ordem_inscricao ?? (selected as any).inscricao_numero ?? null,
                       student_id: selected.id,
+                      data_nascimento: (selected as any).data_nascimento ?? null,
                     }} />
                   </div>
                   <button
