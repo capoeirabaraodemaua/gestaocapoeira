@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 
 export const dynamic = 'force-dynamic';
 
-// Senha do desenvolvedor — definida em variável de ambiente DEV_PASSWORD
-// Nunca exposta ao frontend; validação ocorre apenas server-side
-const DEV_PASSWORD = process.env.DEV_PASSWORD || 'accbm@dev2025';
-
 export async function POST(req: NextRequest) {
   try {
+    // Lê a env dentro da função para sempre pegar o valor atual (sem cache de módulo)
+    const DEV_PASSWORD = process.env.DEV_PASSWORD || 'accbm@dev2025';
+
     const { password } = await req.json();
     if (!password || typeof password !== 'string') {
       return NextResponse.json({ ok: false, error: 'Senha ausente.' }, { status: 400 });
