@@ -4061,10 +4061,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         const filtered = responsaveis
                           .map((r: any) => ({
                             ...r,
+                            nome: r.nome?.trim() || '',
+                            cpf: r.cpf?.trim() || '',
                             nome2: r.nome2?.trim() || undefined,
                             cpf2: r.cpf2?.trim() ? r.cpf2.replace(/\D/g,'') : undefined,
                           }))
-                          .filter((r: any) => r.nome?.trim() && r.cpf?.trim());
+                          .filter((r: any) => r.nome || r.cpf || r.nome2 || r.cpf2);
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });
                         if (res.ok) { setResponsaveisMsg('✓ Todos os responsáveis salvos!'); } else { setResponsaveisMsg('Erro ao salvar'); }
                         setTimeout(() => setResponsaveisMsg(''), 3000);
