@@ -469,7 +469,7 @@ export default function Home() {
         }
       }
 
-      if (error) throw error;
+      if (error) throw new Error(error.message || error.details || error.hint || JSON.stringify(error));
 
       // Busca o ID do aluno recém inserido — tenta CPF, identidade ou nome+ordem de inserção
       let newStudent: { id: string } | null = null;
@@ -543,9 +543,15 @@ export default function Home() {
         student_id: newStudent?.id ?? null,
       });
     } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : String(err);
       console.error('Erro inscrição:', err);
-      alert(`Erro ao realizar inscrição: ${msg || 'Tente novamente.'}`);
+      let msg = 'Tente novamente.';
+      if (err instanceof Error) {
+        msg = err.message;
+      } else if (err && typeof err === 'object') {
+        const e = err as Record<string, unknown>;
+        msg = String(e.message || e.details || e.hint || e.code || JSON.stringify(err));
+      }
+      alert(`Erro ao realizar inscrição: ${msg}`);
     } finally {
       setLoading(false);
     }
