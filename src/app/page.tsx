@@ -32,8 +32,8 @@ export default function Home() {
   const [graduacao, setGraduacao] = useState('');
   const [nucleo, setNucleo] = useState('');
   const fileRef = useRef<HTMLInputElement>(null);
-  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; email?: string }>({});
-  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; email?: boolean }>({});
+  const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; email?: string; nome?: string }>({});
+  const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; email?: boolean; nome?: boolean }>({});
   const [adminModalOpen, setAdminModalOpen] = useState(false);
   const [adminCpf, setAdminCpf] = useState('');
   const [adminErro, setAdminErro] = useState('');
@@ -267,6 +267,11 @@ export default function Home() {
     setForm(prev => ({ ...prev, cpf_responsavel: formatCPF(e.target.value) }));
   };
 
+  // Normaliza nome: remove acentos, minúsculas, colapsa espaços
+  // "JOÃO DA SILVA" == "joao da silva" == "João da Silva"
+  const normalizeName = (s: string) =>
+    (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+
   const checkDuplicate = async (field: 'cpf' | 'identidade' | 'email', value: string) => {
     const cleanValue = value.trim();
     if (!cleanValue) return;
@@ -292,6 +297,38 @@ export default function Home() {
       }
     } catch {}
     setCheckingDuplicate(prev => ({ ...prev, [field]: false }));
+  };
+
+  // Verifica duplicata de nome completo no onBlur — normaliza acentos e capitalização
+  const checkDuplicateName = async (nome: string) => {
+    const nomeClean = nome.trim();
+    const parts = nomeClean.split(/\s+/).filter(Boolean);
+    // Valida que tem nome + sobrenome
+    if (parts.length < 2) {
+      setDuplicateErrors(prev => ({ ...prev, nome: 'Informe nome e sobrenome completos.' }));
+      return;
+    }
+    setDuplicateErrors(prev => ({ ...prev, nome: undefined }));
+    setCheckingDuplicate(prev => ({ ...prev, nome: true }));
+    try {
+      // Busca candidatos pela primeira letra do nome (broad) e compara normalizado no JS
+      const { data, error } = await supabase
+        .from('students')
+        .select('id, nome_completo')
+        .ilike('nome_completo', `${parts[0][0]}%`)
+        .limit(2000);
+      if (!error && data && data.length > 0) {
+        const normalInput = normalizeName(nomeClean);
+        const dup = data.find(s => normalizeName(s.nome_completo || '') === normalInput);
+        if (dup) {
+          setDuplicateErrors(prev => ({
+            ...prev,
+            nome: `Nome já cadastrado: "${dup.nome_completo}". Se for você, use o CPF para acessar seu cadastro.`,
+          }));
+        }
+      }
+    } catch {}
+    setCheckingDuplicate(prev => ({ ...prev, nome: false }));
   };
 
   const handleCEPChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -386,6 +423,29 @@ export default function Home() {
     e.preventDefault();
     // Honeypot bot detection — bots fill hidden fields, humans don't
     if (honeypot) return;
+
+    // Validação de nome (nome + sobrenome) antes de qualquer chamada
+    const nomeClean = form.nome_completo.trim();
+    const nomeParts = nomeClean.split(/\s+/).filter(Boolean);
+    if (nomeParts.length < 2) {
+      setDuplicateErrors(prev => ({ ...prev, nome: 'Informe nome e sobrenome completos.' }));
+      setTimeout(() => {
+        const el = document.querySelector('[name="nome_completo"]') as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.focus();
+      }, 50);
+      return;
+    }
+
+    // Bloqueia submit se já há erro de nome duplicado detectado no onBlur
+    if (duplicateErrors.nome) {
+      setTimeout(() => {
+        const el = document.querySelector('[name="nome_completo"]') as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 50);
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -444,8 +504,21 @@ export default function Home() {
       const result = await res.json();
 
       if (!res.ok) {
-        if (result.duplicate) {
-          alert(result.error);
+        if (result.duplicate || result.field === 'nome') {
+          // Mostra erro inline no campo correto
+          const field = result.field === 'nome' ? 'nome' : (result.field || 'nome');
+          setDuplicateErrors(prev => ({ ...prev, [field]: result.error }));
+          // Rola até o campo com erro
+          setTimeout(() => {
+            const el = document.querySelector('[name="nome_completo"]') as HTMLElement | null;
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            el?.focus();
+          }, 100);
+          setLoading(false);
+          return;
+        }
+        if (result.field === 'cpf' || result.field === 'identidade') {
+          setDuplicateErrors(prev => ({ ...prev, [result.field]: result.error }));
           setLoading(false);
           return;
         }
@@ -958,9 +1031,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input
                   name="nome_completo"
                   value={form.nome_completo}
-                  onChange={handleChange}
+                  onChange={e => {
+                    handleChange(e);
+                    setDuplicateErrors(prev => ({ ...prev, nome: undefined }));
+                  }}
+                  onBlur={() => { if (form.nome_completo.trim()) checkDuplicateName(form.nome_completo); }}
                   placeholder="Digite seu nome completo"
+                  style={duplicateErrors.nome ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
+                {checkingDuplicate.nome && (
+                  <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando nome...</span>
+                )}
+                {duplicateErrors.nome && (
+                  <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                    ⚠ {duplicateErrors.nome}
+                  </span>
+                )}
               </div>
 
               {/* Apelido + Nome Social */}

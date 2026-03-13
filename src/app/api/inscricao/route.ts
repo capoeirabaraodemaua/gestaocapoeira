@@ -64,12 +64,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payload ausente' }, { status: 400 });
     }
 
-    // Normaliza nome: remove acentos, lowercase, colapsa espaços
+    // Normaliza nome: remove acentos, lowercase, colapsa espaços extras
+    // Ex: "JOÃO  DA SILVA" == "joao da silva" == "João da Silva" == "Joao Da Silva"
     function normalizeName(s: string): string {
-      return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      return (s || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')  // remove diacríticos/acentos
+        .toLowerCase()
+        .replace(/\s+/g, ' ')
+        .trim();
     }
 
-    // Verificar duplicata por CPF, identidade ou nome completo
+    // Verificar duplicata por CPF ou identidade
     const orParts: string[] = [];
     if (payload.cpf) orParts.push(`cpf.eq.${payload.cpf}`);
     if (payload.identidade) orParts.push(`identidade.eq.${payload.identidade}`);
@@ -82,37 +88,51 @@ export async function POST(req: NextRequest) {
       if (existing && existing.length > 0) {
         const dup = existing[0];
         const motivo =
-          payload.cpf && dup.cpf === payload.cpf ? `CPF ${payload.cpf}` :
-          `Numeração Única/RG "${payload.identidade}"`;
+          payload.cpf && dup.cpf === payload.cpf
+            ? `CPF ${payload.cpf}`
+            : `Numeração Única/RG "${payload.identidade}"`;
         return NextResponse.json(
-          { error: `Cadastro duplicado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`, duplicate: true },
+          { error: `Cadastro duplicado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`, duplicate: true, field: 'cpf' },
           { status: 409 }
         );
       }
     }
 
-    // Verificar duplicata por nome completo (nome + sobrenome obrigatório)
+    // Verificar nome completo: obrigatório nome + sobrenome
     const nomeRaw = (payload.nome_completo as string || '').trim();
     const nomeParts = nomeRaw.split(/\s+/).filter(Boolean);
     if (nomeParts.length < 2) {
       return NextResponse.json(
-        { error: 'O nome completo deve conter nome e sobrenome.' },
+        { error: 'O nome completo deve conter nome e sobrenome.', field: 'nome' },
         { status: 400 }
       );
     }
+
+    // Verificar duplicata por nome — busca ampla pela primeira palavra, compara normalizado no JS
+    // Isso garante que JOÃO == Joao == joao == João (maiúsculas, acentos, capitalização)
     if (nomeRaw) {
-      const { data: byName } = await supabaseAdmin
+      const primeiroNome = normalizeName(nomeParts[0]);
+      // Busca todos os alunos cujo nome começa com a primeira letra do nome (broad search)
+      // Fazemos filtro pela primeira palavra usando ilike com wildcard para garantir hits
+      const { data: candidates } = await supabaseAdmin
         .from('students')
         .select('id, nome_completo, cpf')
-        .ilike('nome_completo', nomeRaw)
-        .limit(5);
-      if (byName && byName.length > 0) {
-        // Compara normalizado para ignorar acentos/capitalização
+        .ilike('nome_completo', `${nomeParts[0][0]}%`)  // começa com mesma letra
+        .limit(2000);
+
+      if (candidates && candidates.length > 0) {
         const normalInput = normalizeName(nomeRaw);
-        const exact = byName.find(s => normalizeName(s.nome_completo || '') === normalInput);
-        if (exact) {
+        const dup = candidates.find(s => {
+          const normalCandidate = normalizeName(s.nome_completo || '');
+          return normalCandidate === normalInput;
+        });
+        if (dup) {
           return NextResponse.json(
-            { error: `Cadastro duplicado! Já existe um aluno com o nome "${exact.nome_completo}". Se for a mesma pessoa, verifique o CPF para atualizar o cadastro existente.`, duplicate: true },
+            {
+              error: `Cadastro duplicado! Já existe um aluno com o nome "${dup.nome_completo}". Se for a mesma pessoa, use o CPF para localizar o cadastro existente.`,
+              duplicate: true,
+              field: 'nome',
+            },
             { status: 409 }
           );
         }
