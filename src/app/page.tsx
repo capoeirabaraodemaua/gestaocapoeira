@@ -473,15 +473,19 @@ export default function Home() {
 
       // Busca o ID do aluno recém inserido — tenta CPF, identidade ou nome+ordem de inserção
       let newStudent: { id: string } | null = null;
-      if (form.cpf) {
-        const { data } = await supabase.from('students').select('id').eq('cpf', form.cpf).limit(1).single();
-        newStudent = data;
-      } else if (form.identidade) {
-        const { data } = await supabase.from('students').select('id').eq('identidade', form.identidade).limit(1).single();
-        newStudent = data;
-      } else if (form.nome_completo) {
-        const { data } = await supabase.from('students').select('id').eq('nome_completo', form.nome_completo).order('created_at', { ascending: false }).limit(1).single();
-        newStudent = data;
+      try {
+        if (form.cpf) {
+          const { data } = await supabase.from('students').select('id').eq('cpf', form.cpf).limit(1).maybeSingle();
+          newStudent = data;
+        } else if (form.identidade) {
+          const { data } = await supabase.from('students').select('id').eq('identidade', form.identidade).limit(1).maybeSingle();
+          newStudent = data;
+        } else if (form.nome_completo) {
+          const { data } = await supabase.from('students').select('id').eq('nome_completo', form.nome_completo).order('created_at', { ascending: false }).limit(1).maybeSingle();
+          newStudent = data;
+        }
+      } catch {
+        // lookup falhou — inscrição continua sem ID
       }
 
       // Busca ordem_inscricao separado (pode falhar se coluna não existe)
@@ -538,9 +542,10 @@ export default function Home() {
         telefone: form.telefone || null,
         student_id: newStudent?.id ?? null,
       });
-    } catch (err) {
-      console.error(err);
-      alert('Erro ao realizar inscrição. Tente novamente.');
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('Erro inscrição:', err);
+      alert(`Erro ao realizar inscrição: ${msg || 'Tente novamente.'}`);
     } finally {
       setLoading(false);
     }
