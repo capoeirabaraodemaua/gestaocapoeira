@@ -537,11 +537,18 @@ export default function Home() {
           return;
         }
 
-        // Compute virtual matricula if ordem_inscricao missing
+        // Busca matrícula fixa do mapa no Storage (garante número estável)
         let cardInscricaoNum: number | null = (data as any).ordem_inscricao ?? null;
         if (!cardInscricaoNum) {
-          const { count } = await supabase.from('students').select('*', { count: 'exact', head: true });
-          cardInscricaoNum = count ?? null;
+          try {
+            const matRes = await fetch('/api/fix-matriculas', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ id: (data as any).id, cpf: data.cpf }),
+            });
+            const matData = await matRes.json();
+            cardInscricaoNum = matData.matricula ?? null;
+          } catch { cardInscricaoNum = null; }
         }
         setCardData({
           nome: data.nome_completo,
@@ -559,6 +566,7 @@ export default function Home() {
           inscricao_numero: cardInscricaoNum,
           telefone: data.telefone || null,
           student_id: (data as any).id ?? null,
+          data_nascimento: (data as any).data_nascimento ?? null,
         });
       }
     } catch { setCardError('Erro ao buscar dados.'); }

@@ -3859,11 +3859,23 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📋 Cadastro de Responsável por Núcleo</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Gerencie responsáveis por núcleo e acompanhe cadastros incompletos</div>
             </div>
-            <div style={{ display: 'flex', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               <button onClick={() => { setShowRascunhoNew(true); setNewRascunhoForm({ nucleo: nucleoFilter || '' }); }}
                 style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>+ Novo Rascunho</button>
               <button onClick={() => { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }}
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
+              {activeNucleo === 'geral' && (
+                <button onClick={async () => {
+                  if (!confirm('Renumerar matrículas de todos os alunos? O André será ACCBM-000001 e os demais seguirão a ordem de cadastro.')) return;
+                  const res = await fetch('/api/fix-matriculas');
+                  const d = await res.json();
+                  if (d.ok) alert(`✅ ${d.updated || d.total} matrículas atualizadas! André = ACCBM-000001`);
+                  else alert('Erro ao renumerar: ' + JSON.stringify(d));
+                }}
+                  style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>
+                  🔢 Fixar Matrículas
+                </button>
+              )}
             </div>
           </div>
 

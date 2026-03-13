@@ -183,9 +183,31 @@ export async function POST(req: NextRequest) {
       inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
     }
 
+    // Se não tem ordem_inscricao: busca o mapa de matrículas no Storage e atribui próximo número
     if (!inscricao_numero) {
-      const { count } = await supabaseAdmin.from('students').select('*', { count: 'exact', head: true });
-      inscricao_numero = count ?? null;
+      try {
+        const BUCKET = 'photos';
+        const KEY = 'config/matriculas.json';
+        const { data: urlData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(KEY, 10);
+        let matMap: Record<string, number> = {};
+        if (urlData?.signedUrl) {
+          const mRes = await fetch(urlData.signedUrl, { cache: 'no-store' });
+          if (mRes.ok) matMap = await mRes.json();
+        }
+        // Próximo número = max atual + 1
+        const maxNum = Object.values(matMap).reduce((a, b) => Math.max(a, b), 0);
+        inscricao_numero = maxNum + 1;
+        // Salva no mapa
+        if (studentId) matMap[studentId] = inscricao_numero;
+        const cpfDigits = (safePayload.cpf as string || '').replace(/\D/g, '');
+        if (cpfDigits) matMap[`cpf_${cpfDigits}`] = inscricao_numero;
+        const blob = new Blob([JSON.stringify(matMap)], { type: 'application/json' });
+        await supabaseAdmin.storage.from(BUCKET).upload(KEY, blob, { upsert: true });
+      } catch {
+        // fallback: conta total de alunos
+        const { count } = await supabaseAdmin.from('students').select('*', { count: 'exact', head: true });
+        inscricao_numero = count ?? null;
+      }
     }
 
     return NextResponse.json({ success: true, student_id: studentId, inscricao_numero });
