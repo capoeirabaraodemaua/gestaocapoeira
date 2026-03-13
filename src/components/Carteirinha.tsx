@@ -22,6 +22,7 @@ export interface CarteirinhaData {
   nome_social?: string | null;
   sexo?: string | null;
   student_id?: string | null;
+  data_nascimento?: string | null;
 }
 
 interface Props {
@@ -204,6 +205,7 @@ export default function Carteirinha({ data }: Props) {
             {[
               ['CPF', data.cpf],
               data.identidade ? ['RG', data.identidade] : null,
+              data.data_nascimento ? ['Nasc.', new Date(data.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR')] : null,
               ['Corda', data.graduacao],
               ['Tipo', data.tipo_graduacao === 'infantil' ? 'Infantil' : 'Adulta'],
               data.nome_pai ? ['Pai', data.nome_pai] : null,
