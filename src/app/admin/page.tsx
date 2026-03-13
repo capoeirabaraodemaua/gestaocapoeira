@@ -621,6 +621,7 @@ export default function AdminPage() {
   const [responsaveisUnlocked, setResponsaveisUnlocked] = useState(false);
   const [responsaveisLockCpf, setResponsaveisLockCpf] = useState('');
   const [responsaveisLockError, setResponsaveisLockError] = useState('');
+  const [devLockLoading, setDevLockLoading] = useState(false);
 
   // ── Relatório de Alunos ────────────────────────────────────────────────────
   const [relAlunosOpen, setRelAlunosOpen] = useState(false);
@@ -3985,56 +3986,64 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   )}
                 </div>
 
-                {/* Trava de segurança — exige CPF do admin geral */}
+                {/* Trava de segurança — exige senha do desenvolvedor */}
                 {!responsaveisUnlocked && (
                   <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 10, padding: '20px', textAlign: 'center' }}>
                     <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔒</div>
-                    <div style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.9rem', marginBottom: 4 }}>Acesso Restrito</div>
+                    <div style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.9rem', marginBottom: 4 }}>Acesso Exclusivo — Desenvolvedor</div>
                     <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: 16 }}>
-                      Somente Administradores Gerais podem gerenciar os responsáveis.<br/>Digite seu CPF para confirmar a identidade.
+                      O cadastro de responsáveis por núcleo é restrito ao desenvolvedor responsável.<br/>
+                      Digite a senha de desenvolvedor para continuar.
                     </div>
                     <div style={{ display: 'flex', gap: 8, maxWidth: 340, margin: '0 auto' }}>
                       <input
                         type="password"
-                        placeholder="Digite seu CPF (somente números)"
+                        placeholder="Senha do desenvolvedor"
                         value={responsaveisLockCpf}
-                        onChange={e => { setResponsaveisLockCpf(e.target.value.replace(/\D/g,'')); setResponsaveisLockError(''); }}
+                        onChange={e => { setResponsaveisLockCpf(e.target.value); setResponsaveisLockError(''); }}
                         onKeyDown={async e => {
                           if (e.key !== 'Enter') return;
-                          const digits = responsaveisLockCpf.replace(/\D/g,'');
-                          const cfg = await fetch('/api/admin/config').then(r => r.json()).catch(() => ({ super_admin_cpfs: [SUPER_ADMIN_CPF] }));
-                          const validCpfs: string[] = (cfg.super_admin_cpfs || [SUPER_ADMIN_CPF]).map((c: string) => c.replace(/\D/g,''));
-                          if (validCpfs.includes(digits)) {
-                            setResponsaveisUnlocked(true);
-                            setResponsaveisLockError('');
-                            setLoadingResponsaveis(true);
-                            const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                            setResponsaveis(resp.responsaveis || []);
-                            setLoadingResponsaveis(false);
-                          } else {
-                            setResponsaveisLockError('CPF inválido. Somente administradores gerais têm acesso.');
-                          }
+                          setDevLockLoading(true);
+                          try {
+                            const res = await fetch('/api/admin/dev-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: responsaveisLockCpf }) });
+                            const json = await res.json();
+                            if (json.ok) {
+                              setResponsaveisUnlocked(true);
+                              setResponsaveisLockError('');
+                              setLoadingResponsaveis(true);
+                              const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                              setResponsaveis(resp.responsaveis || []);
+                              setLoadingResponsaveis(false);
+                            } else {
+                              setResponsaveisLockError(json.error || 'Senha incorreta. Acesso negado.');
+                            }
+                          } catch { setResponsaveisLockError('Erro ao verificar. Tente novamente.'); }
+                          setDevLockLoading(false);
                         }}
                         style={{ flex: 1, padding: '9px 12px', background: 'var(--bg-input)', border: `1px solid ${responsaveisLockError ? '#f87171' : 'var(--border)'}`, borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}
                       />
                       <button
+                        disabled={devLockLoading}
                         onClick={async () => {
-                          const digits = responsaveisLockCpf.replace(/\D/g,'');
-                          const cfg = await fetch('/api/admin/config').then(r => r.json()).catch(() => ({ super_admin_cpfs: [SUPER_ADMIN_CPF] }));
-                          const validCpfs: string[] = (cfg.super_admin_cpfs || [SUPER_ADMIN_CPF]).map((c: string) => c.replace(/\D/g,''));
-                          if (validCpfs.includes(digits)) {
-                            setResponsaveisUnlocked(true);
-                            setResponsaveisLockError('');
-                            setLoadingResponsaveis(true);
-                            const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                            setResponsaveis(resp.responsaveis || []);
-                            setLoadingResponsaveis(false);
-                          } else {
-                            setResponsaveisLockError('CPF inválido.');
-                          }
+                          setDevLockLoading(true);
+                          try {
+                            const res = await fetch('/api/admin/dev-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: responsaveisLockCpf }) });
+                            const json = await res.json();
+                            if (json.ok) {
+                              setResponsaveisUnlocked(true);
+                              setResponsaveisLockError('');
+                              setLoadingResponsaveis(true);
+                              const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                              setResponsaveis(resp.responsaveis || []);
+                              setLoadingResponsaveis(false);
+                            } else {
+                              setResponsaveisLockError(json.error || 'Senha incorreta. Acesso negado.');
+                            }
+                          } catch { setResponsaveisLockError('Erro ao verificar. Tente novamente.'); }
+                          setDevLockLoading(false);
                         }}
-                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
-                        🔓 Confirmar
+                        style={{ background: devLockLoading ? '#94a3b8' : '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: devLockLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        {devLockLoading ? '...' : '🔓 Confirmar'}
                       </button>
                     </div>
                     {responsaveisLockError && (

@@ -64,7 +64,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Payload ausente' }, { status: 400 });
     }
 
-    // Verificar duplicata por CPF ou identidade
+    // Normaliza nome: remove acentos, lowercase, colapsa espaços
+    function normalizeName(s: string): string {
+      return s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+    }
+
+    // Verificar duplicata por CPF, identidade ou nome completo
     const orParts: string[] = [];
     if (payload.cpf) orParts.push(`cpf.eq.${payload.cpf}`);
     if (payload.identidade) orParts.push(`identidade.eq.${payload.identidade}`);
@@ -83,6 +88,34 @@ export async function POST(req: NextRequest) {
           { error: `Cadastro duplicado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`, duplicate: true },
           { status: 409 }
         );
+      }
+    }
+
+    // Verificar duplicata por nome completo (nome + sobrenome obrigatório)
+    const nomeRaw = (payload.nome_completo as string || '').trim();
+    const nomeParts = nomeRaw.split(/\s+/).filter(Boolean);
+    if (nomeParts.length < 2) {
+      return NextResponse.json(
+        { error: 'O nome completo deve conter nome e sobrenome.' },
+        { status: 400 }
+      );
+    }
+    if (nomeRaw) {
+      const { data: byName } = await supabaseAdmin
+        .from('students')
+        .select('id, nome_completo, cpf')
+        .ilike('nome_completo', nomeRaw)
+        .limit(5);
+      if (byName && byName.length > 0) {
+        // Compara normalizado para ignorar acentos/capitalização
+        const normalInput = normalizeName(nomeRaw);
+        const exact = byName.find(s => normalizeName(s.nome_completo || '') === normalInput);
+        if (exact) {
+          return NextResponse.json(
+            { error: `Cadastro duplicado! Já existe um aluno com o nome "${exact.nome_completo}". Se for a mesma pessoa, verifique o CPF para atualizar o cadastro existente.`, duplicate: true },
+            { status: 409 }
+          );
+        }
       }
     }
 
