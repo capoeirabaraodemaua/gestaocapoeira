@@ -307,13 +307,52 @@ export default function AdminPage() {
   // Autenticar com base no sessionStorage (set pelo modal da página principal ou pelo formulário de login)
   useEffect(() => {
     const stored = sessionStorage.getItem('admin_auth') as NucleoKey | null;
-    if (stored) {
-      setAuthed(true);
-      setActiveNucleo(stored);
-      try {
-        const storedNucleos = JSON.parse(sessionStorage.getItem('admin_auth_nucleos') || '[]') as NucleoKey[];
-        if (storedNucleos.length > 0) setAvailableNucleos(storedNucleos);
-      } catch {}
+    if (!stored) return;
+    setAuthed(true);
+    setActiveNucleo(stored);
+
+    // Tenta restaurar lista de núcleos da sessão
+    try {
+      const storedNucleos = JSON.parse(sessionStorage.getItem('admin_auth_nucleos') || '[]') as NucleoKey[];
+      if (storedNucleos.length > 1) {
+        setAvailableNucleos(storedNucleos);
+        return;
+      }
+    } catch {}
+
+    // Se não há lista salva (sessão antiga), busca da API para detectar múltiplos núcleos
+    if (stored !== 'geral') {
+      fetch('/api/admin/responsaveis')
+        .then(r => r.json())
+        .then(cfg => {
+          // Descobre o CPF do responsável logado buscando qual nucleo_key bate com stored
+          const allResp = cfg.responsaveis || [];
+          // Para cada responsável, verifica se ele está no nucleo_key guardado
+          // e coleta todos os nucleos onde ele aparece
+          const nucleoEntry = allResp.find((r: any) => r.nucleo_key === stored);
+          if (!nucleoEntry) return;
+          // Pega o CPF do responsável atual (pode ser cpf ou cpf2)
+          // Como não temos o CPF logado, busca todos os núcleos que têm o mesmo nome
+          const nome1 = nucleoEntry.nome?.trim();
+          const nome2 = nucleoEntry.nome2?.trim();
+          const cpf1 = nucleoEntry.cpf?.trim();
+          const cpf2 = nucleoEntry.cpf2?.trim();
+          // Encontra todos os núcleos que compartilham qualquer desses cpfs
+          const found: NucleoKey[] = allResp
+            .filter((r: any) =>
+              (cpf1 && (r.cpf === cpf1 || r.cpf2 === cpf1)) ||
+              (cpf2 && (r.cpf === cpf2 || r.cpf2 === cpf2)) ||
+              (nome1 && (r.nome === nome1 || r.nome2 === nome1)) ||
+              (nome2 && (r.nome === nome2 || r.nome2 === nome2))
+            )
+            .map((r: any) => r.nucleo_key as NucleoKey);
+          const unique = [...new Set(found)];
+          if (unique.length > 1) {
+            setAvailableNucleos(unique);
+            sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(unique));
+          }
+        })
+        .catch(() => {});
     }
   }, []);
 

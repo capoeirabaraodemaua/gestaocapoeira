@@ -107,16 +107,18 @@ export default function Home() {
       window.location.href = '/admin';
       return;
     }
-    // Check responsáveis config for nucleo-specific access
+    // Check responsáveis config — busca TODOS os núcleos do responsável
     try {
       const res = await fetch('/api/admin/responsaveis');
       const cfg = await res.json();
-      const resp = (cfg.responsaveis || []).find((r: { cpf: string; cpf2?: string; nucleo_key: string }) =>
+      const matches = (cfg.responsaveis || []).filter((r: { cpf: string; cpf2?: string; nucleo_key: string }) =>
         (r.cpf || '').replace(/\D/g,'') === digits ||
         (r.cpf2 || '').replace(/\D/g,'') === digits
       );
-      if (resp) {
-        sessionStorage.setItem('admin_auth', resp.nucleo_key);
+      if (matches.length > 0) {
+        const nucleosList = matches.map((r: { nucleo_key: string }) => r.nucleo_key);
+        sessionStorage.setItem('admin_auth', nucleosList[0]);
+        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         window.location.href = '/admin';
         return;
       }
