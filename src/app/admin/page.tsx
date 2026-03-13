@@ -569,6 +569,9 @@ export default function AdminPage() {
   const [loadingResponsaveis, setLoadingResponsaveis] = useState(false);
   const [responsaveisMsg, setResponsaveisMsg] = useState('');
   const [responsaveisSavedMsg, setResponsaveisSavedMsg] = useState<Record<string, string>>({});
+  const [responsaveisUnlocked, setResponsaveisUnlocked] = useState(false);
+  const [responsaveisLockCpf, setResponsaveisLockCpf] = useState('');
+  const [responsaveisLockError, setResponsaveisLockError] = useState('');
 
   // ── Relatório de Alunos ────────────────────────────────────────────────────
   const [relAlunosOpen, setRelAlunosOpen] = useState(false);
@@ -3877,16 +3880,85 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
                   <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.9rem' }}>🔐 Responsáveis por Núcleo (login por CPF)</div>
-                  <button onClick={async () => {
-                    setLoadingResponsaveis(true);
-                    const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                    setResponsaveis(cfg.responsaveis || []);
-                    setLoadingResponsaveis(false);
-                  }}
-                    style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                    ✏ Editar Responsáveis
-                  </button>
+                  {responsaveisUnlocked && (
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={async () => {
+                        setLoadingResponsaveis(true);
+                        const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                        setResponsaveis(cfg.responsaveis || []);
+                        setLoadingResponsaveis(false);
+                      }}
+                        style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        ↻ Recarregar
+                      </button>
+                      <button onClick={() => { setResponsaveisUnlocked(false); setResponsaveisLockCpf(''); setResponsaveisLockError(''); }}
+                        style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        🔒 Bloquear
+                      </button>
+                    </div>
+                  )}
                 </div>
+
+                {/* Trava de segurança — exige CPF do admin geral */}
+                {!responsaveisUnlocked && (
+                  <div style={{ background: 'rgba(251,191,36,0.06)', border: '1px solid rgba(251,191,36,0.2)', borderRadius: 10, padding: '20px', textAlign: 'center' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: 8 }}>🔒</div>
+                    <div style={{ color: '#fbbf24', fontWeight: 800, fontSize: '0.9rem', marginBottom: 4 }}>Acesso Restrito</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginBottom: 16 }}>
+                      Somente Administradores Gerais podem gerenciar os responsáveis.<br/>Digite seu CPF para confirmar a identidade.
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, maxWidth: 340, margin: '0 auto' }}>
+                      <input
+                        type="password"
+                        placeholder="Digite seu CPF (somente números)"
+                        value={responsaveisLockCpf}
+                        onChange={e => { setResponsaveisLockCpf(e.target.value.replace(/\D/g,'')); setResponsaveisLockError(''); }}
+                        onKeyDown={async e => {
+                          if (e.key !== 'Enter') return;
+                          const digits = responsaveisLockCpf.replace(/\D/g,'');
+                          const cfg = await fetch('/api/admin/config').then(r => r.json()).catch(() => ({ super_admin_cpfs: [SUPER_ADMIN_CPF] }));
+                          const validCpfs: string[] = (cfg.super_admin_cpfs || [SUPER_ADMIN_CPF]).map((c: string) => c.replace(/\D/g,''));
+                          if (validCpfs.includes(digits)) {
+                            setResponsaveisUnlocked(true);
+                            setResponsaveisLockError('');
+                            setLoadingResponsaveis(true);
+                            const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                            setResponsaveis(resp.responsaveis || []);
+                            setLoadingResponsaveis(false);
+                          } else {
+                            setResponsaveisLockError('CPF inválido. Somente administradores gerais têm acesso.');
+                          }
+                        }}
+                        style={{ flex: 1, padding: '9px 12px', background: 'var(--bg-input)', border: `1px solid ${responsaveisLockError ? '#f87171' : 'var(--border)'}`, borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}
+                      />
+                      <button
+                        onClick={async () => {
+                          const digits = responsaveisLockCpf.replace(/\D/g,'');
+                          const cfg = await fetch('/api/admin/config').then(r => r.json()).catch(() => ({ super_admin_cpfs: [SUPER_ADMIN_CPF] }));
+                          const validCpfs: string[] = (cfg.super_admin_cpfs || [SUPER_ADMIN_CPF]).map((c: string) => c.replace(/\D/g,''));
+                          if (validCpfs.includes(digits)) {
+                            setResponsaveisUnlocked(true);
+                            setResponsaveisLockError('');
+                            setLoadingResponsaveis(true);
+                            const resp = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                            setResponsaveis(resp.responsaveis || []);
+                            setLoadingResponsaveis(false);
+                          } else {
+                            setResponsaveisLockError('CPF inválido.');
+                          }
+                        }}
+                        style={{ background: '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', whiteSpace: 'nowrap' }}>
+                        🔓 Confirmar
+                      </button>
+                    </div>
+                    {responsaveisLockError && (
+                      <div style={{ marginTop: 8, color: '#f87171', fontSize: '0.75rem', fontWeight: 700 }}>{responsaveisLockError}</div>
+                    )}
+                  </div>
+                )}
+
+                {/* Conteúdo só visível após desbloqueio */}
+                {responsaveisUnlocked && <>
                 {loadingResponsaveis ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Carregando...</div> : (
                   <div style={{ display: 'grid', gap: 10 }}>
                     {nucleosList.map(n => {
@@ -4078,6 +4150,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </div>
                   </div>
                 )}
+                </>}
               </div>
             );
           })()}
