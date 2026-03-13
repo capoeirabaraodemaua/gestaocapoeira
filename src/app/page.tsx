@@ -471,16 +471,18 @@ export default function Home() {
 
       if (error) throw error;
 
-      // Busca o ID e número de inscrição do aluno recém inserido
-      // Usa CPF se preenchido, caso contrário usa identidade (numeração única)
-      const lookupField = form.cpf ? 'cpf' : 'identidade';
-      const lookupValue = form.cpf || form.identidade;
-      const { data: newStudent } = await supabase
-        .from('students')
-        .select('id')
-        .eq(lookupField, lookupValue)
-        .limit(1)
-        .single();
+      // Busca o ID do aluno recém inserido — tenta CPF, identidade ou nome+ordem de inserção
+      let newStudent: { id: string } | null = null;
+      if (form.cpf) {
+        const { data } = await supabase.from('students').select('id').eq('cpf', form.cpf).limit(1).single();
+        newStudent = data;
+      } else if (form.identidade) {
+        const { data } = await supabase.from('students').select('id').eq('identidade', form.identidade).limit(1).single();
+        newStudent = data;
+      } else if (form.nome_completo) {
+        const { data } = await supabase.from('students').select('id').eq('nome_completo', form.nome_completo).order('created_at', { ascending: false }).limit(1).single();
+        newStudent = data;
+      }
 
       // Busca ordem_inscricao separado (pode falhar se coluna não existe)
       let inscricao_numero: number | null = null;
