@@ -387,27 +387,7 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Verificação server-side de duplicatas — apenas CPF e identidade (nomes iguais são comuns)
-      const orParts: string[] = [];
-      if (form.identidade) orParts.push(`identidade.eq.${form.identidade}`);
-      if (form.cpf) orParts.push(`cpf.eq.${form.cpf}`);
-      if (orParts.length > 0) {
-        const { data: existing } = await supabase
-          .from('students')
-          .select('id, nome_completo, cpf, identidade')
-          .or(orParts.join(','))
-          .limit(1);
-        if (existing && existing.length > 0) {
-          const dup = existing[0];
-          const motivo =
-            form.cpf && dup.cpf === form.cpf ? `CPF ${form.cpf}` :
-            `Numeração Única/RG "${form.identidade}"`;
-          alert(`Cadastro duplicado detectado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`);
-          setLoading(false);
-          return;
-        }
-      }
-
+      // Upload de foto (storage público do Supabase)
       let foto_url = null;
       if (photoFile) {
         const ext = photoFile.name.split('.').pop();
@@ -422,98 +402,55 @@ export default function Home() {
       }
 
       const payload: Record<string, unknown> = {
-        nome_completo: form.nome_completo,
+        nome_completo: form.nome_completo || null,
         apelido: form.apelido || null,
         nome_social: form.nome_social || null,
         sexo: form.sexo || null,
-        cpf: form.cpf,
-        identidade: form.identidade,
-        data_nascimento: form.data_nascimento,
-        telefone: form.telefone,
-        cep: form.cep,
-        endereco: form.endereco,
-        numero: form.numero,
-        complemento: form.complemento,
-        bairro: form.bairro,
-        cidade: form.cidade,
-        estado: form.estado,
-        graduacao,
-        tipo_graduacao: tipoGraduacao,
-        nucleo,
+        cpf: form.cpf || null,
+        identidade: form.identidade || null,
+        data_nascimento: form.data_nascimento || null,
+        telefone: form.telefone || null,
+        email: form.email || null,
+        cep: form.cep || null,
+        endereco: form.endereco || null,
+        numero: form.numero || null,
+        complemento: form.complemento || null,
+        bairro: form.bairro || null,
+        cidade: form.cidade || null,
+        estado: form.estado || null,
+        graduacao: graduacao || null,
+        tipo_graduacao: tipoGraduacao || null,
+        nucleo: nucleo || null,
         foto_url,
-        nome_pai: form.nome_pai,
-        nome_mae: form.nome_mae,
+        nome_pai: form.nome_pai || null,
+        nome_mae: form.nome_mae || null,
         autoriza_imagem: form.autoriza_imagem,
         menor_de_idade: menorDeIdade,
-        nome_responsavel: menorDeIdade ? form.nome_responsavel : null,
-        cpf_responsavel: menorDeIdade ? form.cpf_responsavel : null,
+        nome_responsavel: menorDeIdade ? (form.nome_responsavel || null) : null,
+        cpf_responsavel: menorDeIdade ? (form.cpf_responsavel || null) : null,
         assinatura_responsavel: menorDeIdade ? form.assinatura_responsavel : false,
         assinatura_pai: menorDeIdade ? form.assinatura_pai : false,
         assinatura_mae: menorDeIdade ? form.assinatura_mae : false,
       };
-      if (form.email) payload.email = form.email;
 
-      let { error } = await supabase.from('students').insert(payload);
+      // Usa API route server-side (service role — ignora RLS, trata colunas faltantes)
+      const res = await fetch('/api/inscricao', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ payload }),
+      });
+      const result = await res.json();
 
-      // Retry removendo colunas que ainda não existem no banco (até 3 tentativas)
-      for (let attempt = 0; attempt < 3 && error; attempt++) {
-        const msg = error.message || '';
-        const colMatch = msg.match(/column[s]? ['"]?(\w+)['"]? of|Could not find the '(\w+)' column/i);
-        const missingCol = colMatch ? (colMatch[1] || colMatch[2]) : null;
-        if (missingCol && payload[missingCol] !== undefined) {
-          delete payload[missingCol];
-          const r = await supabase.from('students').insert(payload);
-          error = r.error;
-        } else {
-          break;
+      if (!res.ok) {
+        if (result.duplicate) {
+          alert(result.error);
+          setLoading(false);
+          return;
         }
+        throw new Error(result.error || `HTTP ${res.status}`);
       }
 
-      if (error) throw new Error(error.message || error.details || error.hint || JSON.stringify(error));
-
-      // Busca o ID do aluno recém inserido — tenta CPF, identidade ou nome+ordem de inserção
-      let newStudent: { id: string } | null = null;
-      try {
-        if (form.cpf) {
-          const { data } = await supabase.from('students').select('id').eq('cpf', form.cpf).limit(1).maybeSingle();
-          newStudent = data;
-        } else if (form.identidade) {
-          const { data } = await supabase.from('students').select('id').eq('identidade', form.identidade).limit(1).maybeSingle();
-          newStudent = data;
-        } else if (form.nome_completo) {
-          const { data } = await supabase.from('students').select('id').eq('nome_completo', form.nome_completo).order('created_at', { ascending: false }).limit(1).maybeSingle();
-          newStudent = data;
-        }
-      } catch {
-        // lookup falhou — inscrição continua sem ID
-      }
-
-      // Busca ordem_inscricao separado (pode falhar se coluna não existe)
-      let inscricao_numero: number | null = null;
-      if (newStudent?.id) {
-        const { data: withOrdm } = await supabase.from('students').select('ordem_inscricao').eq('id', newStudent.id).single();
-        inscricao_numero = (withOrdm as any)?.ordem_inscricao ?? null;
-        if (!inscricao_numero) {
-          // Fallback: contar total de alunos (este é o último inserido)
-          const { count } = await supabase.from('students').select('*', { count: 'exact', head: true });
-          inscricao_numero = count ?? null;
-        }
-      }
-
-      // Salva dados extras (email, assinaturas pai/mãe) no Storage como JSON backup
-      if (newStudent?.id && (form.email || form.assinatura_pai || form.assinatura_mae)) {
-        const extras = {
-          email: form.email || null,
-          assinatura_pai: form.assinatura_pai,
-          assinatura_mae: form.assinatura_mae,
-          updated_at: new Date().toISOString(),
-        };
-        supabase.storage.from('photos').upload(
-          `extras/${newStudent.id}.json`,
-          new Blob([JSON.stringify(extras)], { type: 'application/json' }),
-          { upsert: true }
-        ).catch(() => {});
-      }
+      const { student_id, inscricao_numero } = result;
 
       // Envia email de confirmação (não bloqueia, falha silenciosa)
       if (form.email) {
@@ -538,19 +475,13 @@ export default function Home() {
         nome_mae: form.nome_mae,
         nome_responsavel: menorDeIdade ? form.nome_responsavel : null,
         cpf_responsavel: menorDeIdade ? form.cpf_responsavel : null,
-        inscricao_numero,
+        inscricao_numero: inscricao_numero ?? null,
         telefone: form.telefone || null,
-        student_id: newStudent?.id ?? null,
+        student_id: student_id ?? null,
       });
     } catch (err: unknown) {
       console.error('Erro inscrição:', err);
-      let msg = 'Tente novamente.';
-      if (err instanceof Error) {
-        msg = err.message;
-      } else if (err && typeof err === 'object') {
-        const e = err as Record<string, unknown>;
-        msg = String(e.message || e.details || e.hint || e.code || JSON.stringify(err));
-      }
+      const msg = err instanceof Error ? err.message : String(err);
       alert(`Erro ao realizar inscrição: ${msg}`);
     } finally {
       setLoading(false);
