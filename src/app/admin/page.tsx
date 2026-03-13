@@ -4207,25 +4207,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 try {
                                   const payload: Record<string, any> = { ...r };
                                   delete payload.id; delete payload.updated_at; delete payload.dados_pendentes;
+                                  delete payload.inscricao_numero; delete payload.ordem_inscricao;
                                   payload.created_at = new Date().toISOString();
-                                  // Attempt insert with all fields; retry without optional new columns if DB error
-                                  let { error: insErr } = await supabase.from('students').insert([payload]).select().single();
-                                  if (insErr && (insErr.message.includes('column') || insErr.code === '42703')) {
-                                    // Remove ALL optional/new columns that might not exist in DB yet
-                                    const corePayload = { ...payload };
-                                    for (const col of ['apelido','nome_social','sexo','ordem_inscricao','email','assinatura_pai','assinatura_mae','inscricao_numero','dados_pendentes']) {
-                                      delete corePayload[col];
-                                    }
-                                    const retry = await supabase.from('students').insert([corePayload]).select().single();
-                                    insErr = retry.error;
+
+                                  // Usa a API route server-side — trata NOT NULL constraints e colunas faltantes automaticamente
+                                  const res = await fetch('/api/inscricao', {
+                                    method: 'POST',
+                                    headers: { 'Content-Type': 'application/json' },
+                                    body: JSON.stringify({ payload }),
+                                  });
+                                  const result = await res.json();
+                                  if (!res.ok) {
+                                    alert('Erro ao inserir aluno: ' + (result.error || `HTTP ${res.status}`));
+                                    setRascunhoSaving(false);
+                                    return;
                                   }
-                                  if (insErr) { alert('Erro ao inserir aluno: ' + insErr.message); setRascunhoSaving(false); return; }
+
                                   await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
                                   setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
                                   setRascunhosCount(c => Math.max(0, c - 1));
-                                  // Reload students to get the new matricula number
                                   await fetchStudents();
-                                  alert(`✅ ${r.nome_completo} cadastrado com sucesso! O número de matrícula foi atribuído automaticamente.`);
+                                  alert(`✅ ${r.nome_completo || 'Aluno'} cadastrado com sucesso! O número de matrícula foi atribuído automaticamente.`);
                                 } catch (e: any) { alert('Erro: ' + e.message); }
                                 setRascunhoSaving(false);
                               }}
