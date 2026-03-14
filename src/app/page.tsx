@@ -21,6 +21,7 @@ export default function Home() {
   const [draftAccessLoading, setDraftAccessLoading] = useState(false);
   const [draftAccessMsg, setDraftAccessMsg] = useState('');
   const [draftLoaded, setDraftLoaded] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const carteirinhaRef = useRef<HTMLDivElement>(null);
@@ -60,6 +61,9 @@ export default function Home() {
   const [bgUploading, setBgUploading] = useState(false);
   const [bgUploadMsg, setBgUploadMsg] = useState('');
   const bgFileRef = useRef<HTMLInputElement>(null);
+
+  // Mark as mounted (client-only) to avoid SSR/hydration mismatches
+  useEffect(() => { setMounted(true); }, []);
 
   // Load admin config CPF on mount
   useEffect(() => {
@@ -1440,7 +1444,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
 
           {/* ── Acessar Rascunho ── */}
-          {!draftLoaded && (
+          {mounted && !draftLoaded && (
             <div style={{ margin: '0 0 16px', background: 'rgba(234,179,8,0.05)', border: '1.5px dashed rgba(234,179,8,0.3)', borderRadius: 12, padding: '16px' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ca8a04', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
@@ -1466,7 +1470,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               )}
             </div>
           )}
-          {draftLoaded && (
+          {mounted && draftLoaded && (
             <div style={{ margin: '0 0 16px', background: 'rgba(22,163,74,0.06)', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
               <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>
                 ✓ Rascunho carregado — edite os campos acima e clique em Finalizar Cadastro ou Salvar Rascunho.
@@ -1503,7 +1507,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 color: '#ca8a04', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
               }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              {draftLoading ? t('form_saving') : draftLoaded ? '💾 Salvar Rascunho (atualizar)' : `💾 ${t('form_save_draft')}`}
+              {draftLoading ? t('form_saving') : (mounted && draftLoaded) ? '💾 Salvar Rascunho (atualizar)' : `💾 ${t('form_save_draft')}`}
             </button>
             <p style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
               Ainda não tem todos os dados? Salve como rascunho e complete depois.
