@@ -4355,7 +4355,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     : encodeURIComponent(`Olá ${waNome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá precisa de atenção.\n\n📋 *Dados que ainda precisam ser preenchidos:*\n${pendentes.map((p: string) => `• ${p}`).join('\n')}\n\nAcesse o link do formulário, corrija as informações e salve novamente para completar seu cadastro. 🥋`);
 
                   return (
-                    <div key={r.id} style={{ background: 'var(--bg-card)', border: `2px solid ${borderColor}33`, borderLeft: `4px solid ${borderColor}`, borderRadius: 12, overflow: 'hidden', background: bgAccent as any }}>
+                    <div key={r.id} style={{ background: bgAccent as any, border: `2px solid ${borderColor}33`, borderLeft: `4px solid ${borderColor}`, borderRadius: 12, overflow: 'hidden' }}>
                       {/* Card header — click to expand */}
                       <div style={{ padding: '14px 16px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12 }}
                         onClick={() => setRascunhoExpanded(rascunhoExpanded === r.id ? null : r.id)}>
