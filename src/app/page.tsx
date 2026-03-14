@@ -16,6 +16,11 @@ export default function Home() {
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftMsg, setDraftMsg] = useState('');
   const [draftId, setDraftId] = useState<string | null>(null);
+  // Draft access by student
+  const [draftAccessCpf, setDraftAccessCpf] = useState('');
+  const [draftAccessLoading, setDraftAccessLoading] = useState(false);
+  const [draftAccessMsg, setDraftAccessMsg] = useState('');
+  const [draftLoaded, setDraftLoaded] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
   const carteirinhaRef = useRef<HTMLDivElement>(null);
@@ -360,6 +365,73 @@ export default function Home() {
       reader.onload = () => setPhotoPreview(reader.result as string);
       reader.readAsDataURL(file);
     }
+  };
+
+  const loadDraftByCpf = async () => {
+    const cpfDigits = draftAccessCpf.replace(/\D/g, '');
+    if (!cpfDigits || cpfDigits.length < 6) {
+      setDraftAccessMsg('Digite seu CPF para localizar o rascunho.');
+      return;
+    }
+    setDraftAccessLoading(true);
+    setDraftAccessMsg('');
+    try {
+      // List all drafts and find by CPF
+      const res = await fetch('/api/rascunhos');
+      if (!res.ok) throw new Error();
+      const drafts = await res.json() as Array<{ id: string; cpf?: string; nome_completo?: string; dados_pendentes: string[] }>;
+      const found = drafts.find(d => (d.cpf || '').replace(/\D/g, '') === cpfDigits);
+      if (!found) {
+        setDraftAccessMsg('Nenhum rascunho encontrado para este CPF. Verifique e tente novamente.');
+        setDraftAccessLoading(false);
+        return;
+      }
+      // Load full draft
+      const res2 = await fetch(`/api/rascunhos?id=${found.id}`);
+      const draft = await res2.json();
+      if (!draft) { setDraftAccessMsg('Erro ao carregar rascunho.'); setDraftAccessLoading(false); return; }
+      // Populate form
+      setForm({
+        nome_completo: draft.nome_completo || '',
+        apelido: draft.apelido || '',
+        nome_social: draft.nome_social || '',
+        sexo: draft.sexo || '',
+        cpf: draft.cpf || '',
+        identidade: draft.identidade || '',
+        data_nascimento: draft.data_nascimento || '',
+        email: draft.email || '',
+        cep: draft.cep || '',
+        endereco: draft.endereco || '',
+        numero: draft.numero || '',
+        complemento: draft.complemento || '',
+        bairro: draft.bairro || '',
+        cidade: draft.cidade || '',
+        estado: draft.estado || '',
+        telefone: draft.telefone || '',
+        nome_pai: draft.nome_pai || '',
+        nome_mae: draft.nome_mae || '',
+        autoriza_imagem: draft.autoriza_imagem ?? false,
+        nome_responsavel: draft.nome_responsavel || '',
+        cpf_responsavel: draft.cpf_responsavel || '',
+        assinatura_responsavel: draft.assinatura_responsavel ?? false,
+        assinatura_pai: draft.assinatura_pai ?? false,
+        assinatura_mae: draft.assinatura_mae ?? false,
+      });
+      if (draft.nucleo) setNucleo(draft.nucleo);
+      if (draft.graduacao) setGraduacao(draft.graduacao);
+      if (draft.tipo_graduacao) setTipoGraduacao(draft.tipo_graduacao);
+      setDraftId(draft.id);
+      setDraftLoaded(true);
+      const pend = draft.dados_pendentes as string[];
+      setDraftAccessMsg(
+        pend.length === 0
+          ? `✓ Rascunho carregado — ${draft.nome_completo || 'aluno'}. Todos os dados completos, clique em Finalizar!`
+          : `✓ Rascunho carregado — ${draft.nome_completo || 'aluno'}. Dados pendentes: ${pend.join(', ')}.`
+      );
+    } catch {
+      setDraftAccessMsg('Erro ao buscar rascunho. Tente novamente.');
+    }
+    setDraftAccessLoading(false);
   };
 
   const handleSaveDraft = async () => {
@@ -1367,6 +1439,43 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           </div>
 
+          {/* ── Acessar Rascunho ── */}
+          {!draftLoaded && (
+            <div style={{ margin: '0 0 16px', background: 'rgba(234,179,8,0.05)', border: '1.5px dashed rgba(234,179,8,0.3)', borderRadius: 12, padding: '16px' }}>
+              <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ca8a04', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                Já tem um rascunho salvo? Carregue aqui para continuar ou editar.
+              </div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  placeholder="Digite seu CPF"
+                  value={draftAccessCpf}
+                  onChange={e => setDraftAccessCpf(e.target.value)}
+                  style={{ flex: 1, padding: '9px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}
+                />
+                <button type="button" onClick={loadDraftByCpf} disabled={draftAccessLoading}
+                  style={{ padding: '9px 18px', background: '#ca8a04', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: draftAccessLoading ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
+                  {draftAccessLoading ? 'Buscando...' : '📂 Carregar'}
+                </button>
+              </div>
+              {draftAccessMsg && (
+                <div style={{ marginTop: 8, fontSize: '0.8rem', fontWeight: 600, color: draftAccessMsg.startsWith('✓') ? '#16a34a' : '#dc2626' }}>
+                  {draftAccessMsg}
+                </div>
+              )}
+            </div>
+          )}
+          {draftLoaded && (
+            <div style={{ margin: '0 0 16px', background: 'rgba(22,163,74,0.06)', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+              <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>
+                ✓ Rascunho carregado — edite os campos acima e clique em Finalizar Cadastro ou Salvar Rascunho.
+              </div>
+              <button type="button" onClick={() => { setDraftLoaded(false); setDraftAccessMsg(''); setDraftAccessCpf(''); }}
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>✕ Fechar</button>
+            </div>
+          )}
+
           {/* Draft message */}
           {draftMsg && (
             <div style={{
@@ -1394,7 +1503,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 color: '#ca8a04', fontWeight: 700, fontSize: '0.95rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8
               }}>
               <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-              {draftLoading ? t('form_saving') : draftId ? `💾 ${t('form_save_draft')}` : `💾 ${t('form_save_draft')}`}
+              {draftLoading ? t('form_saving') : draftLoaded ? '💾 Salvar Rascunho (atualizar)' : `💾 ${t('form_save_draft')}`}
             </button>
             <p style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
               Ainda não tem todos os dados? Salve como rascunho e complete depois.

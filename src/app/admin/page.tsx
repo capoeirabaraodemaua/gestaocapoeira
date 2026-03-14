@@ -267,12 +267,16 @@ interface RegistroGraduacao {
   criado_em: string;
 }
 const EMPTY_GRAD_FORM = { data_graduacao: '', graduacao_recebida: '', evento: '', professor_responsavel: '', observacoes: '' };
-const GRAD_OPCOES_ADULTO = ['Cru','Amarela','Laranja','Azul','Verde','Roxa','Marrom','Vermelha','Branca',
-  'Amarela-Laranja','Laranja-Azul','Azul-Verde','Verde-Roxa','Roxa-Marrom','Marrom-Vermelha','Vermelha-Branca'];
-const GRAD_OPCOES_INFANTIL = ['Infantil Cru','Infantil Amarela','Infantil Laranja','Infantil Azul','Infantil Verde',
-  'Infantil Roxa','Infantil Marrom','Infantil Vermelha','Infantil Branca',
-  'Infantil Amarela-Laranja','Infantil Laranja-Azul','Infantil Azul-Verde','Infantil Verde-Roxa',
-  'Infantil Roxa-Marrom','Infantil Marrom-Vermelha','Infantil Vermelha-Branca'];
+const GRAD_OPCOES_ADULTO = [
+  'Crua','Crua e Amarela','Amarela','Amarela e Laranja','Laranja','Laranja e Azul',
+  'Azul','Azul e Verde','Verde','Verde e Roxa','Roxa','Roxa e Marrom',
+  'Marrom','Marrom e Vermelha','Vermelha','Vermelha e Branco','Branco Mor',
+];
+const GRAD_OPCOES_INFANTIL = [
+  'Crua','Crua Ponta Cinza','Crua Ponta Amarela','Crua Ponta Laranja','Crua Ponta Verde','Crua Ponta Azul','Crua Ponta Roxa',
+  'Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa',
+  'Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul',
+];
 
 export default function AdminPage() {
   const { t } = useLanguage();
@@ -5168,8 +5172,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </div>
                             {r.observacoes && <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 3, fontStyle: 'italic' }}>{r.observacoes}</div>}
                           </div>
-                          <button onClick={() => { setHistGradEditing(r); setHistGradForm({ data_graduacao: r.data_graduacao, graduacao_recebida: r.graduacao_recebida, evento: r.evento, professor_responsavel: r.professor_responsavel, observacoes: r.observacoes || '' }); setHistGradMsg(''); }}
-                            style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 6, padding: '5px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>✏️ Editar</button>
+                          <div style={{ display: 'flex', gap: 5, flexShrink: 0 }}>
+                            <button onClick={() => { setHistGradEditing(r); setHistGradForm({ data_graduacao: r.data_graduacao, graduacao_recebida: r.graduacao_recebida, evento: r.evento, professor_responsavel: r.professor_responsavel, observacoes: r.observacoes || '' }); setHistGradMsg(''); }}
+                              style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>✏️ Editar</button>
+                            <button onClick={() => deleteHistGrad(selected.id, r.id)}
+                              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 6, padding: '5px 10px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>🗑 Excluir</button>
+                          </div>
                         </div>
                       );
                     })}
