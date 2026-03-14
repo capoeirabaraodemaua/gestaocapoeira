@@ -1714,7 +1714,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* ── Documentos ACCBM — parte inferior da página ── */}
       <div className="container" style={{ marginTop: 8 }}>
-        <DocumentsBar />
+        <DocumentsBar readOnly />
       </div>
 
       {/* ── Rodapé ── */}

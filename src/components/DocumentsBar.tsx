@@ -31,6 +31,7 @@ interface Props {
   studentPhone?: string;
   studentName?: string;
   adminAlwaysUnlocked?: boolean;
+  readOnly?: boolean; // when true: hide all upload buttons (download-only)
 }
 
 function fmt(bytes: number) {
@@ -43,7 +44,7 @@ const WA = ({s=14}:{s?:number}) => (
   </svg>
 );
 
-export default function DocumentsBar({ students=[], studentPhone, studentName, adminAlwaysUnlocked=false }: Props) {
+export default function DocumentsBar({ students=[], studentPhone, studentName, adminAlwaysUnlocked=false, readOnly=false }: Props) {
 
   // ── Unlock state ──────────────────────────────────────────────────────────
   const [unlocked, setUnlocked] = useState(() => {
@@ -250,22 +251,24 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
             {downloading==='estatuto' ? 'Baixando...' : 'Estatuto Social'}
             {downloading!=='estatuto' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          {/* Upload — sempre visível; protegido por CPF se não desbloqueado */}
-          <>
-            <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
-              {uploading==='estatuto' ? (
-                <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-              ) : upOk==='estatuto' ? (
-                <>✓ Arquivo salvo com sucesso!</>
-              ) : unlocked ? (
-                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-              ) : (
-                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{estName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
-              )}
-            </button>
-            <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-              onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
-          </>
+          {/* Upload — somente admin; oculto em readOnly */}
+          {!readOnly && (
+            <>
+              <button onClick={()=>requireUpload('estatuto')} disabled={uploading==='estatuto'} style={upBtn('#dc2626', uploading==='estatuto', upOk==='estatuto')}>
+                {uploading==='estatuto' ? (
+                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                ) : upOk==='estatuto' ? (
+                  <>✓ Arquivo salvo com sucesso!</>
+                ) : unlocked ? (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{estName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+                ) : (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{estName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
+                )}
+              </button>
+              <input ref={estRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_ESTATUTO,f,setEstName,setEstSize,'estatuto');e.target.value='';}} />
+            </>
+          )}
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
             {estName ? <span style={{color:'#dc262688'}}>📄 {estName}{estSize?` · ${fmt(estSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
@@ -282,22 +285,24 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
             {downloading==='regimento' ? 'Baixando...' : 'Regimento Interno'}
             {downloading!=='regimento' && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
           </button>
-          {/* Upload — sempre visível; protegido por CPF se não desbloqueado */}
-          <>
-            <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
-              {uploading==='regimento' ? (
-                <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-              ) : upOk==='regimento' ? (
-                <>✓ Arquivo salvo com sucesso!</>
-              ) : unlocked ? (
-                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
-              ) : (
-                <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{regName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
-              )}
-            </button>
-            <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-              onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
-          </>
+          {/* Upload — somente admin; oculto em readOnly */}
+          {!readOnly && (
+            <>
+              <button onClick={()=>requireUpload('regimento')} disabled={uploading==='regimento'} style={upBtn('#1d4ed8', uploading==='regimento', upOk==='regimento')}>
+                {uploading==='regimento' ? (
+                  <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                ) : upOk==='regimento' ? (
+                  <>✓ Arquivo salvo com sucesso!</>
+                ) : unlocked ? (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{regName ? '✓ Substituir arquivo' : '⬆ Inserir arquivo'}</>
+                ) : (
+                  <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>{regName ? '🔒 Substituir arquivo' : '🔒 Inserir arquivo'}</>
+                )}
+              </button>
+              <input ref={regRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_REGIMENTO,f,setRegName,setRegSize,'regimento');e.target.value='';}} />
+            </>
+          )}
           <div style={{fontSize:'0.62rem',color:'var(--text-secondary)',textAlign:'center',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap',paddingInline:2}}>
             {regName ? <span style={{color:'#1d4ed888'}}>📄 {regName}{regSize?` · ${fmt(regSize)}`:''}</span> : 'Nenhum arquivo inserido'}
           </div>
@@ -393,14 +398,18 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
                 {downloading==='bio_frazao' ? 'Baixando...' : bioFrazaoName ? 'Ver Portfólio' : 'Portfólio não inserido'}
                 {downloading!=='bio_frazao' && bioFrazaoName && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
               </button>
-              <button onClick={()=>requireUpload('bio_frazao')} disabled={uploading==='bio_frazao'} style={upBtn('#dc2626', uploading==='bio_frazao', upOk==='bio_frazao')}>
-                {uploading==='bio_frazao' ? <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-                  : upOk==='bio_frazao' ? <>✓ Arquivo salvo!</>
-                  : unlocked ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{bioFrazaoName?'✓ Substituir':'⬆ Inserir arquivo'}</>
-                  : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>🔒 Inserir arquivo</>}
-              </button>
-              <input ref={bioFrazaoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_BIO_FRAZAO,f,setBioFrazaoName,setBioFrazaoSize,'bio_frazao');e.target.value='';}} />
+              {!readOnly && (
+                <>
+                  <button onClick={()=>requireUpload('bio_frazao')} disabled={uploading==='bio_frazao'} style={upBtn('#dc2626', uploading==='bio_frazao', upOk==='bio_frazao')}>
+                    {uploading==='bio_frazao' ? <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                      : upOk==='bio_frazao' ? <>✓ Arquivo salvo!</>
+                      : unlocked ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{bioFrazaoName?'✓ Substituir':'⬆ Inserir arquivo'}</>
+                      : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>🔒 Inserir arquivo</>}
+                  </button>
+                  <input ref={bioFrazaoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                    onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_BIO_FRAZAO,f,setBioFrazaoName,setBioFrazaoSize,'bio_frazao');e.target.value='';}} />
+                </>
+              )}
               {bioFrazaoName && <div style={{fontSize:'0.62rem',color:'#dc262688',marginTop:4,textAlign:'center'}}>📄 {bioFrazaoName}{bioFrazaoSize?` · ${fmt(bioFrazaoSize)}`:''}</div>}
             </div>
 
@@ -419,14 +428,18 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
                 {downloading==='bio_naldo' ? 'Baixando...' : bioNaldoName ? 'Ver Portfólio' : 'Portfólio não inserido'}
                 {downloading!=='bio_naldo' && bioNaldoName && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>}
               </button>
-              <button onClick={()=>requireUpload('bio_naldo')} disabled={uploading==='bio_naldo'} style={upBtn('#16a34a', uploading==='bio_naldo', upOk==='bio_naldo')}>
-                {uploading==='bio_naldo' ? <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
-                  : upOk==='bio_naldo' ? <>✓ Arquivo salvo!</>
-                  : unlocked ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{bioNaldoName?'✓ Substituir':'⬆ Inserir arquivo'}</>
-                  : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>🔒 Inserir arquivo</>}
-              </button>
-              <input ref={bioNaldoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
-                onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_BIO_NALDO,f,setBioNaldoName,setBioNaldoSize,'bio_naldo');e.target.value='';}} />
+              {!readOnly && (
+                <>
+                  <button onClick={()=>requireUpload('bio_naldo')} disabled={uploading==='bio_naldo'} style={upBtn('#16a34a', uploading==='bio_naldo', upOk==='bio_naldo')}>
+                    {uploading==='bio_naldo' ? <><span style={{display:'inline-block',animation:'spin .7s linear infinite'}}>⏳</span> Salvando...</>
+                      : upOk==='bio_naldo' ? <>✓ Arquivo salvo!</>
+                      : unlocked ? <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>{bioNaldoName?'✓ Substituir':'⬆ Inserir arquivo'}</>
+                      : <><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>🔒 Inserir arquivo</>}
+                  </button>
+                  <input ref={bioNaldoRef} type="file" accept=".pdf,.doc,.docx,image/*" style={{display:'none'}}
+                    onChange={e=>{const f=e.target.files?.[0];if(f)doUpload(KEY_BIO_NALDO,f,setBioNaldoName,setBioNaldoSize,'bio_naldo');e.target.value='';}} />
+                </>
+              )}
               {bioNaldoName && <div style={{fontSize:'0.62rem',color:'#16a34a88',marginTop:4,textAlign:'center'}}>📄 {bioNaldoName}{bioNaldoSize?` · ${fmt(bioNaldoSize)}`:''}</div>}
             </div>
           </div>
