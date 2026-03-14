@@ -126,6 +126,10 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(rascunhos);
 }
 
+function normalizeName(s: string) {
+  return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
 
@@ -133,6 +137,55 @@ export async function POST(req: NextRequest) {
     const { error } = await supabaseWrite.storage.from(BUCKET).remove([`rascunhos/${body._delete}.json`]);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ ok: true });
+  }
+
+  const isUpdate = !!body.id; // updating existing draft — skip duplicate checks against students
+
+  // ── Verificar duplicata contra a tabela de alunos já cadastrados ─────────
+  if (!isUpdate) {
+    const orParts: string[] = [];
+    if (body.cpf)        orParts.push(`cpf.eq.${body.cpf}`);
+    if (body.identidade) orParts.push(`identidade.eq.${body.identidade}`);
+    if (body.email)      orParts.push(`email.eq.${body.email}`);
+    if (orParts.length > 0) {
+      const { data: existing } = await supabase
+        .from('students')
+        .select('id, nome_completo, cpf, identidade, email')
+        .or(orParts.join(','))
+        .limit(1);
+      if (existing && existing.length > 0) {
+        const dup = existing[0];
+        let motivo = '';
+        if (body.cpf && dup.cpf === body.cpf)               motivo = `CPF ${body.cpf}`;
+        else if (body.identidade && dup.identidade === body.identidade) motivo = `Numeração Única/RG "${body.identidade}"`;
+        else                                                  motivo = `e-mail "${body.email}"`;
+        return NextResponse.json(
+          { error: `Cadastro duplicado! Já existe um aluno cadastrado com ${motivo}: ${dup.nome_completo}. Não é possível salvar rascunho.`, duplicate: true, field: motivo.startsWith('e-mail') ? 'email' : 'cpf' },
+          { status: 409 }
+        );
+      }
+    }
+
+    // ── Verificar duplicata pelo nome contra alunos já cadastrados ──────────
+    const nomeRaw = (body.nome_completo || '').trim();
+    const nomeParts = nomeRaw.split(/\s+/).filter(Boolean);
+    if (nomeParts.length >= 2) {
+      const { data: candidates } = await supabase
+        .from('students')
+        .select('id, nome_completo')
+        .ilike('nome_completo', `${nomeParts[0][0]}%`)
+        .limit(2000);
+      if (candidates && candidates.length > 0) {
+        const normalInput = normalizeName(nomeRaw);
+        const dup = candidates.find(s => normalizeName(s.nome_completo || '') === normalInput);
+        if (dup) {
+          return NextResponse.json(
+            { error: `Cadastro duplicado! Já existe um aluno com o nome "${dup.nome_completo}". Não é possível salvar rascunho.`, duplicate: true, field: 'nome' },
+            { status: 409 }
+          );
+        }
+      }
+    }
   }
 
   const id = body.id || `rasc_${Date.now()}_${Math.random().toString(36).slice(2)}`;

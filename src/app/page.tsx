@@ -439,6 +439,15 @@ export default function Home() {
   };
 
   const handleSaveDraft = async () => {
+    // Bloqueia rascunho se há duplicata já detectada na tela
+    const dupEntry = Object.entries(duplicateErrors).find(([, v]) => !!v);
+    if (dupEntry) {
+      setDraftMsg(`⚠ Não é possível salvar: ${dupEntry[1]}`);
+      const elName = dupEntry[0] === 'nome' ? 'nome_completo' : dupEntry[0];
+      const el = document.querySelector(`[name="${elName}"]`) as HTMLElement | null;
+      el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     setDraftLoading(true); setDraftMsg('');
     const payload = {
       id: draftId || undefined,
@@ -486,6 +495,17 @@ export default function Home() {
           );
           window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, '_blank');
         }
+      } else if (res.status === 409 && data.duplicate) {
+        // Duplicata detectada — mostra no campo correto e impede rascunho
+        const field = data.field as 'nome' | 'cpf' | 'identidade' | 'email';
+        setDuplicateErrors(prev => ({ ...prev, [field]: data.error }));
+        setDraftMsg(`⚠ ${data.error}`);
+        setTimeout(() => {
+          const elName = field === 'nome' ? 'nome_completo' : field;
+          const el = document.querySelector(`[name="${elName}"]`) as HTMLElement | null;
+          el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          el?.focus();
+        }, 50);
       } else {
         setDraftMsg('Erro ao salvar rascunho. Tente novamente.');
       }
@@ -513,11 +533,14 @@ export default function Home() {
       return;
     }
 
-    // Bloqueia submit se já há erro de nome duplicado detectado no onBlur
-    if (duplicateErrors.nome) {
+    // Bloqueia submit se há qualquer erro de duplicata detectado no onBlur (nome, CPF, identidade, email)
+    const dupField = Object.entries(duplicateErrors).find(([, v]) => !!v);
+    if (dupField) {
+      const fieldName = dupField[0];
       setTimeout(() => {
-        const el = document.querySelector('[name="nome_completo"]') as HTMLElement | null;
+        const el = document.querySelector(`[name="${fieldName === 'nome' ? 'nome_completo' : fieldName}"]`) as HTMLElement | null;
         el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.focus();
       }, 50);
       return;
     }

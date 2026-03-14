@@ -75,24 +75,28 @@ export async function POST(req: NextRequest) {
         .trim();
     }
 
-    // Verificar duplicata por CPF ou identidade
+    // Verificar duplicata por CPF, identidade ou email
     const orParts: string[] = [];
-    if (payload.cpf) orParts.push(`cpf.eq.${payload.cpf}`);
+    if (payload.cpf)        orParts.push(`cpf.eq.${payload.cpf}`);
     if (payload.identidade) orParts.push(`identidade.eq.${payload.identidade}`);
+    if (payload.email)      orParts.push(`email.eq.${payload.email}`);
     if (orParts.length > 0) {
       const { data: existing } = await supabaseAdmin
         .from('students')
-        .select('id, nome_completo, cpf, identidade')
+        .select('id, nome_completo, cpf, identidade, email')
         .or(orParts.join(','))
         .limit(1);
       if (existing && existing.length > 0) {
         const dup = existing[0];
-        const motivo =
-          payload.cpf && dup.cpf === payload.cpf
-            ? `CPF ${payload.cpf}`
-            : `Numeração Única/RG "${payload.identidade}"`;
+        let motivo = '';
+        if (payload.cpf && dup.cpf === payload.cpf)
+          motivo = `CPF ${payload.cpf}`;
+        else if (payload.identidade && dup.identidade === payload.identidade)
+          motivo = `Numeração Única/RG "${payload.identidade}"`;
+        else
+          motivo = `e-mail "${payload.email}"`;
         return NextResponse.json(
-          { error: `Cadastro duplicado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`, duplicate: true, field: 'cpf' },
+          { error: `Cadastro duplicado! Já existe um aluno com ${motivo}: ${dup.nome_completo}`, duplicate: true, field: motivo.startsWith('e-mail') ? 'email' : 'cpf' },
           { status: 409 }
         );
       }
