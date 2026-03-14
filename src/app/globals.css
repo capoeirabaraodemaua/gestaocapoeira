@@ -40,12 +40,13 @@ html, body {
 /* Hero banner */
 .hero-banner {
   position: relative;
-  width: calc(100% - 3cm); /* 1cm esquerda + 2cm direita */
-  height: 420px;
-  overflow: hidden;
+  width: 100%;
+  max-width: 800px;
+  height: auto;
+  overflow: visible;
   display: block;
-  background: #c2742a;
-  margin: 2cm 2cm 2cm 1cm; /* topo direita base esquerda */
+  background: transparent;
+  margin: 24px auto 0;
   border-radius: 12px;
 }
 
@@ -660,9 +661,10 @@ html, body {
     font-size: 1.4rem;
   }
   .hero-banner {
-    height: 280px;
-    margin: 2cm 2cm 2cm 1cm;
-    width: calc(100% - 3cm);
+    height: auto;
+    margin: 16px auto 0;
+    width: 100%;
+    max-width: 800px;
   }
   .form-section {
     padding: 20px;
