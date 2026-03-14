@@ -486,6 +486,72 @@ export default function AdminPage() {
   const [showCarteirinha, setShowCarteirinha] = useState(false);
   const [adminMatriculaNum, setAdminMatriculaNum] = useState<number | null>(null);
   const adminCardRef = useRef<HTMLDivElement>(null);
+
+  // ── Histórico de Graduações ────────────────────────────────────────────────
+  interface RegistroGraduacao {
+    id: string;
+    data_graduacao: string;
+    graduacao_recebida: string;
+    evento: string;
+    professor_responsavel: string;
+    observacoes?: string;
+    criado_em: string;
+  }
+  const [showHistGrad, setShowHistGrad] = useState(false);
+  const [histGradRecords, setHistGradRecords] = useState<RegistroGraduacao[]>([]);
+  const [histGradLoading, setHistGradLoading] = useState(false);
+  const [histGradSaving, setHistGradSaving] = useState(false);
+  const [histGradMsg, setHistGradMsg] = useState('');
+  const [histGradEditing, setHistGradEditing] = useState<RegistroGraduacao | null>(null);
+  const emptyGradForm = { data_graduacao: '', graduacao_recebida: '', evento: '', professor_responsavel: '', observacoes: '' };
+  const [histGradForm, setHistGradForm] = useState(emptyGradForm);
+
+  async function loadHistGrad(studentId: string) {
+    setHistGradLoading(true);
+    try {
+      const res = await fetch(`/api/historico-graduacoes?student_id=${studentId}`);
+      const data = await res.json();
+      setHistGradRecords(data.records || []);
+    } catch { setHistGradRecords([]); }
+    setHistGradLoading(false);
+  }
+
+  async function saveHistGrad(studentId: string) {
+    if (!histGradForm.data_graduacao || !histGradForm.graduacao_recebida || !histGradForm.professor_responsavel) {
+      setHistGradMsg('Preencha data, graduação e professor.');
+      return;
+    }
+    setHistGradSaving(true);
+    setHistGradMsg('');
+    try {
+      const registro = histGradEditing
+        ? { ...histGradForm, id: histGradEditing.id }
+        : { ...histGradForm };
+      const res = await fetch('/api/historico-graduacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, registro }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setHistGradRecords(data.records || []);
+        setHistGradForm(emptyGradForm);
+        setHistGradEditing(null);
+        setHistGradMsg('✓ Graduação salva com sucesso!');
+        setTimeout(() => setHistGradMsg(''), 3000);
+      } else {
+        setHistGradMsg('Erro ao salvar: ' + (data.error || 'desconhecido'));
+      }
+    } catch (err: any) { setHistGradMsg('Erro: ' + err.message); }
+    setHistGradSaving(false);
+  }
+
+  async function deleteHistGrad(studentId: string, registroId: string) {
+    if (!confirm('Remover este registro do histórico?')) return;
+    const res = await fetch(`/api/historico-graduacoes?student_id=${studentId}&registro_id=${registroId}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setHistGradRecords(data.records || []);
+  }
   const certRef = useRef<HTMLDivElement>(null);
 
   // ── Certificado state ─────────────────────────────────────────────────────
@@ -1607,7 +1673,7 @@ export default function AdminPage() {
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
                           <button
-                            onClick={() => setSelected(student)}
+                            onClick={() => { setSelected(student); setShowCarteirinha(false); setShowHistGrad(false); setHistGradRecords([]); setHistGradMsg(''); }}
                             style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--accent)', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                           >
                             {t('admin_view')}
@@ -4882,11 +4948,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* Detail Modal */}
       {selected && (
-        <div className="modal-overlay" onClick={() => { setSelected(null); setShowCarteirinha(false); }}>
+        <div className="modal-overlay" onClick={() => { setSelected(null); setShowCarteirinha(false); setShowHistGrad(false); setHistGradRecords([]); }}>
           <div className="modal-card" onClick={e => e.stopPropagation()}>
             <h2>
               Detalhes do Aluno
-              <button className="modal-close" onClick={() => { setSelected(null); setShowCarteirinha(false); }}>&times;</button>
+              <button className="modal-close" onClick={() => { setSelected(null); setShowCarteirinha(false); setShowHistGrad(false); setHistGradRecords([]); }}>&times;</button>
             </h2>
 
             <div style={{ display: 'flex', gap: 20, marginBottom: 24, alignItems: 'center' }}>
@@ -5063,7 +5129,140 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               students={[{ id: selected.id, nome_completo: selected.nome_completo, telefone: selected.telefone, nucleo: selected.nucleo, email: (selected as any).email }]}
             />
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+            {/* Botão Histórico de Graduações */}
+            <button
+              onClick={() => {
+                setShowHistGrad(v => {
+                  const next = !v;
+                  if (next) {
+                    setHistGradForm(emptyGradForm);
+                    setHistGradEditing(null);
+                    setHistGradMsg('');
+                    loadHistGrad(selected.id);
+                  }
+                  return next;
+                });
+              }}
+              style={{ width: '100%', padding: '10px', background: showHistGrad ? 'rgba(251,191,36,0.15)' : 'rgba(251,191,36,0.08)', border: `1px solid ${showHistGrad ? 'rgba(251,191,36,0.6)' : 'rgba(251,191,36,0.3)'}`, color: '#fbbf24', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, marginTop: 8 }}
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+              {showHistGrad ? 'Ocultar Histórico de Graduações' : 'Histórico de Graduações'}
+            </button>
+
+            {/* Painel Histórico de Graduações */}
+            {showHistGrad && (
+              <div style={{ marginTop: 10, background: 'var(--bg-card)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 12, padding: '16px' }}>
+                <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.9rem', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                  Histórico de Graduações — {selected.nome_completo}
+                </div>
+
+                {/* Formulário add/edit */}
+                <div style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '14px', marginBottom: 16 }}>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#94a3b8', marginBottom: 10 }}>
+                    {histGradEditing ? '✏️ Editando registro' : '➕ Novo registro'}
+                    {histGradEditing && (
+                      <button onClick={() => { setHistGradEditing(null); setHistGradForm(emptyGradForm); }}
+                        style={{ marginLeft: 10, background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                        ✕ Cancelar edição
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 3 }}>Data da Graduação *</div>
+                      <input type="date" value={histGradForm.data_graduacao}
+                        onChange={e => setHistGradForm(p => ({ ...p, data_graduacao: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 3 }}>Graduação Recebida *</div>
+                      <select value={histGradForm.graduacao_recebida}
+                        onChange={e => setHistGradForm(p => ({ ...p, graduacao_recebida: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}>
+                        <option value="">Selecione...</option>
+                        {['Cru','Amarela','Laranja','Azul','Verde','Roxa','Marrom','Vermelha','Branca',
+                          'Amarela-Laranja','Laranja-Azul','Azul-Verde','Verde-Roxa','Roxa-Marrom','Marrom-Vermelha','Vermelha-Branca'].map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 3 }}>Evento / Batizado</div>
+                      <input type="text" placeholder="Ex: Batizado 2024" value={histGradForm.evento}
+                        onChange={e => setHistGradForm(p => ({ ...p, evento: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 3 }}>Professor Responsável *</div>
+                      <input type="text" placeholder="Nome do professor" value={histGradForm.professor_responsavel}
+                        onChange={e => setHistGradForm(p => ({ ...p, professor_responsavel: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+                    </div>
+                    <div style={{ gridColumn: '1/-1' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#94a3b8', marginBottom: 3 }}>Observações</div>
+                      <textarea rows={2} placeholder="Observações opcionais..." value={histGradForm.observacoes || ''}
+                        onChange={e => setHistGradForm(p => ({ ...p, observacoes: e.target.value }))}
+                        style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', resize: 'vertical', fontFamily: 'inherit' }} />
+                    </div>
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                    <button onClick={() => saveHistGrad(selected.id)} disabled={histGradSaving}
+                      style={{ background: histGradSaving ? '#94a3b8' : '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: '0.82rem', cursor: histGradSaving ? 'not-allowed' : 'pointer' }}>
+                      {histGradSaving ? 'Salvando...' : (histGradEditing ? '💾 Atualizar' : '💾 Salvar')}
+                    </button>
+                    {histGradMsg && (
+                      <span style={{ fontSize: '0.78rem', color: histGradMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 700 }}>
+                        {histGradMsg}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Lista de registros */}
+                {histGradLoading ? (
+                  <div style={{ textAlign: 'center', color: '#94a3b8', padding: '20px', fontSize: '0.82rem' }}>Carregando...</div>
+                ) : histGradRecords.length === 0 ? (
+                  <div style={{ textAlign: 'center', color: '#64748b', padding: '20px', fontSize: '0.82rem' }}>Nenhum registro de graduação ainda.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {histGradRecords.map(r => {
+                      const [ano, mes, dia] = r.data_graduacao.split('-');
+                      const dataFmt = dia && mes && ano ? `${dia}/${mes}/${ano}` : r.data_graduacao;
+                      return (
+                        <div key={r.id} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 9, padding: '10px 12px', display: 'flex', gap: 10, alignItems: 'flex-start' }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 4 }}>
+                              <span style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.88rem' }}>{r.graduacao_recebida}</span>
+                              <span style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 6, padding: '1px 7px', fontSize: '0.72rem', color: '#fbbf24' }}>{dataFmt}</span>
+                              {r.evento && <span style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 6, padding: '1px 7px', fontSize: '0.72rem', color: '#93c5fd' }}>{r.evento}</span>}
+                            </div>
+                            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>Prof.: </span>{r.professor_responsavel}
+                            </div>
+                            {r.observacoes && (
+                              <div style={{ fontSize: '0.75rem', color: '#64748b', marginTop: 3, fontStyle: 'italic' }}>{r.observacoes}</div>
+                            )}
+                          </div>
+                          <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                            <button onClick={() => { setHistGradEditing(r); setHistGradForm({ data_graduacao: r.data_graduacao, graduacao_recebida: r.graduacao_recebida, evento: r.evento, professor_responsavel: r.professor_responsavel, observacoes: r.observacoes || '' }); }}
+                              style={{ background: 'rgba(139,92,246,0.1)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                              ✏️
+                            </button>
+                            <button onClick={() => deleteHistGrad(selected.id, r.id)}
+                              style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                              🗑
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
               <button
                 onClick={() => openEdit(selected)}
                 style={{ flex: 1, padding: '10px', background: 'rgba(139,92,246,0.15)', border: '1px solid rgba(139,92,246,0.4)', color: '#a78bfa', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.9rem' }}
