@@ -5149,6 +5149,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     )}
                   </div>
                 </div>
+                {/* Ver Cadastro do Aluno */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 10 }}>
+                  <a
+                    href={`/admin?aluno=${selected.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.3)', color: '#93c5fd', borderRadius: 8, padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
+                  >
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><circle cx="12" cy="8" r="4"/><path d="M6 21v-2a6 6 0 0112 0v2"/></svg>
+                    Ver Cadastro do Aluno
+                  </a>
+                </div>
                 {/* Lista */}
                 {histGradLoading ? (
                   <div style={{ textAlign: 'center', color: '#94a3b8', padding: '16px', fontSize: '0.82rem' }}>Carregando...</div>
