@@ -1053,11 +1053,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <a
               href="/hierarquia"
               style={{
-                background: 'rgba(202,138,4,0.12)',
+                background: 'rgba(109,40,217,0.18)',
                 border: 'none',
                 borderRadius: '10px 10px 0 0',
                 padding: '11px 18px',
-                color: '#fbbf24',
+                color: '#7c3aed',
                 fontWeight: 800,
                 fontSize: '0.88rem',
                 letterSpacing: '0.04em',
