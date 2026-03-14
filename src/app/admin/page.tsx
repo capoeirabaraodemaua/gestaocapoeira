@@ -256,6 +256,20 @@ function GpsMap({ checkins, containerRef, leafletMapRef }: {
   );
 }
 
+// ── Histórico de Graduações — tipo fora do componente ──────────────────────
+interface RegistroGraduacao {
+  id: string;
+  data_graduacao: string;
+  graduacao_recebida: string;
+  evento: string;
+  professor_responsavel: string;
+  observacoes?: string;
+  criado_em: string;
+}
+const EMPTY_GRAD_FORM = { data_graduacao: '', graduacao_recebida: '', evento: '', professor_responsavel: '', observacoes: '' };
+const GRAD_OPCOES = ['Cru','Amarela','Laranja','Azul','Verde','Roxa','Marrom','Vermelha','Branca',
+  'Amarela-Laranja','Laranja-Azul','Azul-Verde','Verde-Roxa','Roxa-Marrom','Marrom-Vermelha','Vermelha-Branca'];
+
 export default function AdminPage() {
   const { t } = useLanguage();
   const [authed, setAuthed] = useState(false);
@@ -276,6 +290,48 @@ export default function AdminPage() {
   const [changeDone, setChangeDone] = useState(false);
 
   const SUPER_ADMIN_CPF = '09856925703';
+
+  // ── Funções Histórico de Graduações ───────────────────────────────────────
+  async function loadHistGrad(studentId: string) {
+    setHistGradLoading(true);
+    try {
+      const res = await fetch(`/api/historico-graduacoes?student_id=${encodeURIComponent(studentId)}`);
+      const data = await res.json();
+      setHistGradRecords(data.records || []);
+    } catch { setHistGradRecords([]); }
+    setHistGradLoading(false);
+  }
+
+  async function saveHistGrad(studentId: string, form: typeof EMPTY_GRAD_FORM, editing: RegistroGraduacao | null) {
+    if (!form.data_graduacao || !form.graduacao_recebida || !form.professor_responsavel) {
+      setHistGradMsg('Preencha data, graduação e professor.'); return;
+    }
+    setHistGradSaving(true); setHistGradMsg('');
+    try {
+      const registro = editing ? { ...form, id: editing.id } : { ...form };
+      const res = await fetch('/api/historico-graduacoes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ student_id: studentId, registro }),
+      });
+      const data = await res.json();
+      if (data.ok) {
+        setHistGradRecords(data.records || []);
+        setHistGradForm(EMPTY_GRAD_FORM);
+        setHistGradEditing(null);
+        setHistGradMsg('✓ Salvo!');
+        setTimeout(() => setHistGradMsg(''), 3000);
+      } else { setHistGradMsg('Erro: ' + (data.error || '')); }
+    } catch (e: any) { setHistGradMsg('Erro: ' + e.message); }
+    setHistGradSaving(false);
+  }
+
+  async function deleteHistGrad(studentId: string, registroId: string) {
+    if (!confirm('Remover este registro?')) return;
+    const res = await fetch(`/api/historico-graduacoes?student_id=${encodeURIComponent(studentId)}&registro_id=${encodeURIComponent(registroId)}`, { method: 'DELETE' });
+    const data = await res.json();
+    if (data.ok) setHistGradRecords(data.records || []);
+  }
 
   // Admin action logger
   async function logAdminAction(action: string, details?: string) {
@@ -488,70 +544,13 @@ export default function AdminPage() {
   const adminCardRef = useRef<HTMLDivElement>(null);
 
   // ── Histórico de Graduações ────────────────────────────────────────────────
-  interface RegistroGraduacao {
-    id: string;
-    data_graduacao: string;
-    graduacao_recebida: string;
-    evento: string;
-    professor_responsavel: string;
-    observacoes?: string;
-    criado_em: string;
-  }
   const [showHistGrad, setShowHistGrad] = useState(false);
   const [histGradRecords, setHistGradRecords] = useState<RegistroGraduacao[]>([]);
   const [histGradLoading, setHistGradLoading] = useState(false);
   const [histGradSaving, setHistGradSaving] = useState(false);
   const [histGradMsg, setHistGradMsg] = useState('');
   const [histGradEditing, setHistGradEditing] = useState<RegistroGraduacao | null>(null);
-  const emptyGradForm = { data_graduacao: '', graduacao_recebida: '', evento: '', professor_responsavel: '', observacoes: '' };
-  const [histGradForm, setHistGradForm] = useState(emptyGradForm);
-
-  async function loadHistGrad(studentId: string) {
-    setHistGradLoading(true);
-    try {
-      const res = await fetch(`/api/historico-graduacoes?student_id=${studentId}`);
-      const data = await res.json();
-      setHistGradRecords(data.records || []);
-    } catch { setHistGradRecords([]); }
-    setHistGradLoading(false);
-  }
-
-  async function saveHistGrad(studentId: string) {
-    if (!histGradForm.data_graduacao || !histGradForm.graduacao_recebida || !histGradForm.professor_responsavel) {
-      setHistGradMsg('Preencha data, graduação e professor.');
-      return;
-    }
-    setHistGradSaving(true);
-    setHistGradMsg('');
-    try {
-      const registro = histGradEditing
-        ? { ...histGradForm, id: histGradEditing.id }
-        : { ...histGradForm };
-      const res = await fetch('/api/historico-graduacoes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ student_id: studentId, registro }),
-      });
-      const data = await res.json();
-      if (data.ok) {
-        setHistGradRecords(data.records || []);
-        setHistGradForm(emptyGradForm);
-        setHistGradEditing(null);
-        setHistGradMsg('✓ Graduação salva com sucesso!');
-        setTimeout(() => setHistGradMsg(''), 3000);
-      } else {
-        setHistGradMsg('Erro ao salvar: ' + (data.error || 'desconhecido'));
-      }
-    } catch (err: any) { setHistGradMsg('Erro: ' + err.message); }
-    setHistGradSaving(false);
-  }
-
-  async function deleteHistGrad(studentId: string, registroId: string) {
-    if (!confirm('Remover este registro do histórico?')) return;
-    const res = await fetch(`/api/historico-graduacoes?student_id=${studentId}&registro_id=${registroId}`, { method: 'DELETE' });
-    const data = await res.json();
-    if (data.ok) setHistGradRecords(data.records || []);
-  }
+  const [histGradForm, setHistGradForm] = useState(EMPTY_GRAD_FORM);
   const certRef = useRef<HTMLDivElement>(null);
 
   // ── Certificado state ─────────────────────────────────────────────────────
@@ -5047,19 +5046,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
             </div>
 
-            {/* ── Botão Histórico de Graduações (posição principal) ── */}
+            {/* ── Botão Histórico de Graduações ── */}
             <button
               onClick={() => {
-                setShowHistGrad(v => {
-                  const next = !v;
-                  if (next) {
-                    setHistGradForm(emptyGradForm);
-                    setHistGradEditing(null);
-                    setHistGradMsg('');
-                    loadHistGrad(selected.id);
-                  }
-                  return next;
-                });
+                if (!showHistGrad) {
+                  setHistGradForm(EMPTY_GRAD_FORM);
+                  setHistGradEditing(null);
+                  setHistGradMsg('');
+                  loadHistGrad(selected.id);
+                }
+                setShowHistGrad(v => !v);
               }}
               style={{ width: '100%', marginTop: 16, padding: '11px', background: showHistGrad ? 'rgba(251,191,36,0.18)' : 'rgba(251,191,36,0.08)', border: `2px solid ${showHistGrad ? '#fbbf24' : 'rgba(251,191,36,0.35)'}`, color: '#fbbf24', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
             >
@@ -5079,7 +5075,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#94a3b8', marginBottom: 10 }}>
                     {histGradEditing ? '✏️ Editando registro' : '➕ Novo registro'}
                     {histGradEditing && (
-                      <button onClick={() => { setHistGradEditing(null); setHistGradForm(emptyGradForm); }}
+                      <button onClick={() => { setHistGradEditing(null); setHistGradForm(EMPTY_GRAD_FORM); }}
                         style={{ marginLeft: 10, background: 'none', border: 'none', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>✕ Cancelar</button>
                     )}
                   </div>
@@ -5096,8 +5092,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         onChange={e => setHistGradForm(p => ({ ...p, graduacao_recebida: e.target.value }))}
                         style={{ width: '100%', padding: '7px 10px', background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}>
                         <option value="">Selecione...</option>
-                        {['Cru','Amarela','Laranja','Azul','Verde','Roxa','Marrom','Vermelha','Branca',
-                          'Amarela-Laranja','Laranja-Azul','Azul-Verde','Verde-Roxa','Roxa-Marrom','Marrom-Vermelha','Vermelha-Branca'].map(g => (
+                        {GRAD_OPCOES.map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
                       </select>
@@ -5122,7 +5117,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </div>
                   </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
-                    <button onClick={() => saveHistGrad(selected.id)} disabled={histGradSaving}
+                    <button onClick={() => saveHistGrad(selected.id, histGradForm, histGradEditing)} disabled={histGradSaving}
                       style={{ background: histGradSaving ? '#94a3b8' : '#fbbf24', color: '#1a1a1a', border: 'none', borderRadius: 8, padding: '8px 20px', fontWeight: 700, fontSize: '0.82rem', cursor: histGradSaving ? 'not-allowed' : 'pointer' }}>
                       {histGradSaving ? 'Salvando...' : (histGradEditing ? '💾 Atualizar' : '💾 Salvar')}
                     </button>
