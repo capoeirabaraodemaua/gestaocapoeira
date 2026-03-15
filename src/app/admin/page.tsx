@@ -525,6 +525,8 @@ export default function AdminPage() {
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos'>('alunos');
+  const [missingCols, setMissingCols] = useState<string[]>([]);
+  const [showSqlModal, setShowSqlModal] = useState(false);
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -757,8 +759,21 @@ export default function AdminPage() {
     fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); }).catch(() => {});
     // Pre-load rascunhos count for badge
     fetch('/api/rascunhos').then(r => r.json()).then((d: any[]) => { setRascunhosCount(d.length); setRascunhos(d); }).catch(() => {});
-    // Ensure DB columns (ordem_inscricao, apelido, etc.) are active — silent background call
-    fetch('/api/add-columns').catch(() => {});
+    // Check which new columns are missing in the DB
+    (async () => {
+      const cols = ['apelido', 'nome_social', 'sexo', 'email', 'assinatura_pai', 'assinatura_mae', 'ordem_inscricao'];
+      const missing: string[] = [];
+      for (const col of cols) {
+        const { error } = await supabase.from('students').select(col).limit(1);
+        if (error && (error.message.includes('column') || error.message.includes('does not exist'))) {
+          missing.push(col);
+        }
+      }
+      if (missing.length > 0) {
+        setMissingCols(missing);
+        setShowSqlModal(true);
+      }
+    })();
     // Pre-load eventos on mount so they're ready immediately
     fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); }).catch(() => {});
   }, []);
@@ -1186,8 +1201,55 @@ export default function AdminPage() {
     );
   }
 
+  const MIGRATION_SQL = `ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS apelido TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS nome_social TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS sexo TEXT;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_pai BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_mae BOOLEAN NOT NULL DEFAULT FALSE;
+DO $$ BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_sequences WHERE schemaname='public' AND sequencename='students_inscricao_seq') THEN
+    CREATE SEQUENCE students_inscricao_seq START 1;
+  END IF;
+END $$;
+ALTER TABLE students ADD COLUMN IF NOT EXISTS ordem_inscricao INTEGER DEFAULT nextval('students_inscricao_seq');
+UPDATE students SET ordem_inscricao = nextval('students_inscricao_seq') WHERE ordem_inscricao IS NULL;`;
+
   return (
     <div style={{ minHeight: '100vh' }}>
+
+      {/* ── Modal: colunas faltantes no banco ─────────────────────────────── */}
+      {showSqlModal && missingCols.length > 0 && (
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#1e1b4b', border: '2px solid #7c3aed', borderRadius: 16, padding: 28, maxWidth: 640, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h2 style={{ color: '#a78bfa', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>⚠️ Ação necessária: Ativar colunas no banco de dados</h2>
+              <button onClick={() => setShowSqlModal(false)} style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}>×</button>
+            </div>
+            <p style={{ color: '#c4b5fd', marginBottom: 12, fontSize: '0.9rem' }}>
+              As colunas <strong style={{ color: '#f0abfc' }}>{missingCols.join(', ')}</strong> ainda não existem no banco de dados.<br />
+              Os campos <strong>apelido, nome social e gênero</strong> não serão salvos até que o SQL abaixo seja executado.<br /><br />
+              <strong style={{ color: '#fde68a' }}>Como executar:</strong> Acesse <a href="https://supabase.com/dashboard" target="_blank" style={{ color: '#38bdf8' }}>supabase.com/dashboard</a> → seu projeto → <strong>SQL Editor</strong> → cole o SQL abaixo → clique em <strong>Run</strong>.
+            </p>
+            <pre style={{ background: '#0f172a', color: '#86efac', borderRadius: 8, padding: 16, fontSize: '0.75rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: 16, border: '1px solid #1e3a5f' }}>{MIGRATION_SQL}</pre>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              <button
+                onClick={() => { navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {}); }}
+                style={{ padding: '10px 20px', borderRadius: 8, background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem' }}
+              >
+                📋 Copiar SQL
+              </button>
+              <button
+                onClick={() => setShowSqlModal(false)}
+                style={{ padding: '10px 20px', borderRadius: 8, background: '#374151', color: '#d1d5db', border: 'none', cursor: 'pointer', fontSize: '0.9rem' }}
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className="container-wide">
         <div style={{ padding: '20px 0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Link href="/" className="back-link">
