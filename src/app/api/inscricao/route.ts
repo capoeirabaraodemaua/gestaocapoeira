@@ -281,6 +281,32 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Salva apelido, nome_social, sexo no Storage (independente de colunas DB)
+    if (studentId) {
+      const hasExtras = payload.apelido || payload.nome_social || payload.sexo;
+      if (hasExtras) {
+        try {
+          const EXTRAS_KEY = 'extras/student-extras.json';
+          const BUCKET = 'photos';
+          // Load existing map
+          let extMap: Record<string, Record<string, string>> = {};
+          const { data: urlData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(EXTRAS_KEY, 15);
+          if (urlData?.signedUrl) {
+            const r = await fetch(urlData.signedUrl, { cache: 'no-store' });
+            if (r.ok) extMap = await r.json();
+          }
+          extMap[studentId] = {
+            ...(extMap[studentId] || {}),
+            ...(payload.apelido  ? { apelido:    payload.apelido  as string } : {}),
+            ...(payload.nome_social ? { nome_social: payload.nome_social as string } : {}),
+            ...(payload.sexo     ? { sexo:       payload.sexo     as string } : {}),
+          };
+          const blob = new Blob([JSON.stringify(extMap)], { type: 'application/json' });
+          await supabaseAdmin.storage.from(BUCKET).upload(EXTRAS_KEY, blob, { upsert: true });
+        } catch { /* não bloqueia o cadastro */ }
+      }
+    }
+
     return NextResponse.json({ success: true, student_id: studentId, inscricao_numero });
   } catch (err) {
     const msg = err instanceof Error ? err.message : JSON.stringify(err);

@@ -809,10 +809,27 @@ export default function AdminPage() {
       const list = data as Student[];
       // Compute virtual ordem_inscricao for students missing it (sort by created_at asc → index+1)
       const sortedAsc = [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
-      const listWithNum = list.map(s => ({
+      let listWithNum = list.map(s => ({
         ...s,
         ordem_inscricao: s.ordem_inscricao ?? (sortedAsc.findIndex(x => x.id === s.id) + 1),
       }));
+      // Mescla extras (apelido, nome_social, sexo) do Storage para alunos com colunas faltantes
+      try {
+        const extRes = await fetch('/api/student-extras');
+        if (extRes.ok) {
+          const extMap: Record<string, { apelido?: string; nome_social?: string; sexo?: string }> = await extRes.json();
+          listWithNum = listWithNum.map(s => {
+            const ext = extMap[s.id];
+            if (!ext) return s;
+            return {
+              ...s,
+              apelido:    s.apelido    || ext.apelido    || null,
+              nome_social: s.nome_social || ext.nome_social || null,
+              sexo:       s.sexo       || ext.sexo       || null,
+            };
+          });
+        }
+      } catch { /* extras são opcionais */ }
       setStudents(listWithNum);
       // Carrega registros de termos enviados para alunos menores
       const menoresIds = list.filter(s => s.menor_de_idade).map(s => s.id);
@@ -1007,6 +1024,19 @@ export default function AdminPage() {
       if (error) {
         alert('Erro ao salvar: ' + error.message);
       } else {
+        // Sempre persiste apelido/nome_social/sexo no Storage (garante salvamento mesmo sem colunas DB)
+        const extrasToSave = {
+          apelido:     (editForm as any).apelido     || '',
+          nome_social: (editForm as any).nome_social || '',
+          sexo:        (editForm as any).sexo        || '',
+        };
+        if (extrasToSave.apelido || extrasToSave.nome_social || extrasToSave.sexo) {
+          fetch('/api/student-extras', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: editing.id, ...extrasToSave }),
+          }).catch(() => {});
+        }
         logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
         setEditFotoFile(null);
