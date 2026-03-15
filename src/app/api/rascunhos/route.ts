@@ -18,6 +18,9 @@ const BUCKET = 'photos';
 export interface RascunhoData {
   id: string;
   nome_completo?: string;
+  apelido?: string;
+  nome_social?: string;
+  sexo?: string;
   cpf?: string;
   identidade?: string;
   data_nascimento?: string;

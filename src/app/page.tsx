@@ -452,6 +452,9 @@ export default function Home() {
     const payload = {
       id: draftId || undefined,
       nome_completo: form.nome_completo || undefined,
+      apelido: form.apelido || undefined,
+      nome_social: form.nome_social || undefined,
+      sexo: form.sexo || undefined,
       cpf: form.cpf || undefined,
       identidade: form.identidade || undefined,
       data_nascimento: form.data_nascimento || undefined,

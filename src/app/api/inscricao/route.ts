@@ -22,9 +22,11 @@ async function tryExecSQL(sql: string): Promise<boolean> {
 }
 
 // Remove NOT NULL de colunas que costumam ser obrigatórias no schema legado
+// e garante que novas colunas existam
 let constraintsFixed = false;
 async function ensureNullableColumns() {
   if (constraintsFixed) return;
+  // Remove NOT NULL constraints legados
   await tryExecSQL(`
     ALTER TABLE students ALTER COLUMN cpf DROP NOT NULL;
     ALTER TABLE students ALTER COLUMN identidade DROP NOT NULL;
@@ -40,6 +42,18 @@ async function ensureNullableColumns() {
     ALTER TABLE students ALTER COLUMN tipo_graduacao DROP NOT NULL;
     ALTER TABLE students ALTER COLUMN nucleo DROP NOT NULL;
   `);
+  // Garante colunas novas (apelido, nome_social, sexo, email, etc.)
+  const newCols = [
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS apelido TEXT`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS nome_social TEXT`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS sexo TEXT`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_pai BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_mae BOOLEAN NOT NULL DEFAULT FALSE`,
+  ];
+  for (const sql of newCols) {
+    await tryExecSQL(sql);
+  }
   constraintsFixed = true;
 }
 
