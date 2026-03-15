@@ -527,6 +527,9 @@ export default function AdminPage() {
   const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos'>('alunos');
   const [missingCols, setMissingCols] = useState<string[]>([]);
   const [showSqlModal, setShowSqlModal] = useState(false);
+  const [migratePassword, setMigratePassword] = useState('');
+  const [migrateLoading, setMigrateLoading] = useState(false);
+  const [migrateMsg, setMigrateMsg] = useState('');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -1218,34 +1221,68 @@ UPDATE students SET ordem_inscricao = nextval('students_inscricao_seq') WHERE or
   return (
     <div style={{ minHeight: '100vh' }}>
 
-      {/* ── Modal: colunas faltantes no banco ─────────────────────────────── */}
+      {/* ── Modal: ativar colunas no banco ────────────────────────────────── */}
       {showSqlModal && missingCols.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#1e1b4b', border: '2px solid #7c3aed', borderRadius: 16, padding: 28, maxWidth: 640, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.5)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h2 style={{ color: '#a78bfa', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>⚠️ Ação necessária: Ativar colunas no banco de dados</h2>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#1e1b4b', border: '2px solid #7c3aed', borderRadius: 16, padding: 28, maxWidth: 560, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+              <h2 style={{ color: '#a78bfa', margin: 0, fontSize: '1rem', fontWeight: 700 }}>⚙️ Ativar campos: apelido, nome social e gênero</h2>
               <button onClick={() => setShowSqlModal(false)} style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}>×</button>
             </div>
-            <p style={{ color: '#c4b5fd', marginBottom: 12, fontSize: '0.9rem' }}>
-              As colunas <strong style={{ color: '#f0abfc' }}>{missingCols.join(', ')}</strong> ainda não existem no banco de dados.<br />
-              Os campos <strong>apelido, nome social e gênero</strong> não serão salvos até que o SQL abaixo seja executado.<br /><br />
-              <strong style={{ color: '#fde68a' }}>Como executar:</strong> Acesse <a href="https://supabase.com/dashboard" target="_blank" style={{ color: '#38bdf8' }}>supabase.com/dashboard</a> → seu projeto → <strong>SQL Editor</strong> → cole o SQL abaixo → clique em <strong>Run</strong>.
+
+            <p style={{ color: '#c4b5fd', marginBottom: 16, fontSize: '0.88rem', lineHeight: 1.5 }}>
+              As colunas <strong style={{ color: '#f0abfc' }}>{missingCols.join(', ')}</strong> ainda não existem no banco.<br />
+              Digite a <strong style={{ color: '#fde68a' }}>senha do banco de dados</strong> do Supabase para ativar automaticamente.
             </p>
-            <pre style={{ background: '#0f172a', color: '#86efac', borderRadius: 8, padding: 16, fontSize: '0.75rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginBottom: 16, border: '1px solid #1e3a5f' }}>{MIGRATION_SQL}</pre>
-            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+
+            <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 10, fontSize: '0.78rem', color: '#94a3b8' }}>
+              A senha fica em: <strong style={{ color: '#38bdf8' }}>supabase.com/dashboard</strong> → Project Settings → Database → Database password
+            </div>
+
+            <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+              <input
+                type="password"
+                placeholder="Senha do banco de dados Supabase..."
+                value={migratePassword}
+                onChange={e => setMigratePassword(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && migratePassword) { /* handled by button */ } }}
+                style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #4c1d95', background: '#0f172a', color: '#e2e8f0', fontSize: '0.9rem', outline: 'none' }}
+              />
               <button
-                onClick={() => { navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {}); }}
-                style={{ padding: '10px 20px', borderRadius: 8, background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem' }}
+                disabled={!migratePassword || migrateLoading}
+                onClick={async () => {
+                  setMigrateLoading(true); setMigrateMsg('');
+                  try {
+                    const res = await fetch('/api/migrate-db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: migratePassword }) });
+                    const d = await res.json();
+                    if (res.ok && d.success) {
+                      setMigrateMsg('✅ ' + d.message);
+                      setMissingCols([]);
+                      setTimeout(() => setShowSqlModal(false), 2500);
+                    } else {
+                      setMigrateMsg('❌ ' + (d.error || 'Erro desconhecido'));
+                    }
+                  } catch { setMigrateMsg('❌ Erro de conexão'); }
+                  setMigrateLoading(false);
+                }}
+                style={{ padding: '10px 18px', borderRadius: 8, background: migrateLoading ? '#6b21a8' : '#7c3aed', color: '#fff', border: 'none', cursor: migrateLoading ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
               >
-                📋 Copiar SQL
-              </button>
-              <button
-                onClick={() => setShowSqlModal(false)}
-                style={{ padding: '10px 20px', borderRadius: 8, background: '#374151', color: '#d1d5db', border: 'none', cursor: 'pointer', fontSize: '0.9rem' }}
-              >
-                Fechar
+                {migrateLoading ? '⏳ Ativando...' : '🚀 Ativar'}
               </button>
             </div>
+
+            {migrateMsg && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, background: migrateMsg.startsWith('✅') ? '#14532d' : '#450a0a', color: migrateMsg.startsWith('✅') ? '#86efac' : '#fca5a5', fontSize: '0.85rem', marginBottom: 12 }}>
+                {migrateMsg}
+              </div>
+            )}
+
+            {/* Fallback manual */}
+            <details style={{ marginTop: 8 }}>
+              <summary style={{ color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer' }}>Ou execute manualmente no SQL Editor do Supabase</summary>
+              <pre style={{ background: '#0f172a', color: '#86efac', borderRadius: 8, padding: 12, fontSize: '0.72rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 8, border: '1px solid #1e3a5f' }}>{MIGRATION_SQL}</pre>
+              <button onClick={() => { navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {}); }} style={{ marginTop: 8, padding: '7px 14px', borderRadius: 6, background: '#374151', color: '#d1d5db', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>📋 Copiar SQL</button>
+            </details>
           </div>
         </div>
       )}
