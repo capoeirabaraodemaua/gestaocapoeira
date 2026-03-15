@@ -1223,30 +1223,53 @@ UPDATE students SET ordem_inscricao = nextval('students_inscricao_seq') WHERE or
 
       {/* ── Modal: ativar colunas no banco ────────────────────────────────── */}
       {showSqlModal && missingCols.length > 0 && (
-        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-          <div style={{ background: '#1e1b4b', border: '2px solid #7c3aed', borderRadius: 16, padding: 28, maxWidth: 560, width: '100%', boxShadow: '0 8px 40px rgba(0,0,0,0.6)' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-              <h2 style={{ color: '#a78bfa', margin: 0, fontSize: '1rem', fontWeight: 700 }}>⚙️ Ativar campos: apelido, nome social e gênero</h2>
-              <button onClick={() => setShowSqlModal(false)} style={{ background: 'none', border: 'none', color: '#a78bfa', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1 }}>×</button>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.82)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+          <div style={{ background: '#0f0a1e', border: '2px solid #7c3aed', borderRadius: 18, padding: 30, maxWidth: 580, width: '100%', boxShadow: '0 12px 60px rgba(124,58,237,0.4)' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 18 }}>
+              <div>
+                <h2 style={{ color: '#a78bfa', margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>⚙️ Configuração necessária — uma única vez</h2>
+                <p style={{ color: '#7c3aed', margin: '4px 0 0', fontSize: '0.78rem' }}>Campos apelido, nome social e gênero precisam ser ativados</p>
+              </div>
+              <button onClick={() => setShowSqlModal(false)} style={{ background: 'none', border: 'none', color: '#6b7280', cursor: 'pointer', fontSize: '1.4rem', lineHeight: 1, flexShrink: 0 }}>×</button>
             </div>
 
-            <p style={{ color: '#c4b5fd', marginBottom: 16, fontSize: '0.88rem', lineHeight: 1.5 }}>
-              As colunas <strong style={{ color: '#f0abfc' }}>{missingCols.join(', ')}</strong> ainda não existem no banco.<br />
-              Digite a <strong style={{ color: '#fde68a' }}>senha do banco de dados</strong> do Supabase para ativar automaticamente.
-            </p>
-
-            <div style={{ background: '#0f172a', borderRadius: 8, padding: '10px 14px', marginBottom: 10, fontSize: '0.78rem', color: '#94a3b8' }}>
-              A senha fica em: <strong style={{ color: '#38bdf8' }}>supabase.com/dashboard</strong> → Project Settings → Database → Database password
+            {/* Step guide */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
+              {[
+                { n: '1', text: 'Abra o Supabase Dashboard no seu projeto', link: 'https://supabase.com/dashboard/project/edjxhuansqvvllchsvjy/settings/database', linkText: 'Abrir configurações do banco →' },
+                { n: '2', text: 'Em "Database password", clique em "Reset" ou copie a senha existente', link: null, linkText: null },
+                { n: '3', text: 'Cole a senha abaixo e clique em Ativar', link: null, linkText: null },
+              ].map(step => (
+                <div key={step.n} style={{ display: 'flex', gap: 12, alignItems: 'flex-start', background: '#1e1040', borderRadius: 10, padding: '10px 14px' }}>
+                  <span style={{ background: '#7c3aed', color: '#fff', borderRadius: '50%', width: 22, height: 22, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0, marginTop: 1 }}>{step.n}</span>
+                  <div>
+                    <p style={{ color: '#c4b5fd', margin: 0, fontSize: '0.85rem' }}>{step.text}</p>
+                    {step.link && <a href={step.link} target="_blank" rel="noreferrer" style={{ color: '#38bdf8', fontSize: '0.8rem', textDecoration: 'none' }}>{step.linkText}</a>}
+                  </div>
+                </div>
+              ))}
             </div>
 
             <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
               <input
                 type="password"
-                placeholder="Senha do banco de dados Supabase..."
+                placeholder="Cole a senha do banco Supabase aqui..."
                 value={migratePassword}
                 onChange={e => setMigratePassword(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Enter' && migratePassword) { /* handled by button */ } }}
-                style={{ flex: 1, padding: '10px 14px', borderRadius: 8, border: '1px solid #4c1d95', background: '#0f172a', color: '#e2e8f0', fontSize: '0.9rem', outline: 'none' }}
+                onKeyDown={async e => {
+                  if (e.key === 'Enter' && migratePassword && !migrateLoading) {
+                    setMigrateLoading(true); setMigrateMsg('');
+                    try {
+                      const res = await fetch('/api/migrate-db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: migratePassword }) });
+                      const d = await res.json();
+                      if (res.ok && d.success) { setMigrateMsg('✅ ' + d.message); setMissingCols([]); setTimeout(() => setShowSqlModal(false), 2500); }
+                      else setMigrateMsg('❌ Senha incorreta ou erro de conexão. Verifique a senha e tente novamente.');
+                    } catch { setMigrateMsg('❌ Erro de conexão'); }
+                    setMigrateLoading(false);
+                  }
+                }}
+                style={{ flex: 1, padding: '12px 16px', borderRadius: 10, border: '2px solid #4c1d95', background: '#1a0a33', color: '#e2e8f0', fontSize: '0.95rem', outline: 'none' }}
+                autoFocus
               />
               <button
                 disabled={!migratePassword || migrateLoading}
@@ -1255,33 +1278,29 @@ UPDATE students SET ordem_inscricao = nextval('students_inscricao_seq') WHERE or
                   try {
                     const res = await fetch('/api/migrate-db', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ password: migratePassword }) });
                     const d = await res.json();
-                    if (res.ok && d.success) {
-                      setMigrateMsg('✅ ' + d.message);
-                      setMissingCols([]);
-                      setTimeout(() => setShowSqlModal(false), 2500);
-                    } else {
-                      setMigrateMsg('❌ ' + (d.error || 'Erro desconhecido'));
-                    }
+                    if (res.ok && d.success) { setMigrateMsg('✅ ' + d.message); setMissingCols([]); setTimeout(() => setShowSqlModal(false), 2500); }
+                    else setMigrateMsg('❌ Senha incorreta ou erro de conexão. Verifique a senha e tente novamente.');
                   } catch { setMigrateMsg('❌ Erro de conexão'); }
                   setMigrateLoading(false);
                 }}
-                style={{ padding: '10px 18px', borderRadius: 8, background: migrateLoading ? '#6b21a8' : '#7c3aed', color: '#fff', border: 'none', cursor: migrateLoading ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
+                style={{ padding: '12px 22px', borderRadius: 10, background: migrateLoading ? '#581c87' : '#7c3aed', color: '#fff', border: 'none', cursor: migrateLoading ? 'wait' : 'pointer', fontWeight: 700, fontSize: '0.95rem', whiteSpace: 'nowrap', transition: 'background 0.2s' }}
               >
-                {migrateLoading ? '⏳ Ativando...' : '🚀 Ativar'}
+                {migrateLoading ? '⏳ Ativando...' : '🚀 Ativar agora'}
               </button>
             </div>
 
             {migrateMsg && (
-              <div style={{ padding: '10px 14px', borderRadius: 8, background: migrateMsg.startsWith('✅') ? '#14532d' : '#450a0a', color: migrateMsg.startsWith('✅') ? '#86efac' : '#fca5a5', fontSize: '0.85rem', marginBottom: 12 }}>
+              <div style={{ padding: '12px 16px', borderRadius: 10, background: migrateMsg.startsWith('✅') ? '#052e16' : '#3b0808', color: migrateMsg.startsWith('✅') ? '#4ade80' : '#fca5a5', fontSize: '0.88rem', marginBottom: 12, border: `1px solid ${migrateMsg.startsWith('✅') ? '#166534' : '#7f1d1d'}` }}>
                 {migrateMsg}
               </div>
             )}
 
             {/* Fallback manual */}
-            <details style={{ marginTop: 8 }}>
-              <summary style={{ color: '#94a3b8', fontSize: '0.8rem', cursor: 'pointer' }}>Ou execute manualmente no SQL Editor do Supabase</summary>
-              <pre style={{ background: '#0f172a', color: '#86efac', borderRadius: 8, padding: 12, fontSize: '0.72rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', marginTop: 8, border: '1px solid #1e3a5f' }}>{MIGRATION_SQL}</pre>
-              <button onClick={() => { navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {}); }} style={{ marginTop: 8, padding: '7px 14px', borderRadius: 6, background: '#374151', color: '#d1d5db', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>📋 Copiar SQL</button>
+            <details style={{ marginTop: 6 }}>
+              <summary style={{ color: '#6b7280', fontSize: '0.78rem', cursor: 'pointer' }}>Prefere executar manualmente? Clique aqui</summary>
+              <p style={{ color: '#9ca3af', fontSize: '0.75rem', margin: '8px 0 4px' }}>Cole este SQL no Supabase Dashboard → SQL Editor → Run:</p>
+              <pre style={{ background: '#0a0a1a', color: '#86efac', borderRadius: 8, padding: 12, fontSize: '0.7rem', overflowX: 'auto', whiteSpace: 'pre-wrap', wordBreak: 'break-all', border: '1px solid #1e3a5f' }}>{MIGRATION_SQL}</pre>
+              <button onClick={() => { navigator.clipboard.writeText(MIGRATION_SQL).catch(() => {}); }} style={{ marginTop: 8, padding: '6px 12px', borderRadius: 6, background: '#1f2937', color: '#9ca3af', border: 'none', cursor: 'pointer', fontSize: '0.78rem' }}>📋 Copiar SQL</button>
             </details>
           </div>
         </div>
