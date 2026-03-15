@@ -1107,8 +1107,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <input id="website" name="website" type="text" tabIndex={-1} autoComplete="off" value={honeypot} onChange={e => setHoneypot(e.target.value)} />
             </div>
             {/* Núcleo */}
-            <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
-              <h2 className="form-section-title">{t('common_nucleus')}</h2>
+            <div className="form-section section-nucleo" style={{ borderTopLeftRadius: 0 }}>
+              <div className="form-section-header">
+                <div className="form-section-icon">🏫</div>
+                <h2 className="form-section-title">{t('common_nucleus')}</h2>
+              </div>
+              <div className="form-section-body">
               <div className="form-grid">
                 <div className="form-group full-width">
                   <label>{t('form_select_nucleus')} <span className="required">*</span></label>
@@ -1122,11 +1126,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </select>
                 </div>
               </div>
+              </div>
             </div>
 
             {/* Dados Pessoais */}
-          <div className="form-section">
-            <h2 className="form-section-title">{t('form_personal')}</h2>
+          <div className="form-section section-pessoal">
+            <div className="form-section-header">
+              <div className="form-section-icon">👤</div>
+              <h2 className="form-section-title">{t('form_personal')}</h2>
+            </div>
+            <div className="form-section-body">
             <div className="form-grid">
               <div className="form-group full-width">
                 <label>{t('form_full_name')} <span className="required">*</span></label>
@@ -1307,6 +1316,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input name="nome_mae" value={form.nome_mae} onChange={handleChange} placeholder="Nome completo da mãe" />
               </div>
             </div>
+            </div>
           </div>
 
           {/* Termo de Autorização — aparece automaticamente para menores de idade */}
@@ -1358,8 +1368,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
 
           {/* Foto */}
-          <div className="form-section">
-            <h2 className="form-section-title">{t('form_photo')}</h2>
+          <div className="form-section section-foto">
+            <div className="form-section-header">
+              <div className="form-section-icon">📷</div>
+              <h2 className="form-section-title">{t('form_photo')}</h2>
+            </div>
+            <div className="form-section-body">
             <div className="photo-upload">
               <div className="photo-preview" onClick={() => fileRef.current?.click()}>
                 {photoPreview ? (
@@ -1377,11 +1391,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <input ref={fileRef} type="file" accept="image/*" onChange={handlePhotoChange} style={{ display: 'none' }} />
             </div>
+            </div>
           </div>
 
           {/* Endereço */}
-          <div className="form-section">
-            <h2 className="form-section-title">{t('form_address')}</h2>
+          <div className="form-section section-endereco">
+            <div className="form-section-header">
+              <div className="form-section-icon">📍</div>
+              <h2 className="form-section-title">{t('form_address')}</h2>
+            </div>
+            <div className="form-section-body">
             <div className="form-grid">
               <div className="form-group">
                 <label>{t('form_cep')}</label>
@@ -1412,11 +1431,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input name="cidade" value={form.cidade} onChange={handleChange} placeholder="Cidade" />
               </div>
             </div>
+            </div>
           </div>
 
           {/* Graduação */}
-          <div className="form-section">
-            <h2 className="form-section-title">{t('common_graduation')}</h2>
+          <div className="form-section section-graduacao">
+            <div className="form-section-header">
+              <div className="form-section-icon">🥋</div>
+              <h2 className="form-section-title">{t('common_graduation')}</h2>
+            </div>
+            <div className="form-section-body">
             <div className="form-grid">
               <div className="form-group">
                 <label>Tipo <span className="required">*</span></label>
@@ -1453,11 +1477,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
               )}
             </div>
+            </div>
           </div>
 
           {/* Autorização de Uso de Imagem */}
-          <div className="form-section">
-            <h2 className="form-section-title">Autorização de Uso de Imagem</h2>
+          <div className="form-section section-autorizacao">
+            <div className="form-section-header">
+              <div className="form-section-icon">✅</div>
+              <h2 className="form-section-title">Autorização de Uso de Imagem</h2>
+            </div>
+            <div className="form-section-body">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label className="checkbox-group">
                 <input type="checkbox" name="autoriza_imagem" checked={form.autoriza_imagem} onChange={handleChange} />
@@ -1466,6 +1495,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   em mídias sociais, site e materiais promocionais da Associação Cultural de Capoeira Barão de Mauá.
                 </span>
               </label>
+            </div>
             </div>
           </div>
 
