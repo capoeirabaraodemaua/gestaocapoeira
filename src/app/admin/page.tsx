@@ -1004,19 +1004,17 @@ export default function AdminPage() {
       if (error) {
         alert('Erro ao salvar: ' + error.message);
       } else {
-        // Sempre persiste apelido/nome_social/sexo no Storage (garante salvamento mesmo sem colunas DB)
-        const extrasToSave = {
-          apelido:     (editForm as any).apelido     || '',
-          nome_social: (editForm as any).nome_social || '',
-          sexo:        (editForm as any).sexo        || '',
-        };
-        if (extrasToSave.apelido || extrasToSave.nome_social || extrasToSave.sexo) {
-          fetch('/api/student-extras', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ id: editing.id, ...extrasToSave }),
-          }).catch(() => {});
-        }
+        // Sempre persiste apelido/nome_social/sexo no Storage (campos vazios limpam o valor)
+        fetch('/api/student-extras', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            id: editing.id,
+            apelido:     (editForm as any).apelido     || '',
+            nome_social: (editForm as any).nome_social || '',
+            sexo:        (editForm as any).sexo        || '',
+          }),
+        }).catch(() => {});
         logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
         setEditFotoFile(null);
@@ -1033,6 +1031,8 @@ export default function AdminPage() {
     if (error) {
       alert('Erro ao excluir. Tente novamente.');
     } else {
+      // Remove extras do Storage junto com o aluno
+      fetch(`/api/student-extras?id=${deleteConfirm.id}`, { method: 'DELETE' }).catch(() => {});
       logAdminAction('delete_student', `id:${deleteConfirm.id} nome:${deleteConfirm.nome_completo}`);
       setDeleteConfirm(null);
       setSelected(null);

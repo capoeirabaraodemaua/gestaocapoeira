@@ -43,17 +43,27 @@ export async function GET(req: NextRequest) {
   return NextResponse.json(map);
 }
 
-// POST /api/student-extras — upsert one student's extras
+// POST /api/student-extras — upsert one student's extras (empty string = clear field)
 export async function POST(req: NextRequest) {
   const { id, apelido, nome_social, sexo } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const map = await loadExtras();
   map[id] = {
-    ...(map[id] || {}),
-    ...(apelido !== undefined ? { apelido } : {}),
-    ...(nome_social !== undefined ? { nome_social } : {}),
-    ...(sexo !== undefined ? { sexo } : {}),
+    apelido:     apelido     !== undefined ? apelido     : (map[id]?.apelido     ?? ''),
+    nome_social: nome_social !== undefined ? nome_social : (map[id]?.nome_social ?? ''),
+    sexo:        sexo        !== undefined ? sexo        : (map[id]?.sexo        ?? ''),
   };
+  await saveExtras(map);
+  return NextResponse.json({ ok: true });
+}
+
+// DELETE /api/student-extras — remove one student's extras entirely
+export async function DELETE(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+  const map = await loadExtras();
+  delete map[id];
   await saveExtras(map);
   return NextResponse.json({ ok: true });
 }
