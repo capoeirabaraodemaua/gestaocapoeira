@@ -801,7 +801,8 @@ export default function AdminPage() {
         ...s,
         ordem_inscricao: s.ordem_inscricao ?? (sortedAsc.findIndex(x => x.id === s.id) + 1),
       }));
-      // Mescla extras (apelido, nome_social, sexo) do Storage para alunos com colunas faltantes
+      // Mescla extras (apelido, nome_social, sexo) do Storage — Storage é a fonte de verdade
+      // pois as colunas podem não existir no banco de dados
       try {
         const extRes = await fetch('/api/student-extras');
         if (extRes.ok) {
@@ -811,9 +812,10 @@ export default function AdminPage() {
             if (!ext) return s;
             return {
               ...s,
-              apelido:    s.apelido    || ext.apelido    || null,
-              nome_social: s.nome_social || ext.nome_social || null,
-              sexo:       s.sexo       || ext.sexo       || null,
+              // Storage tem prioridade — sobrescreve o que veio do banco
+              apelido:     ext.apelido     || s.apelido     || null,
+              nome_social: ext.nome_social || s.nome_social || null,
+              sexo:        ext.sexo        || s.sexo        || null,
             };
           });
         }
@@ -1012,21 +1014,24 @@ export default function AdminPage() {
       if (error) {
         alert('Erro ao salvar: ' + error.message);
       } else {
-        // Sempre persiste apelido/nome_social/sexo no Storage (campos vazios limpam o valor)
-        fetch('/api/student-extras', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            id: editing.id,
-            apelido:     (editForm as any).apelido     || '',
-            nome_social: (editForm as any).nome_social || '',
-            sexo:        (editForm as any).sexo        || '',
-          }),
-        }).catch(() => {});
+        // Persiste apelido/nome_social/sexo no Storage — AWAIT garante que os dados
+        // estejam salvos antes do fetchStudents recarregar a lista
+        try {
+          await fetch('/api/student-extras', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              id: editing.id,
+              apelido:     (editForm as any).apelido     ?? '',
+              nome_social: (editForm as any).nome_social ?? '',
+              sexo:        (editForm as any).sexo        ?? '',
+            }),
+          });
+        } catch { /* não bloqueia o salvamento */ }
         logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
         setEditFotoFile(null);
-        fetchStudents();
+        await fetchStudents();
       }
     } finally {
       setSaving(false);
