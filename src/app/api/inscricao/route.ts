@@ -236,22 +236,51 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Busca o ID do aluno inserido
+    // Busca o ID do aluno inserido — usa só 'id' para evitar erro de colunas faltantes
     let studentId: string | null = null;
     let inscricao_numero: number | null = null;
 
+    const lookupSelect = async (filter: { col: string; val: string }) => {
+      // Try with ordem_inscricao first; fall back to id-only if column missing
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('students').select('id, ordem_inscricao')
+          .eq(filter.col, filter.val).limit(1).maybeSingle();
+        if (!error && data) {
+          studentId = data.id ?? null;
+          inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+          return;
+        }
+      } catch {}
+      // Fallback: id only
+      const { data } = await supabaseAdmin
+        .from('students').select('id')
+        .eq(filter.col, filter.val).limit(1).maybeSingle();
+      studentId = data?.id ?? null;
+    };
+
     if (safePayload.cpf) {
-      const { data } = await supabaseAdmin.from('students').select('id, ordem_inscricao').eq('cpf', safePayload.cpf as string).limit(1).maybeSingle();
-      studentId = data?.id ?? null;
-      inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+      await lookupSelect({ col: 'cpf', val: safePayload.cpf as string });
     } else if (safePayload.identidade) {
-      const { data } = await supabaseAdmin.from('students').select('id, ordem_inscricao').eq('identidade', safePayload.identidade as string).limit(1).maybeSingle();
-      studentId = data?.id ?? null;
-      inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+      await lookupSelect({ col: 'identidade', val: safePayload.identidade as string });
     } else if (safePayload.nome_completo) {
-      const { data } = await supabaseAdmin.from('students').select('id, ordem_inscricao').eq('nome_completo', safePayload.nome_completo as string).order('created_at', { ascending: false }).limit(1).maybeSingle();
-      studentId = data?.id ?? null;
-      inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+      try {
+        const { data, error } = await supabaseAdmin
+          .from('students').select('id, ordem_inscricao')
+          .eq('nome_completo', safePayload.nome_completo as string)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (!error && data) {
+          studentId = data.id ?? null;
+          inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+        }
+      } catch {}
+      if (!studentId) {
+        const { data } = await supabaseAdmin
+          .from('students').select('id')
+          .eq('nome_completo', safePayload.nome_completo as string)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        studentId = data?.id ?? null;
+      }
     }
 
     // Se não tem ordem_inscricao: busca o mapa de matrículas no Storage e atribui próximo número
