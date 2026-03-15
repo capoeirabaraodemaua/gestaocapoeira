@@ -524,7 +524,15 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira'>('alunos');
+  // Lixeira
+  const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
+  const [loadingLixeira, setLoadingLixeira] = useState(false);
+  const [lixeiraSearch, setLixeiraSearch] = useState('');
+  const [lixeiraEditing, setLixeiraEditing] = useState<string | null>(null);
+  const [lixeiraEditForm, setLixeiraEditForm] = useState<Record<string, unknown>>({});
+  const [lixeiraEditExtras, setLixeiraEditExtras] = useState<Record<string, string>>({});
+  const [lixeiraMsg, setLixeiraMsg] = useState('');
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -1027,6 +1035,24 @@ export default function AdminPage() {
 
   const confirmDelete = async () => {
     if (!deleteConfirm) return;
+    // Fetch extras before deleting so they can be saved in lixeira
+    let extras: Record<string, string> = {};
+    try {
+      const extRes = await fetch(`/api/student-extras?id=${deleteConfirm.id}`);
+      if (extRes.ok) extras = await extRes.json();
+    } catch {}
+    // Save to lixeira before deleting from DB
+    try {
+      await fetch('/api/lixeira', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          student: deleteConfirm,
+          deleted_by: activeNucleo || 'geral',
+          extras,
+        }),
+      });
+    } catch {}
     const { error } = await supabase.from('students').delete().eq('id', deleteConfirm.id);
     if (error) {
       alert('Erro ao excluir. Tente novamente.');
@@ -1368,6 +1394,7 @@ export default function AdminPage() {
             { key: 'dados-faltantes', label: `${t('admin_missing_data')}${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
             { key: 'manual',          label: t('admin_manual'),  activeColor: '#7c3aed', geralOnly: false },
             { key: 'eventos',         label: t('admin_events'),  activeColor: '#0ea5e9', geralOnly: false },
+            { key: 'lixeira',         label: '🗑️ Lixeira',       activeColor: '#6b7280', geralOnly: true },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -1423,6 +1450,10 @@ export default function AdminPage() {
                     }));
                     setLoadingManuais(false);
                   }).catch(() => setLoadingManuais(false));
+                }
+                if (tab.key === 'lixeira') {
+                  setLoadingLixeira(true); setLixeiraMsg('');
+                  fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false));
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
@@ -5996,6 +6027,231 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             • Apenas arquivos PDF são aceitos.<br/>
             • Os links de download são válidos por 1 hora; recarregue a página para renovar.
           </div>
+        </div>
+      )}
+
+      {/* ===== ABA LIXEIRA ===== */}
+      {activeTab === 'lixeira' && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.2rem', color: 'var(--text-primary)' }}>🗑️ Lixeira — Cadastros Excluídos</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                {lixeira.length} registro(s) excluído(s) • apenas Admin Geral tem acesso
+              </p>
+            </div>
+            <input
+              className="search-input"
+              placeholder="Buscar por nome, CPF, núcleo..."
+              value={lixeiraSearch}
+              onChange={e => setLixeiraSearch(e.target.value)}
+              style={{ width: 260 }}
+            />
+          </div>
+
+          {lixeiraMsg && (
+            <div style={{ padding: '10px 16px', borderRadius: 10, marginBottom: 16, background: lixeiraMsg.startsWith('✅') ? '#052e16' : '#3b0808', color: lixeiraMsg.startsWith('✅') ? '#4ade80' : '#fca5a5', fontSize: '0.88rem', border: `1px solid ${lixeiraMsg.startsWith('✅') ? '#166534' : '#7f1d1d'}` }}>
+              {lixeiraMsg}
+            </div>
+          )}
+
+          {loadingLixeira ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : lixeira.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.95rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>🗑️</div>
+              Nenhum cadastro excluído ainda.
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {lixeira
+                .filter(entry => {
+                  if (!lixeiraSearch.trim()) return true;
+                  const q = lixeiraSearch.toLowerCase();
+                  const s = entry.student;
+                  return (
+                    String(s.nome_completo || '').toLowerCase().includes(q) ||
+                    String(s.cpf || '').includes(q) ||
+                    String(s.nucleo || '').toLowerCase().includes(q) ||
+                    String(entry.extras?.apelido || '').toLowerCase().includes(q)
+                  );
+                })
+                .map(entry => {
+                  const s = entry.student;
+                  const isEditingThis = lixeiraEditing === entry.id;
+                  return (
+                    <div key={entry.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, padding: '18px 20px' }}>
+                      {!isEditingThis ? (
+                        /* ── Vista resumo ── */
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{String(s.nome_completo || '—')}</span>
+                              {entry.extras?.apelido && <span style={{ fontSize: '0.78rem', color: '#a78bfa', background: 'rgba(124,58,237,0.12)', padding: '2px 8px', borderRadius: 99 }}>"{entry.extras.apelido}"</span>}
+                              <span style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 99, background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>Excluído</span>
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px', marginTop: 6, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+                              {s.cpf && <span>CPF: {String(s.cpf)}</span>}
+                              {s.nucleo && <span>Núcleo: {String(s.nucleo)}</span>}
+                              {s.graduacao && <span>Graduação: {String(s.graduacao)}</span>}
+                              {entry.extras?.sexo && <span>Sexo: {entry.extras.sexo}</span>}
+                              {entry.extras?.nome_social && <span>Nome social: {entry.extras.nome_social}</span>}
+                            </div>
+                            <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#6b7280' }}>
+                              Excluído em {new Date(entry.deleted_at).toLocaleString('pt-BR')} por {entry.deleted_by}
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, flexShrink: 0, flexWrap: 'wrap' }}>
+                            {/* Restaurar */}
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Restaurar o cadastro de "${s.nome_completo}"?`)) return;
+                                setLixeiraMsg('');
+                                const res = await fetch('/api/lixeira/restaurar', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: entry.id }),
+                                });
+                                const d = await res.json();
+                                if (res.ok) {
+                                  setLixeiraMsg(`✅ Cadastro de "${s.nome_completo}" restaurado com sucesso!`);
+                                  setLixeira(prev => prev.filter(e => e.id !== entry.id));
+                                  fetchStudents();
+                                } else {
+                                  setLixeiraMsg(`❌ Erro ao restaurar: ${d.error || 'Tente novamente.'}`);
+                                }
+                              }}
+                              style={{ padding: '8px 16px', borderRadius: 8, background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                            >
+                              ♻️ Restaurar
+                            </button>
+                            {/* Editar */}
+                            <button
+                              onClick={() => {
+                                setLixeiraEditing(entry.id);
+                                setLixeiraEditForm({ ...entry.student });
+                                setLixeiraEditExtras({ ...(entry.extras || {}) });
+                              }}
+                              style={{ padding: '8px 16px', borderRadius: 8, background: '#1d4ed8', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                            >
+                              ✏️ Editar
+                            </button>
+                            {/* Excluir definitivamente */}
+                            <button
+                              onClick={async () => {
+                                if (!confirm(`Excluir DEFINITIVAMENTE o cadastro de "${s.nome_completo}"? Esta ação não pode ser desfeita.`)) return;
+                                setLixeiraMsg('');
+                                const res = await fetch(`/api/lixeira?id=${entry.id}`, { method: 'DELETE' });
+                                if (res.ok) {
+                                  setLixeiraMsg(`✅ Cadastro de "${s.nome_completo}" excluído definitivamente.`);
+                                  setLixeira(prev => prev.filter(e => e.id !== entry.id));
+                                } else {
+                                  setLixeiraMsg('❌ Erro ao excluir. Tente novamente.');
+                                }
+                              }}
+                              style={{ padding: '8px 16px', borderRadius: 8, background: '#991b1b', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+                            >
+                              🗑️ Excluir definitivo
+                            </button>
+                          </div>
+                        </div>
+                      ) : (
+                        /* ── Formulário de edição ── */
+                        <div>
+                          <h3 style={{ margin: '0 0 16px', fontSize: '1rem', color: 'var(--text-primary)' }}>✏️ Editando: {String(lixeiraEditForm.nome_completo || '')}</h3>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12 }}>
+                            {[
+                              { label: 'Nome completo', key: 'nome_completo' },
+                              { label: 'CPF', key: 'cpf' },
+                              { label: 'RG', key: 'identidade' },
+                              { label: 'Data nascimento', key: 'data_nascimento' },
+                              { label: 'Telefone', key: 'telefone' },
+                              { label: 'Graduação', key: 'graduacao' },
+                              { label: 'Núcleo', key: 'nucleo' },
+                              { label: 'E-mail', key: 'email' },
+                              { label: 'CEP', key: 'cep' },
+                              { label: 'Endereço', key: 'endereco' },
+                              { label: 'Número', key: 'numero' },
+                              { label: 'Bairro', key: 'bairro' },
+                              { label: 'Cidade', key: 'cidade' },
+                              { label: 'Estado', key: 'estado' },
+                            ].map(({ label, key }) => (
+                              <div key={key}>
+                                <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</label>
+                                <input
+                                  value={String(lixeiraEditForm[key] ?? '')}
+                                  onChange={e => setLixeiraEditForm(prev => ({ ...prev, [key]: e.target.value }))}
+                                  style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                                />
+                              </div>
+                            ))}
+                            {/* Extras */}
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Apelido (capoeira)</label>
+                              <input
+                                value={lixeiraEditExtras.apelido || ''}
+                                onChange={e => setLixeiraEditExtras(prev => ({ ...prev, apelido: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Nome social</label>
+                              <input
+                                value={lixeiraEditExtras.nome_social || ''}
+                                onChange={e => setLixeiraEditExtras(prev => ({ ...prev, nome_social: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                              />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: 4 }}>Gênero/Sexo</label>
+                              <select
+                                value={lixeiraEditExtras.sexo || ''}
+                                onChange={e => setLixeiraEditExtras(prev => ({ ...prev, sexo: e.target.value }))}
+                                style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--input-bg)', color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}
+                              >
+                                <option value="">—</option>
+                                <option value="Masculino">Masculino</option>
+                                <option value="Feminino">Feminino</option>
+                                <option value="Não-binário">Não-binário</option>
+                                <option value="Prefiro não informar">Prefiro não informar</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                            <button
+                              onClick={async () => {
+                                setLixeiraMsg('');
+                                const res = await fetch('/api/lixeira', {
+                                  method: 'PUT',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ id: entry.id, student: lixeiraEditForm, extras: lixeiraEditExtras }),
+                                });
+                                if (res.ok) {
+                                  setLixeiraMsg('✅ Dados atualizados na lixeira.');
+                                  setLixeira(prev => prev.map(e => e.id === entry.id ? { ...e, student: { ...e.student, ...lixeiraEditForm }, extras: lixeiraEditExtras } : e));
+                                  setLixeiraEditing(null);
+                                } else {
+                                  setLixeiraMsg('❌ Erro ao salvar. Tente novamente.');
+                                }
+                              }}
+                              style={{ padding: '9px 22px', borderRadius: 8, background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem' }}
+                            >
+                              💾 Salvar alterações
+                            </button>
+                            <button
+                              onClick={() => setLixeiraEditing(null)}
+                              style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '0.88rem' }}
+                            >
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+            </div>
+          )}
         </div>
       )}
 
