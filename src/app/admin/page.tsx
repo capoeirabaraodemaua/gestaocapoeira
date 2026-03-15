@@ -1322,6 +1322,35 @@ export default function AdminPage() {
             <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem' }}>
               ✓ Registrar Presença
             </Link>
+            {activeNucleo === 'geral' && (
+              <button
+                onClick={() => {
+                  setActiveTab('lixeira');
+                  setLoadingLixeira(true);
+                  fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false));
+                }}
+                style={{
+                  background: activeTab === 'lixeira' ? 'linear-gradient(135deg,#374151,#1f2937)' : 'linear-gradient(135deg,#4b5563,#374151)',
+                  color: '#d1d5db',
+                  padding: '8px 16px',
+                  borderRadius: 8,
+                  border: activeTab === 'lixeira' ? '1px solid #6b7280' : '1px solid transparent',
+                  fontWeight: 700,
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 6,
+                }}
+              >
+                🗑️ Cadastros Excluídos
+                {lixeira.length > 0 && (
+                  <span style={{ background: '#6b7280', color: '#fff', borderRadius: 99, padding: '1px 7px', fontSize: '0.75rem', fontWeight: 700 }}>
+                    {lixeira.length}
+                  </span>
+                )}
+              </button>
+            )}
             {activeTab === 'alunos' && <>
               <input
                 className="search-input"
