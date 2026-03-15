@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { Language, LANGUAGE_FLAGS, LANGUAGE_NAMES } from '@/lib/i18n/translations';
 
@@ -9,6 +9,11 @@ const LANGUAGES: Language[] = ['pt', 'pt-PT', 'en', 'es', 'fr', 'it', 'sv', 'af'
 export default function LanguageButton() {
   const { lang, setLang, t } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
+  // Use 'pt' flag/label until mounted to match SSR output and avoid hydration mismatch
+  const displayLang = mounted ? lang : 'pt';
 
   return (
     <div style={{ position: 'fixed', bottom: '20px', right: '20px', zIndex: 9999 }}>
@@ -82,7 +87,7 @@ export default function LanguageButton() {
           transition: 'border-color 0.2s',
         }}
       >
-        <span style={{ fontSize: '16px', lineHeight: 1 }}>{LANGUAGE_FLAGS[lang]}</span>
+        <span style={{ fontSize: '16px', lineHeight: 1 }}>{LANGUAGE_FLAGS[displayLang]}</span>
         <span>{t('language_button')}</span>
         <svg
           width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"
