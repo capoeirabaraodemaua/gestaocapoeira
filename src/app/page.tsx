@@ -983,9 +983,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {t('nav_register')}
             </button>
             <a
-              href="/presenca"
+              href="/aluno"
               style={{
-                background: 'rgba(22,163,74,0.85)',
+                background: 'linear-gradient(135deg,#1d4ed8,#1e40af)',
                 borderRadius: '10px 10px 0 0',
                 padding: '11px 22px',
                 color: '#fff',
@@ -997,57 +997,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 display: 'flex',
                 alignItems: 'center',
                 gap: 6,
+                boxShadow: '0 -2px 8px rgba(29,78,216,0.25)',
               }}
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
-              {t('nav_attendance')}
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+              🥋 Área do Aluno
             </a>
-            <button
-              type="button"
-              onClick={() => setActiveSection('carteirinha')}
-              style={{
-                background: activeSection === 'carteirinha' ? '#1d4ed8' : 'rgba(29,78,216,0.1)',
-                border: 'none',
-                borderBottom: 'none',
-                borderRadius: '10px 10px 0 0',
-                padding: '11px 22px',
-                color: activeSection === 'carteirinha' ? '#ffffff' : '#1d4ed8',
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              {t('nav_card')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setActiveSection('financeiro')}
-              style={{
-                background: activeSection === 'financeiro' ? 'linear-gradient(135deg,#16a34a,#15803d)' : 'rgba(22,163,74,0.1)',
-                border: 'none',
-                borderBottom: 'none',
-                borderRadius: '10px 10px 0 0',
-                padding: '11px 22px',
-                color: activeSection === 'financeiro' ? '#ffffff' : '#16a34a',
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              {t('nav_financial')}
-            </button>
             <a
               href="/organograma"
               style={{
@@ -1800,22 +1755,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </a>
         </div>
       </footer>
-
-      {/* Botão fixo — Área do Aluno */}
-      <a
-        href="/aluno"
-        style={{
-          position: 'fixed', bottom: '60px', left: '20px',
-          background: 'linear-gradient(135deg,#1d4ed8,#2563eb)',
-          color: '#fff', border: '1.5px solid #60a5fa', borderRadius: '8px',
-          padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
-          zIndex: 9999, backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
-          fontWeight: 700, boxShadow: '0 2px 12px rgba(29,78,216,0.45)',
-          textDecoration: 'none', display: 'inline-block',
-        }}
-      >
-        🥋 Área do Aluno
-      </a>
 
       {/* Botão fixo — Painel Administrativo */}
       <button

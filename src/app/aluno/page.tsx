@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import Carteirinha from '@/components/Carteirinha';
-import Link from 'next/link';
 
 type Student = {
   id: string;
@@ -19,6 +18,12 @@ type Student = {
   tipo_graduacao?: string;
   foto_url?: string;
   sexo?: string;
+  inscricao_numero?: number;
+  nome_pai?: string;
+  nome_mae?: string;
+  nome_responsavel?: string;
+  cpf_responsavel?: string;
+  menor_de_idade?: boolean;
   [key: string]: unknown;
 };
 
@@ -31,7 +36,17 @@ type Justificativa = {
   created_at: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'perfil';
+type RegistroGraduacao = {
+  id: string;
+  data_graduacao: string;
+  graduacao_recebida: string;
+  evento: string;
+  professor_responsavel: string;
+  observacoes?: string;
+  criado_em: string;
+};
+
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -40,6 +55,22 @@ const NUCLEO_COLORS: Record<string, string> = {
   'Vila Urussaí': '#9333ea',
   'Jayme Fichman': '#0891b2',
 };
+
+const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
+  'Cru': { bg: '#f8f8f8', text: '#374151', border: '#d1d5db' },
+  'Amarela': { bg: '#fef9c3', text: '#854d0e', border: '#fde047' },
+  'Laranja': { bg: '#fff7ed', text: '#9a3412', border: '#fb923c' },
+  'Azul': { bg: '#eff6ff', text: '#1e40af', border: '#60a5fa' },
+  'Vermelha': { bg: '#fef2f2', text: '#991b1b', border: '#f87171' },
+  'Verde': { bg: '#f0fdf4', text: '#166534', border: '#4ade80' },
+  'Roxa': { bg: '#faf5ff', text: '#6b21a8', border: '#c084fc' },
+  'Marrom': { bg: '#fdf4dc', text: '#78350f', border: '#d97706' },
+  'Preta': { bg: '#1f2937', text: '#f9fafb', border: '#4b5563' },
+};
+
+function getGradColor(grad: string) {
+  return GRAD_COLORS[grad] || { bg: '#f0f9ff', text: '#0369a1', border: '#7dd3fc' };
+}
 
 function getNucleoColor(nucleo: string): string {
   return NUCLEO_COLORS[nucleo] || '#1d4ed8';
@@ -51,14 +82,14 @@ export default function AlunoPage() {
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
 
-  // Login state
+  // ── Login ──────────────────────────────────────────────────────────────────
   const [loginForm, setLoginForm] = useState({ username: '', password: '' });
   const [loginError, setLoginError] = useState('');
   const [loginLoading, setLoginLoading] = useState(false);
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(0);
 
-  // OTP state
+  // ── OTP ───────────────────────────────────────────────────────────────────
   const [showOtp, setShowOtp] = useState(false);
   const [otpStudentId, setOtpStudentId] = useState('');
   const [otpPhone, setOtpPhone] = useState('');
@@ -66,15 +97,13 @@ export default function AlunoPage() {
   const [otpError, setOtpError] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
 
-  // Register state
+  // ── Register ──────────────────────────────────────────────────────────────
   const [showRegister, setShowRegister] = useState(false);
-  const [registerForm, setRegisterForm] = useState({
-    student_id: '', username: '', email: '', password: '', confirmPassword: '', phone: '',
-  });
+  const [registerForm, setRegisterForm] = useState({ student_id: '', username: '', email: '', password: '', confirmPassword: '', phone: '' });
   const [registerError, setRegisterError] = useState('');
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  // Forgot password
+  // ── Forgot Password ───────────────────────────────────────────────────────
   const [showForgot, setShowForgot] = useState(false);
   const [forgotInput, setForgotInput] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
@@ -84,17 +113,23 @@ export default function AlunoPage() {
   const [resetPassword, setResetPassword] = useState('');
   const [resetMsg, setResetMsg] = useState('');
 
-  // Justificativas
+  // ── Presença ──────────────────────────────────────────────────────────────
+  const [presencaMsg, setPresencaMsg] = useState('');
+  const [presencaLoading, setPresencaLoading] = useState(false);
+  const [presencaStatus, setPresencaStatus] = useState<'idle' | 'success' | 'error'>('idle');
+
+  // ── Justificativas ────────────────────────────────────────────────────────
   const [justificativas, setJustificativas] = useState<Justificativa[]>([]);
   const [justForm, setJustForm] = useState({ data_falta: '', motivo: '' });
   const [justLoading, setJustLoading] = useState(false);
   const [justMsg, setJustMsg] = useState('');
+  const [justMsgType, setJustMsgType] = useState<'success' | 'error'>('success');
 
-  // Presença
-  const [presencaMsg, setPresencaMsg] = useState('');
-  const [presencaLoading, setPresencaLoading] = useState(false);
+  // ── Graduação ─────────────────────────────────────────────────────────────
+  const [historico, setHistorico] = useState<RegistroGraduacao[]>([]);
+  const [loadingHistorico, setLoadingHistorico] = useState(false);
 
-  // Load session from sessionStorage
+  // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
       const raw = sessionStorage.getItem('aluno_session');
@@ -105,9 +140,7 @@ export default function AlunoPage() {
       } else {
         setLoading(false);
       }
-    } catch {
-      setLoading(false);
-    }
+    } catch { setLoading(false); }
   }, []);
 
   const loadStudentData = useCallback(async (student_id: string) => {
@@ -127,12 +160,26 @@ export default function AlunoPage() {
     if (res.ok) setJustificativas(await res.json());
   }, []);
 
-  useEffect(() => {
-    if (session && activeTab === 'justificativas') {
-      loadJustificativas(session.student_id);
-    }
-  }, [session, activeTab, loadJustificativas]);
+  const loadHistorico = useCallback(async (student_id: string) => {
+    setLoadingHistorico(true);
+    try {
+      const res = await fetch(`/api/historico-graduacoes?student_id=${student_id}`);
+      if (res.ok) {
+        const { records } = await res.json();
+        setHistorico(records || []);
+      }
+    } catch {}
+    setLoadingHistorico(false);
+  }, []);
 
+  useEffect(() => {
+    if (session) {
+      if (activeTab === 'justificativas') loadJustificativas(session.student_id);
+      if (activeTab === 'graduacao') loadHistorico(session.student_id);
+    }
+  }, [session, activeTab, loadJustificativas, loadHistorico]);
+
+  // ── Login handler ─────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (Date.now() < lockedUntil) {
@@ -148,37 +195,29 @@ export default function AlunoPage() {
         body: JSON.stringify({ action: 'login', ...loginForm }),
       });
       const data = await res.json();
-
       if (!res.ok) {
         const newAttempts = loginAttempts + 1;
         setLoginAttempts(newAttempts);
         if (newAttempts >= 5) {
-          const lockTime = Date.now() + 5 * 60 * 1000;
-          setLockedUntil(lockTime);
-          setLoginError('Muitas tentativas. Conta bloqueada por 5 minutos.');
+          setLockedUntil(Date.now() + 5 * 60 * 1000);
+          setLoginError('Muitas tentativas. Aguarde 5 minutos.');
+        } else if (data.pending) {
+          setOtpStudentId(data.student_id);
+          setOtpPhone(data.phone || '');
+          setShowOtp(true);
         } else {
-          if (data.pending) {
-            setOtpStudentId(data.student_id);
-            setOtpPhone(data.phone || '');
-            setShowOtp(true);
-          } else {
-            setLoginError(data.error || 'Erro ao fazer login.');
-          }
+          setLoginError(data.error || 'Usuário ou senha incorretos.');
         }
         return;
       }
-
       setLoginAttempts(0);
       const sess = { student_id: data.student_id, username: data.username };
       sessionStorage.setItem('aluno_session', JSON.stringify(sess));
       setSession(sess);
       setStudent(data.student);
       setActiveTab('dashboard');
-    } catch {
-      setLoginError('Erro de conexão. Tente novamente.');
-    } finally {
-      setLoginLoading(false);
-    }
+    } catch { setLoginError('Erro de conexão. Tente novamente.'); }
+    finally { setLoginLoading(false); }
   };
 
   const handleLogout = () => {
@@ -190,462 +229,64 @@ export default function AlunoPage() {
 
   const handleVerifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setOtpLoading(true);
-    setOtpError('');
+    setOtpLoading(true); setOtpError('');
     try {
-      const res = await fetch('/api/aluno/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'verify-otp', student_id: otpStudentId, otp: otpCode }),
-      });
+      const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'verify-otp', student_id: otpStudentId, otp: otpCode }) });
       const data = await res.json();
       if (!res.ok) { setOtpError(data.error || 'Código inválido.'); return; }
       setShowOtp(false);
-      alert('Conta ativada com sucesso! Faça login.');
-    } catch {
-      setOtpError('Erro de conexão.');
-    } finally {
-      setOtpLoading(false);
-    }
+      setLoginError('✅ Conta ativada! Faça login.');
+    } catch { setOtpError('Erro de conexão.'); }
+    finally { setOtpLoading(false); }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerForm.password !== registerForm.confirmPassword) {
-      setRegisterError('As senhas não coincidem.');
-      return;
-    }
-    setRegisterLoading(true);
-    setRegisterError('');
+    if (registerForm.password !== registerForm.confirmPassword) { setRegisterError('As senhas não coincidem.'); return; }
+    setRegisterLoading(true); setRegisterError('');
     try {
-      const res = await fetch('/api/aluno/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'register', ...registerForm }),
-      });
+      const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'register', ...registerForm }) });
       const data = await res.json();
       if (!res.ok) { setRegisterError(data.error || 'Erro ao criar conta.'); return; }
       setOtpStudentId(registerForm.student_id);
       setOtpPhone(registerForm.phone || '');
       setShowRegister(false);
       setShowOtp(true);
-    } catch {
-      setRegisterError('Erro de conexão.');
-    } finally {
-      setRegisterLoading(false);
-    }
-  };
-
-  const handleForgotPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/aluno/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }),
-      });
-      const data = await res.json();
-      if (data.student_id) {
-        setForgotStudentId(data.student_id);
-        setForgotMsg(`Código enviado para ${data.phone || 'seu WhatsApp'}. Digite-o abaixo.`);
-        setShowResetPassword(true);
-      } else {
-        setForgotMsg(data.message || 'Se o usuário existir, você receberá um código no WhatsApp.');
-      }
-    } catch {
-      setForgotMsg('Erro de conexão.');
-    }
-  };
-
-  const handleResetPassword = async (e: React.FormEvent) => {
-    e.preventDefault();
-    try {
-      const res = await fetch('/api/aluno/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reset-password', student_id: forgotStudentId, otp: resetOtp, new_password: resetPassword }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setResetMsg(data.error || 'Erro.'); return; }
-      setResetMsg('Senha redefinida com sucesso! Faça login.');
-      setShowForgot(false);
-      setShowResetPassword(false);
-    } catch {
-      setResetMsg('Erro de conexão.');
-    }
+    } catch { setRegisterError('Erro de conexão.'); }
+    finally { setRegisterLoading(false); }
   };
 
   const handlePresenca = async () => {
-    if (!navigator.geolocation) {
-      setPresencaMsg('Geolocalização não disponível.');
-      return;
-    }
-    setPresencaLoading(true);
-    setPresencaMsg('');
+    if (!navigator.geolocation) { setPresencaMsg('Geolocalização não disponível neste dispositivo.'); setPresencaStatus('error'); return; }
+    setPresencaLoading(true); setPresencaMsg(''); setPresencaStatus('idle');
     navigator.geolocation.getCurrentPosition(async (pos) => {
       try {
-        const { latitude, longitude } = pos.coords;
-        const res = await fetch('/api/checkins', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            student_id: session!.student_id,
-            latitude,
-            longitude,
-          }),
-        });
+        const res = await fetch('/api/checkins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ student_id: session!.student_id, latitude: pos.coords.latitude, longitude: pos.coords.longitude }) });
         const data = await res.json();
-        if (!res.ok) {
-          setPresencaMsg(`Erro: ${data.error || 'Não foi possível registrar presença.'}`);
-        } else {
-          setPresencaMsg('✅ Presença registrada com sucesso!');
-        }
-      } catch {
-        setPresencaMsg('Erro ao registrar presença.');
-      } finally {
-        setPresencaLoading(false);
-      }
-    }, () => {
-      setPresencaMsg('Não foi possível obter sua localização. Permita o acesso à localização.');
-      setPresencaLoading(false);
-    });
+        if (!res.ok) { setPresencaMsg(data.error || 'Não foi possível registrar presença.'); setPresencaStatus('error'); }
+        else { setPresencaMsg('Presença registrada com sucesso!'); setPresencaStatus('success'); }
+      } catch { setPresencaMsg('Erro ao registrar presença.'); setPresencaStatus('error'); }
+      finally { setPresencaLoading(false); }
+    }, () => { setPresencaMsg('Permissão de localização negada. Por favor, permita o acesso à localização.'); setPresencaStatus('error'); setPresencaLoading(false); });
   };
 
   const handleSubmitJustificativa = async (e: React.FormEvent) => {
     e.preventDefault();
-    setJustLoading(true);
-    setJustMsg('');
+    setJustLoading(true); setJustMsg('');
     try {
-      const res = await fetch('/api/aluno/justificativas', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'submit',
-          student_id: session!.student_id,
-          ...justForm,
-        }),
-      });
+      const res = await fetch('/api/aluno/justificativas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'submit', student_id: session!.student_id, ...justForm }) });
       const data = await res.json();
-      if (!res.ok) { setJustMsg(data.error || 'Erro.'); return; }
-      setJustMsg('✅ Justificativa enviada com sucesso!');
+      if (!res.ok) { setJustMsg(data.error || 'Erro.'); setJustMsgType('error'); return; }
+      setJustMsg('Justificativa enviada com sucesso!');
+      setJustMsgType('success');
       setJustForm({ data_falta: '', motivo: '' });
       loadJustificativas(session!.student_id);
-    } catch {
-      setJustMsg('Erro de conexão.');
-    } finally {
-      setJustLoading(false);
-    }
+    } catch { setJustMsg('Erro de conexão.'); setJustMsgType('error'); }
+    finally { setJustLoading(false); }
   };
 
   const nucleoColor = student ? getNucleoColor(student.nucleo || '') : '#1d4ed8';
 
-  // ── LOGIN SCREEN ─────────────────────────────────────────────────────────────
-  if (!session && !showOtp && !showRegister && !showForgot) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-        <div className="w-full max-w-md">
-          <div className="text-center mb-8">
-            <div className="text-5xl mb-3">🥋</div>
-            <h1 className="text-2xl font-bold text-white">Área do Aluno</h1>
-            <p className="text-gray-400 text-sm mt-1">ACCBM — Associação Cultural de Capoeira Barão de Mauá</p>
-          </div>
-
-          <div className="bg-white rounded-2xl shadow-2xl p-8">
-            <h2 className="text-xl font-semibold text-gray-800 mb-6">Entrar na minha conta</h2>
-
-            {loginError && (
-              <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">
-                {loginError}
-              </div>
-            )}
-
-            <form onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Usuário ou E-mail</label>
-                <input
-                  type="text"
-                  value={loginForm.username}
-                  onChange={e => setLoginForm(p => ({ ...p, username: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="Seu usuário ou e-mail"
-                  required
-                  autoComplete="username"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Senha</label>
-                <input
-                  type="password"
-                  value={loginForm.password}
-                  onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none"
-                  placeholder="Sua senha"
-                  required
-                  autoComplete="current-password"
-                />
-              </div>
-              <button
-                type="submit"
-                disabled={loginLoading || Date.now() < lockedUntil}
-                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg transition-colors"
-              >
-                {loginLoading ? 'Entrando...' : 'Entrar'}
-              </button>
-            </form>
-
-            <div className="mt-4 flex justify-between text-sm">
-              <button
-                onClick={() => setShowForgot(true)}
-                className="text-blue-600 hover:underline"
-              >
-                Esqueci minha senha
-              </button>
-              <button
-                onClick={() => setShowRegister(true)}
-                className="text-green-600 hover:underline"
-              >
-                Criar conta
-              </button>
-            </div>
-
-            <div className="mt-6 pt-4 border-t border-gray-200 text-center">
-              <Link href="/" className="text-gray-500 hover:text-gray-700 text-sm">
-                ← Voltar ao início
-              </Link>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── OTP SCREEN ───────────────────────────────────────────────────────────────
-  if (showOtp) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <div className="text-4xl mb-2">📱</div>
-            <h2 className="text-xl font-semibold">Verificação via WhatsApp</h2>
-            {otpPhone && (
-              <p className="text-gray-500 text-sm mt-1">Código enviado para ****{otpPhone.slice(-4)}</p>
-            )}
-          </div>
-          {otpError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">{otpError}</div>}
-          <form onSubmit={handleVerifyOtp} className="space-y-4">
-            <input
-              type="text"
-              value={otpCode}
-              onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              className="w-full border border-gray-300 rounded-lg px-4 py-3 text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-              placeholder="000000"
-              maxLength={6}
-              required
-            />
-            <button
-              type="submit"
-              disabled={otpLoading || otpCode.length !== 6}
-              className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg"
-            >
-              {otpLoading ? 'Verificando...' : 'Verificar Código'}
-            </button>
-          </form>
-          <button
-            onClick={async () => {
-              await fetch('/api/aluno/auth', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'resend-otp', student_id: otpStudentId }),
-              });
-              alert('Novo código enviado!');
-            }}
-            className="w-full mt-3 text-blue-600 hover:underline text-sm"
-          >
-            Reenviar código
-          </button>
-          <button onClick={() => setShowOtp(false)} className="w-full mt-2 text-gray-500 hover:text-gray-700 text-sm">
-            Cancelar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── REGISTER SCREEN ──────────────────────────────────────────────────────────
-  if (showRegister) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <div className="text-3xl mb-2">🥋</div>
-            <h2 className="text-xl font-semibold">Criar Conta</h2>
-            <p className="text-gray-500 text-sm">Você precisa ter uma ficha de inscrição cadastrada.</p>
-          </div>
-          {registerError && <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 mb-4 text-sm">{registerError}</div>}
-          <form onSubmit={handleRegister} className="space-y-3">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">ID do Aluno *</label>
-              <input
-                type="text"
-                value={registerForm.student_id}
-                onChange={e => setRegisterForm(p => ({ ...p, student_id: e.target.value.trim() }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="ID fornecido pelo administrador"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome de usuário *</label>
-              <input
-                type="text"
-                value={registerForm.username}
-                onChange={e => setRegisterForm(p => ({ ...p, username: e.target.value.trim() }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="ex: joaosilva"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">E-mail</label>
-              <input
-                type="email"
-                value={registerForm.email}
-                onChange={e => setRegisterForm(p => ({ ...p, email: e.target.value.trim() }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="seu@email.com"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">WhatsApp *</label>
-              <input
-                type="tel"
-                value={registerForm.phone}
-                onChange={e => setRegisterForm(p => ({ ...p, phone: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="(21) 99999-9999"
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Senha *</label>
-              <input
-                type="password"
-                value={registerForm.password}
-                onChange={e => setRegisterForm(p => ({ ...p, password: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="Mín. 6 caracteres"
-                minLength={6}
-                required
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Confirmar Senha *</label>
-              <input
-                type="password"
-                value={registerForm.confirmPassword}
-                onChange={e => setRegisterForm(p => ({ ...p, confirmPassword: e.target.value }))}
-                className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                placeholder="Repita a senha"
-                minLength={6}
-                required
-              />
-            </div>
-            <button
-              type="submit"
-              disabled={registerLoading}
-              className="w-full bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white font-semibold py-2.5 rounded-lg"
-            >
-              {registerLoading ? 'Criando conta...' : 'Criar Conta'}
-            </button>
-          </form>
-          <button onClick={() => setShowRegister(false)} className="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm">
-            ← Voltar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── FORGOT PASSWORD ──────────────────────────────────────────────────────────
-  if (showForgot) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-gray-900 to-gray-800 flex items-center justify-center p-4">
-        <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-md">
-          <div className="text-center mb-6">
-            <div className="text-3xl mb-2">🔑</div>
-            <h2 className="text-xl font-semibold">Recuperar Senha</h2>
-          </div>
-          {forgotMsg && <div className="bg-blue-50 border border-blue-200 text-blue-700 rounded-lg p-3 mb-4 text-sm">{forgotMsg}</div>}
-          {resetMsg && <div className="bg-green-50 border border-green-200 text-green-700 rounded-lg p-3 mb-4 text-sm">{resetMsg}</div>}
-
-          {!showResetPassword ? (
-            <form onSubmit={handleForgotPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Usuário ou E-mail</label>
-                <input
-                  type="text"
-                  value={forgotInput}
-                  onChange={e => setForgotInput(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Seu usuário ou e-mail cadastrado"
-                  required
-                />
-              </div>
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg">
-                Enviar Código
-              </button>
-            </form>
-          ) : (
-            <form onSubmit={handleResetPassword} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Código WhatsApp</label>
-                <input
-                  type="text"
-                  value={resetOtp}
-                  onChange={e => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-3 text-center text-2xl tracking-widest font-mono focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="000000"
-                  maxLength={6}
-                  required
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nova Senha</label>
-                <input
-                  type="password"
-                  value={resetPassword}
-                  onChange={e => setResetPassword(e.target.value)}
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2.5 focus:ring-2 focus:ring-blue-500 outline-none"
-                  placeholder="Mín. 6 caracteres"
-                  minLength={6}
-                  required
-                />
-              </div>
-              <button type="submit" className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 rounded-lg">
-                Redefinir Senha
-              </button>
-            </form>
-          )}
-
-          <button onClick={() => { setShowForgot(false); setShowResetPassword(false); setForgotMsg(''); setResetMsg(''); }}
-            className="w-full mt-3 text-gray-500 hover:text-gray-700 text-sm">
-            ← Voltar
-          </button>
-        </div>
-      </div>
-    );
-  }
-
-  // ── LOADING ──────────────────────────────────────────────────────────────────
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="text-white text-lg">Carregando...</div>
-      </div>
-    );
-  }
-
-  // ── STUDENT DASHBOARD ────────────────────────────────────────────────────────
   const cartData = student ? {
     nome: student.nome_completo,
     cpf: student.cpf || '',
@@ -654,293 +295,511 @@ export default function AlunoPage() {
     graduacao: student.graduacao || '',
     tipo_graduacao: student.tipo_graduacao || '',
     foto_url: student.foto_url || null,
-    menor_de_idade: !!(student.menor_de_idade),
+    menor_de_idade: !!student.menor_de_idade,
     nome_pai: student.nome_pai as string || '',
     nome_mae: student.nome_mae as string || '',
     nome_responsavel: student.nome_responsavel as string || '',
     cpf_responsavel: student.cpf_responsavel as string || '',
-    inscricao_numero: student.inscricao_numero as number || null,
+    inscricao_numero: student.inscricao_numero || null,
     telefone: student.telefone || '',
     student_id: student.id,
     data_nascimento: student.data_nascimento || '',
   } : null;
 
-  return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header */}
-      <header className="text-white shadow-lg" style={{ backgroundColor: nucleoColor }}>
-        <div className="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="text-2xl">🥋</div>
-            <div>
-              <div className="font-bold text-lg leading-tight">
-                {student?.apelido || student?.nome_social || student?.nome_completo?.split(' ')[0] || 'Aluno'}
+  // ── LOGIN ─────────────────────────────────────────────────────────────────
+  if (!session && !showOtp && !showRegister && !showForgot) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+        <div style={{ width: '100%', maxWidth: 420 }}>
+          {/* Logo */}
+          <div style={{ textAlign: 'center', marginBottom: 32 }}>
+            <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 12 }}>🥋</div>
+            <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Área do Aluno</h1>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem', margin: '6px 0 0' }}>ACCBM — Associação Cultural de Capoeira Barão de Mauá</p>
+          </div>
+
+          <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>Entrar na minha conta</h2>
+            <p style={{ margin: '0 0 24px', fontSize: '0.82rem', color: '#6b7280' }}>Acesse sua carteirinha, presenças e histórico de graduação.</p>
+
+            {loginError && (
+              <div style={{ background: loginError.startsWith('✅') ? '#f0fdf4' : '#fef2f2', border: `1px solid ${loginError.startsWith('✅') ? '#bbf7d0' : '#fecaca'}`, color: loginError.startsWith('✅') ? '#166534' : '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.83rem', fontWeight: 500 }}>
+                {loginError}
               </div>
-              <div className="text-xs opacity-80">{student?.nucleo || 'ACCBM'}</div>
+            )}
+
+            <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Usuário ou E-mail</label>
+                <input type="text" value={loginForm.username} onChange={e => setLoginForm(p => ({ ...p, username: e.target.value }))}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s' }}
+                  placeholder="Seu usuário ou e-mail" required autoComplete="username" />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Senha</label>
+                <input type="password" value={loginForm.password} onChange={e => setLoginForm(p => ({ ...p, password: e.target.value }))}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="Sua senha" required autoComplete="current-password" />
+              </div>
+              <button type="submit" disabled={loginLoading || Date.now() < lockedUntil}
+                style={{ background: loginLoading ? '#9ca3af' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: loginLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                {loginLoading ? 'Entrando...' : 'Entrar'}
+              </button>
+            </form>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, fontSize: '0.82rem' }}>
+              <button onClick={() => setShowForgot(true)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Esqueci minha senha</button>
+              <button onClick={() => setShowRegister(true)} style={{ background: 'none', border: 'none', color: '#16a34a', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Criar conta</button>
+            </div>
+
+            <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
+              <a href="/" style={{ color: '#9ca3af', fontSize: '0.82rem', textDecoration: 'none' }}>← Voltar à página inicial</a>
             </div>
           </div>
-          <button
-            onClick={handleLogout}
-            className="bg-white/20 hover:bg-white/30 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors"
-          >
-            Sair
+        </div>
+      </div>
+    );
+  }
+
+  // ── OTP ───────────────────────────────────────────────────────────────────
+  if (showOtp) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 400, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 48, marginBottom: 8 }}>📱</div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Verificação WhatsApp</h2>
+            {otpPhone && <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: '#6b7280' }}>Código enviado para ****{otpPhone.slice(-4)}</p>}
+          </div>
+          {otpError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.83rem' }}>{otpError}</div>}
+          <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '14px', fontSize: '2rem', textAlign: 'center', letterSpacing: '0.4em', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
+              placeholder="000000" maxLength={6} required autoFocus />
+            <button type="submit" disabled={otpLoading || otpCode.length !== 6}
+              style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', opacity: otpCode.length !== 6 ? 0.5 : 1 }}>
+              {otpLoading ? 'Verificando...' : 'Verificar Código'}
+            </button>
+          </form>
+          <button onClick={async () => { await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend-otp', student_id: otpStudentId }) }); alert('Novo código enviado!'); }}
+            style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.83rem', padding: '8px 0' }}>
+            Reenviar código
           </button>
+          <button onClick={() => setShowOtp(false)} style={{ width: '100%', marginTop: 4, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.83rem', padding: '6px 0' }}>Cancelar</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── REGISTER ──────────────────────────────────────────────────────────────
+  if (showRegister) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 20 }}>
+            <div style={{ fontSize: 40, marginBottom: 6 }}>🥋</div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Criar Conta</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.78rem', color: '#6b7280' }}>Você precisa ter uma ficha de inscrição cadastrada pela associação.</p>
+          </div>
+          {registerError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{registerError}</div>}
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            {([
+              { label: 'ID do Aluno *', key: 'student_id', placeholder: 'ID fornecido pelo administrador', type: 'text' },
+              { label: 'Nome de usuário *', key: 'username', placeholder: 'ex: joaosilva', type: 'text' },
+              { label: 'E-mail', key: 'email', placeholder: 'seu@email.com', type: 'email' },
+              { label: 'WhatsApp *', key: 'phone', placeholder: '(21) 99999-9999', type: 'tel' },
+              { label: 'Senha *', key: 'password', placeholder: 'Mínimo 6 caracteres', type: 'password' },
+              { label: 'Confirmar Senha *', key: 'confirmPassword', placeholder: 'Repita a senha', type: 'password' },
+            ] as const).map(({ label, key, placeholder, type }) => (
+              <div key={key}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>{label}</label>
+                <input type={type} value={(registerForm as Record<string, string>)[key] || ''} onChange={e => setRegisterForm(p => ({ ...p, [key]: e.target.value }))}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder={placeholder} required={key !== 'email'} minLength={key === 'password' || key === 'confirmPassword' ? 6 : undefined} />
+              </div>
+            ))}
+            <button type="submit" disabled={registerLoading}
+              style={{ background: '#16a34a', color: '#fff', border: 'none', borderRadius: 10, padding: '11px', fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer', marginTop: 4 }}>
+              {registerLoading ? 'Criando conta...' : 'Criar Conta e Receber Código'}
+            </button>
+          </form>
+          <button onClick={() => setShowRegister(false)} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem' }}>← Voltar</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── FORGOT PASSWORD ───────────────────────────────────────────────────────
+  if (showForgot) {
+    return (
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 400, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
+          <div style={{ textAlign: 'center', marginBottom: 24 }}>
+            <div style={{ fontSize: 40, marginBottom: 6 }}>🔑</div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Recuperar Senha</h2>
+          </div>
+          {forgotMsg && <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{forgotMsg}</div>}
+          {resetMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{resetMsg}</div>}
+          {!showResetPassword ? (
+            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }) }); const data = await res.json(); if (data.student_id) { setForgotStudentId(data.student_id); setForgotMsg(`Código enviado para ${data.phone || 'seu WhatsApp'}.`); setShowResetPassword(true); } else { setForgotMsg(data.message || 'Se existir, você receberá um código.'); } }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Usuário ou E-mail</label>
+                <input type="text" value={forgotInput} onChange={e => setForgotInput(e.target.value)}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} required />
+              </div>
+              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>Enviar Código WhatsApp</button>
+            </form>
+          ) : (
+            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', student_id: forgotStudentId, otp: resetOtp, new_password: resetPassword }) }); const data = await res.json(); if (!res.ok) { setResetMsg(data.error || 'Erro.'); return; } setResetMsg('Senha redefinida! Faça login.'); setShowForgot(false); setShowResetPassword(false); }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Código do WhatsApp</label>
+                <input type="text" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 10, padding: '12px', fontSize: '1.8rem', textAlign: 'center', letterSpacing: '0.35em', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
+                  placeholder="000000" maxLength={6} required />
+              </div>
+              <div>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Nova Senha</label>
+                <input type="password" value={resetPassword} onChange={e => setResetPassword(e.target.value)}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} minLength={6} required />
+              </div>
+              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, cursor: 'pointer' }}>Redefinir Senha</button>
+            </form>
+          )}
+          <button onClick={() => { setShowForgot(false); setShowResetPassword(false); setForgotMsg(''); setResetMsg(''); }} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem' }}>← Voltar ao login</button>
+        </div>
+      </div>
+    );
+  }
+
+  // ── LOADING ───────────────────────────────────────────────────────────────
+  if (loading) {
+    return (
+      <div style={{ minHeight: '100vh', background: '#0f172a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <div style={{ color: '#fff', fontSize: '1rem' }}>Carregando...</div>
+      </div>
+    );
+  }
+
+  // ── TABS NAVIGATION ───────────────────────────────────────────────────────
+  const tabs: { id: Tab; icon: string; label: string }[] = [
+    { id: 'dashboard',      icon: '🏠', label: 'Início' },
+    { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
+    { id: 'presenca',       icon: '📍', label: 'Presença' },
+    { id: 'financeiro',     icon: '💰', label: 'Financeiro' },
+    { id: 'graduacao',      icon: '🎖️', label: 'Graduação' },
+    { id: 'justificativas', icon: '📝', label: 'Justificativas' },
+  ];
+
+  // ── DASHBOARD (LOGGED IN) ─────────────────────────────────────────────────
+  const displayName = student?.apelido || student?.nome_social || student?.nome_completo?.split(' ')[0] || 'Aluno';
+
+  return (
+    <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+
+      {/* Header */}
+      <header style={{ color: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,0.15)', backgroundColor: nucleoColor }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {student?.foto_url ? (
+              <img src={student.foto_url} alt={displayName} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)' }} />
+            ) : (
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🥋</div>
+            )}
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1rem', lineHeight: 1.2 }}>{displayName}</div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 1 }}>{student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Aluno'}</div>
+            </div>
+          </div>
+          <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Sair</button>
         </div>
       </header>
 
-      {/* Navigation */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-10 shadow-sm">
-        <div className="max-w-4xl mx-auto px-4 overflow-x-auto">
-          <div className="flex gap-1 py-2 min-w-max">
-            {([
-              { id: 'dashboard', icon: '🏠', label: 'Início' },
-              { id: 'carteirinha', icon: '🪪', label: 'Carteirinha' },
-              { id: 'presenca', icon: '📍', label: 'Presença' },
-              { id: 'financeiro', icon: '💰', label: 'Financeiro' },
-              { id: 'graduacao', icon: '🎖️', label: 'Graduação' },
-              { id: 'justificativas', icon: '📝', label: 'Justificativas' },
-            ] as { id: Tab; icon: string; label: string }[]).map(tab => (
-              <button
-                key={tab.id}
-                onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-colors whitespace-nowrap ${
-                  activeTab === tab.id
-                    ? 'text-white'
-                    : 'text-gray-600 hover:bg-gray-100'
-                }`}
-                style={activeTab === tab.id ? { backgroundColor: nucleoColor } : {}}
-              >
-                <span>{tab.icon}</span>
-                <span className="hidden sm:inline">{tab.label}</span>
-              </button>
-            ))}
-          </div>
+      {/* Bottom nav (mobile) */}
+      <nav style={{ position: 'sticky', top: 0, zIndex: 50, background: '#fff', borderBottom: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+        <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 8px', display: 'flex', overflowX: 'auto', gap: 2 }}>
+          {tabs.map(tab => (
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 10px', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === tab.id ? `2.5px solid ${nucleoColor}` : '2.5px solid transparent', color: activeTab === tab.id ? nucleoColor : '#6b7280', fontWeight: activeTab === tab.id ? 700 : 500, fontSize: '0.7rem', whiteSpace: 'nowrap', transition: 'all 0.15s', minWidth: 60 }}>
+              <span style={{ fontSize: '1.15rem', lineHeight: 1 }}>{tab.icon}</span>
+              {tab.label}
+            </button>
+          ))}
         </div>
       </nav>
 
       {/* Content */}
-      <main className="max-w-4xl mx-auto px-4 py-6">
-        {/* DASHBOARD */}
+      <main style={{ maxWidth: 720, margin: '0 auto', padding: '20px 16px 40px' }}>
+
+        {/* ── DASHBOARD ── */}
         {activeTab === 'dashboard' && (
-          <div className="space-y-4">
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h2 className="text-xl font-bold text-gray-800 mb-2">
-                Bem-vindo(a), {student?.apelido || student?.nome_social || student?.nome_completo?.split(' ')[0]}! 👋
-              </h2>
-              <p className="text-gray-600 text-sm">
-                Aqui você acessa todas as suas informações de forma segura e privada.
-              </p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Welcome card */}
+            <div style={{ background: `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}dd)`, borderRadius: 18, padding: '22px 22px', color: '#fff', boxShadow: `0 8px 24px ${nucleoColor}40` }}>
+              <div style={{ fontSize: '0.78rem', opacity: 0.8, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bem-vindo(a)</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 2 }}>{displayName}! 👋</div>
+              <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>Núcleo {student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Graduação não informada'}</div>
             </div>
 
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-              {[
-                { tab: 'carteirinha' as Tab, icon: '🪪', title: 'Carteirinha', desc: 'Sua identidade digital' },
-                { tab: 'presenca' as Tab, icon: '📍', title: 'Presença', desc: 'Registrar hoje' },
-                { tab: 'financeiro' as Tab, icon: '💰', title: 'Financeiro', desc: 'Suas mensalidades' },
-                { tab: 'graduacao' as Tab, icon: '🎖️', title: 'Graduação', desc: 'Seu histórico' },
-                { tab: 'justificativas' as Tab, icon: '📝', title: 'Justificativas', desc: 'Enviar justificativa' },
-              ].map(item => (
-                <button
-                  key={item.tab}
-                  onClick={() => setActiveTab(item.tab)}
-                  className="bg-white rounded-xl shadow-sm p-4 border border-gray-100 hover:shadow-md transition-shadow text-left"
-                >
-                  <div className="text-2xl mb-2">{item.icon}</div>
-                  <div className="font-semibold text-gray-800 text-sm">{item.title}</div>
-                  <div className="text-gray-500 text-xs">{item.desc}</div>
+            {/* Quick actions grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+              {([
+                { tab: 'carteirinha' as Tab, icon: '🪪', label: 'Carteirinha', color: '#eff6ff', iconBg: '#dbeafe', textColor: '#1e40af' },
+                { tab: 'presenca' as Tab, icon: '📍', label: 'Presença', color: '#f0fdf4', iconBg: '#dcfce7', textColor: '#15803d' },
+                { tab: 'financeiro' as Tab, icon: '💰', label: 'Financeiro', color: '#fef9c3', iconBg: '#fef08a', textColor: '#854d0e' },
+                { tab: 'graduacao' as Tab, icon: '🎖️', label: 'Graduação', color: '#faf5ff', iconBg: '#e9d5ff', textColor: '#7e22ce' },
+                { tab: 'justificativas' as Tab, icon: '📝', label: 'Justificativas', color: '#fff7ed', iconBg: '#fed7aa', textColor: '#9a3412' },
+              ] as { tab: Tab; icon: string; label: string; color: string; iconBg: string; textColor: string }[]).map(item => (
+                <button key={item.tab} onClick={() => setActiveTab(item.tab)}
+                  style={{ background: item.color, borderRadius: 14, padding: '14px 10px', border: 'none', cursor: 'pointer', textAlign: 'center', transition: 'transform 0.15s, box-shadow 0.15s' }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: item.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', margin: '0 auto 8px' }}>{item.icon}</div>
+                  <div style={{ fontSize: '0.75rem', fontWeight: 700, color: item.textColor }}>{item.label}</div>
                 </button>
               ))}
             </div>
 
+            {/* Student info card */}
             {student && (
-              <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-                <h3 className="font-semibold text-gray-700 mb-3">Meus dados</h3>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
-                    <span className="text-gray-500">Graduação:</span>
-                    <p className="font-medium">{student.graduacao || '—'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Núcleo:</span>
-                    <p className="font-medium">{student.nucleo || '—'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">Telefone:</span>
-                    <p className="font-medium">{student.telefone || '—'}</p>
-                  </div>
-                  <div>
-                    <span className="text-gray-500">E-mail:</span>
-                    <p className="font-medium truncate">{student.email as string || '—'}</p>
-                  </div>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#374151', marginBottom: 12 }}>Meus Dados</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                  {[
+                    { label: 'Graduação', value: student.graduacao },
+                    { label: 'Núcleo', value: student.nucleo },
+                    { label: 'Telefone', value: student.telefone },
+                    { label: 'E-mail', value: student.email as string },
+                  ].map(({ label, value }) => value ? (
+                    <div key={label}>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 2, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{label}</div>
+                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{String(value)}</div>
+                    </div>
+                  ) : null)}
                 </div>
               </div>
             )}
           </div>
         )}
 
-        {/* CARTEIRINHA */}
+        {/* ── CARTEIRINHA ── */}
         {activeTab === 'carteirinha' && cartData && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">Minha Carteirinha</h2>
-            <div className="flex justify-center">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🪪 Minha Carteirinha</h2>
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
               <Carteirinha data={cartData} />
             </div>
+            <div style={{ background: '#f0f9ff', borderRadius: 12, padding: '12px 16px', border: '1px solid #bae6fd', fontSize: '0.8rem', color: '#0369a1' }}>
+              💡 Use esta carteirinha para identificação nas aulas. Você pode tirar um screenshot para ter offline.
+            </div>
           </div>
         )}
 
-        {/* PRESENÇA */}
+        {/* ── PRESENÇA ── */}
         {activeTab === 'presenca' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">Registrar Presença</h2>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-gray-600 text-sm mb-4">
-                Você só pode registrar presença no dia atual e quando estiver no local de treino (raio de 200m).
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📍 Registrar Presença</h2>
+
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+              <div style={{ fontSize: 56, marginBottom: 12 }}>📍</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Presença do dia de hoje</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '0.83rem', color: '#6b7280', lineHeight: 1.5 }}>
+                Sua presença será registrada automaticamente ao clicar no botão abaixo.<br />
+                Você precisa estar no local de treino (raio de 200m).
               </p>
+
               {presencaMsg && (
-                <div className={`rounded-lg p-3 mb-4 text-sm ${
-                  presencaMsg.includes('✅') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  {presencaMsg}
+                <div style={{ background: presencaStatus === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${presencaStatus === 'success' ? '#bbf7d0' : '#fecaca'}`, color: presencaStatus === 'success' ? '#166534' : '#991b1b', borderRadius: 12, padding: '12px 16px', marginBottom: 18, fontSize: '0.85rem', fontWeight: 500 }}>
+                  {presencaStatus === 'success' ? '✅ ' : '❌ '}{presencaMsg}
                 </div>
               )}
-              <button
-                onClick={handlePresenca}
-                disabled={presencaLoading}
-                className="w-full py-3 rounded-xl text-white font-semibold transition-colors disabled:opacity-50"
-                style={{ backgroundColor: nucleoColor }}
-              >
+
+              <button onClick={handlePresenca} disabled={presencaLoading}
+                style={{ background: presencaLoading ? '#9ca3af' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, color: '#fff', border: 'none', borderRadius: 14, padding: '16px 32px', fontWeight: 800, fontSize: '1rem', cursor: presencaLoading ? 'not-allowed' : 'pointer', boxShadow: presencaLoading ? 'none' : `0 6px 20px ${nucleoColor}40`, transition: 'all 0.2s' }}>
                 {presencaLoading ? '📍 Obtendo localização...' : '📍 Registrar Presença Agora'}
               </button>
-              <p className="text-gray-400 text-xs mt-3 text-center">
-                A localização é usada apenas para confirmar presença e não é armazenada.
+
+              <p style={{ margin: '14px 0 0', fontSize: '0.72rem', color: '#9ca3af' }}>
+                A localização é usada apenas para confirmar que você está no local de treino e não é armazenada.
               </p>
+            </div>
+
+            <div style={{ background: '#fffbeb', borderRadius: 12, padding: '12px 16px', border: '1px solid #fde68a', fontSize: '0.8rem', color: '#92400e' }}>
+              ⚠️ O registro de presença só pode ser feito no dia atual. Se precisar justificar uma falta, use a aba <strong>Justificativas</strong>.
             </div>
           </div>
         )}
 
-        {/* FINANCEIRO */}
+        {/* ── FINANCEIRO ── */}
         {activeTab === 'financeiro' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">Minha Ficha Financeira</h2>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <p className="text-gray-600 text-sm mb-4">
-                Acesse seus dados financeiros detalhados através do portal financeiro.
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>💰 Ficha Financeira</h2>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>💰</div>
+              <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Portal Financeiro</h3>
+              <p style={{ margin: '0 0 20px', fontSize: '0.83rem', color: '#6b7280', lineHeight: 1.5 }}>
+                Visualize suas mensalidades, batizado, uniformes e histórico de pagamentos.
               </p>
-              <a
-                href={`/financeiro?student_id=${session?.student_id}`}
-                className="block w-full py-3 rounded-xl text-white font-semibold text-center transition-colors"
-                style={{ backgroundColor: nucleoColor }}
-              >
-                💰 Acessar Portal Financeiro
+              <a href={`/financeiro?student_id=${session?.student_id}`}
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', borderRadius: 12, padding: '13px 28px', fontWeight: 700, fontSize: '0.95rem', boxShadow: '0 4px 14px rgba(22,163,74,0.35)' }}>
+                💰 Acessar Ficha Financeira
               </a>
+              <p style={{ margin: '12px 0 0', fontSize: '0.75rem', color: '#9ca3af' }}>Você será redirecionado para o portal financeiro.</p>
             </div>
           </div>
         )}
 
-        {/* GRADUAÇÃO */}
+        {/* ── GRADUAÇÃO ── */}
         {activeTab === 'graduacao' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">Histórico de Graduação</h2>
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              {student?.graduacao ? (
-                <div className="space-y-3">
-                  <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <div className="text-2xl">🎖️</div>
-                    <div>
-                      <div className="font-semibold text-gray-800">{student.graduacao}</div>
-                      <div className="text-sm text-gray-500">Graduação atual</div>
-                    </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🎖️ Histórico de Graduação</h2>
+              <button onClick={() => student && loadHistorico(student.id)} style={{ background: 'none', border: `1px solid ${nucleoColor}`, color: nucleoColor, borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>🔄 Atualizar</button>
+            </div>
+
+            {/* Current graduation badge */}
+            {student?.graduacao && (() => {
+              const c = getGradColor(student.graduacao);
+              return (
+                <div style={{ background: c.bg, border: `2px solid ${c.border}`, borderRadius: 16, padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
+                  <div style={{ width: 52, height: 52, borderRadius: '50%', background: c.border, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>🎖️</div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: c.text, opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Graduação Atual</div>
+                    <div style={{ fontSize: '1.2rem', fontWeight: 800, color: c.text }}>{student.graduacao}</div>
+                    {student.tipo_graduacao && <div style={{ fontSize: '0.8rem', color: c.text, opacity: 0.7, marginTop: 1 }}>Tipo: {student.tipo_graduacao}</div>}
                   </div>
-                  <p className="text-gray-500 text-sm text-center py-4">
-                    Histórico completo de graduações em breve.
-                  </p>
                 </div>
-              ) : (
-                <p className="text-gray-500 text-sm text-center py-4">Nenhuma graduação registrada.</p>
-              )}
+              );
+            })()}
+
+            {/* Timeline */}
+            {loadingHistorico ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af' }}>Carregando histórico...</div>
+            ) : historico.length === 0 ? (
+              <div style={{ background: '#fff', borderRadius: 16, padding: '32px 20px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                <div style={{ fontSize: 40, marginBottom: 10 }}>📋</div>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#374151', marginBottom: 4 }}>Nenhum registro encontrado</div>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af', lineHeight: 1.5 }}>
+                  Seu histórico de graduações aparecerá aqui após o administrador finalizar os lançamentos de batizados e trocas de corda.
+                </div>
+              </div>
+            ) : (
+              <div style={{ position: 'relative' }}>
+                {/* Timeline line */}
+                <div style={{ position: 'absolute', left: 20, top: 0, bottom: 0, width: 2, background: `linear-gradient(to bottom, ${nucleoColor}80, transparent)`, borderRadius: 2 }} />
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  {historico.map((reg, idx) => {
+                    const c = getGradColor(reg.graduacao_recebida);
+                    return (
+                      <div key={reg.id} style={{ display: 'flex', gap: 16, paddingBottom: 20, paddingLeft: 4 }}>
+                        {/* Timeline dot */}
+                        <div style={{ flexShrink: 0, width: 32, height: 32, borderRadius: '50%', background: c.bg, border: `2.5px solid ${c.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.9rem', zIndex: 1, marginTop: 4 }}>
+                          {idx === 0 ? '⭐' : '🎖️'}
+                        </div>
+
+                        {/* Card */}
+                        <div style={{ flex: 1, background: '#fff', borderRadius: 14, padding: '14px 16px', border: '1px solid #e5e7eb', boxShadow: '0 1px 4px rgba(0,0,0,0.04)' }}>
+                          <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                            <div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                                <span style={{ background: c.bg, border: `1px solid ${c.border}`, color: c.text, borderRadius: 8, padding: '2px 10px', fontSize: '0.82rem', fontWeight: 700 }}>
+                                  {reg.graduacao_recebida}
+                                </span>
+                                {idx === 0 && (
+                                  <span style={{ background: '#dcfce7', color: '#166534', borderRadius: 8, padding: '2px 8px', fontSize: '0.72rem', fontWeight: 700 }}>
+                                    Mais recente
+                                  </span>
+                                )}
+                              </div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827', marginTop: 6 }}>{reg.evento}</div>
+                              <div style={{ fontSize: '0.76rem', color: '#6b7280', marginTop: 2 }}>Prof. {reg.professor_responsavel}</div>
+                            </div>
+                            <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                              <div style={{ fontSize: '0.8rem', fontWeight: 700, color: nucleoColor }}>
+                                {new Date(reg.data_graduacao + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+                              </div>
+                            </div>
+                          </div>
+                          {reg.observacoes && (
+                            <div style={{ marginTop: 8, padding: '8px 10px', background: '#f9fafb', borderRadius: 8, fontSize: '0.78rem', color: '#6b7280', fontStyle: 'italic' }}>
+                              &ldquo;{reg.observacoes}&rdquo;
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            <div style={{ background: '#f0f9ff', borderRadius: 12, padding: '12px 16px', border: '1px solid #bae6fd', fontSize: '0.78rem', color: '#0369a1', lineHeight: 1.5 }}>
+              ℹ️ O histórico é atualizado automaticamente quando o administrador finaliza um evento de batizado ou troca de corda no painel.
             </div>
           </div>
         )}
 
-        {/* JUSTIFICATIVAS */}
+        {/* ── JUSTIFICATIVAS ── */}
         {activeTab === 'justificativas' && (
-          <div className="space-y-4">
-            <h2 className="text-xl font-bold text-gray-800">Justificativas de Falta</h2>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📝 Justificativas de Falta</h2>
 
-            {/* Submit form */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="font-semibold text-gray-700 mb-4">Enviar Nova Justificativa</h3>
+            {/* Form */}
+            <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', marginBottom: 14 }}>Enviar nova justificativa</div>
               {justMsg && (
-                <div className={`rounded-lg p-3 mb-4 text-sm ${
-                  justMsg.includes('✅') ? 'bg-green-50 border border-green-200 text-green-700' : 'bg-red-50 border border-red-200 text-red-700'
-                }`}>
-                  {justMsg}
+                <div style={{ background: justMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${justMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: justMsgType === 'success' ? '#166534' : '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.83rem' }}>
+                  {justMsgType === 'success' ? '✅ ' : '❌ '}{justMsg}
                 </div>
               )}
-              <form onSubmit={handleSubmitJustificativa} className="space-y-3">
+              <form onSubmit={handleSubmitJustificativa} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Data da Falta *</label>
-                  <input
-                    type="date"
-                    value={justForm.data_falta}
-                    onChange={e => setJustForm(p => ({ ...p, data_falta: e.target.value }))}
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Data da Falta *</label>
+                  <input type="date" value={justForm.data_falta} onChange={e => setJustForm(p => ({ ...p, data_falta: e.target.value }))}
                     max={new Date().toISOString().split('T')[0]}
                     min={new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0]}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm"
-                    required
-                  />
+                    style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} required />
+                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 3 }}>Apenas os últimos 30 dias</div>
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Motivo *</label>
-                  <textarea
-                    value={justForm.motivo}
-                    onChange={e => setJustForm(p => ({ ...p, motivo: e.target.value }))}
-                    className="w-full border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm resize-none"
-                    rows={3}
-                    placeholder="Descreva o motivo da falta..."
-                    maxLength={500}
-                    required
-                  />
-                  <p className="text-xs text-gray-400 text-right">{justForm.motivo.length}/500</p>
+                  <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Motivo da Falta *</label>
+                  <textarea value={justForm.motivo} onChange={e => setJustForm(p => ({ ...p, motivo: e.target.value }))}
+                    style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box', resize: 'none' }}
+                    rows={3} placeholder="Descreva o motivo da falta..." maxLength={500} required />
+                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'right', marginTop: 2 }}>{justForm.motivo.length}/500</div>
                 </div>
-                <button
-                  type="submit"
-                  disabled={justLoading}
-                  className="w-full py-2.5 rounded-lg text-white font-semibold disabled:opacity-50 transition-colors"
-                  style={{ backgroundColor: nucleoColor }}
-                >
+                <button type="submit" disabled={justLoading}
+                  style={{ background: justLoading ? '#9ca3af' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: justLoading ? 'not-allowed' : 'pointer' }}>
                   {justLoading ? 'Enviando...' : 'Enviar Justificativa'}
                 </button>
               </form>
             </div>
 
             {/* List */}
-            <div className="bg-white rounded-xl shadow-sm p-6 border border-gray-100">
-              <h3 className="font-semibold text-gray-700 mb-4">Minhas Justificativas</h3>
+            <div style={{ background: '#fff', borderRadius: 16, padding: '20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', marginBottom: 14 }}>Minhas justificativas</div>
               {justificativas.length === 0 ? (
-                <p className="text-gray-400 text-sm text-center py-4">Nenhuma justificativa enviada.</p>
+                <div style={{ textAlign: 'center', padding: '24px 0', color: '#9ca3af', fontSize: '0.85rem' }}>Nenhuma justificativa enviada ainda.</div>
               ) : (
-                <div className="space-y-3">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {justificativas.map(j => (
-                    <div key={j.id} className="border border-gray-200 rounded-lg p-3">
-                      <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <div className="text-sm font-medium text-gray-800">
-                            {new Date(j.data_falta + 'T12:00:00').toLocaleDateString('pt-BR')}
-                          </div>
-                          <div className="text-xs text-gray-500 mt-0.5">{j.motivo}</div>
-                          {j.resposta_mestre && (
-                            <div className="text-xs text-blue-600 mt-1">Resposta: {j.resposta_mestre}</div>
-                          )}
+                    <div key={j.id} style={{ border: '1px solid #e5e7eb', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#111827' }}>
+                          {new Date(j.data_falta + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' })}
                         </div>
-                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium whitespace-nowrap ${
-                          j.status === 'aprovado' ? 'bg-green-100 text-green-700' :
-                          j.status === 'recusado' ? 'bg-red-100 text-red-700' :
-                          'bg-yellow-100 text-yellow-700'
-                        }`}>
-                          {j.status === 'aprovado' ? '✅ Aprovado' : j.status === 'recusado' ? '❌ Recusado' : '⏳ Pendente'}
-                        </span>
+                        <div style={{ fontSize: '0.8rem', color: '#6b7280', marginTop: 3 }}>{j.motivo}</div>
+                        {j.resposta_mestre && (
+                          <div style={{ marginTop: 6, padding: '6px 10px', background: '#eff6ff', borderRadius: 6, fontSize: '0.76rem', color: '#1e40af' }}>
+                            💬 Mestre: {j.resposta_mestre}
+                          </div>
+                        )}
                       </div>
+                      <span style={{
+                        flexShrink: 0, padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700,
+                        background: j.status === 'aprovado' ? '#dcfce7' : j.status === 'recusado' ? '#fee2e2' : '#fef9c3',
+                        color: j.status === 'aprovado' ? '#166534' : j.status === 'recusado' ? '#991b1b' : '#854d0e',
+                      }}>
+                        {j.status === 'aprovado' ? '✅ Aprovada' : j.status === 'recusado' ? '❌ Recusada' : '⏳ Pendente'}
+                      </span>
                     </div>
                   ))}
                 </div>
