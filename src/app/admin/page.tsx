@@ -1032,6 +1032,7 @@ export default function AdminPage() {
         apelido: (editForm as any).apelido || null,
         nome_social: (editForm as any).nome_social || null,
         sexo: (editForm as any).sexo || null,
+        email: (editForm as any).email || null,
       };
 
       let { error } = await supabase
@@ -5305,6 +5306,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-value">{selected.telefone || '—'}</span>
               </div>
               <div className="detail-item">
+                <span className="detail-label">E-mail</span>
+                <span className="detail-value" style={{ color: selected.email ? 'var(--text-primary)' : 'var(--text-secondary)', fontStyle: selected.email ? 'normal' : 'italic' }}>{selected.email || 'não cadastrado'}</span>
+              </div>
+              <div className="detail-item">
                 <span className="detail-label">Status</span>
                 <span className={`badge ${selected.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
                   {selected.menor_de_idade ? 'Menor de Idade' : 'Adulto'}
@@ -5688,6 +5693,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="detail-item">
                 <span className="detail-label">Telefone</span>
                 <input className="edit-input" name="telefone" value={editForm.telefone || ''} onChange={handleEditChange} />
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">E-mail</span>
+                <input className="edit-input" type="email" name="email" value={(editForm as any).email || ''} onChange={handleEditChange} placeholder="email@exemplo.com" />
               </div>
               <div className="detail-item">
                 <span className="detail-label">Núcleo</span>
