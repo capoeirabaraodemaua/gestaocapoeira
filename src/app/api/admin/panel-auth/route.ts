@@ -85,15 +85,20 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'reset-password') {
-    // Admin geral resets any user's password
+    // Admin geral resets any user's password.
+    // Special case: if admin_username === target_username (self-setup), just verify current password — no secondary admin needed.
     const { admin_username, admin_password, target_username, new_password } = body;
     if (!admin_username || !admin_password || !target_username || !new_password)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     const creds = await loadCreds();
-    const adminUser = creds[admin_username.trim().toLowerCase()];
-    if (!adminUser || adminUser.nucleo !== 'geral' || !checkPassword(adminUser.password, admin_password))
-      return NextResponse.json({ error: 'Credenciais de administrador geral incorretas.' }, { status: 401 });
+    const adminKey = admin_username.trim().toLowerCase();
     const targetKey = target_username.trim().toLowerCase();
+    const adminUser = creds[adminKey];
+    if (!adminUser || !checkPassword(adminUser.password, admin_password))
+      return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
+    // Self-setup: only admin geral can self-authorize; other users cannot reset their own via this action
+    if (adminKey !== targetKey && adminUser.nucleo !== 'geral')
+      return NextResponse.json({ error: 'Somente o Admin Geral pode redefinir senhas de outros usuários.' }, { status: 403 });
     if (!creds[targetKey]) return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     creds[targetKey] = { ...creds[targetKey], password: new_password };
     await saveCreds(creds);
