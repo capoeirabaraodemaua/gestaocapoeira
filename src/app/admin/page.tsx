@@ -729,7 +729,7 @@ export default function AdminPage() {
   const [relAlunosMes, setRelAlunosMes] = useState(() => {
     const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`;
   });
-  interface RelAlunoItem { id: string; nome: string; graduacao: string; dias: number; custom?: boolean; }
+  interface RelAlunoItem { id: string; nome: string; graduacao: string; dias: number; email?: string; telefone?: string; custom?: boolean; }
   const [relAlunosList, setRelAlunosList] = useState<RelAlunoItem[]>([]);
   const [relAlunosEdit, setRelAlunosEdit] = useState<string|null>(null);
   const [relAlunosEditVal, setRelAlunosEditVal] = useState<{nome:string;graduacao:string;dias:number}>({nome:'',graduacao:'',dias:0});
@@ -2676,7 +2676,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   .filter(s => !nucleo || s.nucleo === nucleo);
                 const list: RelAlunoItem[] = mesStudents.map(s => {
                   const dias = (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mesAtual)).length;
-                  return { id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—', dias };
+                  return { id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—', dias, email: (s as any).email || '', telefone: s.telefone || '' };
                 });
                 list.sort((a,b) => b.dias - a.dias);
                 setRelAlunosList(list);
@@ -4821,6 +4821,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   const list: RelAlunoItem[] = base.map(s => ({
                     id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
                     dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mes)).length,
+                    email: (s as any).email || '', telefone: s.telefone || '',
                   }));
                   list.sort((a,b) => b.dias - a.dias);
                   const custom = relAlunosList.filter(x => x.custom);
@@ -4837,6 +4838,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const list: RelAlunoItem[] = base.map(s => ({
                       id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
                       dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(relAlunosMes)).length,
+                      email: (s as any).email || '', telefone: s.telefone || '',
                     }));
                     list.sort((a,b) => b.dias - a.dias);
                     setRelAlunosList(list);
@@ -4859,10 +4861,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-size:0.82em;color:#1d4ed8;font-weight:700">${i+1}</td>
                     <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;font-weight:700">${al.nome}</td>
                     <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:600">${al.graduacao}</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#334155;font-size:0.82em">${al.email || '—'}</td>
+                    <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;color:#334155;font-size:0.82em;white-space:nowrap">${al.telefone || '—'}</td>
                     <td style="padding:8px 12px;border-bottom:1px solid #e2e8f0;text-align:center;font-weight:800;color:${al.dias>0?'#15803d':'#94a3b8'}">${al.dias}</td>
                   </tr>`).join('');
                   const html = `<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Relatório de Alunos</title>
-                  <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:12px}
+                  <style>*{box-sizing:border-box}body{font-family:Arial,sans-serif;margin:0;padding:24px 28px;color:#1e293b;font-size:11px}
                   .header{display:flex;align-items:center;gap:18px;padding-bottom:14px;border-bottom:3px solid #0891b2;margin-bottom:14px}
                   .header img{height:72px;width:72px;object-fit:contain;flex-shrink:0}
                   .assoc{font-size:0.72rem;font-weight:700;color:#64748b;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:3px}
@@ -4873,7 +4877,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   thead td{padding:9px 12px;font-size:0.68rem;font-weight:700;text-transform:uppercase;letter-spacing:0.05em}
                   .footer{margin-top:20px;display:flex;justify-content:space-between;border-top:2px solid #e2e8f0;padding-top:12px;font-size:0.72rem;color:#64748b}
                   .sig{width:180px;text-align:center}.sig-line{border-top:1px solid #334155;margin:36px 0 4px}
-                  @media print{body{padding:14px};@page{size:A4;margin:1cm}}</style></head>
+                  @media print{body{padding:14px};@page{size:A4 landscape;margin:1cm}}</style></head>
                   <body>
                   <div class="header">
                     <img src="${origin}/logo-barao-maua.png" alt="ACCBM" onerror="this.src='${origin}/logo-accbm.jpeg'"/>
@@ -4881,7 +4885,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div class="title">📋 Relatório de Alunos</div>
                     <div class="sub">Núcleo: <strong>${nucleoLabel}</strong> &nbsp;|&nbsp; Mês: <strong>${mesLabel}</strong> &nbsp;|&nbsp; Total: <strong>${relAlunosList.length} alunos</strong></div></div>
                   </div>
-                  <table><thead><tr><td>#</td><td>Nome Completo</td><td>Graduação Atual</td><td style="text-align:center">Dias Treinados</td></tr></thead>
+                  <table><thead><tr><td>#</td><td>Nome Completo</td><td>Graduação Atual</td><td>E-mail</td><td>Telefone</td><td style="text-align:center">Dias Treinados</td></tr></thead>
                   <tbody>${rows}</tbody></table>
                   <div class="footer">
                     <div>Gerado em ${new Date().toLocaleString('pt-BR')}</div>
@@ -4903,6 +4907,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>#</th>
                     <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Nome Completo</th>
                     <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Graduação</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>E-mail</th>
+                    <th style={{ padding: '9px 12px', textAlign: 'left', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Telefone</th>
                     <th style={{ padding: '9px 12px', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Dias</th>
                     <th style={{ padding: '9px 12px', textAlign: 'center', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 700, textTransform: 'uppercase' }}>Ações</th>
                   </tr>
@@ -4915,6 +4921,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <td style={{ padding: '6px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{i+1}</td>
                           <td style={{ padding: '6px 8px' }}><input value={relAlunosEditVal.nome} onChange={e => setRelAlunosEditVal(v => ({...v, nome: e.target.value}))} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} /></td>
                           <td style={{ padding: '6px 8px' }}><input value={relAlunosEditVal.graduacao} onChange={e => setRelAlunosEditVal(v => ({...v, graduacao: e.target.value}))} style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem' }} /></td>
+                          <td style={{ padding: '6px 8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{al.email || '—'}</td>
+                          <td style={{ padding: '6px 8px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{al.telefone || '—'}</td>
                           <td style={{ padding: '6px 8px' }}><input type="number" min="0" value={relAlunosEditVal.dias} onChange={e => setRelAlunosEditVal(v => ({...v, dias: Number(e.target.value)}))} style={{ width: 60, padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.82rem', textAlign: 'center' }} /></td>
                           <td style={{ padding: '6px 8px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                             <button onClick={() => { setRelAlunosList(list => list.map(x => x.id === al.id ? {...x, ...relAlunosEditVal} : x)); setRelAlunosEdit(null); }} style={{ background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem', marginRight: 4 }}>✓</button>
@@ -4926,6 +4934,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{i+1}</td>
                           <td style={{ padding: '8px 12px', fontWeight: 600, fontSize: '0.88rem' }}>{al.nome}</td>
                           <td style={{ padding: '8px 12px', fontSize: '0.82rem', color: '#b45309' }}>{al.graduacao}</td>
+                          <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{al.email || <span style={{ color: '#d1d5db', fontStyle: 'italic' }}>—</span>}</td>
+                          <td style={{ padding: '8px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{al.telefone || <span style={{ color: '#d1d5db', fontStyle: 'italic' }}>—</span>}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'center', fontWeight: 800, color: al.dias > 0 ? '#16a34a' : 'var(--text-secondary)', fontSize: '0.95rem' }}>{al.dias}</td>
                           <td style={{ padding: '8px 12px', textAlign: 'center', whiteSpace: 'nowrap' }}>
                             <button onClick={() => { setRelAlunosEdit(al.id); setRelAlunosEditVal({nome: al.nome, graduacao: al.graduacao, dias: al.dias}); }} style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem', marginRight: 4 }}>✏</button>
