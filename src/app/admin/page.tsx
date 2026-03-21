@@ -524,7 +524,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria'>('alunos');
   // Justificativas
   type JustificativaAdmin = { id: string; student_id: string; student_name: string; nucleo: string; data_falta: string; motivo: string; status: 'pendente' | 'aprovado' | 'recusado'; resposta_mestre?: string; created_at: string; updated_at: string; };
   const [justificativas, setJustificativas] = useState<JustificativaAdmin[]>([]);
@@ -539,6 +539,11 @@ export default function AdminPage() {
   const [novaContaForm, setNovaContaForm] = useState({ student_id: '', password: '', confirm_password: '', email: '' });
   const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '', confirm_new_password: '' });
   const [studentDisplayIds, setStudentDisplayIds] = useState<Record<string, string>>({});
+  // Auditoria
+  type AuditEntry = { id: string; action: string; user: string; nucleo: string; timestamp: string; details?: string };
+  const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
+  const [loadingAudit, setLoadingAudit] = useState(false);
+  const [auditSearch, setAuditSearch] = useState('');
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -1449,6 +1454,7 @@ export default function AdminPage() {
             { key: 'lixeira',         label: '🗑️ Lixeira',       activeColor: '#6b7280', geralOnly: true },
             { key: 'justificativas',  label: `📝 Justificativas${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length > 0 ? ` 🔔${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
             { key: 'contas',          label: '👤 Contas Alunos',  activeColor: '#6366f1', geralOnly: false },
+            { key: 'auditoria',       label: '🔍 Auditoria',       activeColor: '#0f172a', geralOnly: true },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -1524,6 +1530,10 @@ export default function AdminPage() {
                     if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
                     setLoadingContas(false);
                   }).catch(() => setLoadingContas(false));
+                }
+                if (tab.key === 'auditoria') {
+                  setLoadingAudit(true); setAuditSearch('');
+                  fetch('/api/admin/logs').then(r => r.json()).then(d => { setAuditLogs(Array.isArray(d) ? d : []); setLoadingAudit(false); }).catch(() => setLoadingAudit(false));
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
@@ -2967,6 +2977,68 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <div style={{ width: 12, height: 12, borderRadius: 3, background: '#dc2626' }} /> &lt; 50% — Baixa frequência
                 </div>
               </div>
+            </div>
+          )}
+
+          {/* ── Relatório de Contas Criadas ── */}
+          {activeNucleo === 'geral' && (
+            <div style={{ marginTop: 32 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                <div style={{ width: 4, height: 24, background: '#6366f1', borderRadius: 2 }} />
+                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>👤 Contas de Acesso Cadastradas</h3>
+                <button
+                  onClick={() => {
+                    setLoadingContas(true);
+                    Promise.all([fetch('/api/aluno/contas').then(r => r.json()), fetch('/api/aluno/gerar-id').then(r => r.json())])
+                      .then(([contas, idMap]) => { setAlunoContas(Array.isArray(contas) ? contas : []); if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>); setLoadingContas(false); })
+                      .catch(() => setLoadingContas(false));
+                  }}
+                  style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                >🔄 Atualizar</button>
+              </div>
+              {loadingContas ? (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '20px 0' }}>Carregando...</div>
+              ) : alunoContas.length === 0 ? (
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>Nenhuma conta criada ainda.</div>
+              ) : (
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-input)', borderBottom: '2px solid var(--border)' }}>
+                        {['ID ACCBM', 'Nome Completo', 'Login', 'E-mail', 'Núcleo', 'Status', 'Criado em'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {alunoContas.map(acc => {
+                        const st = students.find(s => s.id === acc.student_id);
+                        const displayId = acc.display_id || studentDisplayIds[acc.student_id] || '—';
+                        return (
+                          <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 800, color: '#6366f1', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayId}</td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-primary)', fontWeight: 600, minWidth: 140 }}>{st?.nome_completo || '—'}</td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '2px 7px', fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8', fontSize: '0.8rem' }}>{acc.username}</span>
+                            </td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{acc.email || '—'}</td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{st?.nucleo || '—'}</td>
+                            <td style={{ padding: '7px 10px' }}>
+                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.7rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
+                                {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  <div style={{ marginTop: 8, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                    Total: <strong>{alunoContas.length}</strong> conta{alunoContas.length !== 1 ? 's' : ''} · {alunoContas.filter(a => a.active).length} ativas · {alunoContas.filter(a => !a.active).length} pendentes
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -7630,6 +7702,107 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               })()
             }
           </div>
+        </div>
+      )}
+
+      {/* ===== ABA AUDITORIA (geral only) ===== */}
+      {activeTab === 'auditoria' && activeNucleo === 'geral' && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+            <div>
+              <h2 style={{ margin: '0 0 2px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>🔍 Auditoria do Sistema</h2>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Registro de ações administrativas — últimas 200 entradas</p>
+            </div>
+            <button
+              onClick={() => { setLoadingAudit(true); fetch('/api/admin/logs').then(r => r.json()).then(d => { setAuditLogs(Array.isArray(d) ? d : []); setLoadingAudit(false); }).catch(() => setLoadingAudit(false)); }}
+              style={{ padding: '7px 16px', borderRadius: 8, background: '#0f172a', color: '#94a3b8', border: '1px solid #334155', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+            >🔄 Atualizar</button>
+          </div>
+
+          {/* Search */}
+          <div style={{ marginBottom: 14 }}>
+            <input
+              type="text"
+              placeholder="Buscar por ação, usuário, núcleo..."
+              value={auditSearch}
+              onChange={e => setAuditSearch(e.target.value)}
+              style={{ width: '100%', padding: '9px 14px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+            />
+          </div>
+
+          {loadingAudit ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>Carregando logs...</div>
+          ) : (() => {
+            const q = auditSearch.toLowerCase();
+            const filtered = q
+              ? auditLogs.filter(e => e.action.toLowerCase().includes(q) || e.user.toLowerCase().includes(q) || e.nucleo.toLowerCase().includes(q) || (e.details || '').toLowerCase().includes(q))
+              : auditLogs;
+
+            if (filtered.length === 0) return (
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40, fontSize: '0.85rem' }}>
+                {auditSearch ? 'Nenhum resultado para esta busca.' : 'Nenhum log de auditoria encontrado.'}
+              </div>
+            );
+
+            const actionColors: Record<string, { bg: string; color: string }> = {
+              login:          { bg: '#dcfce7', color: '#166534' },
+              login_cpf:      { bg: '#dbeafe', color: '#1e40af' },
+              logout:         { bg: '#fef3c7', color: '#92400e' },
+              delete:         { bg: '#fee2e2', color: '#991b1b' },
+              edit:           { bg: '#ede9fe', color: '#5b21b6' },
+              create:         { bg: '#d1fae5', color: '#065f46' },
+              export:         { bg: '#e0f2fe', color: '#0369a1' },
+              background:     { bg: '#f0fdf4', color: '#166534' },
+              'bulk-action':  { bg: '#fef9c3', color: '#854d0e' },
+            };
+            const getActionStyle = (action: string) => {
+              for (const [key, style] of Object.entries(actionColors)) {
+                if (action.toLowerCase().includes(key)) return style;
+              }
+              return { bg: '#f1f5f9', color: '#475569' };
+            };
+
+            return (
+              <div>
+                <div style={{ overflowX: 'auto' }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg-input)', borderBottom: '2px solid var(--border)' }}>
+                        {['Data/Hora', 'Ação', 'Usuário', 'Núcleo', 'Detalhes'].map(h => (
+                          <th key={h} style={{ textAlign: 'left', padding: '9px 12px', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filtered.map(entry => {
+                        const aStyle = getActionStyle(entry.action);
+                        return (
+                          <tr key={entry.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                            <td style={{ padding: '7px 12px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '0.76rem' }}>
+                              {new Date(entry.timestamp).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                            </td>
+                            <td style={{ padding: '7px 12px' }}>
+                              <span style={{ background: aStyle.bg, color: aStyle.color, padding: '2px 8px', borderRadius: 8, fontWeight: 700, fontSize: '0.76rem', whiteSpace: 'nowrap' }}>
+                                {entry.action}
+                              </span>
+                            </td>
+                            <td style={{ padding: '7px 12px', color: 'var(--text-primary)', fontWeight: 600 }}>{entry.user}</td>
+                            <td style={{ padding: '7px 12px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{entry.nucleo}</td>
+                            <td style={{ padding: '7px 12px', color: 'var(--text-secondary)', fontSize: '0.78rem', maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={entry.details}>
+                              {entry.details || '—'}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{ marginTop: 10, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  Exibindo {filtered.length} de {auditLogs.length} registros
+                </div>
+              </div>
+            );
+          })()}
         </div>
       )}
 
