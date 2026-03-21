@@ -1904,58 +1904,114 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {adminModalOpen && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000 }}
           onClick={e => { if (e.target === e.currentTarget) { setAdminModalOpen(false); setAdminLoading(false); setAdminScreen('login'); } }}>
-          <div style={{ background: 'linear-gradient(160deg,#1a1a2e,#16213e)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '28px 26px', width: 370, maxWidth: '94vw', display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 24px 80px rgba(0,0,0,0.6)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <div style={{ background: 'linear-gradient(160deg,#1a1a2e,#16213e)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 16, padding: '28px 26px', width: 520, maxWidth: '96vw', display: 'flex', flexDirection: 'column', gap: 14, boxShadow: '0 24px 80px rgba(0,0,0,0.6)', maxHeight: '92vh', overflowY: 'auto' }}>
 
             {/* ── LOGIN ── */}
             {adminScreen === 'login' && (
               <>
                 <div style={{ textAlign: 'center' }}>
-                  <div style={{ fontSize: 32, marginBottom: 6 }}>🔐</div>
+                  <div style={{ fontSize: 28, marginBottom: 4 }}>🔐</div>
                   <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', marginBottom: 2 }}>Painel Administrativo</div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>Admin Geral ou Responsável de Núcleo</div>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.73rem' }}>Selecione seu perfil de acesso</div>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  <div>
-                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Login / CPF</div>
-                    <input autoFocus value={adminUser} onChange={e => { setAdminUser(e.target.value); setAdminErro(''); }}
-                      onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-                      placeholder="admin  ou  CPF (responsável de núcleo)" disabled={adminLoading}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
+
+                {/* Cards de perfil de acesso */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {/* Admin Geral */}
+                  <div onClick={() => { setAdminUser('admin'); setTimeout(() => document.getElementById('adminPassInput')?.focus(), 50); }}
+                    style={{ background: 'linear-gradient(135deg,rgba(29,78,216,0.18),rgba(30,64,175,0.1))', border: `1.5px solid ${adminUser === 'admin' ? '#3b82f6' : 'rgba(29,78,216,0.35)'}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: adminUser === 'admin' ? '0 0 0 2px rgba(59,130,246,0.3)' : 'none' }}>
+                    <div style={{ fontSize: 20, marginBottom: 4 }}>🛡️</div>
+                    <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: '0.72rem', lineHeight: 1.2 }}>Admin Geral</div>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', marginTop: 2 }}>Todos os núcleos</div>
                   </div>
-                  <div>
-                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Senha</div>
-                    <div style={{ position: 'relative' }}>
-                      <input type={adminShowPass ? 'text' : 'password'} value={adminPass} onChange={e => { setAdminPass(e.target.value); setAdminErro(''); }}
+                  {/* Edson Alves */}
+                  <a href="/nucleo/edson-alves" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.15),rgba(185,28,28,0.08))', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
+                      <div style={{ color: '#fca5a5', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Edson Alves</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Magé – RJ</div>
+                    </div>
+                  </a>
+                  {/* Ipiranga */}
+                  <a href="/nucleo/ipiranga" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(234,88,12,0.15),rgba(194,65,12,0.08))', border: '1.5px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
+                      <div style={{ color: '#fdba74', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Ipiranga</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Magé – RJ</div>
+                    </div>
+                  </a>
+                  {/* Saracuruna */}
+                  <a href="/nucleo/saracuruna" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(22,163,74,0.15),rgba(21,128,61,0.08))', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
+                      <div style={{ color: '#86efac', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Saracuruna</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                    </div>
+                  </a>
+                  {/* Vila Urussaí */}
+                  <a href="/nucleo/vila-urussai" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(147,51,234,0.15),rgba(126,34,206,0.08))', border: '1.5px solid rgba(147,51,234,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
+                      <div style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Vila Urussaí</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                    </div>
+                  </a>
+                  {/* Jayme Fichman */}
+                  <a href="/nucleo/jayme-fichman" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(8,145,178,0.15),rgba(6,118,145,0.08))', border: '1.5px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
+                      <div style={{ color: '#67e8f9', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Jayme Fichman</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                    </div>
+                  </a>
+                </div>
+
+                {/* Separador Admin Geral */}
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
+                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Login Admin Geral</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Login / CPF</div>
+                      <input autoFocus value={adminUser} onChange={e => { setAdminUser(e.target.value); setAdminErro(''); }}
                         onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-                        placeholder="••••••••" disabled={adminLoading}
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 40px 10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
-                      <button type="button" onClick={() => setAdminShowPass(v => !v)}
-                        style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}>
-                        {adminShowPass ? '🙈' : '👁'}
-                      </button>
+                        placeholder="admin  ou  CPF (responsável de núcleo)" disabled={adminLoading}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
+                    </div>
+                    <div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Senha</div>
+                      <div style={{ position: 'relative' }}>
+                        <input id="adminPassInput" type={adminShowPass ? 'text' : 'password'} value={adminPass} onChange={e => { setAdminPass(e.target.value); setAdminErro(''); }}
+                          onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
+                          placeholder="••••••••" disabled={adminLoading}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '10px 40px 10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
+                        <button type="button" onClick={() => setAdminShowPass(v => !v)}
+                          style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}>
+                          {adminShowPass ? '🙈' : '👁'}
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-                {adminErro && <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '8px 12px', color: '#f87171', fontSize: '0.78rem', fontWeight: 600 }}>⚠ {adminErro}</div>}
-                <div style={{ display: 'flex', gap: 10 }}>
-                  <button onClick={() => { setAdminModalOpen(false); setAdminLoading(false); setAdminUser(''); setAdminPass(''); setAdminErro(''); }}
-                    style={{ flex: 1, padding: '10px', borderRadius: 9, background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', color: '#aaa', cursor: 'pointer', fontSize: '0.85rem' }}>
-                    Cancelar
-                  </button>
-                  <button onClick={handleAdminAccess} disabled={adminLoading}
-                    style={{ flex: 2, padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: adminLoading ? 'not-allowed' : 'pointer', fontSize: '0.9rem', fontWeight: 700, opacity: adminLoading ? 0.7 : 1 }}>
-                    {adminLoading ? '⏳ Verificando...' : '🔓 Entrar'}
-                  </button>
-                </div>
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
-                  <button onClick={() => { setAdminScreen('change'); setAdminChgMsg(''); setAdminChgCurrent(''); setAdminChgNew(''); setAdminChgConfirm(''); }}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
-                    🔑 Alterar Minha Senha
-                  </button>
-                  <button onClick={() => { setAdminScreen('recover'); setRecMsg(''); setRecAdminUser(''); setRecAdminPass(''); setRecTargetUser(''); setRecNewPass(''); }}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
-                    🔄 Redefinir Senha (Admin)
-                  </button>
+                  {adminErro && <div style={{ marginTop: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '8px 12px', color: '#f87171', fontSize: '0.78rem', fontWeight: 600 }}>⚠ {adminErro}</div>}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
+                    <button onClick={() => { setAdminModalOpen(false); setAdminLoading(false); setAdminUser(''); setAdminPass(''); setAdminErro(''); }}
+                      style={{ flex: 1, padding: '10px', borderRadius: 9, background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', color: '#aaa', cursor: 'pointer', fontSize: '0.85rem' }}>
+                      Cancelar
+                    </button>
+                    <button onClick={handleAdminAccess} disabled={adminLoading}
+                      style={{ flex: 2, padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: adminLoading ? 'not-allowed' : 'pointer', fontSize: '0.9rem', fontWeight: 700, opacity: adminLoading ? 0.7 : 1 }}>
+                      {adminLoading ? '⏳ Verificando...' : '🔓 Entrar como Admin Geral'}
+                    </button>
+                  </div>
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, marginTop: 4, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                    <button onClick={() => { setAdminScreen('change'); setAdminChgMsg(''); setAdminChgCurrent(''); setAdminChgNew(''); setAdminChgConfirm(''); }}
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                      🔑 Alterar Minha Senha
+                    </button>
+                    <button onClick={() => { setAdminScreen('recover'); setRecMsg(''); setRecAdminUser(''); setRecAdminPass(''); setRecTargetUser(''); setRecNewPass(''); }}
+                      style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                      🔄 Redefinir Senha (Admin)
+                    </button>
+                  </div>
                 </div>
               </>
             )}

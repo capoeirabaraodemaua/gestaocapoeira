@@ -8069,7 +8069,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
                     <div>
                       <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Núcleo</div>
-                      <select value={respNewNucleo} onChange={e => { setRespNewNucleo(e.target.value); setRespCreateMsg(''); }}
+                      <select value={respNewNucleo} onChange={e => {
+                        const nk = e.target.value;
+                        setRespNewNucleo(nk); setRespCreateMsg('');
+                        if (nk && !respNewPass) {
+                          const seed: Record<string, string> = {
+                            'edson-alves': 'Ea', 'ipiranga': 'Ip', 'saracuruna': 'Sr', 'vila-urussai': 'Vu', 'jayme-fichman': 'Jf',
+                          };
+                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                          const rand = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                          setRespNewPass((seed[nk] || 'Ac') + rand); setRespShowPass(true);
+                        }
+                      }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
                         <option value="">Selecione o núcleo</option>
                         <option value="edson-alves">Poliesportivo Edson Alves</option>
@@ -8093,20 +8104,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div>
                       <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Inicial</div>
                       <div style={{ display: 'flex', gap: 6 }}>
-                        <div style={{ position: 'relative', flex: 1 }}>
-                          <input type={respShowPass ? 'text' : 'password'} placeholder="mínimo 6 caracteres" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
-                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
-                          <button type="button" onClick={() => setRespShowPass(v => !v)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: 0 }}>{respShowPass ? '🙈' : '👁'}</button>
-                        </div>
+                        <input type="text" placeholder="Selecione o núcleo para gerar" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
+                          style={{ flex: 1, boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: `1.5px solid ${respNewPass ? 'rgba(22,163,74,0.5)' : 'var(--border)'}`, background: respNewPass ? 'rgba(22,163,74,0.07)' : 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none', fontFamily: 'monospace', letterSpacing: '0.04em', fontWeight: 700 }} />
+                        <button type="button" onClick={() => { if (respNewPass) { navigator.clipboard.writeText(respNewPass); setRespCreateMsg('📋 Senha copiada!'); setTimeout(() => setRespCreateMsg(''), 2000); } }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Copiar senha">
+                          📋
+                        </button>
                         <button type="button" onClick={() => {
-                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
-                          const pw = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-                          setRespNewPass(pw); setRespShowPass(true); setRespCreateMsg('');
-                        }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Gerar senha aleatória">
-                          🎲 Gerar
+                          const seed: Record<string, string> = { 'edson-alves': 'Ea', 'ipiranga': 'Ip', 'saracuruna': 'Sr', 'vila-urussai': 'Vu', 'jayme-fichman': 'Jf' };
+                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+                          const rand = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                          setRespNewPass((seed[respNewNucleo] || 'Ac') + rand); setRespCreateMsg('');
+                        }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Nova senha aleatória">
+                          🎲
                         </button>
                       </div>
-                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>O responsável pode alterar depois. Use "Gerar" para criar uma senha segura.</div>
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>Senha gerada automaticamente ao selecionar o núcleo. Anote e repasse ao responsável — ele pode alterar depois.</div>
                     </div>
                   </div>
                   {respCreateMsg && (
