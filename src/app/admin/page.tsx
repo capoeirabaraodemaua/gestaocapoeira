@@ -1462,6 +1462,16 @@ export default function AdminPage() {
                 setActiveTab(tab.key);
                 if (tab.key === 'presencas') fetchPresencas();
                 if ((tab.key === 'relatorio' || tab.key === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
+                if (tab.key === 'relatorio') {
+                  // Load contas + IDs for the accounts sub-report
+                  Promise.all([
+                    fetch('/api/aluno/contas').then(r => r.json()),
+                    fetch('/api/aluno/gerar-id').then(r => r.json()),
+                  ]).then(([contas, idMap]) => {
+                    setAlunoContas(Array.isArray(contas) ? contas : []);
+                    if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
+                  }).catch(() => {});
+                }
                 if (tab.key === 'financeiro') {
                   setFinLoadingAlerts(true);
                   fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
@@ -2980,67 +2990,106 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           )}
 
-          {/* ── Relatório de Contas Criadas ── */}
-          {activeNucleo === 'geral' && (
-            <div style={{ marginTop: 32 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                <div style={{ width: 4, height: 24, background: '#6366f1', borderRadius: 2 }} />
-                <h3 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: 'var(--text-primary)' }}>👤 Contas de Acesso Cadastradas</h3>
-                <button
-                  onClick={() => {
-                    setLoadingContas(true);
-                    Promise.all([fetch('/api/aluno/contas').then(r => r.json()), fetch('/api/aluno/gerar-id').then(r => r.json())])
-                      .then(([contas, idMap]) => { setAlunoContas(Array.isArray(contas) ? contas : []); if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>); setLoadingContas(false); })
-                      .catch(() => setLoadingContas(false));
-                  }}
-                  style={{ marginLeft: 'auto', padding: '5px 12px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
-                >🔄 Atualizar</button>
+          {/* ── Relatório de Contas de Acesso Cadastradas ── */}
+          <div style={{ marginTop: 40, borderTop: '2px solid var(--border)', paddingTop: 28 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+              <div style={{ width: 4, height: 26, background: 'linear-gradient(180deg,#6366f1,#4f46e5)', borderRadius: 2 }} />
+              <div>
+                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: 800, color: 'var(--text-primary)' }}>👤 Contas de Acesso Cadastradas</h3>
+                <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  {nucleoFilter ? `Exibindo contas do núcleo: ${nucleoFilter}` : 'Todos os núcleos'}
+                </p>
               </div>
-              {loadingContas ? (
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '20px 0' }}>Carregando...</div>
-              ) : alunoContas.length === 0 ? (
-                <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '20px 0', textAlign: 'center' }}>Nenhuma conta criada ainda.</div>
-              ) : (
-                <div style={{ overflowX: 'auto' }}>
-                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                    <thead>
-                      <tr style={{ background: 'var(--bg-input)', borderBottom: '2px solid var(--border)' }}>
-                        {['ID ACCBM', 'Nome Completo', 'Login', 'E-mail', 'Núcleo', 'Status', 'Criado em'].map(h => (
-                          <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
-                        ))}
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {alunoContas.map(acc => {
-                        const st = students.find(s => s.id === acc.student_id);
-                        const displayId = acc.display_id || studentDisplayIds[acc.student_id] || '—';
-                        return (
-                          <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                            <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontWeight: 800, color: '#6366f1', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>{displayId}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text-primary)', fontWeight: 600, minWidth: 140 }}>{st?.nome_completo || '—'}</td>
-                            <td style={{ padding: '7px 10px' }}>
-                              <span style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '2px 7px', fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8', fontSize: '0.8rem' }}>{acc.username}</span>
-                            </td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{acc.email || '—'}</td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{st?.nucleo || '—'}</td>
-                            <td style={{ padding: '7px 10px' }}>
-                              <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.7rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
-                                {acc.active ? '✅ Ativa' : '⏳ Pendente'}
-                              </span>
-                            </td>
-                            <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
+              <button
+                onClick={() => {
+                  setLoadingContas(true);
+                  Promise.all([fetch('/api/aluno/contas').then(r => r.json()), fetch('/api/aluno/gerar-id').then(r => r.json())])
+                    .then(([contas, idMap]) => { setAlunoContas(Array.isArray(contas) ? contas : []); if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>); setLoadingContas(false); })
+                    .catch(() => setLoadingContas(false));
+                }}
+                style={{ marginLeft: 'auto', padding: '6px 14px', borderRadius: 8, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                Atualizar
+              </button>
+            </div>
+
+            {loadingContas ? (
+              <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '30px 0', fontSize: '0.85rem' }}>Carregando contas...</div>
+            ) : (() => {
+              // Filter by nucleo
+              const visibleStudentIds = new Set(
+                (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students).map(s => s.id)
+              );
+              const relContas = alunoContas.filter(acc =>
+                activeNucleo === 'geral' ? true : visibleStudentIds.has(acc.student_id)
+              );
+
+              if (relContas.length === 0) return (
+                <div style={{ textAlign: 'center', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '32px 20px' }}>
+                  <div style={{ fontSize: 36, marginBottom: 8 }}>👤</div>
+                  <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    {nucleoFilter ? `Nenhuma conta cadastrada para ${nucleoFilter}.` : 'Nenhuma conta de acesso cadastrada ainda.'}
+                  </div>
                   <div style={{ marginTop: 8, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
-                    Total: <strong>{alunoContas.length}</strong> conta{alunoContas.length !== 1 ? 's' : ''} · {alunoContas.filter(a => a.active).length} ativas · {alunoContas.filter(a => !a.active).length} pendentes
+                    Crie contas na aba 👤 Contas Alunos.
                   </div>
                 </div>
-              )}
-            </div>
-          )}
+              );
+
+              return (
+                <div>
+                  <div style={{ overflowX: 'auto', borderRadius: 12, border: '1px solid var(--border)' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
+                      <thead>
+                        <tr style={{ background: 'var(--bg-input)' }}>
+                          {['ID ACCBM', 'Nome Completo do Aluno', 'E-mail', 'Login', 'Núcleo', 'Status'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '10px 14px', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.76rem', whiteSpace: 'nowrap', borderBottom: '2px solid var(--border)' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {relContas.map((acc, idx) => {
+                          const st = students.find(s => s.id === acc.student_id);
+                          const displayId = acc.display_id || studentDisplayIds[acc.student_id] || '—';
+                          return (
+                            <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)', background: idx % 2 === 0 ? 'transparent' : 'rgba(99,102,241,0.02)' }}>
+                              <td style={{ padding: '10px 14px', fontFamily: 'monospace', fontWeight: 900, color: '#6366f1', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{displayId}</td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-primary)', fontWeight: 700, minWidth: 160 }}>
+                                {st?.nome_completo || <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>—</span>}
+                              </td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>
+                                {acc.email ? (
+                                  <span style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+                                    {acc.email}
+                                  </span>
+                                ) : <span style={{ color: '#d97706', fontSize: '0.74rem' }}>não cadastrado</span>}
+                              </td>
+                              <td style={{ padding: '10px 14px' }}>
+                                <span style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '3px 9px', fontFamily: 'monospace', fontWeight: 800, color: '#1d4ed8', fontSize: '0.8rem' }}>{acc.username}</span>
+                              </td>
+                              <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
+                              <td style={{ padding: '10px 14px' }}>
+                                <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
+                                  {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                                </span>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div style={{ marginTop: 10, fontSize: '0.76rem', color: 'var(--text-secondary)', display: 'flex', gap: 16 }}>
+                    <span>Total: <strong>{relContas.length}</strong> conta{relContas.length !== 1 ? 's' : ''}</span>
+                    <span>✅ Ativas: <strong>{relContas.filter(a => a.active).length}</strong></span>
+                    <span>⏳ Pendentes: <strong>{relContas.filter(a => !a.active).length}</strong></span>
+                  </div>
+                </div>
+              );
+            })()}
+          </div>
         </div>
       )}
 
