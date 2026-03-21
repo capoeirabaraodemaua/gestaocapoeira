@@ -532,12 +532,13 @@ export default function AdminPage() {
   const [justRespostaMap, setJustRespostaMap] = useState<Record<string, string>>({});
   const [justMsg, setJustMsg] = useState('');
   // Contas de alunos
-  type AlunoAccount = { student_id: string; username: string; email?: string; active: boolean; phone?: string; created_at: string; last_login?: string; };
+  type AlunoAccount = { student_id: string; username: string; email?: string; active: boolean; phone?: string; created_at: string; last_login?: string; display_id?: string; };
   const [alunoContas, setAlunoContas] = useState<AlunoAccount[]>([]);
   const [loadingContas, setLoadingContas] = useState(false);
   const [contasMsg, setContasMsg] = useState('');
-  const [novaContaForm, setNovaContaForm] = useState({ student_id: '', username: '', password: '', phone: '' });
-  const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '' });
+  const [novaContaForm, setNovaContaForm] = useState({ student_id: '', password: '', confirm_password: '', email: '' });
+  const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '', confirm_new_password: '' });
+  const [studentDisplayIds, setStudentDisplayIds] = useState<Record<string, string>>({});
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -834,6 +835,10 @@ export default function AdminPage() {
         }
       } catch { /* extras são opcionais */ }
       setStudents(listWithNum);
+      // Load display IDs (ACCBM-XXXX) for all students
+      fetch('/api/aluno/gerar-id').then(r => r.json()).then(d => {
+        if (d && typeof d === 'object') setStudentDisplayIds(d as Record<string, string>);
+      }).catch(() => {});
       // Carrega registros de termos enviados para alunos menores
       const menoresIds = list.filter(s => s.menor_de_idade).map(s => s.id);
       if (menoresIds.length) {
@@ -1511,7 +1516,14 @@ export default function AdminPage() {
                 }
                 if (tab.key === 'contas') {
                   setLoadingContas(true); setContasMsg('');
-                  fetch('/api/aluno/contas').then(r => r.json()).then(d => { setAlunoContas(Array.isArray(d) ? d : []); setLoadingContas(false); }).catch(() => setLoadingContas(false));
+                  Promise.all([
+                    fetch('/api/aluno/contas').then(r => r.json()),
+                    fetch('/api/aluno/gerar-id').then(r => r.json()),
+                  ]).then(([contas, idMap]) => {
+                    setAlunoContas(Array.isArray(contas) ? contas : []);
+                    if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
+                    setLoadingContas(false);
+                  }).catch(() => setLoadingContas(false));
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
@@ -1725,6 +1737,7 @@ export default function AdminPage() {
                 <tr>
                   <th>Foto</th>
                   <th>Nome</th>
+                  <th>ID ACCBM</th>
                   <th>Núcleo</th>
                   <th>Graduação</th>
                   <th>Tipo</th>
@@ -1747,6 +1760,9 @@ export default function AdminPage() {
                         )}
                       </td>
                       <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
+                      <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#6366f1', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                        {studentDisplayIds[student.id] || <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>—</span>}
+                      </td>
                       <td>
                         <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
                           {student.nucleo || '—'}
@@ -5109,6 +5125,15 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
             </div>
 
+            {/* ACCBM ID */}
+            {(studentDisplayIds[selected.id]) && (
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', borderRadius: 8, padding: '6px 16px', marginBottom: 16 }}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>ID ACCBM</span>
+                <span style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 900, letterSpacing: '0.06em' }}>{studentDisplayIds[selected.id]}</span>
+              </div>
+            )}
+
             <div className="detail-grid">
               <div className="detail-item">
                 <span className="detail-label">CPF</span>
@@ -5397,6 +5422,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               studentName={selected.nome_completo.split(' ')[0]}
               students={[{ id: selected.id, nome_completo: selected.nome_completo, telefone: selected.telefone, nucleo: selected.nucleo, email: (selected as any).email }]}
             />
+
+            {/* Generate ID if missing */}
+            {!studentDisplayIds[selected.id] && (
+              <button
+                onClick={async () => {
+                  const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'assign', student_id: selected.id }) });
+                  const d = await res.json();
+                  if (d.display_id) setStudentDisplayIds(prev => ({ ...prev, [selected.id]: d.display_id }));
+                }}
+                style={{ width: '100%', marginTop: 10, padding: '9px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)', color: '#818cf8', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+              >
+                🔢 Gerar ID ACCBM para este aluno
+              </button>
+            )}
 
             <div style={{ display: 'flex', gap: 10, marginTop: 12 }}>
               <button
@@ -7330,7 +7369,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-assign' }) });
                 const d = await res.json();
                 setContasMsg(`✅ ${d.assigned} IDs gerados! Total: ${d.total} alunos.`);
-                fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
+                // Reload id map
+                fetch('/api/aluno/gerar-id').then(r => r.json()).then(d2 => { if (d2 && typeof d2 === 'object') setStudentDisplayIds(d2 as Record<string, string>); }).catch(() => {});
+                fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
               }}
               style={{ padding: '8px 16px', borderRadius: 8, background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
             >
@@ -7340,85 +7381,144 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {contasMsg && <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>}
 
-          {/* Create account with auto ID */}
+          {/* Create account */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>➕ Criar conta para aluno</h3>
-            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Login gerado automaticamente a partir do nome + ID sequencial ACCBM.</p>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 12 }}>
-              {[
-                { label: 'ID do Aluno (UUID)', key: 'student_id', placeholder: 'Cole o UUID do aluno', type: 'text' },
-                { label: 'Senha inicial', key: 'password', placeholder: 'Mín. 6 caracteres', type: 'password' },
-                { label: 'WhatsApp', key: 'phone', placeholder: '(21) 99999-9999', type: 'tel' },
-              ].map(({ label, key, placeholder, type }) => (
-                <div key={key}>
-                  <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>{label}</label>
-                  <input
-                    type={type}
-                    value={(novaContaForm as Record<string, string>)[key] || ''}
-                    onChange={e => setNovaContaForm(prev => ({ ...prev, [key]: e.target.value }))}
-                    placeholder={placeholder}
-                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
-                  />
-                </div>
-              ))}
-            </div>
-            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-              <button
-                onClick={async () => {
-                  setContasMsg('');
-                  if (!novaContaForm.student_id || !novaContaForm.password) { setContasMsg('❌ Preencha ID do aluno e senha.'); return; }
-                  const nucleo_filter = activeNucleo !== 'geral' ? nucleoFilter : undefined;
-                  const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create-auto', student_id: novaContaForm.student_id, password: novaContaForm.password, phone: novaContaForm.phone, nucleo_filter }) });
-                  const d = await res.json();
-                  if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
-                  setContasMsg(`✅ Conta criada! Login: ${d.username} | ID: ${d.display_id}`);
-                  setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
-                  fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
-                }}
-                style={{ padding: '8px 20px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
-              >
-                ➕ Criar com ID Automático
-              </button>
-              <button
-                onClick={async () => {
-                  setContasMsg('');
-                  if (!novaContaForm.student_id || !novaContaForm.password) { setContasMsg('❌ Preencha ID e senha.'); return; }
-                  const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create', student_id: novaContaForm.student_id, username: novaContaForm.username || novaContaForm.student_id.slice(0, 8), password: novaContaForm.password, phone: novaContaForm.phone }) });
-                  const d = await res.json();
-                  if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
-                  setContasMsg('✅ Conta criada com sucesso!');
-                  setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
-                  fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
-                }}
-                style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
-              >
-                Criar com usuário manual
-              </button>
-            </div>
-          </div>
-
-          {/* Reset password */}
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 14px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar senha</h3>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
-              <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>ID do Aluno (UUID)</label>
-                <input type="text" value={resetPassForm.student_id} onChange={e => setResetPassForm(prev => ({ ...prev, student_id: e.target.value }))} placeholder="UUID do aluno" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Login gerado automaticamente: nome + ID sequencial ACCBM. Senha informada aqui é a senha inicial do aluno.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 14 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nome Completo do Aluno *</label>
+                <select
+                  value={novaContaForm.student_id}
+                  onChange={e => {
+                    const sid = e.target.value;
+                    const st = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students).find(s => s.id === sid);
+                    setNovaContaForm(prev => ({ ...prev, student_id: sid, email: (st as any)?.email || '' }));
+                  }}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                >
+                  <option value="">— Selecione o aluno —</option>
+                  {(nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
+                    .filter(s => !alunoContas.find(a => a.student_id === s.id))
+                    .sort((a, b) => a.nome_completo.localeCompare(b.nome_completo))
+                    .map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.nome_completo}{studentDisplayIds[s.id] ? ` — ${studentDisplayIds[s.id]}` : ''}
+                      </option>
+                    ))}
+                </select>
+                {novaContaForm.student_id && (() => {
+                  const existingAcc = alunoContas.find(a => a.student_id === novaContaForm.student_id);
+                  if (existingAcc) return <div style={{ marginTop: 4, fontSize: '0.74rem', color: '#b45309' }}>⚠ Este aluno já possui conta: <strong>{existingAcc.username}</strong></div>;
+                  return null;
+                })()}
               </div>
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nova Senha</label>
-                <input type="password" value={resetPassForm.new_password} onChange={e => setResetPassForm(prev => ({ ...prev, new_password: e.target.value }))} placeholder="Nova senha" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Email (para recuperar senha)</label>
+                <input
+                  type="email"
+                  value={novaContaForm.email}
+                  onChange={e => setNovaContaForm(prev => ({ ...prev, email: e.target.value }))}
+                  placeholder="email@exemplo.com"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Senha inicial *</label>
+                <input
+                  type="password"
+                  value={novaContaForm.password}
+                  onChange={e => setNovaContaForm(prev => ({ ...prev, password: e.target.value }))}
+                  placeholder="Mín. 6 caracteres"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Confirmar senha *</label>
+                <input
+                  type="password"
+                  value={novaContaForm.confirm_password}
+                  onChange={e => setNovaContaForm(prev => ({ ...prev, confirm_password: e.target.value }))}
+                  placeholder="Repita a senha"
+                  style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box', borderColor: novaContaForm.confirm_password && novaContaForm.confirm_password !== novaContaForm.password ? '#dc2626' : '' }}
+                />
+                {novaContaForm.confirm_password && novaContaForm.confirm_password !== novaContaForm.password && (
+                  <div style={{ fontSize: '0.72rem', color: '#dc2626', marginTop: 2 }}>As senhas não coincidem</div>
+                )}
               </div>
             </div>
             <button
               onClick={async () => {
                 setContasMsg('');
-                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-reset-password', ...resetPassForm }) });
+                if (!novaContaForm.student_id) { setContasMsg('❌ Selecione um aluno.'); return; }
+                if (!novaContaForm.password || novaContaForm.password.length < 6) { setContasMsg('❌ Senha deve ter pelo menos 6 caracteres.'); return; }
+                if (novaContaForm.password !== novaContaForm.confirm_password) { setContasMsg('❌ As senhas não coincidem.'); return; }
+                const nucleo_filter = activeNucleo !== 'geral' ? nucleoFilter : undefined;
+                const st = students.find(s => s.id === novaContaForm.student_id);
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create-auto', student_id: novaContaForm.student_id, password: novaContaForm.password, phone: (st as any)?.telefone || '', email: novaContaForm.email, nucleo_filter }) });
                 const d = await res.json();
-                setContasMsg(res.ok ? '✅ Senha resetada!' : `❌ ${d.error}`);
+                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                setContasMsg(`✅ Conta criada! Login: ${d.username} | ID: ${d.display_id || studentDisplayIds[novaContaForm.student_id] || '—'}`);
+                setNovaContaForm({ student_id: '', password: '', confirm_password: '', email: '' });
+                fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
               }}
-              style={{ padding: '8px 20px', borderRadius: 8, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
-            >🔑 Resetar Senha</button>
+              style={{ padding: '9px 24px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+            >
+              ➕ Criar Conta de Acesso
+            </button>
+          </div>
+
+          {/* Reset password */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar / Alterar senha de aluno</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Use para redefinir a senha de acesso de um aluno já cadastrado.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Aluno</label>
+                <select
+                  value={resetPassForm.student_id}
+                  onChange={e => setResetPassForm(prev => ({ ...prev, student_id: e.target.value }))}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                >
+                  <option value="">— Selecione o aluno —</option>
+                  {alunoContas
+                    .filter(acc => {
+                      if (activeNucleo === 'geral') return true;
+                      const st = students.find(s => s.id === acc.student_id);
+                      return st?.nucleo === nucleoFilter;
+                    })
+                    .map(acc => {
+                      const st = students.find(s => s.id === acc.student_id);
+                      return (
+                        <option key={acc.student_id} value={acc.student_id}>
+                          {st?.nome_completo || acc.student_id.slice(0, 8)} — {acc.username}{acc.display_id ? ` (${acc.display_id})` : ''}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nova senha *</label>
+                <input type="password" value={resetPassForm.new_password} onChange={e => setResetPassForm(prev => ({ ...prev, new_password: e.target.value }))} placeholder="Mín. 6 caracteres" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Confirmar nova senha *</label>
+                <input type="password" value={resetPassForm.confirm_new_password} onChange={e => setResetPassForm(prev => ({ ...prev, confirm_new_password: e.target.value }))} placeholder="Repita a senha" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setContasMsg('');
+                if (!resetPassForm.student_id) { setContasMsg('❌ Selecione um aluno.'); return; }
+                if (!resetPassForm.new_password || resetPassForm.new_password.length < 6) { setContasMsg('❌ Senha deve ter mínimo 6 caracteres.'); return; }
+                if (resetPassForm.new_password !== resetPassForm.confirm_new_password) { setContasMsg('❌ As senhas não coincidem.'); return; }
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-reset-password', student_id: resetPassForm.student_id, new_password: resetPassForm.new_password }) });
+                const d = await res.json();
+                setContasMsg(res.ok ? '✅ Senha redefinida com sucesso!' : `❌ ${d.error}`);
+                if (res.ok) setResetPassForm({ student_id: '', new_password: '', confirm_new_password: '' });
+              }}
+              style={{ padding: '9px 24px', borderRadius: 8, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+            >🔑 Redefinir Senha</button>
           </div>
 
           {/* Accounts report — filtered by nucleo for responsáveis */}
@@ -7433,7 +7533,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   {activeNucleo === 'geral' ? 'Todos os núcleos visíveis' : `Exibindo apenas ${nucleoFilter}`}
                 </p>
               </div>
-              <button onClick={() => { setLoadingContas(true); fetch('/api/aluno/contas').then(r => r.json()).then(d => { setAlunoContas(Array.isArray(d) ? d : []); setLoadingContas(false); }).catch(() => setLoadingContas(false)); }} style={{ padding: '6px 14px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Atualizar</button>
+              <button onClick={() => {
+                setLoadingContas(true);
+                Promise.all([
+                  fetch('/api/aluno/contas').then(r => r.json()),
+                  fetch('/api/aluno/gerar-id').then(r => r.json()),
+                ]).then(([contas, idMap]) => {
+                  setAlunoContas(Array.isArray(contas) ? contas : []);
+                  if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
+                  setLoadingContas(false);
+                }).catch(() => setLoadingContas(false));
+              }} style={{ padding: '6px 14px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Atualizar</button>
             </div>
 
             {loadingContas ? <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20 }}>Carregando...</div>
@@ -7443,53 +7553,79 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   ? students.filter(s => s.nucleo === nucleoFilter)
                   : students;
                 const visibleIds = new Set(visibleStudents.map(s => s.id));
-                const filtered = activeNucleo === 'geral'
+                const filteredContas = activeNucleo === 'geral'
                   ? alunoContas
                   : alunoContas.filter(acc => visibleIds.has(acc.student_id));
 
-                if (filtered.length === 0) return (
-                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20, fontSize: '0.85rem' }}>
-                    {nucleoFilter ? `Nenhuma conta cadastrada para ${nucleoFilter}.` : 'Nenhuma conta cadastrada.'}
-                  </div>
-                );
+                // Students without accounts
+                const withAccounts = new Set(filteredContas.map(a => a.student_id));
+                const withoutAccount = visibleStudents.filter(s => !withAccounts.has(s.id));
 
                 return (
-                  <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                      <thead>
-                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                          {['ID ACCBM', 'Nome do Aluno', 'Usuário', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último login'].map(h => (
-                            <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                  <>
+                    {withoutAccount.length > 0 && (
+                      <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
+                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
+                          ⚠ {withoutAccount.length} aluno{withoutAccount.length !== 1 ? 's' : ''} sem conta de acesso
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {withoutAccount.slice(0, 10).map(s => (
+                            <span key={s.id} style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 8px', fontSize: '0.76rem', color: '#78350f' }}>
+                              {s.nome_completo.split(' ')[0]} {s.nome_completo.split(' ').slice(-1)[0]}{studentDisplayIds[s.id] ? ` (${studentDisplayIds[s.id]})` : ''}
+                            </span>
                           ))}
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filtered.map(acc => {
-                          const st = students.find(s => s.id === acc.student_id);
-                          const displayId = (acc as any).display_id || '—';
-                          return (
-                            <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                              <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 700, color: '#6366f1', fontSize: '0.8rem' }}>{displayId}</td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nome_completo || acc.student_id.slice(0, 8) + '…'}</td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-primary)' }}>{acc.username}</td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.phone || '—'}</td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
-                              <td style={{ padding: '8px 10px' }}>
-                                <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
-                                  {acc.active ? '✅ Ativa' : '⏳ Pendente'}
-                                </span>
-                              </td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
-                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                          {withoutAccount.length > 10 && <span style={{ fontSize: '0.76rem', color: '#92400e' }}>+{withoutAccount.length - 10} mais...</span>}
+                        </div>
+                      </div>
+                    )}
+
+                    {filteredContas.length === 0 ? (
+                      <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20, fontSize: '0.85rem' }}>
+                        {nucleoFilter ? `Nenhuma conta cadastrada para ${nucleoFilter}.` : 'Nenhuma conta cadastrada.'}
+                      </div>
+                    ) : (
+                      <div style={{ overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                          <thead>
+                            <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg-input)' }}>
+                              {['ID ACCBM', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso'].map(h => (
+                                <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
+                              ))}
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
-                    <div style={{ marginTop: 10, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                      Total: {filtered.length} conta{filtered.length !== 1 ? 's' : ''} {nucleoFilter ? `em ${nucleoFilter}` : 'no sistema'}
-                    </div>
-                  </div>
+                          </thead>
+                          <tbody>
+                            {filteredContas.map(acc => {
+                              const st = students.find(s => s.id === acc.student_id);
+                              const displayId = acc.display_id || studentDisplayIds[acc.student_id] || '—';
+                              return (
+                                <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 800, color: '#6366f1', fontSize: '0.82rem', whiteSpace: 'nowrap' }}>{displayId}</td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 600, minWidth: 160 }}>{st?.nome_completo || '—'}</td>
+                                  <td style={{ padding: '8px 10px' }}>
+                                    <span style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '2px 8px', fontFamily: 'monospace', fontWeight: 700, color: '#1d4ed8', fontSize: '0.82rem' }}>{acc.username}</span>
+                                  </td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{acc.email || '—'}</td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.phone || '—'}</td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
+                                  <td style={{ padding: '8px 10px' }}>
+                                    <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
+                                      {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                                    </span>
+                                  </td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : <span style={{ color: '#d97706', fontSize: '0.74rem' }}>Nunca acessou</span>}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        <div style={{ marginTop: 10, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          Total: <strong>{filteredContas.length}</strong> conta{filteredContas.length !== 1 ? 's' : ''} {nucleoFilter ? `em ${nucleoFilter}` : 'no sistema'}
+                          {' · '}{filteredContas.filter(a => a.active).length} ativas{' · '}{filteredContas.filter(a => !a.active).length} pendentes
+                        </div>
+                      </div>
+                    )}
+                  </>
                 );
               })()
             }

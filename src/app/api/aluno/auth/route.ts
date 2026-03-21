@@ -242,7 +242,7 @@ export async function POST(req: NextRequest) {
 
       if (!account) {
         // Don't reveal if account exists
-        return NextResponse.json({ success: true, message: 'Se o usuário existir, você receberá um código no WhatsApp.' });
+        return NextResponse.json({ success: true, message: 'Se o usuário existir, você receberá um código.' });
       }
 
       const otp = generateOTP();
@@ -253,16 +253,26 @@ export async function POST(req: NextRequest) {
       };
       await saveAuthMap(authMap);
 
+      const { data: student } = await supabaseAdmin
+        .from('students').select('nome_completo, email').eq('id', account.student_id).maybeSingle();
+      const studentName = student?.nome_completo || 'Aluno';
+
+      // Send via WhatsApp if phone available
       if (account.phone) {
-        const { data: student } = await supabaseAdmin
-          .from('students').select('nome_completo').eq('id', account.student_id).maybeSingle();
-        await sendWhatsAppOTP(account.phone, otp, student?.nome_completo || 'Aluno', true);
+        await sendWhatsAppOTP(account.phone, otp, studentName, true);
+      }
+
+      // Also send via email if available
+      const emailAddr = account.email || student?.email || '';
+      if (emailAddr) {
+        await sendEmailOTP(emailAddr, otp, studentName);
       }
 
       return NextResponse.json({
         success: true,
         student_id: account.student_id,
         phone: account.phone ? `****${account.phone.slice(-4)}` : null,
+        email: emailAddr ? emailAddr.replace(/(.{2}).+(@.+)/, '$1****$2') : null,
       });
     }
 
@@ -329,7 +339,7 @@ export async function POST(req: NextRequest) {
 
     // Admin: create account with auto-generated username from student name + sequential ID
     if (action === 'admin-create-auto') {
-      const { student_id, password, phone, nucleo_filter } = body;
+      const { student_id, password, phone, nucleo_filter, email: emailOverride } = body;
       const authMap = await loadAuthMap();
 
       if (authMap[student_id]) {
@@ -377,10 +387,11 @@ export async function POST(req: NextRequest) {
 
       const salt = generateSalt();
       const phone_to_use = phone || student.telefone || '';
+      const email_to_use = emailOverride || student.email || '';
       authMap[student_id] = {
         student_id,
         username,
-        email: student.email || '',
+        email: email_to_use,
         password_hash: hashPassword(password, salt),
         salt,
         active: true,
@@ -388,7 +399,7 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(),
       };
       await saveAuthMap(authMap);
-      return NextResponse.json({ success: true, username, display_id: displayId, phone: phone_to_use });
+      return NextResponse.json({ success: true, username, display_id: displayId, phone: phone_to_use, email: email_to_use });
     }
 
     // Admin: reset password
@@ -413,6 +424,23 @@ export async function POST(req: NextRequest) {
     console.error('aluno/auth error:', msg);
     return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
   }
+}
+
+async function sendEmailOTP(email: string, otp: string, name: string): Promise<void> {
+  try {
+    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/send-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        to: email,
+        subject: 'ACCBM — Código de recuperação de senha',
+        text: `Olá ${name},\n\nSeu código de recuperação de senha é: ${otp}\n\nVálido por 15 minutos.\n\nSe não foi você, ignore este email.\n\nAssociação Cultural de Capoeira Barão de Mauá`,
+        nome: name,
+        tipo: 'recuperacao',
+        otp,
+      }),
+    });
+  } catch { /* silent fail */ }
 }
 
 async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset = false): Promise<void> {

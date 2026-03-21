@@ -445,18 +445,18 @@ export default function AlunoPage() {
           {forgotMsg && <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{forgotMsg}</div>}
           {resetMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{resetMsg}</div>}
           {!showResetPassword ? (
-            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }) }); const data = await res.json(); if (data.student_id) { setForgotStudentId(data.student_id); setForgotMsg(`Código enviado para ${data.phone || 'seu WhatsApp'}.`); setShowResetPassword(true); } else { setForgotMsg(data.message || 'Se existir, você receberá um código.'); } }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }) }); const data = await res.json(); if (data.student_id) { setForgotStudentId(data.student_id); const dest = data.email ? `e-mail ${data.email}` : data.phone ? `WhatsApp ${data.phone}` : 'seu contato cadastrado'; setForgotMsg(`Código enviado para ${dest}.`); setShowResetPassword(true); } else { setForgotMsg(data.message || 'Se existir, você receberá um código.'); } }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
                 <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Usuário ou E-mail</label>
                 <input type="text" value={forgotInput} onChange={e => setForgotInput(e.target.value)}
                   style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} required />
               </div>
-              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>Enviar Código WhatsApp</button>
+              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>Enviar Código de Recuperação</button>
             </form>
           ) : (
             <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', student_id: forgotStudentId, otp: resetOtp, new_password: resetPassword }) }); const data = await res.json(); if (!res.ok) { setResetMsg(data.error || 'Erro.'); return; } setResetMsg('Senha redefinida! Faça login.'); setShowForgot(false); setShowResetPassword(false); }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Código do WhatsApp</label>
+                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Código de recuperação</label>
                 <input type="text" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
                   style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 10, padding: '12px', fontSize: '1.8rem', textAlign: 'center', letterSpacing: '0.35em', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
                   placeholder="000000" maxLength={6} required />
