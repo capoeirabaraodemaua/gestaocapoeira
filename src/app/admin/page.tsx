@@ -445,43 +445,37 @@ export default function AdminPage() {
       fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginUser.trim(), nucleo: match.nucleo }) }).catch(() => {});
       return;
     }
-    // Try CPF-based login — aceita CPF no campo usuário OU no campo senha
-    const cpfFromUser = loginUser.replace(/\D/g, '');
-    const cpfFromPass = loginPass.replace(/\D/g, '');
-    const cpfDigits = cpfFromUser.length >= 11 ? cpfFromUser : cpfFromPass.length >= 11 ? cpfFromPass : '';
-    if (cpfDigits.length >= 11) {
-      // Super admin CPF — full access
-      if (cpfDigits === SUPER_ADMIN_CPF) {
-        sessionStorage.setItem('admin_auth', 'geral');
+    // Try panel-auth API (username ou CPF + senha)
+    try {
+      const loginKey = loginUser.trim();
+      const res = await fetch('/api/admin/panel-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'login', username: loginKey, password: loginPass }),
+      });
+      const data = await res.json();
+      if (res.ok && data.ok) {
+        const nk = data.nucleo as NucleoKey;
+        sessionStorage.setItem('admin_auth', nk);
+        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify([nk]));
         setAuthed(true);
-        setActiveNucleo('geral');
+        setActiveNucleo(nk);
         setAdminLoginState(0, 0);
         setLoginError('');
-        fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: 'admin_geral', nucleo: 'geral' }) }).catch(() => {});
+        fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginKey.slice(-4), nucleo: nk }) }).catch(() => {});
         return;
       }
-      // Check responsáveis config (cpf or cpf2) — busca TODOS os núcleos do responsável
-      try {
-        const res = await fetch('/api/admin/responsaveis');
-        const cfg = await res.json();
-        const allMatches: any[] = (cfg.responsaveis || []).filter((r: any) =>
-          (r.cpf || '').replace(/\D/g,'') === cpfDigits ||
-          (r.cpf2 || '').replace(/\D/g,'') === cpfDigits
-        );
-        if (allMatches.length > 0) {
-          const nucleosList = allMatches.map((r: any) => r.nucleo_key as NucleoKey);
-          const firstNucleo = nucleosList[0];
-          sessionStorage.setItem('admin_auth', firstNucleo);
-          sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
-          setAuthed(true);
-          setActiveNucleo(firstNucleo);
-          setAvailableNucleos(nucleosList);
-          setAdminLoginState(0, 0);
-          setLoginError('');
-          fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login_cpf', user: cpfDigits.slice(-4), nucleo: nucleosList.join(',') }) }).catch(() => {});
-          return;
-        }
-      } catch {}
+    } catch {}
+    // Legacy CPF-based via responsáveis (backward compat)
+    const cpfFromUser = loginUser.replace(/\D/g, '');
+    const cpfDigits = cpfFromUser.length >= 11 ? cpfFromUser : '';
+    if (cpfDigits.length >= 11 && cpfDigits === SUPER_ADMIN_CPF) {
+      sessionStorage.setItem('admin_auth', 'geral');
+      setAuthed(true);
+      setActiveNucleo('geral');
+      setAdminLoginState(0, 0);
+      setLoginError('');
+      return;
     }
     // Increment failed login attempt
     const als2 = getAdminLoginState();
