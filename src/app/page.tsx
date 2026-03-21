@@ -24,6 +24,12 @@ export default function Home() {
   const [mounted, setMounted] = useState(false);
   const [success, setSuccess] = useState(false);
   const [successData, setSuccessData] = useState<SuccessData | null>(null);
+  const [successDisplayId, setSuccessDisplayId] = useState<string | null>(null);
+  const [criarContaPassword, setCriarContaPassword] = useState('');
+  const [criarContaPhone, setCriarContaPhone] = useState('');
+  const [criarContaLoading, setCriarContaLoading] = useState(false);
+  const [criarContaMsg, setCriarContaMsg] = useState('');
+  const [criarContaUsername, setCriarContaUsername] = useState('');
   const carteirinhaRef = useRef<HTMLDivElement>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const [cardCpf, setCardCpf] = useState('');
@@ -650,6 +656,21 @@ export default function Home() {
         student_id: student_id ?? null,
         data_nascimento: form.data_nascimento || null,
       });
+      // Auto-assign sequential ACCBM display ID
+      setCriarContaPassword('');
+      setCriarContaPhone(form.telefone || '');
+      setCriarContaMsg('');
+      setCriarContaUsername('');
+      setSuccessDisplayId(null);
+      if (student_id) {
+        fetch('/api/aluno/gerar-id', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ action: 'assign', student_id }),
+        }).then(r => r.json()).then(d => {
+          if (d.display_id) setSuccessDisplayId(d.display_id);
+        }).catch(() => {});
+      }
     } catch (err: unknown) {
       console.error('Erro inscrição:', err);
       const msg = err instanceof Error ? err.message : String(err);
@@ -1705,9 +1726,105 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
               Concluir
             </button>
+
+            {/* Criar Conta de Acesso */}
+            {successData?.student_id && (
+              <div style={{ marginTop: 8, background: '#f0f9ff', border: '1px solid #bae6fd', borderRadius: 12, padding: '16px 16px 12px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#1d4ed8', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
+                  </div>
+                  <div>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e3a5f' }}>Criar Conta de Acesso</div>
+                    <div style={{ fontSize: '0.74rem', color: '#0369a1' }}>Aluno poderá acessar a Área do Aluno</div>
+                  </div>
+                </div>
+
+                {successDisplayId && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: '#dbeafe', borderRadius: 8, padding: '6px 10px', marginBottom: 10 }}>
+                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#1d4ed8" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
+                    <span style={{ fontSize: '0.76rem', color: '#1e40af', fontWeight: 600 }}>ID: </span>
+                    <span style={{ fontSize: '0.88rem', fontWeight: 900, color: '#1d4ed8', letterSpacing: '0.05em' }}>{successDisplayId}</span>
+                  </div>
+                )}
+
+                {criarContaUsername ? (
+                  <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px' }}>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', marginBottom: 4 }}>✅ Conta criada com sucesso!</div>
+                    <div style={{ fontSize: '0.78rem', color: '#15803d' }}>
+                      Login: <strong>{criarContaUsername}</strong><br />
+                      O aluno já pode acessar em <strong>/aluno</strong>
+                    </div>
+                  </div>
+                ) : criarContaMsg && criarContaMsg.startsWith('❌') ? (
+                  <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 10px', marginBottom: 8, fontSize: '0.78rem', color: '#991b1b' }}>{criarContaMsg}</div>
+                ) : null}
+
+                {!criarContaUsername && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>Senha inicial *</label>
+                      <input
+                        type="password"
+                        value={criarContaPassword}
+                        onChange={e => setCriarContaPassword(e.target.value)}
+                        placeholder="Mínimo 6 caracteres"
+                        minLength={6}
+                        style={{ width: '100%', border: '1.5px solid #bfdbfe', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>WhatsApp</label>
+                      <input
+                        type="tel"
+                        value={criarContaPhone}
+                        onChange={e => setCriarContaPhone(e.target.value)}
+                        placeholder="(21) 99999-9999"
+                        style={{ width: '100%', border: '1.5px solid #bfdbfe', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
+                      />
+                    </div>
+                    <button
+                      disabled={criarContaLoading || criarContaPassword.length < 6}
+                      onClick={async () => {
+                        if (!successData?.student_id || criarContaPassword.length < 6) return;
+                        setCriarContaLoading(true);
+                        setCriarContaMsg('');
+                        try {
+                          const res = await fetch('/api/aluno/auth', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                              action: 'admin-create-auto',
+                              student_id: successData.student_id,
+                              password: criarContaPassword,
+                              phone: criarContaPhone || successData.telefone || '',
+                            }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            setCriarContaMsg(`❌ ${data.error || 'Erro ao criar conta.'}`);
+                          } else {
+                            setCriarContaUsername(data.username);
+                            if (data.display_id) setSuccessDisplayId(data.display_id);
+                          }
+                        } catch {
+                          setCriarContaMsg('❌ Erro de conexão.');
+                        } finally {
+                          setCriarContaLoading(false);
+                        }
+                      }}
+                      style={{ background: criarContaLoading || criarContaPassword.length < 6 ? '#9ca3af' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: criarContaLoading || criarContaPassword.length < 6 ? 'not-allowed' : 'pointer' }}
+                    >
+                      {criarContaLoading ? 'Criando...' : '🔐 Criar Conta de Acesso'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
             <button
               className="btn-submit"
-              style={{ marginTop: 0, background: 'linear-gradient(135deg,#16a34a,#15803d)' }}
+              style={{ marginTop: 8, background: 'linear-gradient(135deg,#16a34a,#15803d)' }}
               onClick={() => window.location.reload()}
             >
               Nova Inscrição

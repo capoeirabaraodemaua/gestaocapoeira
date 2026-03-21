@@ -1209,7 +1209,7 @@ export default function AdminPage() {
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0f172a 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 24, fontFamily: 'Inter, sans-serif' }}>
         {/* Logo + title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src="/logo-maua.png" alt="ACCBM" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
+          <img src="/logo-accbm.png" alt="ACCBM" style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10, borderRadius: '50%' }} />
           <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestão de Alunos ACCBM</div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
         </div>
@@ -7322,22 +7322,38 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA CONTAS ALUNOS ===== */}
       {activeTab === 'contas' && (
         <div style={{ paddingTop: 24 }}>
-          <h2 style={{ margin: '0 0 20px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👤 Contas de Alunos</h2>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
+            <h2 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>👤 Contas de Alunos</h2>
+            <button
+              onClick={async () => {
+                setContasMsg('');
+                const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-assign' }) });
+                const d = await res.json();
+                setContasMsg(`✅ ${d.assigned} IDs gerados! Total: ${d.total} alunos.`);
+                fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
+              }}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#7c3aed', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+            >
+              🔢 Gerar IDs p/ Alunos Existentes
+            </button>
+          </div>
+
           {contasMsg && <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>}
 
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>➕ Criar conta para aluno</h3>
+          {/* Create account with auto ID */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>➕ Criar conta para aluno</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Login gerado automaticamente a partir do nome + ID sequencial ACCBM.</p>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 12 }}>
               {[
-                { label: 'ID do Aluno', key: 'student_id', placeholder: 'UUID do aluno' },
-                { label: 'Usuário', key: 'username', placeholder: 'ex: joaosilva' },
-                { label: 'Senha', key: 'password', placeholder: 'Mín. 6 chars', type: 'password' },
-                { label: 'WhatsApp', key: 'phone', placeholder: '(21) 99999-9999' },
+                { label: 'ID do Aluno (UUID)', key: 'student_id', placeholder: 'Cole o UUID do aluno', type: 'text' },
+                { label: 'Senha inicial', key: 'password', placeholder: 'Mín. 6 caracteres', type: 'password' },
+                { label: 'WhatsApp', key: 'phone', placeholder: '(21) 99999-9999', type: 'tel' },
               ].map(({ label, key, placeholder, type }) => (
                 <div key={key}>
                   <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>{label}</label>
                   <input
-                    type={type || 'text'}
+                    type={type}
                     value={(novaContaForm as Record<string, string>)[key] || ''}
                     onChange={e => setNovaContaForm(prev => ({ ...prev, [key]: e.target.value }))}
                     placeholder={placeholder}
@@ -7346,25 +7362,47 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
               ))}
             </div>
-            <button
-              onClick={async () => {
-                setContasMsg('');
-                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create', ...novaContaForm }) });
-                const d = await res.json();
-                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
-                setContasMsg('✅ Conta criada com sucesso!');
-                setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
-                fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
-              }}
-              style={{ padding: '8px 20px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
-            >➕ Criar Conta</button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <button
+                onClick={async () => {
+                  setContasMsg('');
+                  if (!novaContaForm.student_id || !novaContaForm.password) { setContasMsg('❌ Preencha ID do aluno e senha.'); return; }
+                  const nucleo_filter = activeNucleo !== 'geral' ? nucleoFilter : undefined;
+                  const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create-auto', student_id: novaContaForm.student_id, password: novaContaForm.password, phone: novaContaForm.phone, nucleo_filter }) });
+                  const d = await res.json();
+                  if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                  setContasMsg(`✅ Conta criada! Login: ${d.username} | ID: ${d.display_id}`);
+                  setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
+                  fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
+                }}
+                style={{ padding: '8px 20px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+              >
+                ➕ Criar com ID Automático
+              </button>
+              <button
+                onClick={async () => {
+                  setContasMsg('');
+                  if (!novaContaForm.student_id || !novaContaForm.password) { setContasMsg('❌ Preencha ID e senha.'); return; }
+                  const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create', student_id: novaContaForm.student_id, username: novaContaForm.username || novaContaForm.student_id.slice(0, 8), password: novaContaForm.password, phone: novaContaForm.phone }) });
+                  const d = await res.json();
+                  if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                  setContasMsg('✅ Conta criada com sucesso!');
+                  setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
+                  fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
+                }}
+                style={{ padding: '8px 16px', borderRadius: 8, background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}
+              >
+                Criar com usuário manual
+              </button>
+            </div>
           </div>
 
-          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
-            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar senha</h3>
+          {/* Reset password */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 14px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar senha</h3>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
               <div>
-                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>ID do Aluno</label>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>ID do Aluno (UUID)</label>
                 <input type="text" value={resetPassForm.student_id} onChange={e => setResetPassForm(prev => ({ ...prev, student_id: e.target.value }))} placeholder="UUID do aluno" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
               </div>
               <div>
@@ -7383,42 +7421,78 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             >🔑 Resetar Senha</button>
           </div>
 
+          {/* Accounts report — filtered by nucleo for responsáveis */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
-              <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>📋 Contas cadastradas ({alunoContas.length})</h3>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
+              <div>
+                <h3 style={{ margin: '0 0 2px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>
+                  📋 Contas cadastradas
+                  {nucleoFilter && <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500, marginLeft: 8 }}>— {nucleoFilter}</span>}
+                </h3>
+                <p style={{ margin: 0, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
+                  {activeNucleo === 'geral' ? 'Todos os núcleos visíveis' : `Exibindo apenas ${nucleoFilter}`}
+                </p>
+              </div>
               <button onClick={() => { setLoadingContas(true); fetch('/api/aluno/contas').then(r => r.json()).then(d => { setAlunoContas(Array.isArray(d) ? d : []); setLoadingContas(false); }).catch(() => setLoadingContas(false)); }} style={{ padding: '6px 14px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Atualizar</button>
             </div>
+
             {loadingContas ? <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20 }}>Carregando...</div>
-            : alunoContas.length === 0 ? <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20 }}>Nenhuma conta cadastrada.</div>
-            : (
-              <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
-                  <thead>
-                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
-                      {['Usuário', 'WhatsApp', 'Status', 'Criado em', 'Último login', 'ID Aluno'].map(h => (
-                        <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alunoContas.map(acc => (
-                      <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 600 }}>{acc.username}</td>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.phone || '—'}</td>
-                        <td style={{ padding: '8px 10px' }}>
-                          <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
-                            {acc.active ? '✅ Ativa' : '⏳ Pendente'}
-                          </span>
-                        </td>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR') : '—'}</td>
-                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontFamily: 'monospace' }}>{acc.student_id.slice(0, 8)}…</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+            : (() => {
+                // Filter by nucleo for non-geral profiles
+                const visibleStudents = nucleoFilter
+                  ? students.filter(s => s.nucleo === nucleoFilter)
+                  : students;
+                const visibleIds = new Set(visibleStudents.map(s => s.id));
+                const filtered = activeNucleo === 'geral'
+                  ? alunoContas
+                  : alunoContas.filter(acc => visibleIds.has(acc.student_id));
+
+                if (filtered.length === 0) return (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20, fontSize: '0.85rem' }}>
+                    {nucleoFilter ? `Nenhuma conta cadastrada para ${nucleoFilter}.` : 'Nenhuma conta cadastrada.'}
+                  </div>
+                );
+
+                return (
+                  <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                      <thead>
+                        <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                          {['ID ACCBM', 'Nome do Aluno', 'Usuário', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último login'].map(h => (
+                            <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filtered.map(acc => {
+                          const st = students.find(s => s.id === acc.student_id);
+                          const displayId = (acc as any).display_id || '—';
+                          return (
+                            <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                              <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontWeight: 700, color: '#6366f1', fontSize: '0.8rem' }}>{displayId}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nome_completo || acc.student_id.slice(0, 8) + '…'}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-primary)' }}>{acc.username}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.phone || '—'}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
+                              <td style={{ padding: '8px 10px' }}>
+                                <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
+                                  {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                                </span>
+                              </td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+                              <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    <div style={{ marginTop: 10, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                      Total: {filtered.length} conta{filtered.length !== 1 ? 's' : ''} {nucleoFilter ? `em ${nucleoFilter}` : 'no sistema'}
+                    </div>
+                  </div>
+                );
+              })()
+            }
           </div>
         </div>
       )}

@@ -312,10 +312,14 @@ export default function AlunoPage() {
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
           {/* Logo */}
-          <div style={{ textAlign: 'center', marginBottom: 32 }}>
-            <div style={{ fontSize: 56, lineHeight: 1, marginBottom: 12 }}>🥋</div>
-            <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Área do Aluno</h1>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.82rem', margin: '6px 0 0' }}>ACCBM — Associação Cultural de Capoeira Barão de Mauá</p>
+          <div style={{ textAlign: 'center', marginBottom: 28 }}>
+            <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
+              <div style={{ width: 110, height: 110, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.15)', padding: 6, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
+                <img src="/logo-accbm.png" alt="ACCBM Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }} />
+              </div>
+            </div>
+            <h1 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Área do Aluno</h1>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', margin: '5px 0 0' }}>Associação Cultural de Capoeira Barão de Mauá</p>
           </div>
 
           <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>

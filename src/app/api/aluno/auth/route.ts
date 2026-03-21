@@ -327,6 +327,70 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // Admin: create account with auto-generated username from student name + sequential ID
+    if (action === 'admin-create-auto') {
+      const { student_id, password, phone, nucleo_filter } = body;
+      const authMap = await loadAuthMap();
+
+      if (authMap[student_id]) {
+        return NextResponse.json({ error: 'Aluno já possui conta.', existing: { username: authMap[student_id].username } }, { status: 409 });
+      }
+
+      // Get student info
+      const { data: student } = await supabaseAdmin
+        .from('students')
+        .select('id, nome_completo, telefone, email, nucleo')
+        .eq('id', student_id)
+        .maybeSingle();
+      if (!student) return NextResponse.json({ error: 'Aluno não encontrado.' }, { status: 404 });
+
+      // Security: if nucleo_filter provided, check student belongs to that nucleo
+      if (nucleo_filter && student.nucleo !== nucleo_filter) {
+        return NextResponse.json({ error: 'Aluno não pertence a este núcleo.' }, { status: 403 });
+      }
+
+      // Get or assign sequential display ID
+      const idRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/aluno/gerar-id`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'assign', student_id }),
+      });
+      let displayId = `ACCBM-${String(Date.now()).slice(-4)}`;
+      if (idRes.ok) {
+        const idData = await idRes.json();
+        displayId = idData.display_id || displayId;
+      }
+
+      // Auto-generate username from first name + display ID number
+      function slugify(s: string) {
+        return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
+      }
+      const firstName = (student.nome_completo || '').split(' ')[0];
+      const idNum = displayId.replace('ACCBM-', '');
+      let username = `${slugify(firstName)}${idNum}`;
+      // Ensure uniqueness
+      let suffix = 0;
+      while (Object.values(authMap).some(a => a.username.toLowerCase() === username.toLowerCase())) {
+        suffix++;
+        username = `${slugify(firstName)}${idNum}${suffix}`;
+      }
+
+      const salt = generateSalt();
+      const phone_to_use = phone || student.telefone || '';
+      authMap[student_id] = {
+        student_id,
+        username,
+        email: student.email || '',
+        password_hash: hashPassword(password, salt),
+        salt,
+        active: true,
+        phone: phone_to_use,
+        created_at: new Date().toISOString(),
+      };
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true, username, display_id: displayId, phone: phone_to_use });
+    }
+
     // Admin: reset password
     if (action === 'admin-reset-password') {
       const { student_id, new_password } = body;
