@@ -287,22 +287,17 @@ export default function Home() {
     setCheckingDuplicate(prev => ({ ...prev, [field]: true }));
     setDuplicateErrors(prev => ({ ...prev, [field]: undefined }));
     try {
-      const { data, error } = await supabase
-        .from('students')
-        .select('id, nome_completo')
-        .eq(field, cleanValue)
-        .limit(1);
-      // Se a coluna não existe no banco, ignora silenciosamente
-      if (error && (error.message.includes('column') || error.message.includes('schema'))) {
-        setCheckingDuplicate(prev => ({ ...prev, [field]: false }));
-        return;
-      }
-      if (data && data.length > 0) {
-        const labels: Record<string, string> = { cpf: 'CPF', identidade: 'Numeração Única / RG', nome_completo: 'Nome', email: 'E-mail' };
-        setDuplicateErrors(prev => ({
-          ...prev,
-          [field]: `${labels[field]} já cadastrado(a): ${data[0].nome_completo}`,
-        }));
+      // Use server-side API to bypass RLS and get accurate duplicate check
+      const res = await fetch('/api/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field, value: cleanValue }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.duplicate && result.message) {
+          setDuplicateErrors(prev => ({ ...prev, [field]: result.message }));
+        }
       }
     } catch {}
     setCheckingDuplicate(prev => ({ ...prev, [field]: false }));
@@ -320,20 +315,18 @@ export default function Home() {
     setDuplicateErrors(prev => ({ ...prev, nome: undefined }));
     setCheckingDuplicate(prev => ({ ...prev, nome: true }));
     try {
-      // Busca candidatos pela primeira letra do nome (broad) e compara normalizado no JS
-      const { data, error } = await supabase
-        .from('students')
-        .select('id, nome_completo')
-        .ilike('nome_completo', `${parts[0][0]}%`)
-        .limit(2000);
-      if (!error && data && data.length > 0) {
-        const normalInput = normalizeName(nomeClean);
-        const dup = data.find(s => normalizeName(s.nome_completo || '') === normalInput);
-        if (dup) {
-          setDuplicateErrors(prev => ({
-            ...prev,
-            nome: `Nome já cadastrado: "${dup.nome_completo}". Se for você, use o CPF para acessar seu cadastro.`,
-          }));
+      // Use server-side API to bypass RLS and get accurate duplicate check
+      const res = await fetch('/api/check-duplicate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ field: 'nome', value: nomeClean }),
+      });
+      if (res.ok) {
+        const result = await res.json();
+        if (result.duplicate && result.message) {
+          setDuplicateErrors(prev => ({ ...prev, nome: result.message }));
+        } else if (result.error) {
+          setDuplicateErrors(prev => ({ ...prev, nome: result.error }));
         }
       }
     } catch {}
@@ -1807,6 +1800,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </a>
         </div>
       </footer>
+
+      {/* Botão fixo — Área do Aluno */}
+      <a
+        href="/aluno"
+        style={{
+          position: 'fixed', bottom: '60px', left: '20px',
+          background: 'linear-gradient(135deg,#1d4ed8,#2563eb)',
+          color: '#fff', border: '1.5px solid #60a5fa', borderRadius: '8px',
+          padding: '8px 14px', fontSize: '11px', cursor: 'pointer',
+          zIndex: 9999, backdropFilter: 'blur(4px)', letterSpacing: '0.03em',
+          fontWeight: 700, boxShadow: '0 2px 12px rgba(29,78,216,0.45)',
+          textDecoration: 'none', display: 'inline-block',
+        }}
+      >
+        🥋 Área do Aluno
+      </a>
 
       {/* Botão fixo — Painel Administrativo */}
       <button

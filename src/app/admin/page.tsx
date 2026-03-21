@@ -524,7 +524,20 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas'>('alunos');
+  // Justificativas
+  type JustificativaAdmin = { id: string; student_id: string; student_name: string; nucleo: string; data_falta: string; motivo: string; status: 'pendente' | 'aprovado' | 'recusado'; resposta_mestre?: string; created_at: string; updated_at: string; };
+  const [justificativas, setJustificativas] = useState<JustificativaAdmin[]>([]);
+  const [loadingJustificativas, setLoadingJustificativas] = useState(false);
+  const [justRespostaMap, setJustRespostaMap] = useState<Record<string, string>>({});
+  const [justMsg, setJustMsg] = useState('');
+  // Contas de alunos
+  type AlunoAccount = { student_id: string; username: string; email?: string; active: boolean; phone?: string; created_at: string; last_login?: string; };
+  const [alunoContas, setAlunoContas] = useState<AlunoAccount[]>([]);
+  const [loadingContas, setLoadingContas] = useState(false);
+  const [contasMsg, setContasMsg] = useState('');
+  const [novaContaForm, setNovaContaForm] = useState({ student_id: '', username: '', password: '', phone: '' });
+  const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '' });
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -1429,6 +1442,8 @@ export default function AdminPage() {
             { key: 'manual',          label: t('admin_manual'),  activeColor: '#7c3aed', geralOnly: false },
             { key: 'eventos',         label: t('admin_events'),  activeColor: '#0ea5e9', geralOnly: false },
             { key: 'lixeira',         label: '🗑️ Lixeira',       activeColor: '#6b7280', geralOnly: true },
+            { key: 'justificativas',  label: `📝 Justificativas${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length > 0 ? ` 🔔${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
+            { key: 'contas',          label: '👤 Contas Alunos',  activeColor: '#6366f1', geralOnly: false },
           ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
             <button
               key={tab.key}
@@ -1488,6 +1503,15 @@ export default function AdminPage() {
                 if (tab.key === 'lixeira') {
                   setLoadingLixeira(true); setLixeiraMsg('');
                   fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false));
+                }
+                if (tab.key === 'justificativas') {
+                  setLoadingJustificativas(true); setJustMsg('');
+                  const url = nucleoFilter ? `/api/aluno/justificativas?admin=true&nucleo=${encodeURIComponent(nucleoFilter)}` : '/api/aluno/justificativas?admin=true';
+                  fetch(url).then(r => r.json()).then(d => { setJustificativas(Array.isArray(d) ? d : []); setLoadingJustificativas(false); }).catch(() => setLoadingJustificativas(false));
+                }
+                if (tab.key === 'contas') {
+                  setLoadingContas(true); setContasMsg('');
+                  fetch('/api/aluno/contas').then(r => r.json()).then(d => { setAlunoContas(Array.isArray(d) ? d : []); setLoadingContas(false); }).catch(() => setLoadingContas(false));
                 }
                 if (tab.key === 'eventos') {
                   setLoadingEventos(true); setEventoMsg('');
@@ -7213,6 +7237,188 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {rascunhoSaving ? '⏳ Salvando...' : '💾 Criar Rascunho'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ===== ABA JUSTIFICATIVAS ===== */}
+      {activeTab === 'justificativas' && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
+            <h2 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>📝 Justificativas de Falta</h2>
+            <button
+              onClick={() => {
+                setLoadingJustificativas(true);
+                const url = nucleoFilter ? `/api/aluno/justificativas?admin=true&nucleo=${encodeURIComponent(nucleoFilter)}` : '/api/aluno/justificativas?admin=true';
+                fetch(url).then(r => r.json()).then(d => { setJustificativas(Array.isArray(d) ? d : []); setLoadingJustificativas(false); }).catch(() => setLoadingJustificativas(false));
+              }}
+              style={{ padding: '8px 16px', borderRadius: 8, background: '#f59e0b', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+            >
+              🔄 Atualizar
+            </button>
+          </div>
+          {justMsg && <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, background: justMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: justMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${justMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{justMsg}</div>}
+          {loadingJustificativas ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>Carregando...</div>
+          ) : justificativas.length === 0 ? (
+            <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 40 }}>Nenhuma justificativa encontrada.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {(['pendente', 'aprovado', 'recusado'] as const).map(status => {
+                const filtered = justificativas.filter(j => j.status === status && (!nucleoFilter || j.nucleo === nucleoFilter));
+                if (filtered.length === 0) return null;
+                return (
+                  <div key={status}>
+                    <h3 style={{ fontSize: '0.9rem', fontWeight: 700, color: status === 'pendente' ? '#b45309' : status === 'aprovado' ? '#15803d' : '#b91c1c', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      {status === 'pendente' ? '⏳ Pendentes' : status === 'aprovado' ? '✅ Aprovadas' : '❌ Recusadas'} ({filtered.length})
+                    </h3>
+                    {filtered.map(j => (
+                      <div key={j.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: 16, marginBottom: 8 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 8 }}>
+                          <div>
+                            <div style={{ fontWeight: 600, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{j.student_name}</div>
+                            <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{j.nucleo} • {new Date(j.data_falta + 'T12:00:00').toLocaleDateString('pt-BR')}</div>
+                            <div style={{ fontSize: '0.85rem', color: 'var(--text-primary)', marginTop: 6 }}>{j.motivo}</div>
+                            {j.resposta_mestre && <div style={{ fontSize: '0.8rem', color: '#2563eb', marginTop: 4 }}>Resposta: {j.resposta_mestre}</div>}
+                          </div>
+                          {j.status === 'pendente' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, minWidth: 200 }}>
+                              <input
+                                type="text"
+                                placeholder="Resposta (opcional)"
+                                value={justRespostaMap[j.id] || ''}
+                                onChange={e => setJustRespostaMap(prev => ({ ...prev, [j.id]: e.target.value }))}
+                                style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.8rem', background: 'var(--input-bg)', color: 'var(--text-primary)' }}
+                              />
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch('/api/aluno/justificativas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'review', id: j.id, status: 'aprovado', resposta_mestre: justRespostaMap[j.id] || '' }) });
+                                    if (res.ok) { setJustificativas(prev => prev.map(x => x.id === j.id ? { ...x, status: 'aprovado' as const, resposta_mestre: justRespostaMap[j.id] || '' } : x)); setJustMsg('✅ Justificativa aprovada.'); }
+                                  }}
+                                  style={{ flex: 1, padding: '6px', borderRadius: 6, background: '#16a34a', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem' }}
+                                >✅ Aprovar</button>
+                                <button
+                                  onClick={async () => {
+                                    const res = await fetch('/api/aluno/justificativas', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'review', id: j.id, status: 'recusado', resposta_mestre: justRespostaMap[j.id] || '' }) });
+                                    if (res.ok) { setJustificativas(prev => prev.map(x => x.id === j.id ? { ...x, status: 'recusado' as const, resposta_mestre: justRespostaMap[j.id] || '' } : x)); setJustMsg('❌ Justificativa recusada.'); }
+                                  }}
+                                  style={{ flex: 1, padding: '6px', borderRadius: 6, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.78rem' }}
+                                >❌ Recusar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA CONTAS ALUNOS ===== */}
+      {activeTab === 'contas' && (
+        <div style={{ paddingTop: 24 }}>
+          <h2 style={{ margin: '0 0 20px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👤 Contas de Alunos</h2>
+          {contasMsg && <div style={{ padding: '12px 16px', borderRadius: 8, marginBottom: 16, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>}
+
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>➕ Criar conta para aluno</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 10, marginBottom: 12 }}>
+              {[
+                { label: 'ID do Aluno', key: 'student_id', placeholder: 'UUID do aluno' },
+                { label: 'Usuário', key: 'username', placeholder: 'ex: joaosilva' },
+                { label: 'Senha', key: 'password', placeholder: 'Mín. 6 chars', type: 'password' },
+                { label: 'WhatsApp', key: 'phone', placeholder: '(21) 99999-9999' },
+              ].map(({ label, key, placeholder, type }) => (
+                <div key={key}>
+                  <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>{label}</label>
+                  <input
+                    type={type || 'text'}
+                    value={(novaContaForm as Record<string, string>)[key] || ''}
+                    onChange={e => setNovaContaForm(prev => ({ ...prev, [key]: e.target.value }))}
+                    placeholder={placeholder}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                  />
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={async () => {
+                setContasMsg('');
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create', ...novaContaForm }) });
+                const d = await res.json();
+                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                setContasMsg('✅ Conta criada com sucesso!');
+                setNovaContaForm({ student_id: '', username: '', password: '', phone: '' });
+                fetch('/api/aluno/contas').then(r => r.json()).then(d => setAlunoContas(Array.isArray(d) ? d : [])).catch(() => {});
+              }}
+              style={{ padding: '8px 20px', borderRadius: 8, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+            >➕ Criar Conta</button>
+          </div>
+
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 24 }}>
+            <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar senha</h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 12 }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>ID do Aluno</label>
+                <input type="text" value={resetPassForm.student_id} onChange={e => setResetPassForm(prev => ({ ...prev, student_id: e.target.value }))} placeholder="UUID do aluno" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nova Senha</label>
+                <input type="password" value={resetPassForm.new_password} onChange={e => setResetPassForm(prev => ({ ...prev, new_password: e.target.value }))} placeholder="Nova senha" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <button
+              onClick={async () => {
+                setContasMsg('');
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-reset-password', ...resetPassForm }) });
+                const d = await res.json();
+                setContasMsg(res.ok ? '✅ Senha resetada!' : `❌ ${d.error}`);
+              }}
+              style={{ padding: '8px 20px', borderRadius: 8, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
+            >🔑 Resetar Senha</button>
+          </div>
+
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+              <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)' }}>📋 Contas cadastradas ({alunoContas.length})</h3>
+              <button onClick={() => { setLoadingContas(true); fetch('/api/aluno/contas').then(r => r.json()).then(d => { setAlunoContas(Array.isArray(d) ? d : []); setLoadingContas(false); }).catch(() => setLoadingContas(false)); }} style={{ padding: '6px 14px', borderRadius: 6, background: '#6366f1', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem' }}>🔄 Atualizar</button>
+            </div>
+            {loadingContas ? <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20 }}>Carregando...</div>
+            : alunoContas.length === 0 ? <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20 }}>Nenhuma conta cadastrada.</div>
+            : (
+              <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                  <thead>
+                    <tr style={{ borderBottom: '1px solid var(--border)' }}>
+                      {['Usuário', 'WhatsApp', 'Status', 'Criado em', 'Último login', 'ID Aluno'].map(h => (
+                        <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 600 }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alunoContas.map(acc => (
+                      <tr key={acc.student_id} style={{ borderBottom: '1px solid var(--border)' }}>
+                        <td style={{ padding: '8px 10px', color: 'var(--text-primary)', fontWeight: 600 }}>{acc.username}</td>
+                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.phone || '—'}</td>
+                        <td style={{ padding: '8px 10px' }}>
+                          <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.75rem', fontWeight: 600, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
+                            {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR') : '—'}</td>
+                        <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', fontSize: '0.72rem', fontFamily: 'monospace' }}>{acc.student_id.slice(0, 8)}…</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
           </div>
         </div>
       )}

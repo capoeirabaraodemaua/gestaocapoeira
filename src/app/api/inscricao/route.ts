@@ -236,51 +236,59 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Busca o ID do aluno inserido — usa só 'id' para evitar erro de colunas faltantes
+    // Busca o ID do aluno inserido — estratégia multi-fallback para máxima robustez
     let studentId: string | null = null;
     let inscricao_numero: number | null = null;
 
-    const lookupSelect = async (filter: { col: string; val: string }) => {
-      // Try with ordem_inscricao first; fall back to id-only if column missing
+    // Helper: lookup with graceful fallback if column missing
+    const lookupByField = async (col: string, val: string): Promise<string | null> => {
       try {
         const { data, error } = await supabaseAdmin
           .from('students').select('id, ordem_inscricao')
-          .eq(filter.col, filter.val).limit(1).maybeSingle();
+          .eq(col, val).order('created_at', { ascending: false }).limit(1).maybeSingle();
         if (!error && data) {
-          studentId = data.id ?? null;
-          inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
-          return;
+          if (!inscricao_numero) inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+          return data.id ?? null;
         }
       } catch {}
-      // Fallback: id only
-      const { data } = await supabaseAdmin
-        .from('students').select('id')
-        .eq(filter.col, filter.val).limit(1).maybeSingle();
-      studentId = data?.id ?? null;
-    };
-
-    if (safePayload.cpf) {
-      await lookupSelect({ col: 'cpf', val: safePayload.cpf as string });
-    } else if (safePayload.identidade) {
-      await lookupSelect({ col: 'identidade', val: safePayload.identidade as string });
-    } else if (safePayload.nome_completo) {
       try {
-        const { data, error } = await supabaseAdmin
-          .from('students').select('id, ordem_inscricao')
-          .eq('nome_completo', safePayload.nome_completo as string)
-          .order('created_at', { ascending: false }).limit(1).maybeSingle();
-        if (!error && data) {
-          studentId = data.id ?? null;
-          inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
-        }
-      } catch {}
-      if (!studentId) {
         const { data } = await supabaseAdmin
           .from('students').select('id')
-          .eq('nome_completo', safePayload.nome_completo as string)
-          .order('created_at', { ascending: false }).limit(1).maybeSingle();
-        studentId = data?.id ?? null;
+          .eq(col, val).order('created_at', { ascending: false }).limit(1).maybeSingle();
+        return data?.id ?? null;
+      } catch { return null; }
+    };
+
+    // Try CPF (with and without formatting)
+    if (safePayload.cpf) {
+      studentId = await lookupByField('cpf', safePayload.cpf as string);
+      // If not found, try without formatting
+      if (!studentId) {
+        const cpfRaw = (safePayload.cpf as string).replace(/\D/g, '');
+        if (cpfRaw !== safePayload.cpf) {
+          studentId = await lookupByField('cpf', cpfRaw);
+        }
       }
+    }
+    // Try identidade
+    if (!studentId && safePayload.identidade) {
+      studentId = await lookupByField('identidade', safePayload.identidade as string);
+    }
+    // Try nome_completo (most recent)
+    if (!studentId && safePayload.nome_completo) {
+      studentId = await lookupByField('nome_completo', safePayload.nome_completo as string);
+    }
+    // Final fallback: get the most recently inserted student by timestamp
+    if (!studentId) {
+      try {
+        const { data } = await supabaseAdmin
+          .from('students').select('id, ordem_inscricao')
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        if (data) {
+          studentId = data.id ?? null;
+          if (!inscricao_numero) inscricao_numero = (data as Record<string, unknown>)?.ordem_inscricao as number ?? null;
+        }
+      } catch {}
     }
 
     // Se não tem ordem_inscricao: busca o mapa de matrículas no Storage e atribui próximo número
