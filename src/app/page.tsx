@@ -50,7 +50,7 @@ export default function Home() {
   const [adminCpf, setAdminCpf] = useState(''); // kept for backward compat (unused)
   const [adminErro, setAdminErro] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
-  const [adminScreen, setAdminScreen] = useState<'login' | 'change' | 'recover' | 'recover2'>('login');
+  const [adminScreen, setAdminScreen] = useState<'login' | 'change' | 'recover' | 'register'>('login');
   const [adminConfigCpf, setAdminConfigCpf] = useState(''); // legacy
   const [adminConfigCpfs, setAdminConfigCpfs] = useState<string[]>([]); // legacy
   const [manageTab, setManageTab] = useState<'edit' | 'include' | 'remove'>('edit');
@@ -71,6 +71,13 @@ export default function Home() {
   const [recTargetUser, setRecTargetUser] = useState('');
   const [recNewPass, setRecNewPass] = useState('');
   const [recMsg, setRecMsg] = useState('');
+  // Register: new admin sets initial password (authorized by Admin Geral)
+  const [regUser, setRegUser] = useState('');
+  const [regNewPass, setRegNewPass] = useState('');
+  const [regConfirm, setRegConfirm] = useState('');
+  const [regAdminUser, setRegAdminUser] = useState('');
+  const [regAdminPass, setRegAdminPass] = useState('');
+  const [regMsg, setRegMsg] = useState('');
 
   // Background changer state
   const [bgUrl, setBgUrl] = useState<string | null>(null);
@@ -1940,13 +1947,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {adminLoading ? '⏳ Verificando...' : '🔓 Entrar'}
                   </button>
                 </div>
-                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, display: 'flex', gap: 8, justifyContent: 'center' }}>
+                <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
+                  <button onClick={() => { setAdminScreen('register'); setRegMsg(''); setRegUser(''); setRegNewPass(''); setRegConfirm(''); setRegAdminUser(''); setRegAdminPass(''); }}
+                    style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', color: '#4ade80', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                    ➕ Cadastrar Nova Senha
+                  </button>
                   <button onClick={() => { setAdminScreen('change'); setAdminChgMsg(''); setAdminChgCurrent(''); setAdminChgNew(''); setAdminChgConfirm(''); }}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 14px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
                     🔑 Alterar Senha
                   </button>
                   <button onClick={() => { setAdminScreen('recover'); setRecMsg(''); setRecAdminUser(''); setRecAdminPass(''); setRecTargetUser(''); setRecNewPass(''); }}
-                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 14px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
+                    style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
                     🔄 Recuperar Senha
                   </button>
                 </div>
@@ -2029,6 +2040,61 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   setManageSaving(false);
                 }} style={{ padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: manageSaving ? 'wait' : 'pointer', opacity: manageSaving ? 0.7 : 1 }}>
                   {manageSaving ? '⏳ Redefinindo...' : '🔄 Redefinir Senha'}
+                </button>
+              </>
+            )}
+
+            {/* ── CADASTRAR NOVA SENHA (Admin Geral cria senha inicial para novo usuário) ── */}
+            {adminScreen === 'register' && (
+              <>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => setAdminScreen('login')} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '1.2rem', padding: 0, lineHeight: 1 }}>←</button>
+                  <div>
+                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>➕ Cadastrar Nova Senha</div>
+                    <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.7rem' }}>Admin Geral autoriza o cadastro da primeira senha</div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {[
+                    { label: 'Usuário que receberá a senha', val: regUser, set: setRegUser, ph: 'ex: edsonalves' },
+                    { label: 'Nova Senha', val: regNewPass, set: setRegNewPass, ph: 'mínimo 6 caracteres', pw: true },
+                    { label: 'Confirmar Senha', val: regConfirm, set: setRegConfirm, ph: '••••••••', pw: true },
+                  ].map(f => (
+                    <div key={f.label}>
+                      <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</div>
+                      <input type={f.pw ? 'password' : 'text'} value={f.val} onChange={e => { f.set(e.target.value); setRegMsg(''); }}
+                        placeholder={f.ph}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '9px 13px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.13)', borderRadius: 8, color: '#fff', fontSize: '0.9rem', outline: 'none' }} />
+                    </div>
+                  ))}
+                  <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10 }}>
+                    <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.7rem', marginBottom: 8, textAlign: 'center' }}>Autorização do Administrador Geral</div>
+                    {[
+                      { label: 'Usuário Admin Geral', val: regAdminUser, set: setRegAdminUser, ph: 'admin' },
+                      { label: 'Senha Admin Geral', val: regAdminPass, set: setRegAdminPass, ph: '••••••••', pw: true },
+                    ].map(f => (
+                      <div key={f.label} style={{ marginBottom: 8 }}>
+                        <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.68rem', fontWeight: 600, marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{f.label}</div>
+                        <input type={f.pw ? 'password' : 'text'} value={f.val} onChange={e => { f.set(e.target.value); setRegMsg(''); }}
+                          placeholder={f.ph}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: '#fff', fontSize: '0.85rem', outline: 'none' }} />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                {regMsg && <div style={{ borderRadius: 8, padding: '8px 12px', background: regMsg.startsWith('✓') ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', border: `1px solid ${regMsg.startsWith('✓') ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.3)'}`, color: regMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontSize: '0.78rem', fontWeight: 600 }}>{regMsg}</div>}
+                <button disabled={manageSaving} onClick={async () => {
+                  if (!regUser || !regNewPass || !regConfirm || !regAdminUser || !regAdminPass) { setRegMsg('Preencha todos os campos.'); return; }
+                  if (regNewPass !== regConfirm) { setRegMsg('As senhas não coincidem.'); return; }
+                  if (regNewPass.length < 6) { setRegMsg('Senha deve ter mínimo 6 caracteres.'); return; }
+                  setManageSaving(true);
+                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: regAdminUser, admin_password: regAdminPass, target_username: regUser, new_password: regNewPass }) });
+                  const d = await res.json();
+                  setRegMsg(res.ok ? `✓ Senha de "${regUser}" cadastrada com sucesso! Já pode fazer login.` : (d.error || 'Erro ao cadastrar senha.'));
+                  if (res.ok) { setRegUser(''); setRegNewPass(''); setRegConfirm(''); }
+                  setManageSaving(false);
+                }} style={{ padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#059669,#047857)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: manageSaving ? 'wait' : 'pointer', opacity: manageSaving ? 0.7 : 1 }}>
+                  {manageSaving ? '⏳ Cadastrando...' : '✅ Cadastrar Senha'}
                 </button>
               </>
             )}
