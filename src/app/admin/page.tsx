@@ -2670,14 +2670,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               Gráfico Individual
             </button>
             <button
-              onClick={() => {
+              onClick={async () => {
                 const mesAtual = relAlunosMes;
                 const nucleo = nucleoFilter || relAlunosNucleo;
                 const mesStudents = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
                   .filter(s => !nucleo || s.nucleo === nucleo);
+                // Garante contas carregadas para fallback de email
+                let contas = alunoContas;
+                if (contas.length === 0) {
+                  try { const r = await fetch('/api/aluno/contas'); contas = await r.json(); setAlunoContas(Array.isArray(contas) ? contas : []); } catch { contas = []; }
+                }
+                const contaEmail = (sid: string) => contas.find((a: AlunoAccount) => a.student_id === sid)?.email || '';
                 const list: RelAlunoItem[] = mesStudents.map(s => {
                   const dias = (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mesAtual)).length;
-                  return { id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—', dias, email: s.email || '', telefone: s.telefone || '' };
+                  return { id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—', dias, email: s.email || contaEmail(s.id), telefone: s.telefone || '' };
                 });
                 list.sort((a,b) => b.dias - a.dias);
                 setRelAlunosList(list);
@@ -4819,10 +4825,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   const nucleo = relAlunosNucleo;
                   const base = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
                     .filter(s => !nucleo || s.nucleo === nucleo);
+                  const contaEmailMes = (sid: string) => alunoContas.find((a: AlunoAccount) => a.student_id === sid)?.email || '';
                   const list: RelAlunoItem[] = base.map(s => ({
                     id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
                     dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(mes)).length,
-                    email: s.email || '', telefone: s.telefone || '',
+                    email: s.email || contaEmailMes(s.id), telefone: s.telefone || '',
                   }));
                   list.sort((a,b) => b.dias - a.dias);
                   const custom = relAlunosList.filter(x => x.custom);
@@ -4836,10 +4843,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const nucleo = e.target.value;
                     setRelAlunosNucleo(nucleo);
                     const base = students.filter(s => !nucleo || s.nucleo === nucleo);
+                    const contaEmailNuc = (sid: string) => alunoContas.find((a: AlunoAccount) => a.student_id === sid)?.email || '';
                     const list: RelAlunoItem[] = base.map(s => ({
                       id: s.id, nome: s.nome_completo || '—', graduacao: s.graduacao || '—',
                       dias: (relatorioHistorico[s.id] || []).filter((d: string) => d.startsWith(relAlunosMes)).length,
-                      email: s.email || '', telefone: s.telefone || '',
+                      email: s.email || contaEmailNuc(s.id), telefone: s.telefone || '',
                     }));
                     list.sort((a,b) => b.dias - a.dias);
                     setRelAlunosList(list);

@@ -528,6 +528,9 @@ export default function AlunoPage() {
             )}
             <div>
               <div style={{ fontWeight: 800, fontSize: '1rem', lineHeight: 1.2 }}>{displayName}</div>
+              {student?.apelido && student.apelido !== student.nome_completo?.split(' ')[0] && (
+                <div style={{ fontSize: '0.68rem', opacity: 0.7, lineHeight: 1.2 }}>{student.nome_completo}</div>
+              )}
               <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 1 }}>{student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Aluno'}</div>
             </div>
           </div>
@@ -557,7 +560,10 @@ export default function AlunoPage() {
             {/* Welcome card */}
             <div style={{ background: `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}dd)`, borderRadius: 18, padding: '22px 22px', color: '#fff', boxShadow: `0 8px 24px ${nucleoColor}40` }}>
               <div style={{ fontSize: '0.78rem', opacity: 0.8, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bem-vindo(a)</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: 2 }}>{displayName}! 👋</div>
+              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: student?.apelido ? 0 : 2 }}>{displayName}! 👋</div>
+              {student?.apelido && (
+                <div style={{ fontSize: '0.82rem', opacity: 0.75, marginBottom: 2, fontStyle: 'italic' }}>"{student.apelido}" — {student.nome_completo}</div>
+              )}
               <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>Núcleo {student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Graduação não informada'}</div>
             </div>
 
