@@ -544,6 +544,14 @@ export default function AdminPage() {
   const [respResetPass, setRespResetPass] = useState('');
   const [respResetMsg, setRespResetMsg] = useState('');
   const [respResetting, setRespResetting] = useState(false);
+  const [respGeralUsers, setRespGeralUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; nome: string }>>([]);
+  const [respNewGeralLogin, setRespNewGeralLogin] = useState('');
+  const [respNewGeralNome, setRespNewGeralNome] = useState('');
+  const [respNewGeralPass, setRespNewGeralPass] = useState('');
+  const [respGeralCreateMsg, setRespGeralCreateMsg] = useState('');
+  const [respGeralCreating, setRespGeralCreating] = useState(false);
+  const [respNewCpf, setRespNewCpf] = useState('');
+  const [respNewNome, setRespNewNome] = useState('');
   // Justificativas
   type JustificativaAdmin = { id: string; student_id: string; student_name: string; nucleo: string; data_falta: string; motivo: string; status: 'pendente' | 'aprovado' | 'recusado'; resposta_mestre?: string; created_at: string; updated_at: string; };
   const [justificativas, setJustificativas] = useState<JustificativaAdmin[]>([]);
@@ -7915,13 +7923,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
-      {/* ===== ABA RESPONSÁVEIS DE NÚCLEO (geral only) ===== */}
+      {/* ===== ABA RESPONSÁVEIS / ADMINISTRADORES (geral only) ===== */}
       {activeTab === 'responsaveis' && activeNucleo === 'geral' && (
         <div style={{ paddingTop: 24 }}>
           <div style={{ marginBottom: 20 }}>
-            <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👥 Responsáveis de Núcleo</h2>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👥 Responsáveis e Administradores</h2>
             <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-              Crie logins de acesso para responsáveis de cada núcleo. Cada responsável acessa apenas o seu núcleo.
+              Gerencie os responsáveis de núcleo (acessam via CPF) e os administradores gerais (máx. 3).
             </p>
           </div>
 
@@ -7931,31 +7939,31 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 32, marginBottom: 6 }}>🔐</div>
                 <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)', marginBottom: 4 }}>Confirme sua identidade</div>
-                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Digite sua senha de Admin Geral para gerenciar responsáveis</div>
+                <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Digite sua senha de Admin Geral para gerenciar acessos</div>
               </div>
               <input
                 type="password"
                 placeholder="Sua senha atual de Admin Geral"
                 value={respAdminPass}
                 onChange={e => { setRespAdminPass(e.target.value); setRespAuthMsg(''); }}
-                onKeyDown={async e => { if (e.key === 'Enter') {
-                  if (!respAdminPass) { setRespAuthMsg('Digite sua senha.'); return; }
+                onKeyDown={async e => {
+                  if (e.key !== 'Enter' || !respAdminPass) return;
                   setRespLoading(true);
-                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: 'admin', admin_password: respAdminPass }) });
+                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
                   const d = await res.json();
-                  if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
+                  if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespGeralUsers(d.filter((u: any) => u.nucleo === 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
                   else setRespAuthMsg(d.error || 'Senha incorreta.');
                   setRespLoading(false);
-                }}}
+                }}
                 style={{ padding: '10px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.95rem', outline: 'none' }}
               />
               {respAuthMsg && <div style={{ color: '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>⚠ {respAuthMsg}</div>}
               <button disabled={respLoading} onClick={async () => {
                 if (!respAdminPass) { setRespAuthMsg('Digite sua senha.'); return; }
                 setRespLoading(true);
-                const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: 'admin', admin_password: respAdminPass }) });
+                const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
                 const d = await res.json();
-                if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
+                if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespGeralUsers(d.filter((u: any) => u.nucleo === 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
                 else setRespAuthMsg(d.error || 'Senha incorreta.');
                 setRespLoading(false);
               }} style={{ padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', color: '#fff', fontWeight: 700, cursor: respLoading ? 'wait' : 'pointer', opacity: respLoading ? 0.7 : 1, fontSize: '0.95rem' }}>
@@ -7963,170 +7971,309 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </button>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-              {/* Lista de responsáveis existentes */}
-              <div>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
-                  <h3 style={{ margin: 0, fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: 800 }}>Responsáveis cadastrados ({respUsers.length})</h3>
-                  <button onClick={async () => {
-                    setRespLoading(true);
-                    const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: 'admin', admin_password: respAdminPass }) });
-                    const d = await res.json();
-                    if (res.ok) setRespUsers(d.filter((u: any) => u.nucleo !== 'geral'));
-                    setRespLoading(false);
-                  }} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                    🔄 Atualizar lista
-                  </button>
+              {/* ───── SEÇÃO 1: RESPONSÁVEIS DE NÚCLEO ───── */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '22px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                  <div style={{ fontSize: '1.3rem' }}>🏫</div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Responsáveis de Núcleo</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cada responsável acessa o painel usando seu CPF como login</div>
+                  </div>
                 </div>
+
+                {/* Lista */}
                 {respUsers.length === 0 ? (
-                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '24px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
-                    Nenhum responsável cadastrado ainda. Use o formulário abaixo para criar o primeiro.
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '16px 0', borderBottom: '1px solid var(--border)', marginBottom: 18 }}>
+                    Nenhum responsável cadastrado ainda.
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
                     {respUsers.map(u => (
-                      <div key={u.username} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+                      <div key={u.username} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                         <div style={{ width: 10, height: 10, borderRadius: '50%', background: u.color, flexShrink: 0 }} />
-                        <div style={{ flex: 1, minWidth: 120 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.92rem', color: 'var(--text-primary)' }}>{u.label}</div>
-                          <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)' }}>Login: <strong style={{ color: 'var(--text-primary)' }}>{u.username}</strong></div>
+                        <div style={{ flex: 1, minWidth: 140 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                            {(u as any).nome || u.label}
+                          </div>
+                          <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>
+                            {u.label} · CPF: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>
+                              {u.username.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}
+                            </strong>
+                          </div>
                         </div>
                         <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                          <button onClick={() => { setRespResetTarget(u.username); setRespResetPass(''); setRespResetMsg(''); }} style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#ca8a04', borderRadius: 8, padding: '5px 12px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
-                            🔑 Resetar Senha
+                          <button onClick={() => { setRespResetTarget(u.username); setRespResetPass(''); setRespResetMsg(''); }}
+                            style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#ca8a04', borderRadius: 7, padding: '4px 10px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                            🔑 Resetar
                           </button>
-                          <button onClick={() => { setRespDeleteTarget(u.username); setRespDeleteMsg(''); }} style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.25)', color: '#ef4444', borderRadius: 8, padding: '5px 12px', fontSize: '0.75rem', cursor: 'pointer', fontWeight: 600 }}>
-                            🗑 Remover
+                          <button onClick={() => { setRespDeleteTarget(u.username); setRespDeleteMsg(''); }}
+                            style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444', borderRadius: 7, padding: '4px 10px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                            🗑
                           </button>
                         </div>
                       </div>
                     ))}
                   </div>
                 )}
-              </div>
 
-              {/* Reset senha inline */}
-              {respResetTarget && (
-                <div style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 12, padding: '18px 20px' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: 12 }}>🔑 Resetar senha de <span style={{ color: '#ca8a04' }}>{respResetTarget}</span></div>
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                    <input type="password" placeholder="Nova senha (mín. 6 caracteres)" value={respResetPass} onChange={e => { setRespResetPass(e.target.value); setRespResetMsg(''); }}
-                      style={{ flex: 1, minWidth: 200, padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
-                    <button disabled={respResetting} onClick={async () => {
-                      if (!respResetPass || respResetPass.length < 6) { setRespResetMsg('Senha deve ter mínimo 6 caracteres.'); return; }
-                      setRespResetting(true);
-                      const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
-                      const d = await res.json();
-                      setRespResetMsg(res.ok ? '✓ Senha redefinida com sucesso!' : (d.error || 'Erro ao redefinir.'));
-                      if (res.ok) { setRespResetPass(''); setTimeout(() => { setRespResetTarget(''); setRespResetMsg(''); }, 2000); }
-                      setRespResetting(false);
-                    }} style={{ padding: '9px 18px', borderRadius: 8, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', fontWeight: 700, cursor: respResetting ? 'wait' : 'pointer', fontSize: '0.88rem' }}>
-                      {respResetting ? '⏳...' : 'Salvar'}
-                    </button>
-                    <button onClick={() => { setRespResetTarget(''); setRespResetMsg(''); }} style={{ padding: '9px 14px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.85rem' }}>Cancelar</button>
-                  </div>
-                  {respResetMsg && <div style={{ marginTop: 8, fontSize: '0.78rem', fontWeight: 600, color: respResetMsg.startsWith('✓') ? '#22c55e' : '#ef4444' }}>{respResetMsg}</div>}
-                </div>
-              )}
-
-              {/* Confirmar remoção */}
-              {respDeleteTarget && (
-                <div style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 12, padding: '18px 20px' }}>
-                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)', marginBottom: 8 }}>🗑 Remover responsável <span style={{ color: '#ef4444' }}>{respDeleteTarget}</span>?</div>
-                  <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 14 }}>Esta ação é irreversível. O usuário perderá o acesso ao painel.</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button disabled={respDeleting} onClick={async () => {
-                      setRespDeleting(true);
-                      const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
-                      const d = await res.json();
-                      if (res.ok) {
-                        setRespUsers(prev => prev.filter(u => u.username !== respDeleteTarget));
-                        setRespDeleteTarget('');
-                        setRespDeleteMsg('');
-                      } else setRespDeleteMsg(d.error || 'Erro ao remover.');
-                      setRespDeleting(false);
-                    }} style={{ padding: '8px 18px', borderRadius: 8, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', border: 'none', color: '#fff', fontWeight: 700, cursor: respDeleting ? 'wait' : 'pointer', fontSize: '0.88rem' }}>
-                      {respDeleting ? '⏳ Removendo...' : '🗑 Confirmar Remoção'}
-                    </button>
-                    <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '8px 14px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer' }}>Cancelar</button>
-                  </div>
-                  {respDeleteMsg && <div style={{ marginTop: 8, fontSize: '0.78rem', color: '#ef4444', fontWeight: 600 }}>{respDeleteMsg}</div>}
-                </div>
-              )}
-
-              {/* Criar novo responsável */}
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, padding: '22px 22px' }}>
-                <h3 style={{ margin: '0 0 16px', fontSize: '0.95rem', color: 'var(--text-primary)', fontWeight: 800 }}>➕ Cadastrar Novo Responsável</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Núcleo</div>
-                    <select value={respNewNucleo} onChange={e => { setRespNewNucleo(e.target.value); setRespCreateMsg(''); }}
-                      style={{ width: '100%', padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}>
-                      <option value="">Selecione o núcleo</option>
-                      <option value="edson-alves">Poliesportivo Edson Alves</option>
-                      <option value="ipiranga">Poliesportivo do Ipiranga</option>
-                      <option value="saracuruna">Núcleo Saracuruna</option>
-                      <option value="vila-urussai">Núcleo Vila Urussaí</option>
-                      <option value="jayme-fichman">Núcleo Jayme Fichman</option>
-                    </select>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Login (usuário)</div>
-                    <input type="text" placeholder="ex: responsavel_sara" value={respNewLogin} onChange={e => { setRespNewLogin(e.target.value.toLowerCase().replace(/[^a-z0-9_-]/g, '')); setRespCreateMsg(''); }}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: 3 }}>Apenas letras, números, _ e -</div>
-                  </div>
-                  <div>
-                    <div style={{ fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha inicial</div>
-                    <input type="password" placeholder="mínimo 6 caracteres" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
-                      style={{ width: '100%', boxSizing: 'border-box', padding: '9px 13px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }} />
-                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: 3 }}>O responsável poderá alterar depois</div>
-                  </div>
-                </div>
-                {respCreateMsg && (
-                  <div style={{ marginTop: 12, borderRadius: 8, padding: '8px 13px', background: respCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${respCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`, color: respCreateMsg.startsWith('✓') ? '#22c55e' : '#ef4444', fontSize: '0.8rem', fontWeight: 600 }}>
-                    {respCreateMsg}
+                {/* Reset senha inline */}
+                {respResetTarget && /^\d{11}$/.test(respResetTarget) && (
+                  <div style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 10 }}>
+                      🔑 Resetar senha — CPF: <span style={{ color: '#ca8a04', fontFamily: 'monospace' }}>{respResetTarget.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</span>
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <input type="password" placeholder="Nova senha (mín. 6 caracteres)" value={respResetPass} onChange={e => { setRespResetPass(e.target.value); setRespResetMsg(''); }}
+                        style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      <button disabled={respResetting} onClick={async () => {
+                        if (!respResetPass || respResetPass.length < 6) { setRespResetMsg('Mínimo 6 caracteres.'); return; }
+                        setRespResetting(true);
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
+                        const d = await res.json();
+                        setRespResetMsg(res.ok ? '✓ Senha redefinida!' : (d.error || 'Erro.'));
+                        if (res.ok) { setRespResetPass(''); setTimeout(() => { setRespResetTarget(''); setRespResetMsg(''); }, 2000); }
+                        setRespResetting(false);
+                      }} style={{ padding: '8px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', fontWeight: 700, cursor: respResetting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
+                        {respResetting ? '⏳' : 'Salvar'}
+                      </button>
+                      <button onClick={() => { setRespResetTarget(''); setRespResetMsg(''); }} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>✕</button>
+                    </div>
+                    {respResetMsg && <div style={{ marginTop: 6, fontSize: '0.76rem', fontWeight: 600, color: respResetMsg.startsWith('✓') ? '#22c55e' : '#ef4444' }}>{respResetMsg}</div>}
                   </div>
                 )}
-                <button disabled={respCreating} onClick={async () => {
-                  if (!respNewNucleo || !respNewLogin || !respNewPass) { setRespCreateMsg('Preencha todos os campos.'); return; }
-                  if (respNewLogin.length < 3) { setRespCreateMsg('Login deve ter pelo menos 3 caracteres.'); return; }
-                  if (respNewPass.length < 6) { setRespCreateMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
-                  setRespCreating(true);
-                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-user', admin_username: 'admin', admin_password: respAdminPass, new_username: respNewLogin, new_password: respNewPass, nucleo_key: respNewNucleo }) });
-                  const d = await res.json();
-                  if (res.ok) {
-                    setRespCreateMsg(`✓ Responsável "${d.username}" criado! Login: ${d.username}`);
-                    setRespNewLogin(''); setRespNewPass(''); setRespNewNucleo('');
-                    const listRes = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: 'admin', admin_password: respAdminPass }) });
-                    const listD = await listRes.json();
-                    if (listRes.ok) setRespUsers(listD.filter((u: any) => u.nucleo !== 'geral'));
-                  } else {
-                    setRespCreateMsg(d.error || 'Erro ao criar responsável.');
-                  }
-                  setRespCreating(false);
-                }} style={{ marginTop: 16, padding: '10px 28px', borderRadius: 9, background: 'linear-gradient(135deg,#059669,#047857)', border: 'none', color: '#fff', fontWeight: 700, cursor: respCreating ? 'wait' : 'pointer', opacity: respCreating ? 0.7 : 1, fontSize: '0.92rem' }}>
-                  {respCreating ? '⏳ Criando...' : '✅ Criar Responsável'}
+
+                {/* Confirmar remoção */}
+                {respDeleteTarget && /^\d{11}$/.test(respDeleteTarget) && (
+                  <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.28)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 6 }}>
+                      🗑 Remover CPF <span style={{ color: '#ef4444', fontFamily: 'monospace' }}>{respDeleteTarget.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')}</span>?
+                    </div>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 12 }}>O responsável perderá o acesso ao painel imediatamente.</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button disabled={respDeleting} onClick={async () => {
+                        setRespDeleting(true);
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
+                        const d = await res.json();
+                        if (res.ok) { setRespUsers(prev => prev.filter(u => u.username !== respDeleteTarget)); setRespDeleteTarget(''); setRespDeleteMsg(''); }
+                        else setRespDeleteMsg(d.error || 'Erro ao remover.');
+                        setRespDeleting(false);
+                      }} style={{ padding: '7px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', border: 'none', color: '#fff', fontWeight: 700, cursor: respDeleting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
+                        {respDeleting ? '⏳' : '🗑 Confirmar'}
+                      </button>
+                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>Cancelar</button>
+                    </div>
+                    {respDeleteMsg && <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{respDeleteMsg}</div>}
+                  </div>
+                )}
+
+                {/* Formulário cadastro novo responsável */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 18 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 12 }}>➕ Cadastrar Novo Responsável</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Núcleo</div>
+                      <select value={respNewNucleo} onChange={e => { setRespNewNucleo(e.target.value); setRespCreateMsg(''); }}
+                        style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
+                        <option value="">Selecione o núcleo</option>
+                        <option value="edson-alves">Poliesportivo Edson Alves</option>
+                        <option value="ipiranga">Poliesportivo do Ipiranga</option>
+                        <option value="saracuruna">Núcleo Saracuruna</option>
+                        <option value="vila-urussai">Núcleo Vila Urussaí</option>
+                        <option value="jayme-fichman">Núcleo Jayme Fichman</option>
+                      </select>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>CPF do Responsável</div>
+                      <input type="text" placeholder="000.000.000-00" value={respNewCpf} onChange={e => { setRespNewCpf(e.target.value); setRespCreateMsg(''); }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>Será usado como login de acesso</div>
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nome do Responsável</div>
+                      <input type="text" placeholder="Nome completo" value={respNewNome} onChange={e => { setRespNewNome(e.target.value); setRespCreateMsg(''); }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Inicial</div>
+                      <input type="password" placeholder="mínimo 6 caracteres" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
+                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>O responsável pode alterar depois</div>
+                    </div>
+                  </div>
+                  {respCreateMsg && (
+                    <div style={{ marginTop: 10, borderRadius: 8, padding: '7px 12px', background: respCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${respCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`, color: respCreateMsg.startsWith('✓') ? '#22c55e' : '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>
+                      {respCreateMsg}
+                    </div>
+                  )}
+                  <button disabled={respCreating} onClick={async () => {
+                    if (!respNewNucleo || !respNewCpf || !respNewPass) { setRespCreateMsg('Preencha núcleo, CPF e senha.'); return; }
+                    const cpfDigits = respNewCpf.replace(/\D/g, '');
+                    if (cpfDigits.length !== 11) { setRespCreateMsg('CPF inválido. Digite os 11 dígitos.'); return; }
+                    if (respNewPass.length < 6) { setRespCreateMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
+                    setRespCreating(true);
+                    const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, cpf: respNewCpf, nome: respNewNome, new_password: respNewPass, nucleo_key: respNewNucleo }) });
+                    const d = await res.json();
+                    if (res.ok) {
+                      setRespCreateMsg(`✓ Responsável cadastrado! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado.`);
+                      setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo('');
+                      const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                      const ld = await lr.json();
+                      if (lr.ok) setRespUsers(ld.filter((u: any) => u.nucleo !== 'geral'));
+                    } else setRespCreateMsg(d.error || 'Erro ao cadastrar.');
+                    setRespCreating(false);
+                  }} style={{ marginTop: 14, padding: '9px 24px', borderRadius: 9, background: 'linear-gradient(135deg,#059669,#047857)', border: 'none', color: '#fff', fontWeight: 700, cursor: respCreating ? 'wait' : 'pointer', opacity: respCreating ? 0.7 : 1, fontSize: '0.9rem' }}>
+                    {respCreating ? '⏳ Cadastrando...' : '✅ Cadastrar Responsável'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ───── SEÇÃO 2: ADMINISTRADORES GERAIS ───── */}
+              <div style={{ background: 'var(--bg-card)', border: '1px solid rgba(29,78,216,0.35)', borderRadius: 16, padding: '22px 22px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                  <div style={{ fontSize: '1.3rem' }}>🛡️</div>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Administradores Gerais</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                      {respGeralUsers.length}/3 contas · Máximo de 3 administradores gerais
+                    </div>
+                  </div>
+                </div>
+
+                {/* Lista admins gerais */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 18 }}>
+                  {respGeralUsers.map(u => (
+                    <div key={u.username} style={{ background: 'rgba(29,78,216,0.07)', border: '1px solid rgba(29,78,216,0.2)', borderRadius: 10, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
+                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#1d4ed8', flexShrink: 0 }} />
+                      <div style={{ flex: 1, minWidth: 140 }}>
+                        <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)' }}>
+                          {(u as any).nome || 'Admin Geral'} {u.username === 'admin' ? <span style={{ fontSize: '0.68rem', background: 'rgba(29,78,216,0.15)', color: '#60a5fa', borderRadius: 6, padding: '1px 7px', marginLeft: 4 }}>principal</span> : ''}
+                        </div>
+                        <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)' }}>Login: <strong style={{ color: 'var(--text-primary)', fontFamily: 'monospace' }}>{u.username}</strong></div>
+                      </div>
+                      {u.username !== 'admin' && (
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <button onClick={() => { setRespResetTarget(u.username); setRespResetPass(''); setRespResetMsg(''); }}
+                            style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', color: '#ca8a04', borderRadius: 7, padding: '4px 10px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                            🔑 Resetar
+                          </button>
+                          <button onClick={() => { setRespDeleteTarget(u.username); setRespDeleteMsg(''); }}
+                            style={{ background: 'rgba(220,38,38,0.08)', border: '1px solid rgba(220,38,38,0.2)', color: '#ef4444', borderRadius: 7, padding: '4px 10px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
+                            🗑
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                {/* Reset/Delete para admin geral */}
+                {respResetTarget && !/^\d{11}$/.test(respResetTarget) && (
+                  <div style={{ background: 'rgba(234,179,8,0.06)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 10 }}>🔑 Resetar senha de <span style={{ color: '#ca8a04' }}>{respResetTarget}</span></div>
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <input type="password" placeholder="Nova senha (mín. 6 caracteres)" value={respResetPass} onChange={e => { setRespResetPass(e.target.value); setRespResetMsg(''); }}
+                        style={{ flex: 1, minWidth: 180, padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      <button disabled={respResetting} onClick={async () => {
+                        if (!respResetPass || respResetPass.length < 6) { setRespResetMsg('Mínimo 6 caracteres.'); return; }
+                        setRespResetting(true);
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
+                        const d = await res.json();
+                        setRespResetMsg(res.ok ? '✓ Senha redefinida!' : (d.error || 'Erro.'));
+                        if (res.ok) { setRespResetPass(''); setTimeout(() => { setRespResetTarget(''); setRespResetMsg(''); }, 2000); }
+                        setRespResetting(false);
+                      }} style={{ padding: '8px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', fontWeight: 700, cursor: respResetting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
+                        {respResetting ? '⏳' : 'Salvar'}
+                      </button>
+                      <button onClick={() => { setRespResetTarget(''); setRespResetMsg(''); }} style={{ padding: '8px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>✕</button>
+                    </div>
+                    {respResetMsg && <div style={{ marginTop: 6, fontSize: '0.76rem', fontWeight: 600, color: respResetMsg.startsWith('✓') ? '#22c55e' : '#ef4444' }}>{respResetMsg}</div>}
+                  </div>
+                )}
+
+                {respDeleteTarget && !/^\d{11}$/.test(respDeleteTarget) && respDeleteTarget !== 'admin' && (
+                  <div style={{ background: 'rgba(220,38,38,0.07)', border: '1px solid rgba(220,38,38,0.28)', borderRadius: 10, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: 'var(--text-primary)', marginBottom: 6 }}>🗑 Remover admin <span style={{ color: '#ef4444' }}>{respDeleteTarget}</span>?</div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button disabled={respDeleting} onClick={async () => {
+                        setRespDeleting(true);
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
+                        const d = await res.json();
+                        if (res.ok) { setRespGeralUsers(prev => prev.filter(u => u.username !== respDeleteTarget)); setRespDeleteTarget(''); setRespDeleteMsg(''); }
+                        else setRespDeleteMsg(d.error || 'Erro.');
+                        setRespDeleting(false);
+                      }} style={{ padding: '7px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', border: 'none', color: '#fff', fontWeight: 700, cursor: respDeleting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
+                        {respDeleting ? '⏳' : '🗑 Confirmar'}
+                      </button>
+                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>Cancelar</button>
+                    </div>
+                    {respDeleteMsg && <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{respDeleteMsg}</div>}
+                  </div>
+                )}
+
+                {/* Formulário novo Admin Geral */}
+                {respGeralUsers.length < 3 ? (
+                  <div style={{ borderTop: '1px solid rgba(29,78,216,0.18)', paddingTop: 18 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 12 }}>➕ Adicionar Admin Geral ({respGeralUsers.length}/3)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Login</div>
+                        <input type="text" placeholder="ex: admin2" value={respNewGeralLogin} onChange={e => { setRespNewGeralLogin(e.target.value.toLowerCase().replace(/\s+/g,'_').replace(/[^a-z0-9_-]/g,'')); setRespGeralCreateMsg(''); }}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nome (opcional)</div>
+                        <input type="text" placeholder="Nome do administrador" value={respNewGeralNome} onChange={e => { setRespNewGeralNome(e.target.value); setRespGeralCreateMsg(''); }}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Inicial</div>
+                        <input type="password" placeholder="mínimo 6 caracteres" value={respNewGeralPass} onChange={e => { setRespNewGeralPass(e.target.value); setRespGeralCreateMsg(''); }}
+                          style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                      </div>
+                    </div>
+                    {respGeralCreateMsg && (
+                      <div style={{ marginTop: 10, borderRadius: 8, padding: '7px 12px', background: respGeralCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${respGeralCreateMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.25)'}`, color: respGeralCreateMsg.startsWith('✓') ? '#22c55e' : '#ef4444', fontSize: '0.78rem', fontWeight: 600 }}>
+                        {respGeralCreateMsg}
+                      </div>
+                    )}
+                    <button disabled={respGeralCreating} onClick={async () => {
+                      if (!respNewGeralLogin || !respNewGeralPass) { setRespGeralCreateMsg('Preencha login e senha.'); return; }
+                      if (respNewGeralLogin.length < 3) { setRespGeralCreateMsg('Login deve ter pelo menos 3 caracteres.'); return; }
+                      if (respNewGeralPass.length < 6) { setRespGeralCreateMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
+                      setRespGeralCreating(true);
+                      const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-geral', admin_username: adminUser || 'admin', admin_password: respAdminPass, new_username: respNewGeralLogin, new_password: respNewGeralPass, nome: respNewGeralNome }) });
+                      const d = await res.json();
+                      if (res.ok) {
+                        setRespGeralCreateMsg(`✓ Admin "${d.username}" criado com sucesso!`);
+                        setRespNewGeralLogin(''); setRespNewGeralNome(''); setRespNewGeralPass('');
+                        const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                        const ld = await lr.json();
+                        if (lr.ok) setRespGeralUsers(ld.filter((u: any) => u.nucleo === 'geral'));
+                      } else setRespGeralCreateMsg(d.error || 'Erro ao criar admin.');
+                      setRespGeralCreating(false);
+                    }} style={{ marginTop: 14, padding: '9px 24px', borderRadius: 9, background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', color: '#fff', fontWeight: 700, cursor: respGeralCreating ? 'wait' : 'pointer', opacity: respGeralCreating ? 0.7 : 1, fontSize: '0.9rem' }}>
+                      {respGeralCreating ? '⏳ Criando...' : '✅ Criar Admin Geral'}
+                    </button>
+                  </div>
+                ) : (
+                  <div style={{ borderTop: '1px solid rgba(29,78,216,0.18)', paddingTop: 14, textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                    Limite de 3 administradores gerais atingido. Remova um para adicionar outro.
+                  </div>
+                )}
+              </div>
+
+              {/* Rodapé */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  💡 Responsáveis usam o CPF como login · Admins gerais usam o login configurado
+                </div>
+                <button onClick={() => { setRespAdminAuthed(false); setRespAdminPass(''); setRespUsers([]); setRespGeralUsers([]); }}
+                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 14px', fontSize: '0.78rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                  🔒 Encerrar sessão
                 </button>
               </div>
-
-              {/* Info box */}
-              <div style={{ background: 'rgba(59,130,246,0.06)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 12, padding: '14px 18px' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#60a5fa', marginBottom: 6 }}>ℹ️ Como funciona</div>
-                <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.8 }}>
-                  <li>Você cria o login e a senha inicial para o responsável</li>
-                  <li>O responsável acessa o painel com o login e senha que você definiu</li>
-                  <li>Ao entrar, ele verá apenas os dados do núcleo associado ao login</li>
-                  <li>O responsável pode alterar a própria senha em <strong>🔑 Alterar Minha Senha</strong> na tela de login</li>
-                  <li>Você pode redefinir a senha de qualquer responsável a qualquer momento</li>
-                  <li>Para mudar o núcleo de um responsável, remova e recrie com outro núcleo</li>
-                </ul>
-              </div>
-
-              <button onClick={() => { setRespAdminAuthed(false); setRespAdminPass(''); setRespUsers([]); }} style={{ alignSelf: 'flex-start', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 14px', fontSize: '0.78rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                🔒 Encerrar sessão de gerenciamento
-              </button>
             </div>
           )}
         </div>

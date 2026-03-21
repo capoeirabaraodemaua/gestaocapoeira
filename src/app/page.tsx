@@ -1912,14 +1912,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 32, marginBottom: 6 }}>🔐</div>
                   <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', marginBottom: 2 }}>Painel Administrativo</div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>Responsável por núcleo ou administrador geral</div>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem' }}>Admin Geral ou Responsável de Núcleo</div>
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div>
-                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Usuário</div>
+                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Login / CPF</div>
                     <input autoFocus value={adminUser} onChange={e => { setAdminUser(e.target.value); setAdminErro(''); }}
                       onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-                      placeholder="seu login de acesso" disabled={adminLoading}
+                      placeholder="admin  ou  CPF (responsável de núcleo)" disabled={adminLoading}
                       style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
                   </div>
                   <div>
@@ -1975,7 +1975,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {[
-                    { label: 'Usuário', val: adminUser, set: setAdminUser, ph: 'seu login (ex: admin)', pw: false },
+                    { label: 'Login / CPF', val: adminUser, set: setAdminUser, ph: 'admin  ou  CPF do responsável', pw: false },
                     { label: 'Senha Atual', val: adminChgCurrent, set: setAdminChgCurrent, ph: '••••••••', pw: true },
                     { label: 'Nova Senha', val: adminChgNew, set: setAdminChgNew, ph: 'mínimo 6 caracteres', pw: true },
                     { label: 'Confirmar Nova Senha', val: adminChgConfirm, set: setAdminChgConfirm, ph: '••••••••', pw: true },

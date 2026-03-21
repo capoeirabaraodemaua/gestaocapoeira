@@ -19,16 +19,16 @@ interface Credential {
   password: string;
   email?: string;
   createdBy?: string;
+  nome?: string; // nome do responsável para display
 }
 
 type CredsMap = Record<string, Credential>;
 
-// Usuários fixos — Admin Geral sempre existe
+// Admin Geral principal sempre existe
 const DEFAULT_CREDS: CredsMap = {
   admin: { nucleo: 'geral', label: 'Admin Geral', color: '#1d4ed8', password: 'accbm2025' },
 };
 
-// Perfis de núcleo disponíveis para novos usuários
 export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
   'edson-alves':   { nucleo: 'edson-alves',   label: 'Poliesportivo Edson Alves', color: '#dc2626' },
   'ipiranga':      { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga', color: '#ea580c' },
@@ -37,6 +37,20 @@ export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string;
   'jayme-fichman': { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2' },
 };
 
+// Normaliza CPF: remove pontos, traços, espaços → somente dígitos
+function normalizeCpf(s: string): string {
+  return s.replace(/\D/g, '');
+}
+
+// Normaliza login genérico: minúsculas, sem espaços
+function normalizeKey(s: string): string {
+  const clean = s.trim().toLowerCase();
+  // Se parece CPF (11 dígitos após normalização), usar CPF normalizado
+  const cpf = normalizeCpf(clean);
+  if (cpf.length === 11 && /^\d{11}$/.test(cpf)) return cpf;
+  return clean;
+}
+
 async function loadCreds(): Promise<CredsMap> {
   try {
     const { data } = await supabase.storage.from(BUCKET).createSignedUrl(CREDS_KEY, 30);
@@ -44,7 +58,6 @@ async function loadCreds(): Promise<CredsMap> {
     const res = await fetch(data.signedUrl, { cache: 'no-store' });
     if (!res.ok) return { ...DEFAULT_CREDS };
     const stored = await res.json();
-    // Admin Geral sempre existe — merge defaults only for admin key
     return { ...DEFAULT_CREDS, ...stored };
   } catch { return { ...DEFAULT_CREDS }; }
 }
@@ -58,6 +71,10 @@ function checkPassword(stored: string, input: string): boolean {
   return stored === input;
 }
 
+function isAdminGeral(creds: CredsMap, key: string): boolean {
+  return !!creds[key] && creds[key].nucleo === 'geral';
+}
+
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
@@ -66,15 +83,16 @@ export async function POST(req: NextRequest) {
   if (action === 'login') {
     const { username, password } = body;
     if (!username || !password)
-      return NextResponse.json({ error: 'Usuário e senha obrigatórios.' }, { status: 400 });
+      return NextResponse.json({ error: 'Usuário/CPF e senha obrigatórios.' }, { status: 400 });
     const creds = await loadCreds();
-    const user = creds[username.trim().toLowerCase()];
+    const key = normalizeKey(username);
+    const user = creds[key];
     if (!user || !checkPassword(user.password, password))
-      return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
-    return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color });
+      return NextResponse.json({ error: 'CPF/usuário ou senha incorretos.' }, { status: 401 });
+    return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '' });
   }
 
-  // ── ALTERAR SENHA (usuário logado muda a própria senha) ──
+  // ── ALTERAR MINHA SENHA ──
   if (action === 'change-password') {
     const { username, current_password, new_password } = body;
     if (!username || !current_password || !new_password)
@@ -82,7 +100,7 @@ export async function POST(req: NextRequest) {
     if (new_password.length < 6)
       return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
     const creds = await loadCreds();
-    const key = username.trim().toLowerCase();
+    const key = normalizeKey(username);
     const user = creds[key];
     if (!user || !checkPassword(user.password, current_password))
       return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 401 });
@@ -99,12 +117,12 @@ export async function POST(req: NextRequest) {
     if (new_password.length < 6)
       return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
     const creds = await loadCreds();
-    const adminKey = admin_username.trim().toLowerCase();
-    const targetKey = target_username.trim().toLowerCase();
+    const adminKey = normalizeKey(admin_username);
+    const targetKey = normalizeKey(target_username);
     const adminUser = creds[adminKey];
     if (!adminUser || !checkPassword(adminUser.password, admin_password))
       return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
-    if (adminUser.nucleo !== 'geral')
+    if (!isAdminGeral(creds, adminKey))
       return NextResponse.json({ error: 'Somente o Admin Geral pode redefinir senhas.' }, { status: 403 });
     if (!creds[targetKey])
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
@@ -113,57 +131,99 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ── CRIAR RESPONSÁVEL DE NÚCLEO (Admin Geral cria novo usuário) ──
+  // ── CRIAR RESPONSÁVEL DE NÚCLEO (login = CPF) ──
   if (action === 'create-user') {
-    const { admin_username, admin_password, new_username, new_password, nucleo_key } = body;
-    if (!admin_username || !admin_password || !new_username || !new_password || !nucleo_key)
+    const { admin_username, admin_password, cpf, nome, new_password, nucleo_key } = body;
+    if (!admin_username || !admin_password || !cpf || !new_password || !nucleo_key)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     if (new_password.length < 6)
       return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
 
-    const usernameClean = new_username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
-    if (usernameClean.length < 3)
-      return NextResponse.json({ error: 'Login deve ter pelo menos 3 caracteres (apenas letras e números).' }, { status: 400 });
+    const cpfKey = normalizeCpf(cpf);
+    if (cpfKey.length !== 11 || !/^\d{11}$/.test(cpfKey))
+      return NextResponse.json({ error: 'CPF inválido. Digite os 11 dígitos.' }, { status: 400 });
 
     const creds = await loadCreds();
-    const adminUser = creds[admin_username.trim().toLowerCase()];
-    if (!adminUser || !checkPassword(adminUser.password, admin_password))
+    const adminKey = normalizeKey(admin_username);
+    if (!creds[adminKey] || !checkPassword(creds[adminKey].password, admin_password))
       return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
-    if (adminUser.nucleo !== 'geral')
+    if (!isAdminGeral(creds, adminKey))
       return NextResponse.json({ error: 'Somente o Admin Geral pode criar usuários.' }, { status: 403 });
 
-    if (creds[usernameClean])
-      return NextResponse.json({ error: `Login "${usernameClean}" já existe.` }, { status: 409 });
+    if (creds[cpfKey])
+      return NextResponse.json({ error: `CPF já cadastrado como responsável.` }, { status: 409 });
 
     const profile = NUCLEO_PROFILES[nucleo_key];
     if (!profile)
       return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
 
-    creds[usernameClean] = {
+    creds[cpfKey] = {
       nucleo: profile.nucleo,
       label: profile.label,
       color: profile.color,
       password: new_password,
-      createdBy: admin_username.trim().toLowerCase(),
+      nome: nome?.trim() || '',
+      createdBy: adminKey,
     };
     await saveCreds(creds);
-    return NextResponse.json({ ok: true, username: usernameClean });
+    return NextResponse.json({ ok: true, cpf: cpfKey });
   }
 
-  // ── REMOVER USUÁRIO (Admin Geral remove responsável de núcleo) ──
+  // ── CRIAR ADMIN GERAL ADICIONAL (máx. 3 no total) ──
+  if (action === 'create-geral') {
+    const { admin_username, admin_password, new_username, new_password, nome } = body;
+    if (!admin_username || !admin_password || !new_username || !new_password)
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    if (new_password.length < 6)
+      return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+
+    const newKey = new_username.trim().toLowerCase().replace(/\s+/g, '_');
+    if (newKey.length < 3)
+      return NextResponse.json({ error: 'Login deve ter pelo menos 3 caracteres.' }, { status: 400 });
+
+    const creds = await loadCreds();
+    const adminKey = normalizeKey(admin_username);
+    if (!creds[adminKey] || !checkPassword(creds[adminKey].password, admin_password))
+      return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
+    if (!isAdminGeral(creds, adminKey))
+      return NextResponse.json({ error: 'Somente o Admin Geral pode criar outros admins.' }, { status: 403 });
+
+    // Máximo 3 admins gerais
+    const totalGeral = Object.values(creds).filter(c => c.nucleo === 'geral').length;
+    if (totalGeral >= 3)
+      return NextResponse.json({ error: 'Limite de 3 administradores gerais atingido.' }, { status: 400 });
+
+    if (creds[newKey])
+      return NextResponse.json({ error: `Login "${newKey}" já existe.` }, { status: 409 });
+
+    creds[newKey] = {
+      nucleo: 'geral',
+      label: 'Admin Geral',
+      color: '#1d4ed8',
+      password: new_password,
+      nome: nome?.trim() || '',
+      createdBy: adminKey,
+    };
+    await saveCreds(creds);
+    return NextResponse.json({ ok: true, username: newKey });
+  }
+
+  // ── REMOVER USUÁRIO ──
   if (action === 'delete-user') {
     const { admin_username, admin_password, target_username } = body;
     if (!admin_username || !admin_password || !target_username)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     const creds = await loadCreds();
-    const adminUser = creds[admin_username.trim().toLowerCase()];
-    if (!adminUser || !checkPassword(adminUser.password, admin_password))
+    const adminKey = normalizeKey(admin_username);
+    const targetKey = normalizeKey(target_username);
+    if (!creds[adminKey] || !checkPassword(creds[adminKey].password, admin_password))
       return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
-    if (adminUser.nucleo !== 'geral')
+    if (!isAdminGeral(creds, adminKey))
       return NextResponse.json({ error: 'Somente o Admin Geral pode remover usuários.' }, { status: 403 });
-    const targetKey = target_username.trim().toLowerCase();
     if (targetKey === 'admin')
-      return NextResponse.json({ error: 'Não é possível remover o Admin Geral.' }, { status: 400 });
+      return NextResponse.json({ error: 'Não é possível remover o Admin Geral principal.' }, { status: 400 });
+    if (targetKey === adminKey)
+      return NextResponse.json({ error: 'Você não pode remover sua própria conta.' }, { status: 400 });
     if (!creds[targetKey])
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     delete creds[targetKey];
@@ -171,12 +231,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
-  // ── LISTAR USUÁRIOS (Admin Geral) ──
+  // ── LISTAR USUÁRIOS ──
   if (action === 'list-users') {
     const { admin_username, admin_password } = body;
     const creds = await loadCreds();
-    const adminUser = creds[admin_username?.trim().toLowerCase()];
-    if (!adminUser || adminUser.nucleo !== 'geral' || !checkPassword(adminUser.password, admin_password))
+    const adminKey = normalizeKey(admin_username || '');
+    const adminUser = creds[adminKey];
+    if (!adminUser || !isAdminGeral(creds, adminKey) || !checkPassword(adminUser.password, admin_password))
       return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
     const list = Object.entries(creds).map(([u, c]) => ({
       username: u,
@@ -185,6 +246,7 @@ export async function POST(req: NextRequest) {
       color: c.color,
       email: c.email || '',
       createdBy: c.createdBy || '',
+      nome: c.nome || '',
     }));
     return NextResponse.json(list);
   }
@@ -195,7 +257,7 @@ export async function POST(req: NextRequest) {
     if (!username || !password)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     const creds = await loadCreds();
-    const key = username.trim().toLowerCase();
+    const key = normalizeKey(username);
     const user = creds[key];
     if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
