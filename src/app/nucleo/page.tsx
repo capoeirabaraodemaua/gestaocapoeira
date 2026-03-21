@@ -16,7 +16,13 @@ export default function NucleoIndexPage() {
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       <div style={{ textAlign: 'center', marginBottom: 32 }}>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/logo-barao-maua.png"
+          alt="Barão de Mauá"
+          style={{ width: 110, height: 'auto', marginBottom: 14, filter: 'drop-shadow(0 4px 20px rgba(0,0,0,0.5))' }}
+        />
+        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
           Associação Cultural de Capoeira
         </div>
         <div style={{ fontSize: '1.4rem', fontWeight: 900, color: '#fff', marginBottom: 6 }}>Barão de Mauá</div>

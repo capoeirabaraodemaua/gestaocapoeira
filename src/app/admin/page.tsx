@@ -531,6 +531,7 @@ export default function AdminPage() {
   const [respNewNucleo, setRespNewNucleo] = useState('');
   const [respCreateMsg, setRespCreateMsg] = useState('');
   const [respCreating, setRespCreating] = useState(false);
+  const [respShowPass, setRespShowPass] = useState(false);
   const [respDeleteTarget, setRespDeleteTarget] = useState('');
   const [respDeleteMsg, setRespDeleteMsg] = useState('');
   const [respDeleting, setRespDeleting] = useState(false);
@@ -8091,9 +8092,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </div>
                     <div>
                       <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Inicial</div>
-                      <input type="password" placeholder="mínimo 6 caracteres" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
-                        style={{ width: '100%', boxSizing: 'border-box', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
-                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>O responsável pode alterar depois</div>
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <div style={{ position: 'relative', flex: 1 }}>
+                          <input type={respShowPass ? 'text' : 'password'} placeholder="mínimo 6 caracteres" value={respNewPass} onChange={e => { setRespNewPass(e.target.value); setRespCreateMsg(''); }}
+                            style={{ width: '100%', boxSizing: 'border-box', padding: '8px 36px 8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }} />
+                          <button type="button" onClick={() => setRespShowPass(v => !v)} style={{ position: 'absolute', right: 8, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '0.85rem', color: 'var(--text-secondary)', padding: 0 }}>{respShowPass ? '🙈' : '👁'}</button>
+                        </div>
+                        <button type="button" onClick={() => {
+                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789@#!';
+                          const pw = Array.from({ length: 10 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+                          setRespNewPass(pw); setRespShowPass(true); setRespCreateMsg('');
+                        }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Gerar senha aleatória">
+                          🎲 Gerar
+                        </button>
+                      </div>
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>O responsável pode alterar depois. Use "Gerar" para criar uma senha segura.</div>
                     </div>
                   </div>
                   {respCreateMsg && (
@@ -8110,8 +8123,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, cpf: respNewCpf, nome: respNewNome, new_password: respNewPass, nucleo_key: respNewNucleo }) });
                     const d = await res.json();
                     if (res.ok) {
-                      setRespCreateMsg(`✓ Responsável cadastrado! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado.`);
-                      setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo('');
+                      const savedPass = respNewPass;
+                      setRespCreateMsg(`✓ Responsável cadastrado! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado. Senha inicial: ${savedPass}`);
+                      setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo(''); setRespShowPass(false);
                       const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
                       const ld = await lr.json();
                       if (lr.ok) setRespUsers(ld.filter((u: any) => u.nucleo !== 'geral'));

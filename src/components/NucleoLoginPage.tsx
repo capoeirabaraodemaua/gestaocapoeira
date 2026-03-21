@@ -206,11 +206,13 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     }}>
       {/* Logo ACCBM */}
       <div style={{ marginBottom: 24, textAlign: 'center' }}>
-        <div style={{ fontSize: '0.72rem', color: 'rgba(255,255,255,0.35)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 6 }}>
-          Associação Cultural de Capoeira
-        </div>
-        <div style={{ fontSize: '1.15rem', fontWeight: 900, color: '#fff', letterSpacing: '0.04em' }}>
-          Barão de Mauá
+        <img
+          src="/logo-barao-maua.png"
+          alt="Barão de Mauá"
+          style={{ width: 100, height: 'auto', marginBottom: 10, filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.5))' }}
+        />
+        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
+          Associação Cultural de Capoeira Barão de Mauá
         </div>
       </div>
 
