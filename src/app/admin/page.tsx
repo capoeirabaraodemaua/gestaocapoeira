@@ -832,7 +832,6 @@ export default function AdminPage() {
             if (!ext) return s;
             return {
               ...s,
-              // Storage tem prioridade — sobrescreve o que veio do banco
               apelido:     ext.apelido     || s.apelido     || null,
               nome_social: ext.nome_social || s.nome_social || null,
               sexo:        ext.sexo        || s.sexo        || null,
@@ -840,6 +839,20 @@ export default function AdminPage() {
           });
         }
       } catch { /* extras são opcionais */ }
+      // Mescla email das contas de acesso — fallback para alunos sem email no banco
+      try {
+        const contasRes = await fetch('/api/aluno/contas');
+        if (contasRes.ok) {
+          const contasData: AlunoAccount[] = await contasRes.json();
+          const contaEmailMap: Record<string, string> = {};
+          contasData.forEach(a => { if (a.email) contaEmailMap[a.student_id] = a.email; });
+          setAlunoContas(Array.isArray(contasData) ? contasData : []);
+          listWithNum = listWithNum.map(s => ({
+            ...s,
+            email: s.email || contaEmailMap[s.id] || null,
+          }));
+        }
+      } catch { /* contas são opcionais */ }
       setStudents(listWithNum);
       // Load display IDs (ACCBM-XXXX) for all students
       fetch('/api/aluno/gerar-id').then(r => r.json()).then(d => {
