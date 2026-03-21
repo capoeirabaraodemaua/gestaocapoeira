@@ -7455,7 +7455,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 if (novaContaForm.password !== novaContaForm.confirm_password) { setContasMsg('❌ As senhas não coincidem.'); return; }
                 const nucleo_filter = activeNucleo !== 'geral' ? nucleoFilter : undefined;
                 const st = students.find(s => s.id === novaContaForm.student_id);
-                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create-auto', student_id: novaContaForm.student_id, password: novaContaForm.password, phone: (st as any)?.telefone || '', email: novaContaForm.email, nucleo_filter }) });
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-create-auto', student_id: novaContaForm.student_id, password: novaContaForm.password, phone: (st as any)?.telefone || '', email: novaContaForm.email, nucleo_filter, nome_completo: st?.nome_completo || '', nucleo: st?.nucleo || '', telefone: (st as any)?.telefone || '' }) });
                 const d = await res.json();
                 if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
                 setContasMsg(`✅ Conta criada! Login: ${d.username} | ID: ${d.display_id || studentDisplayIds[novaContaForm.student_id] || '—'}`);

@@ -1798,6 +1798,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               student_id: successData.student_id,
                               password: criarContaPassword,
                               phone: criarContaPhone || successData.telefone || '',
+                              nome_completo: successData.nome,
+                              nucleo: successData.nucleo,
+                              telefone: successData.telefone || '',
                             }),
                           });
                           const data = await res.json();

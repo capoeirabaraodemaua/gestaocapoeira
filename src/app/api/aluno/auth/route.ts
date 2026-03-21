@@ -339,43 +339,95 @@ export async function POST(req: NextRequest) {
 
     // Admin: create account with auto-generated username from student name + sequential ID
     if (action === 'admin-create-auto') {
-      const { student_id, password, phone, nucleo_filter, email: emailOverride } = body;
+      // Accept student data directly from caller to avoid internal HTTP fetches
+      const {
+        student_id,
+        password,
+        phone: phoneArg,
+        nucleo_filter,
+        email: emailOverride,
+        nome_completo: nomeArg,
+        nucleo: nucleoArg,
+        telefone: telefoneArg,
+      } = body;
+
+      if (!student_id) {
+        return NextResponse.json({ error: 'student_id é obrigatório.' }, { status: 400 });
+      }
+
       const authMap = await loadAuthMap();
 
       if (authMap[student_id]) {
         return NextResponse.json({ error: 'Aluno já possui conta.', existing: { username: authMap[student_id].username } }, { status: 409 });
       }
 
-      // Get student info
-      const { data: student } = await supabaseAdmin
-        .from('students')
-        .select('id, nome_completo, telefone, email, nucleo')
-        .eq('id', student_id)
-        .maybeSingle();
-      if (!student) return NextResponse.json({ error: 'Aluno não encontrado.' }, { status: 404 });
+      // Try to get student info from Supabase, fall back to provided data
+      let studentName: string = nomeArg || '';
+      let studentPhone: string = telefoneArg || phoneArg || '';
+      let studentEmail: string = emailOverride || '';
+      let studentNucleo: string = nucleoArg || '';
+
+      try {
+        const { data: dbStudent } = await supabaseAdmin
+          .from('students')
+          .select('id, nome_completo, telefone, email, nucleo')
+          .eq('id', student_id)
+          .maybeSingle();
+        if (dbStudent) {
+          studentName = dbStudent.nome_completo || studentName;
+          studentPhone = phoneArg || dbStudent.telefone || studentPhone;
+          studentEmail = emailOverride || dbStudent.email || studentEmail;
+          studentNucleo = dbStudent.nucleo || studentNucleo;
+        }
+      } catch { /* use provided data */ }
+
+      // Require at least a name
+      if (!studentName) {
+        return NextResponse.json({ error: 'Aluno não encontrado. Forneça nome_completo no corpo da requisição.' }, { status: 404 });
+      }
 
       // Security: if nucleo_filter provided, check student belongs to that nucleo
-      if (nucleo_filter && student.nucleo !== nucleo_filter) {
+      if (nucleo_filter && studentNucleo && studentNucleo !== nucleo_filter) {
         return NextResponse.json({ error: 'Aluno não pertence a este núcleo.' }, { status: 403 });
       }
 
-      // Get or assign sequential display ID
-      const idRes = await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/aluno/gerar-id`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'assign', student_id }),
-      });
+      // Assign sequential display ID directly (no internal HTTP fetch)
       let displayId = `ACCBM-${String(Date.now()).slice(-4)}`;
-      if (idRes.ok) {
-        const idData = await idRes.json();
-        displayId = idData.display_id || displayId;
-      }
+      try {
+        const [idMap, counterRaw] = await Promise.all([
+          (async () => {
+            const { data: u } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl('config/aluno-id-map.json', 30);
+            if (!u?.signedUrl) return {} as Record<string, string>;
+            const r = await fetch(u.signedUrl, { cache: 'no-store' });
+            return r.ok ? (await r.json() as Record<string, string>) : {} as Record<string, string>;
+          })(),
+          (async () => {
+            const { data: u } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl('config/aluno-id-counter.json', 30);
+            if (!u?.signedUrl) return { last_id: 0 };
+            const r = await fetch(u.signedUrl, { cache: 'no-store' });
+            return r.ok ? await r.json() : { last_id: 0 };
+          })(),
+        ]);
+
+        if (idMap[student_id]) {
+          displayId = idMap[student_id];
+        } else {
+          const nextId = ((counterRaw as { last_id?: number }).last_id || 0) + 1;
+          displayId = `ACCBM-${String(nextId).padStart(4, '0')}`;
+          idMap[student_id] = displayId;
+          // Save both map and counter
+          await Promise.all([
+            supabaseAdmin.storage.from(BUCKET).upload('config/aluno-id-map.json', new Blob([JSON.stringify(idMap, null, 2)], { type: 'application/json' }), { upsert: true }),
+            supabaseAdmin.storage.from(BUCKET).upload('config/aluno-id-counter.json', new Blob([JSON.stringify({ last_id: nextId })], { type: 'application/json' }), { upsert: true }),
+          ]);
+        }
+      } catch { /* keep fallback displayId */ }
 
       // Auto-generate username from first name + display ID number
       function slugify(s: string) {
         return (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 12);
       }
-      const firstName = (student.nome_completo || '').split(' ')[0];
+      const firstName = studentName.split(' ')[0];
       const idNum = displayId.replace('ACCBM-', '');
       let username = `${slugify(firstName)}${idNum}`;
       // Ensure uniqueness
@@ -386,20 +438,18 @@ export async function POST(req: NextRequest) {
       }
 
       const salt = generateSalt();
-      const phone_to_use = phone || student.telefone || '';
-      const email_to_use = emailOverride || student.email || '';
       authMap[student_id] = {
         student_id,
         username,
-        email: email_to_use,
+        email: studentEmail,
         password_hash: hashPassword(password, salt),
         salt,
         active: true,
-        phone: phone_to_use,
+        phone: studentPhone,
         created_at: new Date().toISOString(),
       };
       await saveAuthMap(authMap);
-      return NextResponse.json({ success: true, username, display_id: displayId, phone: phone_to_use, email: email_to_use });
+      return NextResponse.json({ success: true, username, display_id: displayId, phone: studentPhone, email: studentEmail });
     }
 
     // Admin: reset password
