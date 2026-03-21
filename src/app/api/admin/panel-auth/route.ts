@@ -16,31 +16,37 @@ interface Credential {
   nucleo: NucleoKey;
   label: string;
   color: string;
-  password: string; // stored hashed: salt:hash
+  password: string;
   email?: string;
+  createdBy?: string;
 }
 
-type CredsMap = Record<string, Credential>; // key = username
+type CredsMap = Record<string, Credential>;
 
+// Usuários fixos — Admin Geral sempre existe
 const DEFAULT_CREDS: CredsMap = {
-  edsonalves:   { nucleo: 'edson-alves',   label: 'Poliesportivo Edson Alves', color: '#dc2626', password: 'edson2025' },
-  ipiranga:     { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga', color: '#ea580c', password: 'ipiranga2025' },
-  saracuruna:   { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',         color: '#16a34a', password: 'sara2025' },
-  vilaurussai:  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',       color: '#9333ea', password: 'urussai2025' },
-  jaymefichman: { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2', password: 'fichman2025' },
-  admin:        { nucleo: 'geral',          label: 'Admin Geral',               color: '#1d4ed8', password: 'accbm2025' },
+  admin: { nucleo: 'geral', label: 'Admin Geral', color: '#1d4ed8', password: 'accbm2025' },
+};
+
+// Perfis de núcleo disponíveis para novos usuários
+export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
+  'edson-alves':   { nucleo: 'edson-alves',   label: 'Poliesportivo Edson Alves', color: '#dc2626' },
+  'ipiranga':      { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga', color: '#ea580c' },
+  'saracuruna':    { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',         color: '#16a34a' },
+  'vila-urussai':  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',       color: '#9333ea' },
+  'jayme-fichman': { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2' },
 };
 
 async function loadCreds(): Promise<CredsMap> {
   try {
     const { data } = await supabase.storage.from(BUCKET).createSignedUrl(CREDS_KEY, 30);
-    if (!data?.signedUrl) return DEFAULT_CREDS;
+    if (!data?.signedUrl) return { ...DEFAULT_CREDS };
     const res = await fetch(data.signedUrl, { cache: 'no-store' });
-    if (!res.ok) return DEFAULT_CREDS;
+    if (!res.ok) return { ...DEFAULT_CREDS };
     const stored = await res.json();
-    // Merge with defaults so new users always exist
+    // Admin Geral sempre existe — merge defaults only for admin key
     return { ...DEFAULT_CREDS, ...stored };
-  } catch { return DEFAULT_CREDS; }
+  } catch { return { ...DEFAULT_CREDS }; }
 }
 
 async function saveCreds(map: CredsMap): Promise<void> {
@@ -49,7 +55,6 @@ async function saveCreds(map: CredsMap): Promise<void> {
 }
 
 function checkPassword(stored: string, input: string): boolean {
-  // Stored passwords can be plain (legacy) or "salt:hash" format
   return stored === input;
 }
 
@@ -57,17 +62,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
+  // ── LOGIN ──
   if (action === 'login') {
     const { username, password } = body;
-    if (!username || !password) return NextResponse.json({ error: 'Usuário e senha obrigatórios.' }, { status: 400 });
+    if (!username || !password)
+      return NextResponse.json({ error: 'Usuário e senha obrigatórios.' }, { status: 400 });
     const creds = await loadCreds();
     const user = creds[username.trim().toLowerCase()];
-    if (!user || !checkPassword(user.password, password)) {
+    if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
-    }
     return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color });
   }
 
+  // ── ALTERAR SENHA (usuário logado muda a própria senha) ──
   if (action === 'change-password') {
     const { username, current_password, new_password } = body;
     if (!username || !current_password || !new_password)
@@ -84,30 +91,109 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true });
   }
 
+  // ── RESETAR SENHA (Admin Geral redefine senha de qualquer usuário) ──
   if (action === 'reset-password') {
-    // Admin geral resets any user's password.
-    // Special case: if admin_username === target_username (self-setup), just verify current password — no secondary admin needed.
     const { admin_username, admin_password, target_username, new_password } = body;
     if (!admin_username || !admin_password || !target_username || !new_password)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    if (new_password.length < 6)
+      return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
     const creds = await loadCreds();
     const adminKey = admin_username.trim().toLowerCase();
     const targetKey = target_username.trim().toLowerCase();
     const adminUser = creds[adminKey];
     if (!adminUser || !checkPassword(adminUser.password, admin_password))
       return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
-    // Self-setup: only admin geral can self-authorize; other users cannot reset their own via this action
-    if (adminKey !== targetKey && adminUser.nucleo !== 'geral')
-      return NextResponse.json({ error: 'Somente o Admin Geral pode redefinir senhas de outros usuários.' }, { status: 403 });
-    if (!creds[targetKey]) return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+    if (adminUser.nucleo !== 'geral')
+      return NextResponse.json({ error: 'Somente o Admin Geral pode redefinir senhas.' }, { status: 403 });
+    if (!creds[targetKey])
+      return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
     creds[targetKey] = { ...creds[targetKey], password: new_password };
     await saveCreds(creds);
     return NextResponse.json({ ok: true });
   }
 
+  // ── CRIAR RESPONSÁVEL DE NÚCLEO (Admin Geral cria novo usuário) ──
+  if (action === 'create-user') {
+    const { admin_username, admin_password, new_username, new_password, nucleo_key } = body;
+    if (!admin_username || !admin_password || !new_username || !new_password || !nucleo_key)
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    if (new_password.length < 6)
+      return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+
+    const usernameClean = new_username.trim().toLowerCase().replace(/[^a-z0-9_-]/g, '');
+    if (usernameClean.length < 3)
+      return NextResponse.json({ error: 'Login deve ter pelo menos 3 caracteres (apenas letras e números).' }, { status: 400 });
+
+    const creds = await loadCreds();
+    const adminUser = creds[admin_username.trim().toLowerCase()];
+    if (!adminUser || !checkPassword(adminUser.password, admin_password))
+      return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
+    if (adminUser.nucleo !== 'geral')
+      return NextResponse.json({ error: 'Somente o Admin Geral pode criar usuários.' }, { status: 403 });
+
+    if (creds[usernameClean])
+      return NextResponse.json({ error: `Login "${usernameClean}" já existe.` }, { status: 409 });
+
+    const profile = NUCLEO_PROFILES[nucleo_key];
+    if (!profile)
+      return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
+
+    creds[usernameClean] = {
+      nucleo: profile.nucleo,
+      label: profile.label,
+      color: profile.color,
+      password: new_password,
+      createdBy: admin_username.trim().toLowerCase(),
+    };
+    await saveCreds(creds);
+    return NextResponse.json({ ok: true, username: usernameClean });
+  }
+
+  // ── REMOVER USUÁRIO (Admin Geral remove responsável de núcleo) ──
+  if (action === 'delete-user') {
+    const { admin_username, admin_password, target_username } = body;
+    if (!admin_username || !admin_password || !target_username)
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    const creds = await loadCreds();
+    const adminUser = creds[admin_username.trim().toLowerCase()];
+    if (!adminUser || !checkPassword(adminUser.password, admin_password))
+      return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
+    if (adminUser.nucleo !== 'geral')
+      return NextResponse.json({ error: 'Somente o Admin Geral pode remover usuários.' }, { status: 403 });
+    const targetKey = target_username.trim().toLowerCase();
+    if (targetKey === 'admin')
+      return NextResponse.json({ error: 'Não é possível remover o Admin Geral.' }, { status: 400 });
+    if (!creds[targetKey])
+      return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
+    delete creds[targetKey];
+    await saveCreds(creds);
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── LISTAR USUÁRIOS (Admin Geral) ──
+  if (action === 'list-users') {
+    const { admin_username, admin_password } = body;
+    const creds = await loadCreds();
+    const adminUser = creds[admin_username?.trim().toLowerCase()];
+    if (!adminUser || adminUser.nucleo !== 'geral' || !checkPassword(adminUser.password, admin_password))
+      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
+    const list = Object.entries(creds).map(([u, c]) => ({
+      username: u,
+      label: c.label,
+      nucleo: c.nucleo,
+      color: c.color,
+      email: c.email || '',
+      createdBy: c.createdBy || '',
+    }));
+    return NextResponse.json(list);
+  }
+
+  // ── ATUALIZAR EMAIL ──
   if (action === 'update-email') {
     const { username, password, email } = body;
-    if (!username || !password) return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    if (!username || !password)
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     const creds = await loadCreds();
     const key = username.trim().toLowerCase();
     const user = creds[key];
@@ -116,17 +202,6 @@ export async function POST(req: NextRequest) {
     creds[key] = { ...user, email: email || '' };
     await saveCreds(creds);
     return NextResponse.json({ ok: true });
-  }
-
-  if (action === 'list-users') {
-    // Admin geral only — returns all usernames and their nucleos
-    const { admin_username, admin_password } = body;
-    const creds = await loadCreds();
-    const adminUser = creds[admin_username?.trim().toLowerCase()];
-    if (!adminUser || adminUser.nucleo !== 'geral' || !checkPassword(adminUser.password, admin_password))
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 401 });
-    const list = Object.entries(creds).map(([u, c]) => ({ username: u, label: c.label, nucleo: c.nucleo, email: c.email || '' }));
-    return NextResponse.json(list);
   }
 
   return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 });
