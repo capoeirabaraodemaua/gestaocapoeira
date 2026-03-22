@@ -24,12 +24,6 @@ interface Credential {
 
 type CredsMap = Record<string, Credential>;
 
-// Admin Geral principal sempre existe
-// Senhas iniciais únicas por núcleo — responsáveis devem trocar no primeiro acesso
-const DEFAULT_CREDS: CredsMap = {
-  admin: { nucleo: 'geral', label: 'Admin Geral', color: '#1d4ed8', password: 'accbm2025' },
-};
-
 // Senhas padrão iniciais por núcleo (usadas ao criar responsável sem senha definida)
 export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
   'edson-alves':   'edson12345',
@@ -37,6 +31,16 @@ export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
   'saracuruna':    'sara12345',
   'vila-urussai':  'urussai12345',
   'jayme-fichman': 'jayme12345',
+};
+
+// Credenciais padrão — admin geral + conta inicial de cada núcleo (acessível pela senha padrão)
+const DEFAULT_CREDS: CredsMap = {
+  admin:            { nucleo: 'geral',          label: 'Admin Geral',                color: '#1d4ed8', password: 'accbm2025' },
+  'edson-alves':    { nucleo: 'edson-alves',    label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: 'edson12345' },
+  'ipiranga':       { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: 'ipiranga12345' },
+  'saracuruna':     { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',          color: '#16a34a', password: 'sara12345' },
+  'vila-urussai':   { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: 'urussai12345' },
+  'jayme-fichman':  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: 'jayme12345' },
 };
 
 export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
