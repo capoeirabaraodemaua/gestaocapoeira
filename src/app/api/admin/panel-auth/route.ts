@@ -25,8 +25,18 @@ interface Credential {
 type CredsMap = Record<string, Credential>;
 
 // Admin Geral principal sempre existe
+// Senhas iniciais únicas por núcleo — responsáveis devem trocar no primeiro acesso
 const DEFAULT_CREDS: CredsMap = {
   admin: { nucleo: 'geral', label: 'Admin Geral', color: '#1d4ed8', password: 'accbm2025' },
+};
+
+// Senhas padrão iniciais por núcleo (usadas ao criar responsável sem senha definida)
+export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
+  'edson-alves':   'edson12345',
+  'ipiranga':      'ipiranga12345',
+  'saracuruna':    'sara12345',
+  'vila-urussai':  'urussai12345',
+  'jayme-fichman': 'jayme12345',
 };
 
 export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
@@ -89,7 +99,8 @@ export async function POST(req: NextRequest) {
     const user = creds[key];
     if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'CPF/usuário ou senha incorretos.' }, { status: 401 });
-    return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '' });
+    const isGeral = user.nucleo === 'geral';
+    return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral });
   }
 
   // ── ALTERAR MINHA SENHA ──
@@ -133,8 +144,9 @@ export async function POST(req: NextRequest) {
 
   // ── CRIAR RESPONSÁVEL DE NÚCLEO (login = CPF) ──
   if (action === 'create-user') {
-    const { admin_username, admin_password, cpf, nome, new_password, nucleo_key } = body;
-    if (!admin_username || !admin_password || !cpf || !new_password || !nucleo_key)
+    const { admin_username, admin_password, cpf, nome, nucleo_key } = body;
+    const new_password = body.new_password || NUCLEO_DEFAULT_PASSWORDS[nucleo_key] || 'acesso12345';
+    if (!admin_username || !admin_password || !cpf || !nucleo_key)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     if (new_password.length < 6)
       return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });

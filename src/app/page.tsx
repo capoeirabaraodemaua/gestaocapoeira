@@ -144,7 +144,10 @@ export default function Home() {
       if (res.ok && data.ok) {
         setLoginState(0, 0);
         sessionStorage.setItem('admin_auth', data.nucleo);
-        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify([data.nucleo]));
+        // Admin Geral tem acesso a todos os núcleos
+        const ALL_NUCLEOS = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'geral'];
+        const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
+        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         window.location.href = '/admin';
         return;
       }
@@ -1920,48 +1923,48 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   {/* Admin Geral */}
                   <div onClick={() => { setAdminUser('admin'); setTimeout(() => document.getElementById('adminPassInput')?.focus(), 50); }}
                     style={{ background: 'linear-gradient(135deg,rgba(29,78,216,0.18),rgba(30,64,175,0.1))', border: `1.5px solid ${adminUser === 'admin' ? '#3b82f6' : 'rgba(29,78,216,0.35)'}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: adminUser === 'admin' ? '0 0 0 2px rgba(59,130,246,0.3)' : 'none' }}>
-                    <div style={{ fontSize: 20, marginBottom: 4 }}>🛡️</div>
-                    <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: '0.72rem', lineHeight: 1.2 }}>Admin Geral</div>
-                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.6rem', marginTop: 2 }}>Todos os núcleos</div>
+                    <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) brightness(1.1)' }} />
+                    <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: '0.7rem', lineHeight: 1.2 }}>Admin Geral</div>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Todos os núcleos</div>
                   </div>
                   {/* Edson Alves */}
                   <a href="/nucleo/edson-alves" style={{ textDecoration: 'none' }}>
                     <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.15),rgba(185,28,28,0.08))', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
-                      <div style={{ color: '#fca5a5', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Edson Alves</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Magé – RJ</div>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(330deg)' }} />
+                      <div style={{ color: '#fca5a5', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Edson Alves</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Magé – RJ</div>
                     </div>
                   </a>
                   {/* Ipiranga */}
                   <a href="/nucleo/ipiranga" style={{ textDecoration: 'none' }}>
                     <div style={{ background: 'linear-gradient(135deg,rgba(234,88,12,0.15),rgba(194,65,12,0.08))', border: '1.5px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
-                      <div style={{ color: '#fdba74', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Ipiranga</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Magé – RJ</div>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(10deg)' }} />
+                      <div style={{ color: '#fdba74', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Ipiranga</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Magé – RJ</div>
                     </div>
                   </a>
                   {/* Saracuruna */}
                   <a href="/nucleo/saracuruna" style={{ textDecoration: 'none' }}>
                     <div style={{ background: 'linear-gradient(135deg,rgba(22,163,74,0.15),rgba(21,128,61,0.08))', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
-                      <div style={{ color: '#86efac', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Saracuruna</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(2) hue-rotate(90deg)' }} />
+                      <div style={{ color: '#86efac', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Saracuruna</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
                     </div>
                   </a>
                   {/* Vila Urussaí */}
                   <a href="/nucleo/vila-urussai" style={{ textDecoration: 'none' }}>
                     <div style={{ background: 'linear-gradient(135deg,rgba(147,51,234,0.15),rgba(126,34,206,0.08))', border: '1.5px solid rgba(147,51,234,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
-                      <div style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Vila Urussaí</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(240deg)' }} />
+                      <div style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Vila Urussaí</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
                     </div>
                   </a>
                   {/* Jayme Fichman */}
                   <a href="/nucleo/jayme-fichman" style={{ textDecoration: 'none' }}>
                     <div style={{ background: 'linear-gradient(135deg,rgba(8,145,178,0.15),rgba(6,118,145,0.08))', border: '1.5px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <div style={{ fontSize: 20, marginBottom: 4 }}>🥋</div>
-                      <div style={{ color: '#67e8f9', fontWeight: 800, fontSize: '0.68rem', lineHeight: 1.2 }}>Jayme Fichman</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Caxias – RJ</div>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(175deg)' }} />
+                      <div style={{ color: '#67e8f9', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Jayme Fichman</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
                     </div>
                   </a>
                 </div>

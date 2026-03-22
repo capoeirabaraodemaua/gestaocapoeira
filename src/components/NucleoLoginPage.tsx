@@ -204,18 +204,6 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
       padding: '20px 16px',
       fontFamily: 'Inter, system-ui, sans-serif',
     }}>
-      {/* Logo ACCBM */}
-      <div style={{ marginBottom: 24, textAlign: 'center' }}>
-        <img
-          src="/logo-barao-maua.png"
-          alt="Barão de Mauá"
-          style={{ width: 100, height: 'auto', marginBottom: 10, filter: 'drop-shadow(0 4px 16px rgba(0,0,0,0.5))' }}
-        />
-        <div style={{ fontSize: '0.68rem', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.12em', textTransform: 'uppercase' }}>
-          Associação Cultural de Capoeira Barão de Mauá
-        </div>
-      </div>
-
       {/* Card principal */}
       <div style={{
         background: 'linear-gradient(160deg,#1a2035,#161e30)',
@@ -226,22 +214,13 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
         maxWidth: 420,
         boxShadow: `0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px ${nucleo.color}20`,
       }}>
-        {/* Cabeçalho do núcleo */}
+        {/* Cabeçalho do núcleo — logo centralizada acima do nome */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <div style={{
-            display: 'inline-flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            width: 56,
-            height: 56,
-            borderRadius: '50%',
-            background: `${nucleo.color}22`,
-            border: `2px solid ${nucleo.color}60`,
-            fontSize: 26,
-            marginBottom: 14,
-          }}>
-            {nucleo.emoji}
-          </div>
+          <img
+            src="/logo-barao-maua.png"
+            alt="Barão de Mauá"
+            style={{ width: 88, height: 'auto', marginBottom: 14, filter: 'drop-shadow(0 4px 18px rgba(0,0,0,0.6))' }}
+          />
           <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#fff', marginBottom: 4 }}>
             {nucleo.label}
           </div>

@@ -457,7 +457,9 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         const nk = data.nucleo as NucleoKey;
         sessionStorage.setItem('admin_auth', nk);
-        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify([nk]));
+        const ALL_NUCLEOS: NucleoKey[] = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'geral'];
+        const nucleosList = data.isGeral ? ALL_NUCLEOS : [nk];
+        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         setAuthed(true);
         setActiveNucleo(nk);
         setAdminLoginState(0, 0);
@@ -8072,14 +8074,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       <select value={respNewNucleo} onChange={e => {
                         const nk = e.target.value;
                         setRespNewNucleo(nk); setRespCreateMsg('');
-                        if (nk && !respNewPass) {
-                          const seed: Record<string, string> = {
-                            'edson-alves': 'Ea', 'ipiranga': 'Ip', 'saracuruna': 'Sr', 'vila-urussai': 'Vu', 'jayme-fichman': 'Jf',
-                          };
-                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-                          const rand = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-                          setRespNewPass((seed[nk] || 'Ac') + rand); setRespShowPass(true);
-                        }
+                        // Preenche com senha padrão do núcleo (sequência 12345)
+                        const defaultPasswords: Record<string, string> = {
+                          'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
+                          'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345',
+                        };
+                        setRespNewPass(nk ? (defaultPasswords[nk] || 'acesso12345') : '');
+                        setRespShowPass(true);
                       }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
                         <option value="">Selecione o núcleo</option>
@@ -8110,15 +8111,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           📋
                         </button>
                         <button type="button" onClick={() => {
-                          const seed: Record<string, string> = { 'edson-alves': 'Ea', 'ipiranga': 'Ip', 'saracuruna': 'Sr', 'vila-urussai': 'Vu', 'jayme-fichman': 'Jf' };
-                          const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-                          const rand = Array.from({ length: 8 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-                          setRespNewPass((seed[respNewNucleo] || 'Ac') + rand); setRespCreateMsg('');
-                        }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Nova senha aleatória">
-                          🎲
+                          const defaultPasswords: Record<string, string> = {
+                            'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
+                            'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345',
+                          };
+                          setRespNewPass(defaultPasswords[respNewNucleo] || 'acesso12345'); setRespCreateMsg('');
+                        }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Restaurar senha padrão">
+                          🔄
                         </button>
                       </div>
-                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>Senha gerada automaticamente ao selecionar o núcleo. Anote e repasse ao responsável — ele pode alterar depois.</div>
+                      <div style={{ fontSize: '0.66rem', color: 'var(--text-secondary)', marginTop: 3 }}>Senha padrão preenchida ao selecionar o núcleo. Repasse ao responsável — ele deve alterar após o primeiro acesso.</div>
                     </div>
                   </div>
                   {respCreateMsg && (
