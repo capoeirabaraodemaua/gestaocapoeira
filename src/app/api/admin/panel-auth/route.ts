@@ -121,21 +121,49 @@ export async function POST(req: NextRequest) {
     const { username, password } = body;
     if (!username || !password)
       return NextResponse.json({ error: 'Usuário/CPF e senha obrigatórios.' }, { status: 400 });
+
     const creds = await loadCreds();
     const key = normalizeKey(username);
-    const user = creds[key];
-    if (!user || !checkPassword(user.password, password))
-      return NextResponse.json({ error: 'CPF/usuário ou senha incorretos.' }, { status: 401 });
-    const isGeral = user.nucleo === 'geral';
-
-    // Se login por CPF (11 dígitos), validar se está registrado no módulo responsáveis para o núcleo
     const isCpfLogin = /^\d{11}$/.test(key);
-    if (isCpfLogin && !isGeral) {
-      const autorizado = await cpfAutorizadoParaNucleo(key, user.nucleo);
-      if (!autorizado)
-        return NextResponse.json({ error: 'CPF não autorizado para este núcleo. Solicite ao Admin Geral.' }, { status: 403 });
+
+    // Se for login por CPF, verificar no módulo responsáveis e auto-criar credencial se necessário
+    if (isCpfLogin) {
+      const lista = await loadResponsaveis();
+      const cpfNorm = normalizeCpf(key);
+      const entry = lista.find(r =>
+        normalizeCpf(r.cpf || '') === cpfNorm || normalizeCpf(r.cpf2 || '') === cpfNorm
+      );
+      if (!entry)
+        return NextResponse.json({ error: 'CPF não encontrado como responsável de nenhum núcleo. Solicite o cadastro ao Admin Geral.' }, { status: 403 });
+
+      // Auto-criar credencial na primeira vez com senha padrão do núcleo
+      if (!creds[cpfNorm]) {
+        const profile = NUCLEO_PROFILES[entry.nucleo_key];
+        if (profile) {
+          const isMainCpf = normalizeCpf(entry.cpf || '') === cpfNorm;
+          creds[cpfNorm] = {
+            nucleo: entry.nucleo_key as NucleoKey,
+            label: profile.label,
+            color: profile.color,
+            password: NUCLEO_DEFAULT_PASSWORDS[entry.nucleo_key] || 'acesso12345',
+            nome: isMainCpf ? (entry.nome || '') : (entry.nome2 || entry.nome || ''),
+          };
+          await saveCreds(creds);
+        }
+      }
+
+      const user = creds[cpfNorm];
+      if (!user || !checkPassword(user.password, password))
+        return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
+
+      return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral: false });
     }
 
+    // Login por chave (admin, nucleo-key) — sem CPF
+    const user = creds[key];
+    if (!user || !checkPassword(user.password, password))
+      return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
+    const isGeral = user.nucleo === 'geral';
     return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral });
   }
 

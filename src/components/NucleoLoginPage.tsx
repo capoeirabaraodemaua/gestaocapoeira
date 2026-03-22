@@ -117,14 +117,9 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
 
   async function handleLogin(e?: React.FormEvent) {
     e?.preventDefault();
-    if (!senha) { setErro('Digite sua senha.'); return; }
-
     const cpfDigits = cpf.replace(/\D/g, '');
-    // CPF deve estar vazio (usa conta padrão do núcleo) ou completo (11 dígitos)
-    if (cpfDigits.length > 0 && cpfDigits.length !== 11) {
-      setErro('CPF inválido. Digite os 11 dígitos ou deixe em branco para acesso padrão.');
-      return;
-    }
+    if (cpfDigits.length !== 11) { setErro('Digite seu CPF completo (11 dígitos).'); return; }
+    if (!senha) { setErro('Digite sua senha.'); return; }
 
     const ls = getLockState();
     const now = Date.now();
@@ -137,8 +132,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     setLoading(true);
     setErro('');
     try {
-      // Se CPF preenchido, tenta login com CPF; senão usa a chave padrão do núcleo
-      const username = cpfDigits.length === 11 ? cpfDigits : nucleoKey;
+      const username = cpfDigits;
       const res = await fetch('/api/admin/panel-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -181,13 +175,12 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   async function handleAlterar(e: React.FormEvent) {
     e.preventDefault();
     const cpfD = altCpf.replace(/\D/g, '');
-    if (cpfD.length > 0 && cpfD.length !== 11) { setAltMsg('CPF inválido. Digite os 11 dígitos ou deixe em branco.'); return; }
+    if (cpfD.length !== 11) { setAltMsg('Digite seu CPF completo (11 dígitos).'); return; }
     if (!altAtual || !altNova || !altConfirm) { setAltMsg('Preencha todos os campos.'); return; }
     if (altNova !== altConfirm) { setAltMsg('As senhas não coincidem.'); return; }
     if (altNova.length < 6) { setAltMsg('Nova senha deve ter pelo menos 6 caracteres.'); return; }
     setAltLoading(true);
-    // Se CPF não informado, altera a senha da conta padrão do núcleo
-    const username = cpfD.length === 11 ? cpfD : nucleoKey;
+    const username = cpfD;
     const res = await fetch('/api/admin/panel-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -254,18 +247,18 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
 
         {tela === 'login' ? (
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* CPF — opcional para acesso padrão */}
+            {/* CPF — obrigatório, vinculado ao módulo responsáveis */}
             <div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 5 }}>
+              <div style={{ marginBottom: 5 }}>
                 <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  CPF <span style={{ color: 'rgba(255,255,255,0.25)', fontWeight: 400, textTransform: 'none', fontSize: '0.65rem' }}>(opcional no primeiro acesso)</span>
+                  CPF do Responsável
                 </div>
               </div>
               <input
                 autoFocus
                 type="text"
                 inputMode="numeric"
-                placeholder="Deixe em branco no primeiro acesso"
+                placeholder="000.000.000-00"
                 value={cpf}
                 onChange={e => { setCpf(formatCpf(e.target.value)); setErro(''); }}
                 disabled={loading}
@@ -348,8 +341,11 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
               {loading ? '⏳ Verificando...' : '🔓 Entrar no Painel'}
             </button>
 
-            {/* Alterar senha */}
-            <div style={{ textAlign: 'center', paddingTop: 4 }}>
+            {/* Dica senha padrão + link alterar */}
+            <div style={{ textAlign: 'center', paddingTop: 2 }}>
+              <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.22)', marginBottom: 6 }}>
+                Primeiro acesso? Use a senha padrão do seu núcleo.
+              </div>
               <button
                 type="button"
                 onClick={() => { setTela('alterar'); setAltMsg(''); }}
@@ -366,7 +362,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
               <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.92rem' }}>Alterar Senha</div>
             </div>
             {[
-              { label: 'Seu CPF (opcional — deixe em branco para conta padrão)', val: altCpf, set: (v: string) => setAltCpf(formatCpf(v)), ph: 'Deixe em branco no primeiro acesso', type: 'text', mode: 'numeric' as const },
+              { label: 'Seu CPF', val: altCpf, set: (v: string) => setAltCpf(formatCpf(v)), ph: '000.000.000-00', type: 'text', mode: 'numeric' as const },
               { label: 'Senha Atual', val: altAtual, set: setAltAtual, ph: '••••••••', type: 'password', mode: undefined },
               { label: 'Nova Senha', val: altNova, set: setAltNova, ph: 'mínimo 6 caracteres', type: 'password', mode: undefined },
               { label: 'Confirmar Nova Senha', val: altConfirm, set: setAltConfirm, ph: '••••••••', type: 'password', mode: undefined },
