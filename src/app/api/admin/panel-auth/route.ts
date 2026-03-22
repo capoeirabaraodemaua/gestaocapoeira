@@ -76,6 +76,29 @@ async function loadCreds(): Promise<CredsMap> {
   } catch { return { ...DEFAULT_CREDS }; }
 }
 
+// Carrega responsáveis cadastrados no módulo responsaveis.json
+interface ResponsavelEntry { nucleo_key: string; cpf: string; cpf2?: string; nome?: string; nome2?: string; }
+async function loadResponsaveis(): Promise<ResponsavelEntry[]> {
+  try {
+    const { data } = await supabase.storage.from(BUCKET).createSignedUrl('config/responsaveis.json', 30);
+    if (!data?.signedUrl) return [];
+    const res = await fetch(data.signedUrl, { cache: 'no-store' });
+    if (!res.ok) return [];
+    const cfg = await res.json();
+    return cfg.responsaveis || [];
+  } catch { return []; }
+}
+
+// Verifica se CPF está registrado no módulo responsáveis para o núcleo informado
+async function cpfAutorizadoParaNucleo(cpf: string, nucleoKey: string): Promise<boolean> {
+  const lista = await loadResponsaveis();
+  const cpfNorm = normalizeCpf(cpf);
+  return lista.some(r =>
+    r.nucleo_key === nucleoKey &&
+    (normalizeCpf(r.cpf || '') === cpfNorm || normalizeCpf(r.cpf2 || '') === cpfNorm)
+  );
+}
+
 async function saveCreds(map: CredsMap): Promise<void> {
   const blob = new Blob([JSON.stringify(map)], { type: 'application/json' });
   await supabase.storage.from(BUCKET).upload(CREDS_KEY, blob, { upsert: true });
@@ -104,6 +127,15 @@ export async function POST(req: NextRequest) {
     if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'CPF/usuário ou senha incorretos.' }, { status: 401 });
     const isGeral = user.nucleo === 'geral';
+
+    // Se login por CPF (11 dígitos), validar se está registrado no módulo responsáveis para o núcleo
+    const isCpfLogin = /^\d{11}$/.test(key);
+    if (isCpfLogin && !isGeral) {
+      const autorizado = await cpfAutorizadoParaNucleo(key, user.nucleo);
+      if (!autorizado)
+        return NextResponse.json({ error: 'CPF não autorizado para este núcleo. Solicite ao Admin Geral.' }, { status: 403 });
+    }
+
     return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral });
   }
 
@@ -172,6 +204,11 @@ export async function POST(req: NextRequest) {
     const profile = NUCLEO_PROFILES[nucleo_key];
     if (!profile)
       return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
+
+    // Validar que o CPF está cadastrado no módulo responsáveis para o núcleo
+    const autorizado = await cpfAutorizadoParaNucleo(cpfKey, nucleo_key);
+    if (!autorizado)
+      return NextResponse.json({ error: `CPF não encontrado no módulo Responsáveis de Núcleo para ${profile.label}. Cadastre o responsável primeiro na aba Responsáveis.` }, { status: 422 });
 
     creds[cpfKey] = {
       nucleo: profile.nucleo,
