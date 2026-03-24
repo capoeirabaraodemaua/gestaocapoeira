@@ -1,15 +1,50 @@
 /**
  * Serviço de envio de email centralizado — ACCBM
- * Tenta na ordem: Resend API → SMTP (nodemailer) → retorna { sent: false, otp?, resetUrl? }
+ * Prioridade: env vars → config/email-config.json (Storage) → skip
  */
 
 import nodemailer from 'nodemailer';
+import { createClient } from '@supabase/supabase-js';
 
 export type EmailResult = {
   sent: boolean;
-  skipped?: boolean; // sem nenhum serviço configurado
+  skipped?: boolean;
   error?: string;
 };
+
+type EmailConfig = {
+  provider?: 'resend' | 'smtp' | '';
+  resend_api_key?: string;
+  resend_from?: string;
+  smtp_host?: string;
+  smtp_port?: string;
+  smtp_user?: string;
+  smtp_pass?: string;
+  smtp_from?: string;
+};
+
+// Cache simples (evita buscar Storage a cada e-mail)
+let _configCache: EmailConfig | null = null;
+let _configCacheAt = 0;
+const CACHE_TTL = 5 * 60 * 1000; // 5 min
+
+async function getStorageConfig(): Promise<EmailConfig> {
+  if (_configCache && Date.now() - _configCacheAt < CACHE_TTL) return _configCache;
+  try {
+    const supabase = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    const { data } = await supabase.storage.from('photos').createSignedUrl('config/email-config.json', 60);
+    if (!data?.signedUrl) return {};
+    const res = await fetch(data.signedUrl, { cache: 'no-store' });
+    if (!res.ok) return {};
+    const cfg = await res.json() as EmailConfig;
+    _configCache = cfg;
+    _configCacheAt = Date.now();
+    return cfg;
+  } catch { return {}; }
+}
 
 // ─── Templates HTML ───────────────────────────────────────────────────────────
 
@@ -89,11 +124,8 @@ export function buildInscricaoHtml(nome: string, nucleo: string, graduacao: stri
 
 // ─── Envio ────────────────────────────────────────────────────────────────────
 
-async function sendViaResend(to: string, subject: string, html: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return false;
+async function sendViaResend(to: string, subject: string, html: string, apiKey: string, from: string): Promise<boolean> {
   try {
-    const from = process.env.RESEND_FROM || 'ACCBM <noreply@accbm.com.br>';
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
@@ -111,23 +143,18 @@ async function sendViaResend(to: string, subject: string, html: string): Promise
   }
 }
 
-async function sendViaSmtp(to: string, subject: string, html: string): Promise<boolean> {
-  const host = process.env.SMTP_HOST;
-  const user = process.env.SMTP_USER;
-  const pass = process.env.SMTP_PASS;
-  if (!host || !user || !pass) return false;
+async function sendViaSmtp(to: string, subject: string, html: string, host: string, port: string, user: string, pass: string, from: string): Promise<boolean> {
   try {
-    const port = parseInt(process.env.SMTP_PORT || '587');
-    const secure = port === 465;
+    const portNum = parseInt(port || '587');
+    const secure = portNum === 465;
     const transporter = nodemailer.createTransport({
       host,
-      port,
+      port: portNum,
       secure,
       auth: { user, pass },
       tls: { rejectUnauthorized: false },
     });
-    const from = process.env.SMTP_FROM || process.env.SMTP_USER || 'ACCBM <noreply@accbm.com.br>';
-    await transporter.sendMail({ from, to, subject, html });
+    await transporter.sendMail({ from: from || user, to, subject, html });
     return true;
   } catch (e) {
     console.error('[email/smtp] exception:', e);
@@ -136,18 +163,46 @@ async function sendViaSmtp(to: string, subject: string, html: string): Promise<b
 }
 
 export async function sendEmail(to: string, subject: string, html: string): Promise<EmailResult> {
-  // 1. Tenta Resend
-  if (process.env.RESEND_API_KEY) {
-    const ok = await sendViaResend(to, subject, html);
+  // 1. Tenta via env vars (prioridade máxima — Vercel/CI)
+  const envResendKey = process.env.RESEND_API_KEY;
+  if (envResendKey) {
+    const from = process.env.RESEND_FROM || 'ACCBM <noreply@accbm.com.br>';
+    const ok = await sendViaResend(to, subject, html, envResendKey, from);
     if (ok) return { sent: true };
-    return { sent: false, error: 'Resend configurado mas falhou ao enviar.' };
+    return { sent: false, error: 'Resend (env) configurado mas falhou.' };
   }
-  // 2. Tenta SMTP
-  if (process.env.SMTP_HOST && process.env.SMTP_USER) {
-    const ok = await sendViaSmtp(to, subject, html);
+
+  const envSmtpHost = process.env.SMTP_HOST;
+  const envSmtpUser = process.env.SMTP_USER;
+  const envSmtpPass = process.env.SMTP_PASS;
+  if (envSmtpHost && envSmtpUser && envSmtpPass) {
+    const ok = await sendViaSmtp(to, subject, html, envSmtpHost, process.env.SMTP_PORT || '587', envSmtpUser, envSmtpPass, process.env.SMTP_FROM || envSmtpUser);
     if (ok) return { sent: true };
-    return { sent: false, error: 'SMTP configurado mas falhou ao enviar.' };
+    return { sent: false, error: 'SMTP (env) configurado mas falhou.' };
   }
+
+  // 2. Tenta via config salva no Supabase Storage (configurada pelo admin no painel)
+  const cfg = await getStorageConfig();
+
+  if (cfg.provider === 'resend' && cfg.resend_api_key) {
+    const from = cfg.resend_from || 'ACCBM <noreply@accbm.com.br>';
+    const ok = await sendViaResend(to, subject, html, cfg.resend_api_key, from);
+    if (ok) return { sent: true };
+    return { sent: false, error: 'Resend (painel) configurado mas falhou. Verifique a chave API.' };
+  }
+
+  if (cfg.provider === 'smtp' && cfg.smtp_host && cfg.smtp_user && cfg.smtp_pass) {
+    const ok = await sendViaSmtp(to, subject, html, cfg.smtp_host, cfg.smtp_port || '587', cfg.smtp_user, cfg.smtp_pass, cfg.smtp_from || cfg.smtp_user);
+    if (ok) return { sent: true };
+    return { sent: false, error: 'SMTP (painel) configurado mas falhou. Verifique as credenciais.' };
+  }
+
   // 3. Nenhum serviço configurado
   return { sent: false, skipped: true };
+}
+
+// Invalida o cache de config (chamar após salvar nova config)
+export function invalidateEmailConfigCache() {
+  _configCache = null;
+  _configCacheAt = 0;
 }

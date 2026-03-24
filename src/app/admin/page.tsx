@@ -729,6 +729,13 @@ export default function AdminPage() {
   const [extraAdminsLoading, setExtraAdminsLoading] = useState(false);
   const [extraAdminForm, setExtraAdminForm] = useState({ username: '', nome: '', email: '', password: '', confirmPassword: '' });
   const [extraAdminMsg, setExtraAdminMsg] = useState('');
+  // Email config state
+  const [emailCfg, setEmailCfg] = useState<{ provider: string; resend_api_key?: string; resend_from?: string; smtp_host?: string; smtp_port?: string; smtp_user?: string; smtp_pass?: string; smtp_from?: string; has_resend?: boolean; has_smtp?: boolean }>({ provider: '' });
+  const [emailCfgLoaded, setEmailCfgLoaded] = useState(false);
+  const [emailCfgSaving, setEmailCfgSaving] = useState(false);
+  const [emailCfgMsg, setEmailCfgMsg] = useState('');
+  const [emailTestTo, setEmailTestTo] = useState('');
+  const [emailTestLoading, setEmailTestLoading] = useState(false);
   const [savingExtraAdmin, setSavingExtraAdmin] = useState(false);
 
   // ── Manual video links state ──────────────────────────────────────────────
@@ -1526,7 +1533,11 @@ export default function AdminPage() {
               // Also load video links
               fetch('/api/admin/manual-videos').then(r => r.json()).then(d => setManualVideos(d.videos || [])).catch(() => {});
             }
-            if (key === 'admins') { setExtraAdminsLoading(true); setExtraAdminMsg(''); fetch('/api/admin/extra-admins').then(r => r.json()).then(d => { setExtraAdmins(d.admins || []); setExtraAdminsLoading(false); }).catch(() => setExtraAdminsLoading(false)); }
+            if (key === 'admins') {
+              setExtraAdminsLoading(true); setExtraAdminMsg('');
+              fetch('/api/admin/extra-admins').then(r => r.json()).then(d => { setExtraAdmins(d.admins || []); setExtraAdminsLoading(false); }).catch(() => setExtraAdminsLoading(false));
+              if (!emailCfgLoaded) { fetch('/api/admin/email-config').then(r => r.json()).then(d => { setEmailCfg(d); setEmailCfgLoaded(true); }).catch(() => {}); }
+            }
             if (key === 'lixeira') { setLoadingLixeira(true); setLixeiraMsg(''); fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false)); }
             if (key === 'justificativas') {
               setLoadingJustificativas(true); setJustMsg('');
@@ -6635,20 +6646,110 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* Configuração de e-mail */}
           <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#a78bfa', marginBottom: 10 }}>📧 Configuração de E-mail</div>
-            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-              <p style={{ margin: '0 0 10px', color: 'var(--text-primary)', fontWeight: 600 }}>Para ativar o envio automático de e-mails na plataforma (recuperação de senha, notificações):</p>
-              <ol style={{ margin: '0 0 10px', paddingLeft: 20 }}>
-                <li>Crie uma conta gratuita em <strong>resend.com</strong></li>
-                <li>Gere uma API Key no painel do Resend</li>
-                <li>Adicione a variável de ambiente: <code style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>RESEND_API_KEY=re_sua_chave</code></li>
-                <li>No Vercel: <em>Settings → Environment Variables → Add</em></li>
-                <li>Opcionalmente configure: <code style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>RESEND_FROM=ACCBM &lt;noreply@seu-dominio.com&gt;</code></li>
-              </ol>
-              <p style={{ margin: 0, color: '#fbbf24', fontWeight: 600 }}>
-                ⚠️ Sem RESEND_API_KEY, o link de redefinição de senha para responsáveis é exibido diretamente na tela de recuperação — funcional mas não automático.
-              </p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+              <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#a78bfa' }}>📧 Configuração de E-mail</div>
+              {(emailCfg.has_resend || emailCfg.has_smtp) && (
+                <span style={{ background: 'rgba(22,163,74,0.15)', color: '#4ade80', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 20, padding: '2px 12px', fontSize: '0.75rem', fontWeight: 700 }}>✓ Ativo</span>
+              )}
             </div>
+
+            {/* Seletor de provedor */}
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              {[
+                { value: 'resend', label: '🚀 Resend', desc: 'Gratuito · fácil' },
+                { value: 'smtp',   label: '📬 SMTP / Gmail', desc: 'Gmail, Outlook...' },
+              ].map(opt => (
+                <button key={opt.value} onClick={() => setEmailCfg(prev => ({ ...prev, provider: opt.value }))}
+                  style={{ flex: 1, padding: '10px 12px', borderRadius: 10, border: `2px solid ${emailCfg.provider === opt.value ? '#7c3aed' : 'rgba(255,255,255,0.1)'}`, background: emailCfg.provider === opt.value ? 'rgba(124,58,237,0.15)' : 'rgba(255,255,255,0.03)', cursor: 'pointer', textAlign: 'left' }}>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, color: emailCfg.provider === opt.value ? '#c4b5fd' : 'var(--text-primary)' }}>{opt.label}</div>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 2 }}>{opt.desc}</div>
+                </button>
+              ))}
+            </div>
+
+            {emailCfg.provider === 'resend' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: 4 }}>
+                  Crie uma conta gratuita em <strong style={{ color: '#c4b5fd' }}>resend.com</strong> → API Keys → Create API Key
+                </div>
+                <input value={emailCfg.resend_api_key || ''} onChange={e => setEmailCfg(prev => ({ ...prev, resend_api_key: e.target.value }))}
+                  placeholder="re_xxxxxxxxxxxxxxxxxxxx (API Key do Resend)"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem', fontFamily: 'monospace' }} />
+                <input value={emailCfg.resend_from || ''} onChange={e => setEmailCfg(prev => ({ ...prev, resend_from: e.target.value }))}
+                  placeholder="ACCBM <noreply@accbm.com.br> (remetente)"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+              </div>
+            )}
+
+            {emailCfg.provider === 'smtp' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.78rem', color: '#94a3b8', marginBottom: 4 }}>
+                  Gmail: use <strong style={{ color: '#c4b5fd' }}>smtp.gmail.com</strong>, porta <strong>587</strong> e uma <strong>Senha de App</strong> (não a senha normal) — ative em conta.google.com → Segurança → Senhas de app
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 90px', gap: 8 }}>
+                  <input value={emailCfg.smtp_host || ''} onChange={e => setEmailCfg(prev => ({ ...prev, smtp_host: e.target.value }))}
+                    placeholder="smtp.gmail.com"
+                    style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+                  <input value={emailCfg.smtp_port || '587'} onChange={e => setEmailCfg(prev => ({ ...prev, smtp_port: e.target.value }))}
+                    placeholder="587"
+                    style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem', textAlign: 'center' }} />
+                </div>
+                <input value={emailCfg.smtp_user || ''} onChange={e => setEmailCfg(prev => ({ ...prev, smtp_user: e.target.value }))}
+                  placeholder="seuemail@gmail.com"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+                <input type="password" value={emailCfg.smtp_pass || ''} onChange={e => setEmailCfg(prev => ({ ...prev, smtp_pass: e.target.value }))}
+                  placeholder="Senha de App (16 caracteres — ex: xxxx xxxx xxxx xxxx)"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+                <input value={emailCfg.smtp_from || ''} onChange={e => setEmailCfg(prev => ({ ...prev, smtp_from: e.target.value }))}
+                  placeholder="ACCBM <seuemail@gmail.com> (opcional, usa o usuário se vazio)"
+                  style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }} />
+              </div>
+            )}
+
+            {emailCfgMsg && (
+              <div style={{ marginTop: 10, padding: '8px 14px', borderRadius: 8, background: emailCfgMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${emailCfgMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, fontSize: '0.82rem', color: emailCfgMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{emailCfgMsg}</div>
+            )}
+
+            {emailCfg.provider && (
+              <div style={{ marginTop: 12, display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                <button disabled={emailCfgSaving}
+                  onClick={async () => {
+                    setEmailCfgSaving(true); setEmailCfgMsg('');
+                    const res = await fetch('/api/admin/email-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(emailCfg) });
+                    const d = await res.json();
+                    setEmailCfgSaving(false);
+                    setEmailCfgMsg(d.ok ? '✓ Configuração salva com sucesso!' : `Erro: ${d.error || 'Falha ao salvar'}`);
+                    if (d.ok) { fetch('/api/admin/email-config').then(r => r.json()).then(d => setEmailCfg(d)); }
+                  }}
+                  style={{ padding: '10px 22px', borderRadius: 10, border: 'none', background: emailCfgSaving ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                  {emailCfgSaving ? 'Salvando...' : '💾 Salvar Configuração'}
+                </button>
+
+                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flex: 1, minWidth: 200 }}>
+                  <input value={emailTestTo} onChange={e => setEmailTestTo(e.target.value)}
+                    placeholder="email@teste.com"
+                    style={{ flex: 1, padding: '10px 12px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.82rem' }} />
+                  <button disabled={emailTestLoading || !emailTestTo}
+                    onClick={async () => {
+                      setEmailTestLoading(true); setEmailCfgMsg('');
+                      const res = await fetch('/api/admin/email-config', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...emailCfg, test_to: emailTestTo }) });
+                      const d = await res.json();
+                      setEmailTestLoading(false);
+                      if (d.ok && d.test?.sent) setEmailCfgMsg(`✓ E-mail de teste enviado para ${emailTestTo}! Verifique a caixa de entrada.`);
+                      else setEmailCfgMsg(`Falha ao enviar teste: ${d.test?.error || d.error || 'verifique as credenciais'}`);
+                    }}
+                    style={{ padding: '10px 16px', borderRadius: 8, border: 'none', background: emailTestLoading || !emailTestTo ? '#6b7280' : '#0ea5e9', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', whiteSpace: 'nowrap' }}>
+                    {emailTestLoading ? '⏳' : '🧪 Testar'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!emailCfg.provider && (
+              <div style={{ padding: '12px 16px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.2)', borderRadius: 10, fontSize: '0.82rem', color: '#fbbf24', fontWeight: 600 }}>
+                ⚠️ Nenhum serviço de e-mail configurado. Selecione Resend ou SMTP acima para ativar o envio automático de e-mails (recuperação de senha, notificações).
+              </div>
+            )}
           </div>
         </div>
       )}
