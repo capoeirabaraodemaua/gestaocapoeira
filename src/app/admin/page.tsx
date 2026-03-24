@@ -522,7 +522,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes'>('alunos');
   // Responsáveis de núcleo
   const [respUsers, setRespUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; email: string }>>([]);
   const [respLoading, setRespLoading] = useState(false);
@@ -1558,10 +1558,10 @@ export default function AdminPage() {
             {
               title: 'Planejamento e Arquivo', color: '#dc2626', bg: 'rgba(220,38,38,0.08)',
               buttons: [
-                { key: 'manual',      icon: '📚', label: 'Documentos Históricos' },
-                { key: 'editais',     icon: '📣', label: 'Editais', geralOnly: true },
-                { key: 'doacoes',     icon: '💝', label: 'Minha Playlist / Doações', geralOnly: true },
-                { key: 'eventos',     icon: '🥋', label: 'Eventos' },
+                { key: 'docs-historicos', icon: '📚', label: 'Documentos Históricos' },
+                { key: 'editais',         icon: '📣', label: 'Editais', geralOnly: true },
+                { key: 'doacoes',         icon: '💝', label: 'Minha Playlist / Doações', geralOnly: true },
+                { key: 'eventos',         icon: '🥋', label: 'Eventos' },
               ],
             },
             {
@@ -1585,12 +1585,11 @@ export default function AdminPage() {
             {
               title: 'Institucional', color: '#ea580c', bg: 'rgba(234,88,12,0.08)',
               buttons: [
-                { key: 'manual',      icon: '📚', label: 'Bibliografia dos Mestres' },
-                { key: 'manual',      icon: '📄', label: 'Estatuto Social' },
-                { key: 'manual',      icon: '📝', label: 'Regimento Interno' },
-                { key: 'manual',      icon: 'ℹ️',  label: 'Informações Gerais' },
-                { key: 'manual',      icon: '📖', label: 'Manual do Sistema' },
-                { key: 'lixeira',     icon: '🗑️', label: 'Lixeira', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
+                { key: 'bibliografia', icon: '📚', label: 'Bibliografia dos Mestres' },
+                { key: 'estatuto',     icon: '📄', label: 'Estatuto Social' },
+                { key: 'regimento',    icon: '📝', label: 'Regimento Interno' },
+                { key: 'informacoes',  icon: 'ℹ️',  label: 'Informações Gerais' },
+                { key: 'lixeira',      icon: '🗑️', label: 'Lixeira', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
               ],
             },
           ];
@@ -6361,6 +6360,71 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
         </div>
       )}
+
+      {/* ===== ABAS INSTITUCIONAIS / DOCS (compartilham a estrutura do manual) ===== */}
+      {(['docs-historicos', 'bibliografia', 'estatuto', 'regimento', 'informacoes'] as const).map(tabKey => {
+        const tabMeta: Record<string, { icon: string; title: string; subtitle: string }> = {
+          'docs-historicos': { icon: '📚', title: 'Documentos Históricos da Capoeira', subtitle: 'Documentos históricos e arquivos de referência sobre a capoeira' },
+          'bibliografia':    { icon: '📚', title: 'Bibliografia dos Mestres', subtitle: 'Referências bibliográficas e obras dos mestres da ACCBM' },
+          'estatuto':        { icon: '📄', title: 'Estatuto Social', subtitle: 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' },
+          'regimento':       { icon: '📝', title: 'Regimento Interno', subtitle: 'Regimento Interno da ACCBM' },
+          'informacoes':     { icon: 'ℹ️',  title: 'Informações Gerais', subtitle: 'Informações gerais, comunicados e documentos institucionais' },
+        };
+        const meta = tabMeta[tabKey];
+        if (activeTab !== tabKey) return null;
+        return (
+          <div key={tabKey}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16, flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{meta.icon} {meta.title}</div>
+                <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>{meta.subtitle}</div>
+              </div>
+              {activeNucleo === 'geral' && (
+                <button onClick={() => manualFileRef.current?.click()}
+                  disabled={uploadingManual}
+                  style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: uploadingManual ? 0.7 : 1 }}>
+                  {uploadingManual ? '⏳ Enviando...' : '⬆ Subir PDF'}
+                </button>
+              )}
+            </div>
+            {manualMsg && (
+              <div style={{ marginBottom: 12, padding: '8px 14px', background: manualMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, fontSize: '0.82rem', color: manualMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                {manualMsg}
+              </div>
+            )}
+            {manuais.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Nenhum documento disponível ainda.{activeNucleo === 'geral' ? ' Clique em "Subir PDF" para adicionar.' : ''}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {manuais.map((m: { name: string; url: string; size?: number; updated_at?: string }) => (
+                  <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                    <span style={{ fontSize: '1.4rem' }}>📄</span>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name.replace(/^manuais\//, '').replace(/\.pdf$/i, '')}</div>
+                      {m.size && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{(m.size / 1024).toFixed(0)} KB</div>}
+                    </div>
+                    <a href={m.url} target="_blank" rel="noreferrer"
+                      style={{ background: '#7c3aed', color: '#fff', borderRadius: 8, padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                      ⬇ Baixar
+                    </a>
+                    {activeNucleo === 'geral' && (
+                      <button onClick={async () => {
+                        if (!confirm(`Excluir "${m.name}"?`)) return;
+                        const res = await fetch('/api/admin/manual', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: m.name }) });
+                        if (res.ok) { const d = await fetch('/api/admin/manual').then(r => r.json()); setManuais(d.files || []); }
+                      }} style={{ background: 'rgba(220,38,38,0.15)', color: '#f87171', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '6px 10px', fontSize: '0.78rem', cursor: 'pointer', flexShrink: 0 }}>
+                        🗑
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
 
       {/* ===== ABA LIXEIRA ===== */}
       {activeTab === 'lixeira' && (

@@ -584,6 +584,23 @@ export default function AlunoPage() {
               ))}
             </div>
 
+            {/* Links institucionais */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>ACCBM</div>
+              {([
+                { href: '/hierarquia', icon: '🥋', label: 'Hierarquia da ACCBM', color: '#fef2f2', iconBg: '#fecaca', textColor: '#991b1b' },
+                { href: '/organograma', icon: '🏛️', label: 'Organograma da ACCBM', color: '#eff6ff', iconBg: '#bfdbfe', textColor: '#1e40af' },
+                { href: '/documentos', icon: '📚', label: 'Documentos Históricos da Capoeira', color: '#f0fdf4', iconBg: '#bbf7d0', textColor: '#166534' },
+              ]).map(item => (
+                <a key={item.href} href={item.href}
+                  style={{ display: 'flex', alignItems: 'center', gap: 12, background: item.color, borderRadius: 12, padding: '12px 14px', textDecoration: 'none', border: `1px solid ${item.iconBg}` }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: item.iconBg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>{item.icon}</div>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 700, color: item.textColor }}>{item.label}</div>
+                  <span style={{ marginLeft: 'auto', color: item.textColor, opacity: 0.5, fontSize: '0.9rem' }}>›</span>
+                </a>
+              ))}
+            </div>
+
             {/* Student info card */}
             {student && (
               <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
