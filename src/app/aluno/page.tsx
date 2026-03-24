@@ -145,23 +145,23 @@ export default function AlunoPage() {
       if (raw) {
         const sess = JSON.parse(raw);
         setSession(sess);
-        loadStudentData(sess.student_id);
+        loadStudentData(sess.student_id, true);
       } else {
         setLoading(false);
       }
     } catch { setLoading(false); }
   }, []);
 
-  const loadStudentData = useCallback(async (student_id: string) => {
-    setLoading(true);
+  const loadStudentData = useCallback(async (student_id: string, showGlobalLoader = false) => {
+    if (showGlobalLoader) setLoading(true);
     try {
       const res = await fetch(`/api/aluno/dados?student_id=${student_id}`);
       if (res.ok) {
         const { student } = await res.json();
-        setStudent(student);
+        if (student) setStudent(student);
       }
     } catch {}
-    setLoading(false);
+    if (showGlobalLoader) setLoading(false);
   }, []);
 
   const loadJustificativas = useCallback(async (student_id: string) => {
@@ -235,9 +235,12 @@ export default function AlunoPage() {
       setLoginAttempts(0);
       const sess = { student_id: data.student_id, username: data.username };
       sessionStorage.setItem('aluno_session', JSON.stringify(sess));
+      // Pre-populate with login response so dashboard renders immediately
+      if (data.student) setStudent(data.student);
       setSession(sess);
-      setStudent(data.student);
       setActiveTab('dashboard');
+      // Then load full merged data (includes apelido/nome_social from Storage extras)
+      loadStudentData(data.student_id);
     } catch { setLoginError('Erro de conexão. Tente novamente.'); }
     finally { setLoginLoading(false); }
   };
