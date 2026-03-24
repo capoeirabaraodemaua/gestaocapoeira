@@ -59,6 +59,15 @@ export const NUCLEOS: Record<string, NucleoConfig> = {
     emoji: '🥋',
     cidade: 'Duque de Caxias – RJ',
   },
+  'academia-mais-saude': {
+    key: 'academia-mais-saude',
+    label: 'Academia Mais Saúde',
+    color: '#059669',
+    colorLight: '#6ee7b7',
+    colorBg: 'rgba(5,150,105,0.08)',
+    emoji: '🥋',
+    cidade: 'Praia do Anil',
+  },
 };
 
 const MAX_ATTEMPTS = 5;

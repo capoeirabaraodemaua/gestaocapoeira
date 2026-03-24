@@ -107,17 +107,18 @@ interface Student {
 type EditForm = Partial<Student>;
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'geral';
+type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude' | 'geral';
 interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; }
 
 const PROFILES_KEY = 'accbm_admin_profiles';
 const DEFAULT_PROFILES: Profile[] = [
-  { nucleo: 'edson-alves',    label: 'Poliesportivo Edson Alves', color: '#dc2626', user: 'edsonalves',     pass: 'edson2025'       },
-  { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga', color: '#ea580c', user: 'ipiranga',       pass: 'ipiranga2025'    },
-  { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',         color: '#16a34a', user: 'saracuruna',     pass: 'sara2025'        },
-  { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',       color: '#9333ea', user: 'vilaurussai',    pass: 'urussai2025'     },
-  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2', user: 'jaymefichman',   pass: 'fichman2025'     },
-  { nucleo: 'geral',          label: 'Admin Geral',                color: '#1d4ed8', user: 'admin',          pass: 'accbm2025'       },
+  { nucleo: 'edson-alves',         label: 'Poliesportivo Edson Alves', color: '#dc2626', user: 'edsonalves',       pass: 'edson2025'       },
+  { nucleo: 'ipiranga',            label: 'Poliesportivo do Ipiranga', color: '#ea580c', user: 'ipiranga',         pass: 'ipiranga2025'    },
+  { nucleo: 'saracuruna',          label: 'Núcleo Saracuruna',         color: '#16a34a', user: 'saracuruna',       pass: 'sara2025'        },
+  { nucleo: 'vila-urussai',        label: 'Núcleo Vila Urussaí',       color: '#9333ea', user: 'vilaurussai',      pass: 'urussai2025'     },
+  { nucleo: 'jayme-fichman',       label: 'Núcleo Jayme Fichman',      color: '#0891b2', user: 'jaymefichman',     pass: 'fichman2025'     },
+  { nucleo: 'academia-mais-saude', label: 'Academia Mais Saúde',       color: '#059669', user: 'academiamaissaude', pass: 'academia2025'   },
+  { nucleo: 'geral',               label: 'Admin Geral',                color: '#1d4ed8', user: 'admin',            pass: 'accbm2025'       },
 ];
 
 function getProfiles(): Profile[] {
@@ -457,7 +458,7 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         const nk = data.nucleo as NucleoKey;
         sessionStorage.setItem('admin_auth', nk);
-        const ALL_NUCLEOS: NucleoKey[] = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'geral'];
+        const ALL_NUCLEOS: NucleoKey[] = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'academia-mais-saude', 'geral'];
         const nucleosList = data.isGeral ? ALL_NUCLEOS : [nk];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         setAuthed(true);
@@ -969,6 +970,7 @@ export default function AdminPage() {
     : activeNucleo === 'saracuruna' ? 'Saracuruna'
     : activeNucleo === 'vila-urussai' ? 'Vila Urussaí'
     : activeNucleo === 'jayme-fichman' ? 'Jayme Fichman'
+    : activeNucleo === 'academia-mais-saude' ? 'Academia Mais Saúde'
     : null;
   const filtered = students.filter(s => {
     const matchSearch =
@@ -1436,6 +1438,7 @@ export default function AdminPage() {
                 <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
                 <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
                 <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+                <option value="Academia Mais Saúde">Academia Mais Saúde</option>
               </select>
               <select
                 className="search-input"
@@ -1472,155 +1475,165 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div style={{ display: 'flex', gap: 2, marginBottom: 0, borderBottom: '2px solid var(--border)', flexWrap: 'wrap', overflowX: 'auto' }}>
-          {([
-            { key: 'alunos',       label: t('admin_students'),  activeColor: '#dc2626', geralOnly: false },
-            { key: 'presencas',    label: t('admin_attendance'), activeColor: '#dc2626', geralOnly: false },
-            { key: 'relatorio',    label: t('admin_report'),     activeColor: '#dc2626', geralOnly: false },
-            { key: 'ranking',      label: t('admin_ranking'),    activeColor: '#dc2626', geralOnly: false },
-            { key: 'certificado',  label: t('admin_certificate'),activeColor: '#dc2626', geralOnly: false },
-            { key: 'financeiro',   label: `${t('admin_financial')}${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 ? ` 🔔${finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length}` : ''}`, activeColor: '#16a34a', geralOnly: false },
-            { key: 'doacoes',      label: t('admin_donations'),  activeColor: '#8b5cf6', geralOnly: true },
-            { key: 'editais',      label: t('admin_notices'),    activeColor: '#0891b2', geralOnly: true },
-            { key: 'materiais',    label: t('admin_materials'),  activeColor: '#ea580c', geralOnly: false },
-            { key: 'patrimonio',   label: t('admin_patrimony'),  activeColor: '#ca8a04', geralOnly: false },
-            { key: 'rascunhos',       label: `${t('admin_drafts')}${rascunhosCount > 0 ? ` 🔔${rascunhosCount}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
-            { key: 'dados-faltantes', label: `${t('admin_missing_data')}${(() => { const c = (nucleoFilter ? rascunhos.filter((r:any)=>(r.nucleo||'')===nucleoFilter) : rascunhos).filter((r:any)=>(r.dados_pendentes||[]).length>0).length; return c>0?` 🔔${c}`:''; })()}`, activeColor: '#dc2626', geralOnly: false },
-            { key: 'manual',          label: t('admin_manual'),  activeColor: '#7c3aed', geralOnly: false },
-            { key: 'eventos',         label: t('admin_events'),  activeColor: '#0ea5e9', geralOnly: false },
-            { key: 'lixeira',         label: '🗑️ Lixeira',       activeColor: '#6b7280', geralOnly: true },
-            { key: 'justificativas',  label: `📝 Justificativas${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length > 0 ? ` 🔔${justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length}` : ''}`, activeColor: '#f59e0b', geralOnly: false },
-            { key: 'contas',          label: '👤 Contas Alunos',  activeColor: '#6366f1', geralOnly: false },
-            { key: 'auditoria',       label: '🔍 Auditoria',       activeColor: '#0f172a', geralOnly: true },
-            { key: 'responsaveis',    label: '👥 Responsáveis',    activeColor: '#1d4ed8', geralOnly: true },
-          ] as const).filter(tab => !tab.geralOnly || activeNucleo === 'geral').map(tab => (
-            <button
-              key={tab.key}
-              onClick={() => {
-                setActiveTab(tab.key);
-                if (tab.key === 'presencas') fetchPresencas();
-                if ((tab.key === 'relatorio' || tab.key === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
-                if (tab.key === 'relatorio') {
-                  // Load contas + IDs for the accounts sub-report
-                  Promise.all([
-                    fetch('/api/aluno/contas').then(r => r.json()),
-                    fetch('/api/aluno/gerar-id').then(r => r.json()),
-                  ]).then(([contas, idMap]) => {
-                    setAlunoContas(Array.isArray(contas) ? contas : []);
-                    if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
-                  }).catch(() => {});
-                }
-                if (tab.key === 'financeiro') {
-                  setFinLoadingAlerts(true);
-                  fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
-                  fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); }).catch(() => {});
-                }
-                if (tab.key === 'doacoes') {
-                  setLoadingDoacoes(true);
-                  fetch('/api/doacoes').then(r => r.json()).then(d => { setDoacoes(d); setLoadingDoacoes(false); }).catch(() => setLoadingDoacoes(false));
-                }
-                if (tab.key === 'editais') {
-                  setLoadingEditais(true);
-                  fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false));
-                }
-                if (tab.key === 'materiais') {
-                  setLoadingMateriais(true);
-                  fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false));
-                }
-                if (tab.key === 'patrimonio') {
-                  setLoadingPatrimonio(true);
-                  fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false));
-                }
-                if (tab.key === 'rascunhos') {
-                  setLoadingRascunhos(true);
-                  fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
-                  setLoadingResponsaveis(true);
-                  fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
-                }
-                if (tab.key === 'dados-faltantes') {
-                  setLoadingRascunhos(true);
-                  fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
-                }
-                if (tab.key === 'manual') {
-                  setLoadingManuais(true); setManualMsg('');
-                  fetch('/api/admin/manual').then(r => r.json()).then(async d => {
-                    const files = d.files || [];
-                    setManuais(files);
-                    // Load translations for each manual
-                    await Promise.all(files.map(async (f: { name: string }) => {
-                      try {
-                        const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(f.name)}`).then(r => r.json());
-                        if (tr.translations) {
-                          setManualTranslations(prev => ({ ...prev, [f.name]: tr.translations }));
-                          setManualViewLang(prev => ({ ...prev, [f.name]: prev[f.name] || 'pt' }));
-                        }
-                      } catch {}
-                    }));
-                    setLoadingManuais(false);
-                  }).catch(() => setLoadingManuais(false));
-                }
-                if (tab.key === 'lixeira') {
-                  setLoadingLixeira(true); setLixeiraMsg('');
-                  fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false));
-                }
-                if (tab.key === 'justificativas') {
-                  setLoadingJustificativas(true); setJustMsg('');
-                  const url = nucleoFilter ? `/api/aluno/justificativas?admin=true&nucleo=${encodeURIComponent(nucleoFilter)}` : '/api/aluno/justificativas?admin=true';
-                  fetch(url).then(r => r.json()).then(d => { setJustificativas(Array.isArray(d) ? d : []); setLoadingJustificativas(false); }).catch(() => setLoadingJustificativas(false));
-                }
-                if (tab.key === 'contas') {
-                  setLoadingContas(true); setContasMsg('');
-                  Promise.all([
-                    fetch('/api/aluno/contas').then(r => r.json()),
-                    fetch('/api/aluno/gerar-id').then(r => r.json()),
-                  ]).then(([contas, idMap]) => {
-                    setAlunoContas(Array.isArray(contas) ? contas : []);
-                    if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
-                    setLoadingContas(false);
-                  }).catch(() => setLoadingContas(false));
-                }
-                if (tab.key === 'auditoria') {
-                  setLoadingAudit(true); setAuditSearch('');
-                  fetch('/api/admin/logs').then(r => r.json()).then(d => { setAuditLogs(Array.isArray(d) ? d : []); setLoadingAudit(false); }).catch(() => setLoadingAudit(false));
-                }
-                if (tab.key === 'eventos') {
-                  setLoadingEventos(true); setEventoMsg('');
-                  // Load events directly — always reliable
-                  fetch('/api/eventos')
-                    .then(r => r.json())
-                    .then(d => { setEventos(Array.isArray(d) ? d : []); setLoadingEventos(false); })
-                    .catch(() => setLoadingEventos(false));
-                  // Auto-finalize runs in background, doesn't block display
-                  fetch('/api/eventos/auto-finalize')
-                    .then(r => r.json())
-                    .then(af => {
-                      if (af.applied > 0) {
-                        setEventoMsg(`✓ ${af.applied} evento(s) finalizado(s) automaticamente: ${af.events.join(', ')}`);
-                        fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); });
-                      }
-                    })
-                    .catch(() => {});
-                }
-              }}
-              style={{
-                padding: '10px 16px',
-                background: 'none',
-                border: 'none',
-                borderBottom: activeTab === tab.key ? `2px solid ${tab.activeColor}` : '2px solid transparent',
-                marginBottom: -2,
-                color: activeTab === tab.key ? tab.activeColor : 'var(--text-secondary)',
-                fontWeight: activeTab === tab.key ? 700 : 500,
-                cursor: 'pointer',
-                fontSize: '0.85rem',
-                transition: 'all 0.2s',
-                whiteSpace: 'nowrap',
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
+        {/* ── Navigation Grid (6 colunas) ── */}
+        {(() => {
+          function goTab(key: string) {
+            setActiveTab(key as typeof activeTab);
+            if (key === 'presencas') fetchPresencas();
+            if ((key === 'relatorio' || key === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
+            if (key === 'relatorio') {
+              Promise.all([fetch('/api/aluno/contas').then(r => r.json()), fetch('/api/aluno/gerar-id').then(r => r.json())])
+                .then(([contas, idMap]) => { setAlunoContas(Array.isArray(contas) ? contas : []); if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>); }).catch(() => {});
+            }
+            if (key === 'financeiro') {
+              setFinLoadingAlerts(true);
+              fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
+              fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); }).catch(() => {});
+            }
+            if (key === 'doacoes') { setLoadingDoacoes(true); fetch('/api/doacoes').then(r => r.json()).then(d => { setDoacoes(d); setLoadingDoacoes(false); }).catch(() => setLoadingDoacoes(false)); }
+            if (key === 'editais') { setLoadingEditais(true); fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false)); }
+            if (key === 'materiais') { setLoadingMateriais(true); fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false)); }
+            if (key === 'patrimonio') { setLoadingPatrimonio(true); fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false)); }
+            if (key === 'rascunhos') {
+              setLoadingRascunhos(true);
+              fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
+              setLoadingResponsaveis(true);
+              fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
+            }
+            if (key === 'dados-faltantes') { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }
+            if (key === 'manual') {
+              setLoadingManuais(true); setManualMsg('');
+              fetch('/api/admin/manual').then(r => r.json()).then(async d => {
+                const files = d.files || []; setManuais(files);
+                await Promise.all(files.map(async (f: { name: string }) => {
+                  try { const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(f.name)}`).then(r => r.json()); if (tr.translations) { setManualTranslations(prev => ({ ...prev, [f.name]: tr.translations })); setManualViewLang(prev => ({ ...prev, [f.name]: prev[f.name] || 'pt' })); } } catch {}
+                }));
+                setLoadingManuais(false);
+              }).catch(() => setLoadingManuais(false));
+            }
+            if (key === 'lixeira') { setLoadingLixeira(true); setLixeiraMsg(''); fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false)); }
+            if (key === 'justificativas') {
+              setLoadingJustificativas(true); setJustMsg('');
+              const url = nucleoFilter ? `/api/aluno/justificativas?admin=true&nucleo=${encodeURIComponent(nucleoFilter)}` : '/api/aluno/justificativas?admin=true';
+              fetch(url).then(r => r.json()).then(d => { setJustificativas(Array.isArray(d) ? d : []); setLoadingJustificativas(false); }).catch(() => setLoadingJustificativas(false));
+            }
+            if (key === 'contas') {
+              setLoadingContas(true); setContasMsg('');
+              Promise.all([fetch('/api/aluno/contas').then(r => r.json()), fetch('/api/aluno/gerar-id').then(r => r.json())])
+                .then(([contas, idMap]) => { setAlunoContas(Array.isArray(contas) ? contas : []); if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>); setLoadingContas(false); }).catch(() => setLoadingContas(false));
+            }
+            if (key === 'auditoria') { setLoadingAudit(true); setAuditSearch(''); fetch('/api/admin/logs').then(r => r.json()).then(d => { setAuditLogs(Array.isArray(d) ? d : []); setLoadingAudit(false); }).catch(() => setLoadingAudit(false)); }
+            if (key === 'eventos') {
+              setLoadingEventos(true); setEventoMsg('');
+              fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); setLoadingEventos(false); }).catch(() => setLoadingEventos(false));
+              fetch('/api/eventos/auto-finalize').then(r => r.json()).then(af => { if (af.applied > 0) { setEventoMsg(`✓ ${af.applied} evento(s) finalizado(s) automaticamente: ${af.events.join(', ')}`); fetch('/api/eventos').then(r => r.json()).then(d => { setEventos(Array.isArray(d) ? d : []); }); } }).catch(() => {});
+            }
+          }
+
+          const finAlertCount = finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length;
+          const justPendCount = justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length;
+          const dadosFaltandoCount = (nucleoFilter ? rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter) : rascunhos).filter((r: any) => (r.dados_pendentes || []).length > 0).length;
+
+          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean };
+          const columns: { title: string; color: string; bg: string; buttons: ColBtn[] }[] = [
+            {
+              title: 'Gestão Principal', color: '#16a34a', bg: 'rgba(22,163,74,0.08)',
+              buttons: [
+                { key: 'presencas',   icon: '📋', label: 'Registrar Presenças' },
+                { key: 'presencas',   icon: '👥', label: 'Presenças' },
+                { key: 'certificado', icon: '🏅', label: 'Certificado' },
+                { key: 'manual',      icon: '📖', label: 'Manual Ginga Gestão' },
+              ],
+            },
+            {
+              title: 'Matrícula e Comunicação', color: '#1d4ed8', bg: 'rgba(29,78,216,0.08)',
+              buttons: [
+                { key: 'contas',        icon: '👤', label: 'Contas Alunos', badge: undefined },
+                { key: 'alunos',        icon: '🎓', label: 'Alunos' },
+                { key: 'responsaveis',  icon: '👥', label: 'Responsáveis de Núcleos', geralOnly: true },
+                { key: 'rascunhos',     icon: '📝', label: 'Cadastro dos Responsáveis', badge: rascunhosCount > 0 ? rascunhosCount : undefined },
+                { key: 'justificativas',icon: '📋', label: 'Justificativas', badge: justPendCount > 0 ? justPendCount : undefined },
+              ],
+            },
+            {
+              title: 'Planejamento e Arquivo', color: '#dc2626', bg: 'rgba(220,38,38,0.08)',
+              buttons: [
+                { key: 'manual',      icon: '📚', label: 'Documentos Históricos' },
+                { key: 'editais',     icon: '📣', label: 'Editais', geralOnly: true },
+                { key: 'doacoes',     icon: '💝', label: 'Minha Playlist / Doações', geralOnly: true },
+                { key: 'eventos',     icon: '🥋', label: 'Eventos' },
+              ],
+            },
+            {
+              title: 'Administrativo e Materiais', color: '#6b7280', bg: 'rgba(107,114,128,0.08)',
+              buttons: [
+                { key: 'financeiro',  icon: '💰', label: 'Administrativo', badge: finAlertCount > 0 ? finAlertCount : undefined },
+                { key: 'patrimonio',  icon: '🏛️', label: 'Patrimônio' },
+                { key: 'materiais',   icon: '📦', label: 'Materiais' },
+                { key: 'doacoes',     icon: '💝', label: 'Doações', geralOnly: true },
+              ],
+            },
+            {
+              title: 'Relatórios e Indicadores', color: '#7c3aed', bg: 'rgba(124,58,237,0.08)',
+              buttons: [
+                { key: 'relatorio',       icon: '📊', label: 'Relatórios' },
+                { key: 'ranking',         icon: '🏆', label: 'Ranking' },
+                { key: 'auditoria',       icon: '🔍', label: 'Auditoria', geralOnly: true },
+                { key: 'dados-faltantes', icon: '⚠️', label: 'Dados Faltantes', badge: dadosFaltandoCount > 0 ? dadosFaltandoCount : undefined },
+              ],
+            },
+            {
+              title: 'Institucional', color: '#ea580c', bg: 'rgba(234,88,12,0.08)',
+              buttons: [
+                { key: 'manual',      icon: '📚', label: 'Bibliografia dos Mestres' },
+                { key: 'manual',      icon: '📄', label: 'Estatuto Social' },
+                { key: 'manual',      icon: '📝', label: 'Regimento Interno' },
+                { key: 'manual',      icon: 'ℹ️',  label: 'Informações Gerais' },
+                { key: 'manual',      icon: '📖', label: 'Manual do Sistema' },
+                { key: 'lixeira',     icon: '🗑️', label: 'Lixeira', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
+              ],
+            },
+          ];
+
+          return (
+            <div style={{ marginBottom: 0 }}>
+              {/* Grid de colunas */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, padding: '12px 0 0' }}>
+                {columns.map(col => (
+                  <div key={col.title} style={{ background: col.bg, border: `1px solid ${col.color}25`, borderRadius: 12, padding: '10px 10px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                    <div style={{ fontSize: '0.6rem', fontWeight: 800, color: col.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>{col.title}</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      {col.buttons.filter(b => !b.geralOnly || activeNucleo === 'geral').map((btn, bi) => (
+                        <button key={`${btn.key}-${bi}`} onClick={() => goTab(btn.key)}
+                          style={{
+                            display: 'flex', alignItems: 'center', gap: 7,
+                            padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                            background: activeTab === btn.key ? col.color : 'rgba(255,255,255,0.06)',
+                            color: activeTab === btn.key ? '#fff' : 'var(--text-primary)',
+                            fontWeight: activeTab === btn.key ? 700 : 500,
+                            fontSize: '0.78rem', textAlign: 'left', transition: 'all 0.15s',
+                            boxShadow: activeTab === btn.key ? `0 2px 8px ${col.color}50` : 'none',
+                            position: 'relative',
+                          }}
+                        >
+                          <span style={{ fontSize: '0.9rem', lineHeight: 1, flexShrink: 0 }}>{btn.icon}</span>
+                          <span style={{ flex: 1, lineHeight: 1.3 }}>{btn.label}</span>
+                          {btn.badge !== undefined && (
+                            <span style={{ background: '#ef4444', color: '#fff', borderRadius: 99, padding: '1px 6px', fontSize: '0.65rem', fontWeight: 800, flexShrink: 0 }}>
+                              {btn.badge}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+              {/* Linha divisória */}
+              <div style={{ borderBottom: '2px solid var(--border)', marginTop: 12 }} />
+            </div>
+          );
+        })()}
 
         {/* ── Documentos ACCBM — after tabs (admin always unlocked) ────── */}
         <DocumentsBar
@@ -1765,6 +1778,7 @@ export default function AdminPage() {
               ['Poliesportivo do Ipiranga',     'Poliesportivo do Ipiranga',  '#ea580c'],
               ['Vila Urussaí',                  'Vila Urussaí',               '#9333ea'],
               ['Jayme Fichman',                 'Jayme Fichman',              '#0891b2'],
+              ['Academia Mais Saúde',           'Academia Mais Saúde',        '#059669'],
             ] as const).map(([label, nucleo, color]) => (
               <div key={nucleo} className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
                 <div className="stat-value">{students.filter(s => s.nucleo === nucleo).length}</div>
@@ -1823,7 +1837,7 @@ export default function AdminPage() {
                         {studentDisplayIds[student.id] || <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>—</span>}
                       </td>
                       <td>
-                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
+                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
                           {student.nucleo || '—'}
                         </span>
                       </td>
@@ -1989,6 +2003,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
                 <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
                 <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+                <option value="Academia Mais Saúde">Academia Mais Saúde</option>
               </select>
               <button
                 onClick={() => fetchPresencas(true)}
@@ -2181,7 +2196,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {item.student.graduacao}
                 {rankingNucleoTab === 'todos' && (() => {
                   const nc = item.student.nucleo;
-                  const ncColor = (nc === 'Poliesportivo Edson Alves' || nc === 'Mauá') ? '#dc2626' : nc === 'Poliesportivo do Ipiranga' ? '#ea580c' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : '#64748b';
+                  const ncColor = (nc === 'Poliesportivo Edson Alves' || nc === 'Mauá') ? '#dc2626' : nc === 'Poliesportivo do Ipiranga' ? '#ea580c' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : nc === 'Academia Mais Saúde' ? '#059669' : '#64748b';
                   return <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${ncColor}18`, color: ncColor }}>{nc || '—'}</span>;
                 })()}
               </div>
@@ -2227,12 +2242,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {!nucleoFilter && (
               <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
                 {([
-                  ['todos',          '🌐 Todos',                      '#1d4ed8'],
-                  ['edson-alves',    '🔴 Edson Alves',                '#dc2626'],
-                  ['ipiranga',       '🟠 Ipiranga',                   '#ea580c'],
-                  ['saracuruna',     '🟢 CIEP 318 — Saracuruna',      '#16a34a'],
-                  ['vila-urussai',   '🟣 Vila Urussaí',               '#9333ea'],
-                  ['jayme-fichman',  '🔵 Jayme Fichman',              '#0891b2'],
+                  ['todos',                '🌐 Todos',                      '#1d4ed8'],
+                  ['edson-alves',         '🔴 Edson Alves',                '#dc2626'],
+                  ['ipiranga',            '🟠 Ipiranga',                   '#ea580c'],
+                  ['saracuruna',          '🟢 CIEP 318 — Saracuruna',      '#16a34a'],
+                  ['vila-urussai',        '🟣 Vila Urussaí',               '#9333ea'],
+                  ['jayme-fichman',       '🔵 Jayme Fichman',              '#0891b2'],
+                  ['academia-mais-saude', '🟩 Acad. Mais Saúde',           '#059669'],
                 ] as const).map(([key, label, color]) => (
                   <button key={key} onClick={() => setRankingNucleoTab(key)}
                     style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
@@ -2993,7 +3009,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </td>
                             <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                             <td>
-                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>
+                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
                                 {student.nucleo || '—'}
                               </span>
                             </td>
@@ -4330,11 +4346,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {/* Responsáveis por Núcleo config — apenas admin geral pode gerenciar */}
           {activeNucleo === 'geral' && (() => {
             const nucleosList = [
-              { key: 'edson-alves', label: 'Poliesportivo Edson Alves' },
-              { key: 'ipiranga', label: 'Poliesportivo do Ipiranga' },
-              { key: 'saracuruna', label: 'Saracuruna' },
-              { key: 'vila-urussai', label: 'Vila Urussaí' },
-              { key: 'jayme-fichman', label: 'Jayme Fichman' },
+              { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
+              { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
+              { key: 'saracuruna',          label: 'Saracuruna' },
+              { key: 'vila-urussai',        label: 'Vila Urussaí' },
+              { key: 'jayme-fichman',       label: 'Jayme Fichman' },
+              { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
             ];
             return (
               <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
@@ -7978,7 +7995,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 onKeyDown={async e => {
                   if (e.key !== 'Enter' || !respAdminPass) return;
                   setRespLoading(true);
-                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                  const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                   const d = await res.json();
                   if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespGeralUsers(d.filter((u: any) => u.nucleo === 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
                   else setRespAuthMsg(d.error || 'Senha incorreta.');
@@ -7990,7 +8007,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <button disabled={respLoading} onClick={async () => {
                 if (!respAdminPass) { setRespAuthMsg('Digite sua senha.'); return; }
                 setRespLoading(true);
-                const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                 const d = await res.json();
                 if (res.ok) { setRespUsers(d.filter((u: any) => u.nucleo !== 'geral')); setRespGeralUsers(d.filter((u: any) => u.nucleo === 'geral')); setRespAdminAuthed(true); setRespAuthMsg(''); }
                 else setRespAuthMsg(d.error || 'Senha incorreta.');
@@ -8059,7 +8076,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       <button disabled={respResetting} onClick={async () => {
                         if (!respResetPass || respResetPass.length < 6) { setRespResetMsg('Mínimo 6 caracteres.'); return; }
                         setRespResetting(true);
-                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
                         const d = await res.json();
                         setRespResetMsg(res.ok ? '✓ Senha redefinida!' : (d.error || 'Erro.'));
                         if (res.ok) { setRespResetPass(''); setTimeout(() => { setRespResetTarget(''); setRespResetMsg(''); }, 2000); }
@@ -8083,7 +8100,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button disabled={respDeleting} onClick={async () => {
                         setRespDeleting(true);
-                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
                         const d = await res.json();
                         if (res.ok) { setRespUsers(prev => prev.filter(u => u.username !== respDeleteTarget)); setRespDeleteTarget(''); setRespDeleteMsg(''); }
                         else setRespDeleteMsg(d.error || 'Erro ao remover.');
@@ -8166,13 +8183,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     if (cpfDigits.length !== 11) { setRespCreateMsg('CPF inválido. Digite os 11 dígitos.'); return; }
                     if (respNewPass.length < 6) { setRespCreateMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
                     setRespCreating(true);
-                    const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, cpf: respNewCpf, nome: respNewNome, new_password: respNewPass, nucleo_key: respNewNucleo }) });
+                    const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-user', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, cpf: respNewCpf, nome: respNewNome, new_password: respNewPass, nucleo_key: respNewNucleo }) });
                     const d = await res.json();
                     if (res.ok) {
                       const savedPass = respNewPass;
                       setRespCreateMsg(`✓ Responsável cadastrado! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado. Senha inicial: ${savedPass}`);
                       setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo(''); setRespShowPass(false);
-                      const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                      const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                       const ld = await lr.json();
                       if (lr.ok) setRespUsers(ld.filter((u: any) => u.nucleo !== 'geral'));
                     } else setRespCreateMsg(d.error || 'Erro ao cadastrar.');
@@ -8232,7 +8249,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       <button disabled={respResetting} onClick={async () => {
                         if (!respResetPass || respResetPass.length < 6) { setRespResetMsg('Mínimo 6 caracteres.'); return; }
                         setRespResetting(true);
-                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, target_username: respResetTarget, new_password: respResetPass }) });
                         const d = await res.json();
                         setRespResetMsg(res.ok ? '✓ Senha redefinida!' : (d.error || 'Erro.'));
                         if (res.ok) { setRespResetPass(''); setTimeout(() => { setRespResetTarget(''); setRespResetMsg(''); }, 2000); }
@@ -8252,7 +8269,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div style={{ display: 'flex', gap: 8 }}>
                       <button disabled={respDeleting} onClick={async () => {
                         setRespDeleting(true);
-                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: adminUser || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
+                        const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'delete-user', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, target_username: respDeleteTarget }) });
                         const d = await res.json();
                         if (res.ok) { setRespGeralUsers(prev => prev.filter(u => u.username !== respDeleteTarget)); setRespDeleteTarget(''); setRespDeleteMsg(''); }
                         else setRespDeleteMsg(d.error || 'Erro.');
@@ -8297,12 +8314,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       if (respNewGeralLogin.length < 3) { setRespGeralCreateMsg('Login deve ter pelo menos 3 caracteres.'); return; }
                       if (respNewGeralPass.length < 6) { setRespGeralCreateMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
                       setRespGeralCreating(true);
-                      const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-geral', admin_username: adminUser || 'admin', admin_password: respAdminPass, new_username: respNewGeralLogin, new_password: respNewGeralPass, nome: respNewGeralNome }) });
+                      const res = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'create-geral', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass, new_username: respNewGeralLogin, new_password: respNewGeralPass, nome: respNewGeralNome }) });
                       const d = await res.json();
                       if (res.ok) {
                         setRespGeralCreateMsg(`✓ Admin "${d.username}" criado com sucesso!`);
                         setRespNewGeralLogin(''); setRespNewGeralNome(''); setRespNewGeralPass('');
-                        const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: adminUser || 'admin', admin_password: respAdminPass }) });
+                        const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                         const ld = await lr.json();
                         if (lr.ok) setRespGeralUsers(ld.filter((u: any) => u.nucleo === 'geral'));
                       } else setRespGeralCreateMsg(d.error || 'Erro ao criar admin.');

@@ -54,6 +54,15 @@ export const LOCAIS: Local[] = [
     lng: -43.2487348,
     mapUrl: 'https://maps.google.com/?q=-22.6757683,-43.2487348',
   },
+  {
+    id: 'academia-mais-saude',
+    nome: 'Academia Mais Saúde',
+    endereco: 'Rua 15 de Novembro, 31B – Praia do Anil',
+    nucleo: 'Academia Mais Saúde',
+    lat: -22.6757683,
+    lng: -43.2487348,
+    mapUrl: 'https://maps.google.com/?q=-22.6757683,-43.2487348',
+  },
 ];
 
 function deg2rad(deg: number) {

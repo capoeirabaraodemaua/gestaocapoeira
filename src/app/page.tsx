@@ -1037,48 +1037,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
               🥋 Área do Aluno
             </a>
-            <a
-              href="/hierarquia"
-              style={{
-                background: 'rgba(109,40,217,0.18)',
-                border: 'none',
-                borderRadius: '10px 10px 0 0',
-                padding: '11px 18px',
-                color: '#7c3aed',
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-              Hierarquia ACCBM
-            </a>
-            <a
-              href="/organograma"
-              style={{
-                background: 'rgba(74,124,89,0.18)',
-                border: 'none',
-                borderRadius: '10px 10px 0 0',
-                padding: '11px 18px',
-                color: '#4a7c59',
-                fontWeight: 800,
-                fontSize: '0.88rem',
-                letterSpacing: '0.04em',
-                textTransform: 'uppercase',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: 6,
-              }}
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><rect x="9" y="2" width="6" height="4" rx="1"/><rect x="2" y="15" width="6" height="4" rx="1"/><rect x="16" y="15" width="6" height="4" rx="1"/><path d="M12 6v4M12 10H5v5M12 10h7v5"/></svg>
-              Organograma
-            </a>
           </div>
 
           {activeSection === 'ficha' && (
@@ -1105,6 +1063,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga – Mauá</option>
                     <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
                     <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+                    <option value="Academia Mais Saúde">Academia Mais Saúde – Praia do Anil</option>
                   </select>
                 </div>
               </div>
@@ -1965,6 +1924,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(175deg)' }} />
                       <div style={{ color: '#67e8f9', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Jayme Fichman</div>
                       <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
+                    </div>
+                  </a>
+                  {/* Academia Mais Saúde */}
+                  <a href="/nucleo/academia-mais-saude" style={{ textDecoration: 'none' }}>
+                    <div style={{ background: 'linear-gradient(135deg,rgba(5,150,105,0.15),rgba(4,120,87,0.08))', border: '1.5px solid rgba(5,150,105,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(2) hue-rotate(120deg)' }} />
+                      <div style={{ color: '#6ee7b7', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Acad. Mais Saúde</div>
+                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Praia do Anil</div>
                     </div>
                   </a>
                 </div>
