@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { sendEmail, buildResetLinkHtml } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -148,19 +149,12 @@ function isAdminGeral(creds: CredsMap, key: string): boolean {
   return !!creds[key] && creds[key].nucleo === 'geral';
 }
 
-// Envia e-mail via /api/send-email (que usa Resend se configurado)
-async function sendResetEmail(to: string, nome: string, resetUrl: string, req: NextRequest): Promise<boolean> {
+// Envia e-mail de redefinição de senha (Resend → SMTP fallback)
+async function sendResetEmail(to: string, nome: string, resetUrl: string): Promise<boolean> {
   try {
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get('host')}`;
-    const res = await fetch(`${baseUrl}/api/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ to, nome, resetUrl, tipo: 'reset-link' }),
-    });
-    const json = await res.json();
-    // skipped = sem RESEND_API_KEY configurado
-    if (json.skipped) return false;
-    return res.ok && json.ok;
+    const { subject, html } = buildResetLinkHtml(nome, resetUrl);
+    const result = await sendEmail(to, subject, html);
+    return result.sent === true;
   } catch {
     return false;
   }
@@ -290,7 +284,7 @@ export async function POST(req: NextRequest) {
 
     if (email) {
       const nome = user?.nome || '';
-      const sent = await sendResetEmail(email, nome, resetUrl, req);
+      const sent = await sendResetEmail(email, nome, resetUrl);
       if (sent) {
         return NextResponse.json({ ok: true, message: `E-mail de redefinição enviado para ${email.replace(/(.{2}).+(@.+)/, '$1****$2')}.` });
       }

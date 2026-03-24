@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { sendEmail, buildOtpHtml } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -478,18 +479,8 @@ export async function POST(req: NextRequest) {
 
 async function sendEmailOTP(email: string, otp: string, name: string): Promise<void> {
   try {
-    await fetch(`${process.env.NEXT_PUBLIC_BASE_URL || 'http://localhost:3000'}/api/send-email`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        to: email,
-        subject: 'ACCBM — Código de recuperação de senha',
-        text: `Olá ${name},\n\nSeu código de recuperação de senha é: ${otp}\n\nVálido por 15 minutos.\n\nSe não foi você, ignore este email.\n\nAssociação Cultural de Capoeira Barão de Mauá`,
-        nome: name,
-        tipo: 'recuperacao',
-        otp,
-      }),
-    });
+    const { subject, html } = buildOtpHtml(name, otp);
+    await sendEmail(email, subject, html);
   } catch { /* silent fail */ }
 }
 
