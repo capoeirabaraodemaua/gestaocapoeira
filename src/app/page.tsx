@@ -13,6 +13,7 @@ type SuccessData = CarteirinhaData;
 export default function Home() {
   const { t } = useLanguage();
   const [loading, setLoading] = useState(false);
+  const [emailTouched, setEmailTouched] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
   const [draftMsg, setDraftMsg] = useState('');
   const [draftId, setDraftId] = useState<string | null>(null);
@@ -451,6 +452,16 @@ export default function Home() {
   };
 
   const handleSaveDraft = async () => {
+    // Valida e-mail obrigatório
+    if (!form.email || !form.email.trim()) {
+      setDraftMsg('⚠ E-mail é obrigatório. Preencha o campo antes de salvar.');
+      setTimeout(() => {
+        const el = document.querySelector('[name="email"]') as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.focus();
+      }, 50);
+      return;
+    }
     // Bloqueia rascunho se há duplicata já detectada na tela
     const dupEntry = Object.entries(duplicateErrors).find(([, v]) => !!v);
     if (dupEntry) {
@@ -542,6 +553,16 @@ export default function Home() {
       setDuplicateErrors(prev => ({ ...prev, nome: 'Informe nome e sobrenome completos.' }));
       setTimeout(() => {
         const el = document.querySelector('[name="nome_completo"]') as HTMLElement | null;
+        el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el?.focus();
+      }, 50);
+      return;
+    }
+
+    // Valida e-mail obrigatório
+    if (!form.email || !form.email.trim()) {
+      setTimeout(() => {
+        const el = document.querySelector('[name="email"]') as HTMLElement | null;
         el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         el?.focus();
       }, 50);
@@ -1232,16 +1253,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input name="telefone" value={form.telefone} onChange={handleTelefoneChange} placeholder="(00) 00000-0000" />
               </div>
               <div className="form-group">
-                <label>E-mail</label>
+                <label>E-mail <span className="required">*</span></label>
                 <input
                   type="email"
                   name="email"
                   value={form.email}
-                  onChange={e => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, email: undefined })); }}
-                  onBlur={() => form.email && checkDuplicate('email', form.email)}
+                  onChange={e => { handleChange(e); setDuplicateErrors(prev => ({ ...prev, email: undefined })); setEmailTouched(true); }}
+                  onBlur={() => { setEmailTouched(true); if (form.email) checkDuplicate('email', form.email); }}
                   placeholder="seu@email.com"
-                  style={duplicateErrors.email ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
+                  style={(emailTouched && !form.email) || duplicateErrors.email ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
+                {emailTouched && !form.email && !duplicateErrors.email && (
+                  <p style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: 4, fontWeight: 600 }}>
+                    ⚠ E-mail é obrigatório.
+                  </p>
+                )}
                 {duplicateErrors.email && (
                   <p style={{ color: '#dc2626', fontSize: '0.8rem', marginTop: 4, fontWeight: 600 }}>
                     ⚠ {duplicateErrors.email}

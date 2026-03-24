@@ -1511,6 +1511,7 @@ export default function AdminPage() {
               fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); }).catch(() => {});
             }
             if (key === 'doacoes') { setLoadingDoacoes(true); fetch('/api/doacoes').then(r => r.json()).then(d => { setDoacoes(d); setLoadingDoacoes(false); }).catch(() => setLoadingDoacoes(false)); }
+            if (key === 'playlist') { fetch('/api/admin/manual-videos').then(r => r.json()).then(d => setManualVideos(d.videos || [])).catch(() => {}); }
             if (key === 'editais') { setLoadingEditais(true); fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false)); }
             if (key === 'materiais') { setLoadingMateriais(true); fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false)); }
             if (key === 'patrimonio') { setLoadingPatrimonio(true); fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false)); }
@@ -3688,8 +3689,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
-      {/* ===== ABA DOAÇÕES / PLAYLIST ===== */}
-      {(activeTab === 'doacoes' || activeTab === 'playlist') && (
+      {/* ===== ABA DOAÇÕES ===== */}
+      {activeTab === 'doacoes' && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
             <div>
@@ -3895,6 +3896,87 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA PLAYLIST ===== */}
+      {activeTab === 'playlist' && activeNucleo === 'geral' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#7c3aed,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🎵 Minha Playlist</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>Vídeos e links do YouTube exibidos no Manual Ginga Gestão</div>
+            </div>
+          </div>
+
+          {/* Formulário de adição */}
+          <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#a78bfa', marginBottom: 12 }}>+ Adicionar Vídeo</div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <input
+                value={manualVideoForm.title}
+                onChange={e => setManualVideoForm(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Título do vídeo"
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+              />
+              <input
+                value={manualVideoForm.url}
+                onChange={e => setManualVideoForm(prev => ({ ...prev, url: e.target.value }))}
+                placeholder="URL do YouTube (ex: https://youtube.com/watch?v=...)"
+                style={{ padding: '10px 14px', borderRadius: 8, border: '1px solid rgba(255,255,255,0.12)', background: 'rgba(255,255,255,0.05)', color: 'var(--text-primary)', fontSize: '0.85rem' }}
+              />
+              {manualVideoMsg && (
+                <div style={{ padding: '8px 12px', borderRadius: 8, background: manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, fontSize: '0.82rem', color: manualVideoMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{manualVideoMsg}</div>
+              )}
+              <button
+                disabled={savingManualVideo || !manualVideoForm.title.trim() || !manualVideoForm.url.trim()}
+                onClick={async () => {
+                  setSavingManualVideo(true); setManualVideoMsg('');
+                  const res = await fetch('/api/admin/manual-videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: manualVideoForm.title.trim(), url: manualVideoForm.url.trim() }) });
+                  setSavingManualVideo(false);
+                  if (res.ok) { setManualVideoMsg('✓ Vídeo adicionado!'); setManualVideoForm({ title: '', url: '' }); const d = await fetch('/api/admin/manual-videos').then(r => r.json()); setManualVideos(d.videos || []); }
+                  else setManualVideoMsg('Erro ao adicionar vídeo.');
+                }}
+                style={{ alignSelf: 'flex-start', padding: '10px 22px', borderRadius: 10, border: 'none', background: savingManualVideo ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}>
+                {savingManualVideo ? 'Salvando...' : '+ Adicionar'}
+              </button>
+            </div>
+          </div>
+
+          {/* Lista de vídeos */}
+          {manualVideos.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)', fontSize: '0.9rem' }}>🎵 Nenhum vídeo na playlist. Adicione um acima.</div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {manualVideos.map(v => {
+                let embedUrl = '';
+                try {
+                  const u = new URL(v.url);
+                  const vid = u.searchParams.get('v') || (u.hostname === 'youtu.be' ? u.pathname.slice(1) : '');
+                  if (vid) embedUrl = `https://www.youtube.com/embed/${vid}`;
+                } catch {}
+                return (
+                  <div key={v.id} style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.18)', borderRadius: 12, padding: '16px 18px', display: 'flex', gap: 16, alignItems: 'flex-start' }}>
+                    {embedUrl && (
+                      <div style={{ flexShrink: 0, width: 140, height: 80, borderRadius: 8, overflow: 'hidden', background: '#000' }}>
+                        <iframe src={embedUrl} width="140" height="80" style={{ border: 'none', display: 'block' }} allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowFullScreen />
+                      </div>
+                    )}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                      <a href={v.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.75rem', color: '#a78bfa', wordBreak: 'break-all' }}>{v.url}</a>
+                      <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 6 }}>Adicionado em {new Date(v.created_at).toLocaleDateString('pt-BR')}</div>
+                    </div>
+                    <button
+                      onClick={async () => { if (!confirm('Remover este vídeo da playlist?')) return; await fetch('/api/admin/manual-videos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: v.id }) }); setManualVideos(prev => prev.filter(x => x.id !== v.id)); }}
+                      style={{ flexShrink: 0, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.25)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+                      🗑 Remover
+                    </button>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
