@@ -6632,6 +6632,24 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               ⚠️ Limite de 3 administradores gerais atingido. Remova um para adicionar outro.
             </div>
           )}
+
+          {/* Configuração de e-mail */}
+          <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#a78bfa', marginBottom: 10 }}>📧 Configuração de E-mail</div>
+            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', fontSize: '0.82rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
+              <p style={{ margin: '0 0 10px', color: 'var(--text-primary)', fontWeight: 600 }}>Para ativar o envio automático de e-mails na plataforma (recuperação de senha, notificações):</p>
+              <ol style={{ margin: '0 0 10px', paddingLeft: 20 }}>
+                <li>Crie uma conta gratuita em <strong>resend.com</strong></li>
+                <li>Gere uma API Key no painel do Resend</li>
+                <li>Adicione a variável de ambiente: <code style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>RESEND_API_KEY=re_sua_chave</code></li>
+                <li>No Vercel: <em>Settings → Environment Variables → Add</em></li>
+                <li>Opcionalmente configure: <code style={{ background: 'rgba(255,255,255,0.08)', borderRadius: 4, padding: '2px 6px' }}>RESEND_FROM=ACCBM &lt;noreply@seu-dominio.com&gt;</code></li>
+              </ol>
+              <p style={{ margin: 0, color: '#fbbf24', fontWeight: 600 }}>
+                ⚠️ Sem RESEND_API_KEY, o link de redefinição de senha para responsáveis é exibido diretamente na tela de recuperação — funcional mas não automático.
+              </p>
+            </div>
+          </div>
         </div>
       )}
 
@@ -8022,8 +8040,19 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 if (resetPassForm.new_password !== resetPassForm.confirm_new_password) { setContasMsg('❌ As senhas não coincidem.'); return; }
                 const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-reset-password', student_id: resetPassForm.student_id, new_password: resetPassForm.new_password }) });
                 const d = await res.json();
-                setContasMsg(res.ok ? '✅ Senha redefinida com sucesso!' : `❌ ${d.error}`);
-                if (res.ok) setResetPassForm({ student_id: '', new_password: '', confirm_new_password: '' });
+                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                // Try to send email notification with new password
+                const acc = alunoContas.find(a => a.student_id === resetPassForm.student_id);
+                const st = students.find(s => s.id === resetPassForm.student_id);
+                const emailAddr = (acc as any)?.email || (st as any)?.email || '';
+                let emailStatus = '';
+                if (emailAddr) {
+                  const emailRes = await fetch('/api/send-email', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ to: emailAddr, tipo: 'nova-senha', nome: st?.nome_completo || 'Aluno', novaSenha: resetPassForm.new_password, loginUrl: `${window.location.origin}/aluno` }) });
+                  const ej = await emailRes.json();
+                  emailStatus = (emailRes.ok && !ej.skipped) ? ' E-mail enviado ao aluno.' : ' (sem e-mail configurado)';
+                }
+                setContasMsg(`✅ Senha redefinida com sucesso!${emailStatus}`);
+                setResetPassForm({ student_id: '', new_password: '', confirm_new_password: '' });
               }}
               style={{ padding: '9px 24px', borderRadius: 8, background: '#dc2626', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
             >🔑 Redefinir Senha</button>

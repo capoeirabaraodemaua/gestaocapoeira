@@ -148,45 +148,19 @@ function isAdminGeral(creds: CredsMap, key: string): boolean {
   return !!creds[key] && creds[key].nucleo === 'geral';
 }
 
-// Envia e-mail via Resend (se configurado) ou fallback
-async function sendResetEmail(to: string, nome: string, resetUrl: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    // Sem chave Resend — logar token para desenvolvimento
-    console.log(`[RESET-EMAIL] Para: ${to} | URL: ${resetUrl}`);
-    return false; // indica que e-mail não foi enviado
-  }
+// Envia e-mail via /api/send-email (que usa Resend se configurado)
+async function sendResetEmail(to: string, nome: string, resetUrl: string, req: NextRequest): Promise<boolean> {
   try {
-    const res = await fetch('https://api.resend.com/emails', {
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get('host')}`;
+    const res = await fetch(`${baseUrl}/api/send-email`, {
       method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM || 'noreply@accbm.com.br',
-        to,
-        subject: 'Redefinição de senha — Painel ACCBM',
-        html: `
-          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:12px;">
-            <div style="text-align:center;margin-bottom:24px;">
-              <h2 style="color:#1d4ed8;margin:0 0 4px;">Associação Cultural de Capoeira</h2>
-              <p style="color:#64748b;margin:0;font-size:14px;">Barão de Mauá</p>
-            </div>
-            <p style="color:#334155;">Olá, <strong>${nome || 'Responsável'}</strong>!</p>
-            <p style="color:#334155;">Recebemos uma solicitação para redefinir a senha do painel de núcleo.</p>
-            <div style="text-align:center;margin:28px 0;">
-              <a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
-                Redefinir minha senha
-              </a>
-            </div>
-            <p style="color:#64748b;font-size:13px;">Este link expira em <strong>30 minutos</strong>.</p>
-            <p style="color:#94a3b8;font-size:12px;">Se você não solicitou, ignore este e-mail. Sua senha permanece a mesma.</p>
-          </div>
-        `,
-      }),
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ to, nome, resetUrl, tipo: 'reset-link' }),
     });
-    return res.ok;
+    const json = await res.json();
+    // skipped = sem RESEND_API_KEY configurado
+    if (json.skipped) return false;
+    return res.ok && json.ok;
   } catch {
     return false;
   }
@@ -312,22 +286,29 @@ export async function POST(req: NextRequest) {
     const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get('host')}`;
     const resetUrl = `${baseUrl}/nucleo/reset-senha?token=${token}`;
 
+    const hasResend = !!process.env.RESEND_API_KEY;
+
     if (email) {
       const nome = user?.nome || '';
-      const sent = await sendResetEmail(email, nome, resetUrl);
+      const sent = await sendResetEmail(email, nome, resetUrl, req);
       if (sent) {
-        return NextResponse.json({ ok: true, message: 'E-mail de redefinição enviado.' });
+        return NextResponse.json({ ok: true, message: `E-mail de redefinição enviado para ${email.replace(/(.{2}).+(@.+)/, '$1****$2')}.` });
       }
     }
 
-    // Se não tem e-mail configurado ou falhou o envio, retorna token para admin usar
+    // Sem e-mail ou envio falhou — Admin Geral pode usar o link diretamente
     return NextResponse.json({
       ok: true,
-      message: email
-        ? 'Não foi possível enviar o e-mail. Contate o Admin Geral.'
-        : 'CPF sem e-mail cadastrado. Contate o Admin Geral para redefinir sua senha.',
-      // token retornado apenas em desenvolvimento (sem RESEND_API_KEY)
-      ...(process.env.NODE_ENV === 'development' ? { dev_token: token, dev_url: resetUrl } : {}),
+      no_email: !email,
+      no_resend: !hasResend,
+      message: !email
+        ? 'CPF sem e-mail cadastrado. O Admin Geral pode usar o link abaixo para redefinir a senha.'
+        : !hasResend
+          ? 'Serviço de e-mail não configurado (RESEND_API_KEY). O Admin Geral pode usar o link abaixo.'
+          : 'Falha ao enviar o e-mail. Tente novamente ou use o link abaixo.',
+      // Link de redefinição sempre disponível para uso administrativo
+      reset_url: resetUrl,
+      dev_token: token,
     });
   }
 

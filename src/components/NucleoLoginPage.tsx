@@ -126,6 +126,9 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   const [esqMsg, setEsqMsg] = useState('');
   const [esqLoading, setEsqLoading] = useState(false);
   const [esqEnviado, setEsqEnviado] = useState(false);
+  const [esqResetUrl, setEsqResetUrl] = useState('');
+  const [esqNoEmail, setEsqNoEmail] = useState(false);
+  const [esqNoResend, setEsqNoResend] = useState(false);
 
   useEffect(() => {
     setMounted(true);
@@ -282,6 +285,9 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
       if (res.ok) {
         setEsqEnviado(true);
         setEsqMsg(d.message || 'Solicitação enviada.');
+        setEsqResetUrl(d.reset_url || '');
+        setEsqNoEmail(!!d.no_email);
+        setEsqNoResend(!!d.no_resend);
       } else {
         setEsqMsg(d.error || 'Erro ao solicitar redefinição.');
       }
@@ -557,20 +563,51 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
                 </button>
               </form>
             ) : (
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '2rem', marginBottom: 10 }}>📬</div>
-                <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95rem', marginBottom: 8 }}>
-                  Solicitação enviada!
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.6, marginBottom: 20 }}>
-                  {esqMsg}
-                </div>
-                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginBottom: 20 }}>
-                  Verifique sua caixa de entrada e o link de spam.<br/>
-                  O link expira em 30 minutos.<br/>
-                  Sem e-mail cadastrado? Contate o Admin Geral.
-                </div>
-                <button type="button" onClick={() => { setTela('login'); setEsqMsg(''); setEsqEnviado(false); }}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* E-mail enviado com sucesso */}
+                {!esqNoEmail && !esqNoResend && !esqResetUrl && (
+                  <div style={{ textAlign: 'center' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: 10 }}>📬</div>
+                    <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95rem', marginBottom: 8 }}>E-mail enviado!</div>
+                    <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.6 }}>{esqMsg}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginTop: 10 }}>
+                      Verifique sua caixa de entrada e pasta de spam.<br/>O link expira em 30 minutos.
+                    </div>
+                  </div>
+                )}
+
+                {/* Sem serviço de e-mail ou sem e-mail cadastrado — mostrar link direto */}
+                {(esqNoEmail || esqNoResend || esqResetUrl) && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    <div style={{ background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 10, padding: '12px 14px' }}>
+                      <div style={{ color: '#fbbf24', fontWeight: 700, fontSize: '0.82rem', marginBottom: 4 }}>
+                        {esqNoEmail ? '⚠️ CPF sem e-mail cadastrado' : '⚠️ Serviço de e-mail não configurado'}
+                      </div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.77rem', lineHeight: 1.5 }}>
+                        {esqMsg}
+                      </div>
+                    </div>
+                    {esqResetUrl && (
+                      <div style={{ background: 'rgba(29,78,216,0.12)', border: '1px solid rgba(29,78,216,0.3)', borderRadius: 10, padding: '12px 14px' }}>
+                        <div style={{ color: '#60a5fa', fontWeight: 700, fontSize: '0.78rem', marginBottom: 8 }}>
+                          🔗 Link de redefinição (use este link para redefinir sua senha):
+                        </div>
+                        <a href={esqResetUrl}
+                          style={{ display: 'block', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', borderRadius: 8, padding: '10px 14px', textDecoration: 'none', fontSize: '0.82rem', fontWeight: 700, textAlign: 'center', wordBreak: 'break-all' }}>
+                          🔐 Clique aqui para redefinir sua senha
+                        </a>
+                        <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.68rem', marginTop: 6 }}>
+                          Válido por 30 minutos. Copie e abra em qualquer navegador.
+                        </div>
+                      </div>
+                    )}
+                    <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', lineHeight: 1.5 }}>
+                      Para configurar o envio automático de e-mails, o Admin Geral deve adicionar a chave <strong>RESEND_API_KEY</strong> nas variáveis de ambiente da plataforma.
+                    </div>
+                  </div>
+                )}
+
+                <button type="button" onClick={() => { setTela('login'); setEsqMsg(''); setEsqEnviado(false); setEsqResetUrl(''); setEsqNoEmail(false); setEsqNoResend(false); }}
                   style={{ ...btnPrimary, fontSize: '0.85rem' }}>
                   ← Voltar ao Login
                 </button>
