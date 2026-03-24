@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Carteirinha from '@/components/Carteirinha';
 
 type Student = {
@@ -46,7 +46,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -54,6 +54,7 @@ const NUCLEO_COLORS: Record<string, string> = {
   'Saracuruna': '#16a34a',
   'Vila Urussaí': '#9333ea',
   'Jayme Fichman': '#0891b2',
+  'Academia Mais Saúde': '#059669',
 };
 
 const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
@@ -130,6 +131,13 @@ export default function AlunoPage() {
   const [historico, setHistorico] = useState<RegistroGraduacao[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
 
+  // ── Fotos e Vídeos ────────────────────────────────────────────────────────
+  const [fotosMedia, setFotosMedia] = useState<{ name: string; url: string; type: 'foto' | 'video'; size: number; created_at: string }[]>([]);
+  const [fotosLoading, setFotosLoading] = useState(false);
+  const [fotosUploading, setFotosUploading] = useState(false);
+  const [fotosMsg, setFotosMsg] = useState('');
+  const fotosFileRef = useRef<HTMLInputElement>(null);
+
   // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -173,12 +181,25 @@ export default function AlunoPage() {
     setLoadingHistorico(false);
   }, []);
 
+  const loadFotos = useCallback(async (student_id: string) => {
+    setFotosLoading(true);
+    try {
+      const res = await fetch(`/api/aluno/media?student_id=${student_id}`);
+      if (res.ok) {
+        const { files } = await res.json();
+        setFotosMedia(files || []);
+      }
+    } catch {}
+    setFotosLoading(false);
+  }, []);
+
   useEffect(() => {
     if (session) {
       if (activeTab === 'justificativas') loadJustificativas(session.student_id);
       if (activeTab === 'graduacao') loadHistorico(session.student_id);
+      if (activeTab === 'fotos') loadFotos(session.student_id);
     }
-  }, [session, activeTab, loadJustificativas, loadHistorico]);
+  }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
 
   // ── Login handler ─────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -508,7 +529,8 @@ export default function AlunoPage() {
     { id: 'presenca',       icon: '📍', label: 'Presença' },
     { id: 'financeiro',     icon: '💰', label: 'Financeiro' },
     { id: 'graduacao',      icon: '🎖️', label: 'Graduação' },
-    { id: 'justificativas', icon: '📝', label: 'Justificativas' },
+    { id: 'fotos',          icon: '📸', label: 'Fotos' },
+    { id: 'justificativas', icon: '📝', label: 'Justific.' },
   ];
 
   // ── DASHBOARD (LOGGED IN) ─────────────────────────────────────────────────
@@ -558,23 +580,47 @@ export default function AlunoPage() {
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
             {/* Welcome card */}
-            <div style={{ background: `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}dd)`, borderRadius: 18, padding: '22px 22px', color: '#fff', boxShadow: `0 8px 24px ${nucleoColor}40` }}>
-              <div style={{ fontSize: '0.78rem', opacity: 0.8, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bem-vindo(a)</div>
-              <div style={{ fontSize: '1.4rem', fontWeight: 800, marginBottom: student?.apelido ? 0 : 2 }}>{displayName}! 👋</div>
-              {student?.apelido && (
-                <div style={{ fontSize: '0.82rem', opacity: 0.75, marginBottom: 2, fontStyle: 'italic' }}>"{student.apelido}" — {student.nome_completo}</div>
-              )}
-              <div style={{ fontSize: '0.82rem', opacity: 0.85 }}>Núcleo {student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Graduação não informada'}</div>
+            <div style={{ background: `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, borderRadius: 18, padding: '22px 22px', color: '#fff', boxShadow: `0 8px 24px ${nucleoColor}40` }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
+                {student?.foto_url ? (
+                  <img src={student.foto_url} alt={displayName} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.5)', flexShrink: 0 }} />
+                ) : (
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>🥋</div>
+                )}
+                <div>
+                  <div style={{ fontSize: '0.72rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bem-vindo(a)</div>
+                  <div style={{ fontSize: '1.35rem', fontWeight: 800, lineHeight: 1.2 }}>{displayName}! 👋</div>
+                  {student?.apelido && student.apelido !== student.nome_completo?.split(' ')[0] && (
+                    <div style={{ fontSize: '0.78rem', opacity: 0.7, fontStyle: 'italic' }}>{student.nome_completo}</div>
+                  )}
+                </div>
+              </div>
+              {/* Identity strip */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px' }}>
+                  <div style={{ fontSize: '0.62rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Nome Completo</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700, lineHeight: 1.2 }}>{student?.nome_completo || '—'}</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px' }}>
+                  <div style={{ fontSize: '0.62rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Graduação</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{student?.graduacao || 'Não informada'}</div>
+                </div>
+                <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px', gridColumn: '1 / -1' }}>
+                  <div style={{ fontSize: '0.62rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Núcleo</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{student?.nucleo || 'ACCBM'}</div>
+                </div>
+              </div>
             </div>
 
             {/* Quick actions grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
               {([
-                { tab: 'carteirinha' as Tab, icon: '🪪', label: 'Carteirinha', color: '#eff6ff', iconBg: '#dbeafe', textColor: '#1e40af' },
-                { tab: 'presenca' as Tab, icon: '📍', label: 'Presença', color: '#f0fdf4', iconBg: '#dcfce7', textColor: '#15803d' },
-                { tab: 'financeiro' as Tab, icon: '💰', label: 'Financeiro', color: '#fef9c3', iconBg: '#fef08a', textColor: '#854d0e' },
-                { tab: 'graduacao' as Tab, icon: '🎖️', label: 'Graduação', color: '#faf5ff', iconBg: '#e9d5ff', textColor: '#7e22ce' },
-                { tab: 'justificativas' as Tab, icon: '📝', label: 'Justificativas', color: '#fff7ed', iconBg: '#fed7aa', textColor: '#9a3412' },
+                { tab: 'carteirinha'    as Tab, icon: '🪪', label: 'Carteirinha',   color: '#eff6ff', iconBg: '#dbeafe', textColor: '#1e40af' },
+                { tab: 'presenca'       as Tab, icon: '📍', label: 'Presença',      color: '#f0fdf4', iconBg: '#dcfce7', textColor: '#15803d' },
+                { tab: 'financeiro'     as Tab, icon: '💰', label: 'Financeiro',    color: '#fef9c3', iconBg: '#fef08a', textColor: '#854d0e' },
+                { tab: 'graduacao'      as Tab, icon: '🎖️', label: 'Graduação',     color: '#faf5ff', iconBg: '#e9d5ff', textColor: '#7e22ce' },
+                { tab: 'fotos'          as Tab, icon: '📸', label: 'Fotos/Vídeos', color: '#fdf2f8', iconBg: '#f5d0fe', textColor: '#86198f' },
+                { tab: 'justificativas' as Tab, icon: '📝', label: 'Justificativas',color: '#fff7ed', iconBg: '#fed7aa', textColor: '#9a3412' },
               ] as { tab: Tab; icon: string; label: string; color: string; iconBg: string; textColor: string }[]).map(item => (
                 <button key={item.tab} onClick={() => setActiveTab(item.tab)}
                   style={{ background: item.color, borderRadius: 14, padding: '14px 10px', border: 'none', cursor: 'pointer', textAlign: 'center', transition: 'transform 0.15s, box-shadow 0.15s' }}>
@@ -884,6 +930,88 @@ export default function AlunoPage() {
             </div>
           </div>
         )}
+        {/* ── FOTOS E VÍDEOS ── */}
+        {activeTab === 'fotos' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📸 Registro de Fotos e Vídeos</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Gerencie suas fotos e vídeos de treinos</p>
+              </div>
+              <button onClick={() => fotosFileRef.current?.click()} disabled={fotosUploading}
+                style={{ background: `linear-gradient(135deg, #86198f, #9d174d)`, color: '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: fotosUploading ? 0.7 : 1, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {fotosUploading ? '⏳ Enviando...' : '⬆ Enviar Arquivo'}
+              </button>
+              <input ref={fotosFileRef} type="file" accept="image/*,video/*" style={{ display: 'none' }} onChange={async e => {
+                const file = e.target.files?.[0]; if (!file || !session) return;
+                setFotosUploading(true); setFotosMsg('');
+                try {
+                  const fd = new FormData();
+                  fd.append('file', file);
+                  fd.append('student_id', session.student_id);
+                  const res = await fetch('/api/aluno/media', { method: 'POST', body: fd });
+                  const json = await res.json();
+                  if (res.ok) { setFotosMsg('✓ Arquivo enviado com sucesso!'); await loadFotos(session.student_id); }
+                  else { setFotosMsg('Erro: ' + (json.error || 'falha no upload')); }
+                } catch (err: unknown) { setFotosMsg('Erro de conexão.'); }
+                setFotosUploading(false);
+                e.target.value = '';
+              }} />
+            </div>
+
+            {fotosMsg && (
+              <div style={{ padding: '10px 14px', background: fotosMsg.startsWith('✓') ? '#f0fdf4' : '#fef2f2', border: `1px solid ${fotosMsg.startsWith('✓') ? '#bbf7d0' : '#fecaca'}`, borderRadius: 10, fontSize: '0.83rem', color: fotosMsg.startsWith('✓') ? '#166534' : '#991b1b', fontWeight: 600 }}>
+                {fotosMsg}
+              </div>
+            )}
+
+            {fotosLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando arquivos...</div>
+            ) : fotosMedia.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fdf2f8', borderRadius: 16, border: '2px dashed #f0abfc' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 12 }}>📷</div>
+                <div style={{ fontWeight: 700, color: '#86198f', fontSize: '0.95rem' }}>Nenhum arquivo ainda</div>
+                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Clique em "Enviar Arquivo" para adicionar fotos ou vídeos de treino</div>
+              </div>
+            ) : (
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
+                {fotosMedia.map(m => (
+                  <div key={m.name} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 12, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                    {m.type === 'foto' ? (
+                      <a href={m.url} target="_blank" rel="noreferrer">
+                        <img src={m.url} alt={m.name} style={{ width: '100%', aspectRatio: '1', objectFit: 'cover', display: 'block' }} />
+                      </a>
+                    ) : (
+                      <a href={m.url} target="_blank" rel="noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', aspectRatio: '1', background: '#1f2937', textDecoration: 'none' }}>
+                        <span style={{ fontSize: '2.5rem' }}>🎬</span>
+                      </a>
+                    )}
+                    <div style={{ padding: '8px 10px' }}>
+                      <div style={{ fontSize: '0.7rem', color: '#6b7280', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{m.name.replace(/^[^_]+_/, '')}</div>
+                      <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+                        <a href={m.url} download target="_blank" rel="noreferrer"
+                          style={{ flex: 1, background: '#eff6ff', color: '#1e40af', borderRadius: 6, padding: '4px 6px', fontSize: '0.68rem', fontWeight: 700, textDecoration: 'none', textAlign: 'center' }}>
+                          ⬇ Baixar
+                        </a>
+                        <button onClick={async () => {
+                          if (!confirm('Excluir este arquivo?')) return;
+                          const res = await fetch('/api/aluno/media', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ student_id: session!.student_id, name: m.name }) });
+                          if (res.ok) { setFotosMedia(prev => prev.filter(f => f.name !== m.name)); setFotosMsg('Arquivo excluído.'); }
+                        }} style={{ background: '#fef2f2', color: '#dc2626', border: 'none', borderRadius: 6, padding: '4px 7px', fontSize: '0.68rem', cursor: 'pointer', fontWeight: 700 }}>
+                          🗑
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+            <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
+              Formatos aceitos: JPG, PNG, GIF, MP4, MOV • Máx. 50 MB por arquivo
+            </div>
+          </div>
+        )}
+
       </main>
     </div>
   );

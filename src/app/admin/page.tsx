@@ -522,7 +522,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins'>('alunos');
   // Responsáveis de núcleo
   const [respUsers, setRespUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; email: string }>>([]);
   const [respLoading, setRespLoading] = useState(false);
@@ -723,6 +723,19 @@ export default function AdminPage() {
     { code: 'zh',    flag: '🇨🇳', label: '中文' },
     { code: 'de',    flag: '🇩🇪', label: 'Deutsch' },
   ];
+
+  // ── Extra Admins state ────────────────────────────────────────────────────
+  const [extraAdmins, setExtraAdmins] = useState<Array<{ id: string; username: string; nome: string; email?: string; created_at: string }>>([]);
+  const [extraAdminsLoading, setExtraAdminsLoading] = useState(false);
+  const [extraAdminForm, setExtraAdminForm] = useState({ username: '', nome: '', email: '', password: '', confirmPassword: '' });
+  const [extraAdminMsg, setExtraAdminMsg] = useState('');
+  const [savingExtraAdmin, setSavingExtraAdmin] = useState(false);
+
+  // ── Manual video links state ──────────────────────────────────────────────
+  const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
+  const [manualVideoForm, setManualVideoForm] = useState({ title: '', url: '' });
+  const [savingManualVideo, setSavingManualVideo] = useState(false);
+  const [manualVideoMsg, setManualVideoMsg] = useState('');
 
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
 
@@ -1510,7 +1523,10 @@ export default function AdminPage() {
                 }));
                 setLoadingManuais(false);
               }).catch(() => setLoadingManuais(false));
+              // Also load video links
+              fetch('/api/admin/manual-videos').then(r => r.json()).then(d => setManualVideos(d.videos || [])).catch(() => {});
             }
+            if (key === 'admins') { setExtraAdminsLoading(true); setExtraAdminMsg(''); fetch('/api/admin/extra-admins').then(r => r.json()).then(d => { setExtraAdmins(d.admins || []); setExtraAdminsLoading(false); }).catch(() => setExtraAdminsLoading(false)); }
             if (key === 'lixeira') { setLoadingLixeira(true); setLixeiraMsg(''); fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false)); }
             if (key === 'justificativas') {
               setLoadingJustificativas(true); setJustMsg('');
@@ -1543,6 +1559,7 @@ export default function AdminPage() {
                 { key: 'presencas',   icon: '👥', label: 'Presenças' },
                 { key: 'certificado', icon: '🏅', label: 'Certificado' },
                 { key: 'manual',      icon: '📖', label: 'Manual Ginga Gestão' },
+                { key: 'admins',      icon: '🔐', label: 'Administradores', geralOnly: true },
               ],
             },
             {
@@ -1560,7 +1577,7 @@ export default function AdminPage() {
               buttons: [
                 { key: 'docs-historicos', icon: '📚', label: 'Documentos Históricos' },
                 { key: 'editais',         icon: '📣', label: 'Editais', geralOnly: true },
-                { key: 'doacoes',         icon: '💝', label: 'Minha Playlist / Doações', geralOnly: true },
+                { key: 'playlist',        icon: '🎵', label: 'Minha Playlist', geralOnly: true },
                 { key: 'eventos',         icon: '🥋', label: 'Eventos' },
               ],
             },
@@ -3660,8 +3677,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
-      {/* ===== ABA DOAÇÕES ===== */}
-      {activeTab === 'doacoes' && (
+      {/* ===== ABA DOAÇÕES / PLAYLIST ===== */}
+      {(activeTab === 'doacoes' || activeTab === 'playlist') && (
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
             <div>
@@ -6351,12 +6368,100 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           )}
 
+          {/* ── Vídeos do Manual ── */}
+          <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 22 }}>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#a78bfa', marginBottom: 14 }}>🎬 Vídeos do Manual</div>
+
+            {/* Add video form — geral only */}
+            {activeNucleo === 'geral' && (
+              <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#a78bfa', marginBottom: 10 }}>➕ Adicionar link de vídeo</div>
+                {manualVideoMsg && (
+                  <div style={{ marginBottom: 10, padding: '7px 12px', background: manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, fontSize: '0.78rem', color: manualVideoMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{manualVideoMsg}</div>
+                )}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  <input type="text" placeholder="Título do vídeo" value={manualVideoForm.title}
+                    onChange={e => setManualVideoForm(p => ({ ...p, title: e.target.value }))}
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                  <input type="url" placeholder="URL do vídeo (YouTube, Drive, etc.)" value={manualVideoForm.url}
+                    onChange={e => setManualVideoForm(p => ({ ...p, url: e.target.value }))}
+                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                  <button disabled={savingManualVideo || !manualVideoForm.title.trim() || !manualVideoForm.url.trim()}
+                    onClick={async () => {
+                      setSavingManualVideo(true); setManualVideoMsg('');
+                      try {
+                        const res = await fetch('/api/admin/manual-videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: manualVideoForm.title.trim(), url: manualVideoForm.url.trim() }) });
+                        const j = await res.json();
+                        if (res.ok) { setManualVideoMsg('✓ Vídeo adicionado!'); setManualVideoForm({ title: '', url: '' }); const d = await fetch('/api/admin/manual-videos').then(r => r.json()); setManualVideos(d.videos || []); }
+                        else { setManualVideoMsg('Erro: ' + (j.error || 'falha')); }
+                      } catch { setManualVideoMsg('Erro de conexão.'); }
+                      setSavingManualVideo(false);
+                    }}
+                    style={{ background: savingManualVideo ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: (!manualVideoForm.title.trim() || !manualVideoForm.url.trim()) ? 0.5 : 1 }}>
+                    {savingManualVideo ? '⏳ Salvando...' : '✓ Adicionar Vídeo'}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {manualVideos.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                Nenhum vídeo adicionado ainda.{activeNucleo === 'geral' ? ' Use o formulário acima para adicionar.' : ''}
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {manualVideos.map(v => {
+                  // Detect YouTube embed
+                  const ytMatch = v.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
+                  const ytId = ytMatch?.[1];
+                  return (
+                    <div key={v.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
+                        <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>🎬</span>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{v.url}</div>
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                          <a href={v.url} target="_blank" rel="noreferrer"
+                            style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none' }}>
+                            ▶ Abrir
+                          </a>
+                          {activeNucleo === 'geral' && (
+                            <button onClick={async () => {
+                              if (!confirm('Remover este vídeo?')) return;
+                              await fetch('/api/admin/manual-videos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: v.id }) });
+                              setManualVideos(prev => prev.filter(x => x.id !== v.id));
+                            }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🗑</button>
+                          )}
+                        </div>
+                      </div>
+                      {/* Embedded YouTube player */}
+                      {ytId && (
+                        <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
+                          <iframe
+                            src={`https://www.youtube.com/embed/${ytId}`}
+                            title={v.title}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                            allowFullScreen
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
           <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--text-primary)' }}>ℹ Como usar:</strong><br/>
             • Cada responsável de núcleo pode visualizar e baixar os manuais disponíveis.<br/>
-            • Somente o Admin Geral pode subir ou excluir manuais.<br/>
-            • Apenas arquivos PDF são aceitos.<br/>
-            • Os links de download são válidos por 1 hora; recarregue a página para renovar.
+            • Somente o Admin Geral pode subir ou excluir manuais e vídeos.<br/>
+            • Apenas arquivos PDF são aceitos para upload.<br/>
+            • Os links de download são válidos por 1 hora; recarregue a página para renovar.<br/>
+            • Vídeos do YouTube são exibidos embutidos; outros links abrem em nova aba.
           </div>
         </div>
       )}
@@ -6425,6 +6530,110 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
         );
       })}
+
+      {/* ===== ABA ADMINISTRADORES GERAIS ===== */}
+      {activeTab === 'admins' && activeNucleo === 'geral' && (
+        <div>
+          <div style={{ marginBottom: 20 }}>
+            <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>🔐 Gestão de Administradores Gerais</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Cadastre até 3 administradores gerais adicionais. Cada um terá acesso completo ao painel.</div>
+          </div>
+
+          {/* Cadastrar novo admin */}
+          {extraAdmins.length < 3 && (
+            <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 24 }}>
+              <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#a78bfa', marginBottom: 14 }}>➕ Novo Administrador</div>
+              {extraAdminMsg && (
+                <div style={{ marginBottom: 12, padding: '8px 14px', background: extraAdminMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${extraAdminMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, fontSize: '0.82rem', color: extraAdminMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{extraAdminMsg}</div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                {([
+                  { key: 'nome',            label: 'Nome completo *', placeholder: 'Ex: Maria Silva',      type: 'text' },
+                  { key: 'username',        label: 'Usuário de login *', placeholder: 'Ex: maria.admin', type: 'text' },
+                  { key: 'email',           label: 'E-mail',          placeholder: 'admin@email.com',     type: 'email' },
+                  { key: 'password',        label: 'Senha *',         placeholder: 'Mínimo 6 caracteres', type: 'password' },
+                  { key: 'confirmPassword', label: 'Confirmar senha *',placeholder: 'Repita a senha',     type: 'password' },
+                ] as const).map(({ key, label, placeholder, type }) => (
+                  <div key={key} style={{ gridColumn: key === 'email' || key === 'confirmPassword' ? undefined : undefined }}>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</label>
+                    <input type={type} value={(extraAdminForm as Record<string, string>)[key] || ''} placeholder={placeholder}
+                      onChange={e => setExtraAdminForm(p => ({ ...p, [key]: e.target.value }))}
+                      style={{ width: '100%', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
+                  </div>
+                ))}
+              </div>
+              <button disabled={savingExtraAdmin || !extraAdminForm.username || !extraAdminForm.nome || !extraAdminForm.password}
+                onClick={async () => {
+                  if (extraAdminForm.password !== extraAdminForm.confirmPassword) { setExtraAdminMsg('As senhas não coincidem.'); return; }
+                  if (extraAdminForm.password.length < 6) { setExtraAdminMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
+                  setSavingExtraAdmin(true); setExtraAdminMsg('');
+                  try {
+                    const res = await fetch('/api/admin/extra-admins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: extraAdminForm.username, nome: extraAdminForm.nome, email: extraAdminForm.email, password: extraAdminForm.password }) });
+                    const j = await res.json();
+                    if (res.ok) {
+                      setExtraAdminMsg('✓ Administrador cadastrado com sucesso!');
+                      setExtraAdminForm({ username: '', nome: '', email: '', password: '', confirmPassword: '' });
+                      const d = await fetch('/api/admin/extra-admins').then(r => r.json());
+                      setExtraAdmins(d.admins || []);
+                    } else { setExtraAdminMsg('Erro: ' + (j.error || 'falha')); }
+                  } catch { setExtraAdminMsg('Erro de conexão.'); }
+                  setSavingExtraAdmin(false);
+                }}
+                style={{ marginTop: 14, background: savingExtraAdmin ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', opacity: (!extraAdminForm.username || !extraAdminForm.nome || !extraAdminForm.password) ? 0.5 : 1 }}>
+                {savingExtraAdmin ? '⏳ Salvando...' : '✓ Cadastrar Administrador'}
+              </button>
+            </div>
+          )}
+
+          {/* Lista de admins */}
+          {extraAdminsLoading ? (
+            <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>
+          ) : extraAdmins.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem', background: 'var(--bg-card)', borderRadius: 12, border: '1px solid var(--border)' }}>
+              <div style={{ fontSize: '2rem', marginBottom: 8 }}>👤</div>
+              Nenhum administrador adicional cadastrado.<br/>
+              <span style={{ fontSize: '0.75rem' }}>Você pode cadastrar até 3 administradores gerais.</span>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>Administradores Cadastrados ({extraAdmins.length}/3)</div>
+              </div>
+              {extraAdmins.map((a, i) => (
+                <div key={a.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontWeight: 800, fontSize: '1rem', flexShrink: 0 }}>
+                    {(i + 1)}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>{a.nome}</div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      Usuário: <strong>{a.username}</strong>
+                      {a.email && <> · {a.email}</>}
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 2 }}>
+                      Criado em {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                    </div>
+                  </div>
+                  <span style={{ background: 'rgba(29,78,216,0.15)', color: '#60a5fa', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>Admin Geral</span>
+                  <button onClick={async () => {
+                    if (!confirm(`Remover o administrador "${a.nome}"?`)) return;
+                    const res = await fetch('/api/admin/extra-admins', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: a.id }) });
+                    if (res.ok) { setExtraAdmins(prev => prev.filter(x => x.id !== a.id)); setExtraAdminMsg('✓ Administrador removido.'); }
+                    else { const j = await res.json(); setExtraAdminMsg('Erro: ' + (j.error || 'falha')); }
+                  }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, flexShrink: 0 }}>
+                    🗑 Remover
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+          {extraAdmins.length >= 3 && (
+            <div style={{ marginTop: 14, padding: '10px 16px', background: 'rgba(234,179,8,0.1)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 10, fontSize: '0.82rem', color: '#fbbf24', fontWeight: 600 }}>
+              ⚠️ Limite de 3 administradores gerais atingido. Remova um para adicionar outro.
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ===== ABA LIXEIRA ===== */}
       {activeTab === 'lixeira' && (
