@@ -4478,7 +4478,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 }}
                                 style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
                               />
-                              <input type="text" placeholder="CPF (senha de acesso)"
+                              <input type="text" placeholder="CPF (login de acesso)"
                                 value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
                                 onChange={e => {
                                   const val = e.target.value.replace(/\D/g, '');
@@ -4493,6 +4493,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
                               />
                             </div>
+                            <input type="email" placeholder="E-mail (para recuperação de senha)"
+                              value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.email || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setResponsaveis(prev => {
+                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                  const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                  const item = { ...existing, email: val };
+                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                  return [...prev, item];
+                                });
+                              }}
+                              style={{ marginTop: 6, width: '100%', boxSizing: 'border-box', padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                            />
                           </div>
 
                           {/* Responsável 2 */}
@@ -4505,7 +4519,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   if (!confirm(`Remover Responsável 2 do ${n.label}?`)) return;
                                   const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
                                   const currentList: typeof responsaveis = cfg.responsaveis || [];
-                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome2: undefined, cpf2: undefined } : r);
+                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome2: undefined, cpf2: undefined, email2: undefined } : r);
                                   setResponsaveis(updated);
                                   const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
                                   if (res.ok) { setResponsaveisMsg('✓ Responsável 2 removido!'); } else { setResponsaveisMsg('Erro ao remover.'); }
@@ -4531,7 +4545,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 }}
                                 style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
                               />
-                              <input type="text" placeholder="CPF (senha de acesso)"
+                              <input type="text" placeholder="CPF (login de acesso)"
                                 value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.cpf2 || ''}
                                 onChange={e => {
                                   const val = e.target.value.replace(/\D/g, '');
@@ -4546,6 +4560,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
                               />
                             </div>
+                            <input type="email" placeholder="E-mail (para recuperação de senha)"
+                              value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.email2 || ''}
+                              onChange={e => {
+                                const val = e.target.value;
+                                setResponsaveis(prev => {
+                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                                  const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                  const item = { ...existing, email2: val };
+                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                                  return [...prev, item];
+                                });
+                              }}
+                              style={{ marginTop: 6, width: '100%', boxSizing: 'border-box', padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                            />
                             {/* Mensagem de confirmação abaixo do Responsável 2 */}
                             {responsaveisSavedMsg[n.key] && (
                               <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -4567,8 +4595,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 nucleo_label: n.label,
                                 nome: thisEntry?.nome?.trim() || '',
                                 cpf: thisEntry?.cpf?.trim() || '',
+                                email: thisEntry?.email?.trim() || undefined,
                                 nome2: thisEntry?.nome2?.trim() || undefined,
                                 cpf2: thisEntry?.cpf2?.trim() ? thisEntry.cpf2.replace(/\D/g,'') : undefined,
+                                email2: thisEntry?.email2?.trim() || undefined,
                               };
                               const idx = currentList.findIndex((r: any) => r.nucleo_key === n.key);
                               const updated = idx >= 0
@@ -4603,8 +4633,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             ...r,
                             nome: r.nome?.trim() || '',
                             cpf: r.cpf?.trim() || '',
+                            email: r.email?.trim() || undefined,
                             nome2: r.nome2?.trim() || undefined,
                             cpf2: r.cpf2?.trim() ? r.cpf2.replace(/\D/g,'') : undefined,
+                            email2: r.email2?.trim() || undefined,
                           }))
                           .filter((r: any) => r.nome || r.cpf || r.nome2 || r.cpf2);
                         const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: filtered }) });

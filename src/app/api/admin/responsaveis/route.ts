@@ -15,8 +15,10 @@ export interface ResponsavelNucleo {
   nucleo_label: string;
   nome: string;
   cpf: string; // digits only
+  email?: string;
   nome2?: string;
   cpf2?: string; // digits only
+  email2?: string;
 }
 
 export interface ResponsaveisConfig {
@@ -116,29 +118,42 @@ export async function POST(req: NextRequest) {
       if (!profile) continue;
       // CPF principal
       const cpf1 = resp.cpf?.replace(/\D/g, '');
-      if (cpf1?.length === 11 && !creds[cpf1]) {
-        creds[cpf1] = {
-          nucleo: resp.nucleo_key,
-          label: profile.label,
-          color: profile.color,
-          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
-          nome: resp.nome || '',
-          first_login: true,
-        };
-        changed = true;
+      if (cpf1?.length === 11) {
+        if (!creds[cpf1]) {
+          creds[cpf1] = {
+            nucleo: resp.nucleo_key,
+            label: profile.label,
+            color: profile.color,
+            password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
+            nome: resp.nome || '',
+            email: resp.email || '',
+            first_login: true,
+          };
+          changed = true;
+        } else if (resp.email && creds[cpf1].email !== resp.email) {
+          // Atualiza email se mudou
+          creds[cpf1] = { ...creds[cpf1], email: resp.email };
+          changed = true;
+        }
       }
       // CPF secundário (cpf2)
       const cpf2 = resp.cpf2?.replace(/\D/g, '');
-      if (cpf2?.length === 11 && !creds[cpf2]) {
-        creds[cpf2] = {
-          nucleo: resp.nucleo_key,
-          label: profile.label,
-          color: profile.color,
-          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
-          nome: resp.nome2 || resp.nome || '',
-          first_login: true,
-        };
-        changed = true;
+      if (cpf2?.length === 11) {
+        if (!creds[cpf2]) {
+          creds[cpf2] = {
+            nucleo: resp.nucleo_key,
+            label: profile.label,
+            color: profile.color,
+            password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
+            nome: resp.nome2 || resp.nome || '',
+            email: (resp as any).email2 || '',
+            first_login: true,
+          };
+          changed = true;
+        } else if ((resp as any).email2 && creds[cpf2].email !== (resp as any).email2) {
+          creds[cpf2] = { ...creds[cpf2], email: (resp as any).email2 };
+          changed = true;
+        }
       }
     }
     if (changed) await saveCreds(creds);
