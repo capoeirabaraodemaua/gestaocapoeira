@@ -72,6 +72,8 @@ function formatCpf(v: string) {
   return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
 }
 
+type Tela = 'login' | 'alterar' | 'primeiro-acesso' | 'esqueci-senha';
+
 interface Props {
   nucleoKey: string;
 }
@@ -80,6 +82,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   const router = useRouter();
   const nucleo = NUCLEOS[nucleoKey];
 
+  // ─── Login ───
   const [cpf, setCpf] = useState('');
   const [senha, setSenha] = useState('');
   const [showSenha, setShowSenha] = useState(false);
@@ -87,18 +90,36 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   const [erro, setErro] = useState('');
   const [mounted, setMounted] = useState(false);
 
-  // Alterar senha
-  const [tela, setTela] = useState<'login' | 'alterar'>('login');
+  // ─── Tela ───
+  const [tela, setTela] = useState<Tela>('login');
+
+  // ─── Alterar senha ───
   const [altCpf, setAltCpf] = useState('');
   const [altAtual, setAltAtual] = useState('');
   const [altNova, setAltNova] = useState('');
   const [altConfirm, setAltConfirm] = useState('');
   const [altMsg, setAltMsg] = useState('');
   const [altLoading, setAltLoading] = useState(false);
+  const [showAltNova, setShowAltNova] = useState(false);
+
+  // ─── Primeiro acesso (troca obrigatória) ───
+  const [primeiroNome, setPrimeiroNome] = useState('');
+  const [primeiroCpfInterno, setPrimeiroCpfInterno] = useState('');
+  const [primeiroAtual, setPrimeiroAtual] = useState('');
+  const [primeiroNova, setPrimeiroNova] = useState('');
+  const [primeiroConfirm, setPrimeiroConfirm] = useState('');
+  const [primeiroMsg, setPrimeiroMsg] = useState('');
+  const [primeiroLoading, setPrimeiroLoading] = useState(false);
+  const [showPrimeiroNova, setShowPrimeiroNova] = useState(false);
+
+  // ─── Esqueci senha ───
+  const [esqCpf, setEsqCpf] = useState('');
+  const [esqMsg, setEsqMsg] = useState('');
+  const [esqLoading, setEsqLoading] = useState(false);
+  const [esqEnviado, setEsqEnviado] = useState(false);
 
   useEffect(() => {
     setMounted(true);
-    // Se já está autenticado para este núcleo, redireciona direto
     const stored = sessionStorage.getItem('admin_auth');
     if (stored === nucleoKey) {
       router.push('/admin');
@@ -132,11 +153,10 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     setLoading(true);
     setErro('');
     try {
-      const username = cpfDigits;
       const res = await fetch('/api/admin/panel-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', username, password: senha }),
+        body: JSON.stringify({ action: 'login', username: cpfDigits, password: senha }),
       });
       const data = await res.json();
 
@@ -151,6 +171,17 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
           return;
         }
         setLockState(0, 0);
+
+        // Primeiro acesso — forçar troca de senha
+        if (data.first_login) {
+          setPrimeiroNome(data.nome || '');
+          setPrimeiroCpfInterno(cpfDigits);
+          setPrimeiroAtual(senha);
+          setTela('primeiro-acesso');
+          setLoading(false);
+          return;
+        }
+
         sessionStorage.setItem('admin_auth', nucleoKey);
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify([nucleoKey]));
         router.push('/admin');
@@ -164,7 +195,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
         setErro(`Acesso bloqueado por 5 minutos após ${MAX_ATTEMPTS} tentativas.`);
       } else {
         setLockState(nc, 0);
-        setErro(`Senha incorreta. Tentativa ${nc}/${MAX_ATTEMPTS}.`);
+        setErro(data.error || `Senha incorreta. Tentativa ${nc}/${MAX_ATTEMPTS}.`);
       }
     } catch {
       setErro('Erro de conexão. Tente novamente.');
@@ -172,6 +203,40 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     setLoading(false);
   }
 
+  // ─── Troca obrigatória no primeiro acesso ───
+  async function handlePrimeiroAcesso(e: React.FormEvent) {
+    e.preventDefault();
+    if (primeiroNova.length < 6) { setPrimeiroMsg('Nova senha deve ter pelo menos 6 caracteres.'); return; }
+    if (primeiroNova !== primeiroConfirm) { setPrimeiroMsg('As senhas não coincidem.'); return; }
+    if (primeiroNova === primeiroAtual) { setPrimeiroMsg('A nova senha não pode ser igual à senha padrão.'); return; }
+    setPrimeiroLoading(true);
+    setPrimeiroMsg('');
+    try {
+      const res = await fetch('/api/admin/panel-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'change-password',
+          username: primeiroCpfInterno,
+          current_password: primeiroAtual,
+          new_password: primeiroNova,
+        }),
+      });
+      const d = await res.json();
+      if (res.ok && d.ok) {
+        sessionStorage.setItem('admin_auth', nucleoKey);
+        sessionStorage.setItem('admin_auth_nucleos', JSON.stringify([nucleoKey]));
+        router.push('/admin');
+      } else {
+        setPrimeiroMsg(d.error || 'Erro ao salvar senha. Tente novamente.');
+      }
+    } catch {
+      setPrimeiroMsg('Erro de conexão. Tente novamente.');
+    }
+    setPrimeiroLoading(false);
+  }
+
+  // ─── Alterar senha (voluntário) ───
   async function handleAlterar(e: React.FormEvent) {
     e.preventDefault();
     const cpfD = altCpf.replace(/\D/g, '');
@@ -180,11 +245,10 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     if (altNova !== altConfirm) { setAltMsg('As senhas não coincidem.'); return; }
     if (altNova.length < 6) { setAltMsg('Nova senha deve ter pelo menos 6 caracteres.'); return; }
     setAltLoading(true);
-    const username = cpfD;
     const res = await fetch('/api/admin/panel-auth', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ action: 'change-password', username, current_password: altAtual, new_password: altNova }),
+      body: JSON.stringify({ action: 'change-password', username: cpfD, current_password: altAtual, new_password: altNova }),
     });
     const d = await res.json();
     setAltMsg(res.ok ? '✓ Senha alterada com sucesso! Faça login.' : (d.error || 'Erro ao alterar senha.'));
@@ -192,206 +256,318 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
     setAltLoading(false);
   }
 
+  // ─── Esqueci senha ───
+  async function handleEsqueciSenha(e: React.FormEvent) {
+    e.preventDefault();
+    const cpfD = esqCpf.replace(/\D/g, '');
+    if (cpfD.length !== 11) { setEsqMsg('Digite seu CPF completo (11 dígitos).'); return; }
+    setEsqLoading(true);
+    setEsqMsg('');
+    try {
+      const res = await fetch('/api/admin/panel-auth', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'forgot-password', cpf: cpfD }),
+      });
+      const d = await res.json();
+      if (res.ok) {
+        setEsqEnviado(true);
+        setEsqMsg(d.message || 'Solicitação enviada.');
+      } else {
+        setEsqMsg(d.error || 'Erro ao solicitar redefinição.');
+      }
+    } catch {
+      setEsqMsg('Erro de conexão. Tente novamente.');
+    }
+    setEsqLoading(false);
+  }
+
   if (!nucleo) return null;
+
+  // ─── Estilos compartilhados ───
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '11px 14px',
+    background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.12)',
+    borderRadius: 10, color: '#fff', fontSize: '0.95rem', outline: 'none',
+  };
+  const labelStyle: React.CSSProperties = {
+    color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', fontWeight: 700,
+    marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em',
+    display: 'block',
+  };
+  const btnPrimary: React.CSSProperties = {
+    width: '100%', padding: '12px', borderRadius: 10,
+    background: `linear-gradient(135deg, ${nucleo.color}, ${nucleo.color}cc)`,
+    border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.95rem',
+    cursor: 'pointer', letterSpacing: '0.03em',
+    boxShadow: `0 4px 20px ${nucleo.color}50`,
+  };
 
   return (
     <div style={{
       minHeight: '100vh',
       background: `linear-gradient(160deg, #0f172a 0%, #1e293b 60%, ${nucleo.color}18 100%)`,
-      display: 'flex',
-      flexDirection: 'column',
-      alignItems: 'center',
-      justifyContent: 'center',
-      padding: '20px 16px',
-      fontFamily: 'Inter, system-ui, sans-serif',
+      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+      padding: '20px 16px', fontFamily: 'Inter, system-ui, sans-serif',
     }}>
       {/* Card principal */}
       <div style={{
         background: 'linear-gradient(160deg,#1a2035,#161e30)',
         border: `1.5px solid ${nucleo.color}40`,
-        borderRadius: 20,
-        padding: '32px 28px',
-        width: '100%',
-        maxWidth: 420,
+        borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 420,
         boxShadow: `0 24px 80px rgba(0,0,0,0.6), 0 0 0 1px ${nucleo.color}20`,
       }}>
-        {/* Cabeçalho do núcleo — logo centralizada acima do nome */}
+        {/* Cabeçalho */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img
-            src="/logo-barao-maua.png"
-            alt="Barão de Mauá"
-            style={{ width: 88, height: 'auto', marginBottom: 14, filter: 'drop-shadow(0 4px 18px rgba(0,0,0,0.6))' }}
-          />
+          <img src="/logo-barao-maua.png" alt="Barão de Mauá"
+            style={{ width: 88, height: 'auto', marginBottom: 14, filter: 'drop-shadow(0 4px 18px rgba(0,0,0,0.6))' }} />
           <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#fff', marginBottom: 4 }}>
             {nucleo.label}
           </div>
-          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
-            {nucleo.cidade}
-          </div>
+          <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>{nucleo.cidade}</div>
           <div style={{
-            display: 'inline-block',
-            marginTop: 10,
-            background: `${nucleo.color}20`,
-            border: `1px solid ${nucleo.color}50`,
-            color: nucleo.colorLight,
-            borderRadius: 8,
-            padding: '3px 12px',
-            fontSize: '0.72rem',
-            fontWeight: 700,
-            letterSpacing: '0.05em',
-            textTransform: 'uppercase',
+            display: 'inline-block', marginTop: 10,
+            background: `${nucleo.color}20`, border: `1px solid ${nucleo.color}50`,
+            color: nucleo.colorLight, borderRadius: 8, padding: '3px 12px',
+            fontSize: '0.72rem', fontWeight: 700, letterSpacing: '0.05em', textTransform: 'uppercase',
           }}>
-            {tela === 'login' ? 'Acesso Responsável' : 'Alterar Senha'}
+            {tela === 'login' ? 'Acesso Responsável'
+              : tela === 'alterar' ? 'Alterar Senha'
+              : tela === 'primeiro-acesso' ? 'Criar Nova Senha'
+              : 'Recuperar Senha'}
           </div>
         </div>
 
-        {tela === 'login' ? (
+        {/* ═══ TELA LOGIN ═══ */}
+        {tela === 'login' && (
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            {/* CPF — obrigatório, vinculado ao módulo responsáveis */}
             <div>
-              <div style={{ marginBottom: 5 }}>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                  CPF do Responsável
-                </div>
-              </div>
+              <label style={labelStyle}>CPF do Responsável</label>
               <input
-                autoFocus
-                type="text"
-                inputMode="numeric"
-                placeholder="000.000.000-00"
-                value={cpf}
+                autoFocus type="text" inputMode="numeric"
+                placeholder="000.000.000-00" value={cpf}
                 onChange={e => { setCpf(formatCpf(e.target.value)); setErro(''); }}
-                disabled={loading}
-                style={{
-                  width: '100%',
-                  boxSizing: 'border-box',
-                  padding: '11px 14px',
-                  background: 'rgba(255,255,255,0.06)',
-                  border: `1.5px solid rgba(255,255,255,0.12)`,
-                  borderRadius: 10,
-                  color: '#fff',
-                  fontSize: '1rem',
-                  outline: 'none',
-                  letterSpacing: '0.02em',
-                }}
+                disabled={loading} style={inputStyle}
               />
             </div>
 
-            {/* Senha */}
             <div>
-              <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.7rem', fontWeight: 700, marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
-                Senha
-              </div>
+              <label style={labelStyle}>Senha</label>
               <div style={{ position: 'relative' }}>
                 <input
-                  type={showSenha ? 'text' : 'password'}
-                  placeholder="••••••••"
-                  value={senha}
-                  onChange={e => { setSenha(e.target.value); setErro(''); }}
+                  type={showSenha ? 'text' : 'password'} placeholder="••••••••"
+                  value={senha} onChange={e => { setSenha(e.target.value); setErro(''); }}
                   disabled={loading}
-                  style={{
-                    width: '100%',
-                    boxSizing: 'border-box',
-                    padding: '11px 44px 11px 14px',
-                    background: 'rgba(255,255,255,0.06)',
-                    border: '1.5px solid rgba(255,255,255,0.12)',
-                    borderRadius: 10,
-                    color: '#fff',
-                    fontSize: '1rem',
-                    outline: 'none',
-                  }}
+                  style={{ ...inputStyle, paddingRight: 44 }}
                 />
-                <button
-                  type="button"
-                  onClick={() => setShowSenha(v => !v)}
-                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}
-                >
+                <button type="button" onClick={() => setShowSenha(v => !v)}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}>
                   {showSenha ? '🙈' : '👁'}
                 </button>
               </div>
             </div>
 
-            {/* Erro */}
             {erro && (
               <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 8, padding: '8px 12px', color: '#f87171', fontSize: '0.78rem', fontWeight: 600 }}>
                 ⚠ {erro}
               </div>
             )}
 
-            {/* Botão entrar */}
-            <button
-              type="submit"
-              disabled={loading}
-              style={{
-                width: '100%',
-                padding: '12px',
-                borderRadius: 10,
-                background: loading ? 'rgba(255,255,255,0.1)' : `linear-gradient(135deg, ${nucleo.color}, ${nucleo.color}cc)`,
-                border: 'none',
-                color: '#fff',
-                fontWeight: 800,
-                fontSize: '0.95rem',
-                cursor: loading ? 'wait' : 'pointer',
-                letterSpacing: '0.03em',
-                transition: 'opacity 0.15s',
-                opacity: loading ? 0.7 : 1,
-                boxShadow: loading ? 'none' : `0 4px 20px ${nucleo.color}50`,
-              }}
-            >
+            <button type="submit" disabled={loading} style={{ ...btnPrimary, opacity: loading ? 0.7 : 1, cursor: loading ? 'wait' : 'pointer' }}>
               {loading ? '⏳ Verificando...' : '🔓 Entrar no Painel'}
             </button>
 
-            {/* Dica senha padrão + link alterar */}
-            <div style={{ textAlign: 'center', paddingTop: 2 }}>
-              <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.22)', marginBottom: 6 }}>
-                Primeiro acesso? Use a senha padrão do seu núcleo.
+            {/* Links secundários */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 4 }}>
+              <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.22)' }}>
+                Primeiro acesso? Use a senha padrão: <strong style={{ color: 'rgba(255,255,255,0.35)' }}>123456</strong>
               </div>
-              <button
-                type="button"
-                onClick={() => { setTela('alterar'); setAltMsg(''); }}
-                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}
-              >
-                🔑 Alterar minha senha
-              </button>
+              <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
+                <button type="button" onClick={() => { setTela('alterar'); setAltMsg(''); }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                  🔑 Alterar senha
+                </button>
+                <span style={{ color: 'rgba(255,255,255,0.15)', fontSize: '0.75rem' }}>|</span>
+                <button type="button" onClick={() => { setTela('esqueci-senha'); setEsqMsg(''); setEsqEnviado(false); setEsqCpf(''); }}
+                  style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
+                  ❓ Esqueci minha senha
+                </button>
+              </div>
             </div>
           </form>
-        ) : (
+        )}
+
+        {/* ═══ TELA PRIMEIRO ACESSO ═══ */}
+        {tela === 'primeiro-acesso' && (
+          <form onSubmit={handlePrimeiroAcesso} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            {/* Banner obrigatório */}
+            <div style={{
+              background: `${nucleo.color}18`, border: `1.5px solid ${nucleo.color}50`,
+              borderRadius: 12, padding: '12px 16px',
+            }}>
+              <div style={{ color: nucleo.colorLight, fontWeight: 700, fontSize: '0.85rem', marginBottom: 4 }}>
+                🔐 Primeiro acesso detectado
+              </div>
+              {primeiroNome && (
+                <div style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.78rem' }}>
+                  Bem-vindo(a), <strong>{primeiroNome}</strong>!
+                </div>
+              )}
+              <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.75rem', marginTop: 4 }}>
+                Por segurança, você deve criar uma senha personalizada antes de acessar o painel.
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Nova Senha</label>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type={showPrimeiroNova ? 'text' : 'password'}
+                  placeholder="mínimo 6 caracteres" autoFocus
+                  value={primeiroNova} onChange={e => { setPrimeiroNova(e.target.value); setPrimeiroMsg(''); }}
+                  style={{ ...inputStyle, paddingRight: 44 }}
+                />
+                <button type="button" onClick={() => setShowPrimeiroNova(v => !v)}
+                  style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.9rem', padding: 0 }}>
+                  {showPrimeiroNova ? '🙈' : '👁'}
+                </button>
+              </div>
+            </div>
+
+            <div>
+              <label style={labelStyle}>Confirmar Nova Senha</label>
+              <input
+                type="password" placeholder="••••••••"
+                value={primeiroConfirm} onChange={e => { setPrimeiroConfirm(e.target.value); setPrimeiroMsg(''); }}
+                style={inputStyle}
+              />
+            </div>
+
+            <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.25)', background: 'rgba(255,255,255,0.04)', borderRadius: 8, padding: '8px 12px' }}>
+              • Mínimo 6 caracteres &nbsp;•&nbsp; Não use a senha padrão (123456)
+            </div>
+
+            {primeiroMsg && (
+              <div style={{
+                borderRadius: 8, padding: '8px 12px',
+                background: primeiroMsg.startsWith('✓') ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)',
+                border: `1px solid ${primeiroMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`,
+                color: primeiroMsg.startsWith('✓') ? '#4ade80' : '#f87171',
+                fontSize: '0.78rem', fontWeight: 600,
+              }}>
+                {primeiroMsg}
+              </div>
+            )}
+
+            <button type="submit" disabled={primeiroLoading} style={{ ...btnPrimary, opacity: primeiroLoading ? 0.7 : 1, cursor: primeiroLoading ? 'wait' : 'pointer' }}>
+              {primeiroLoading ? '⏳ Salvando...' : '✅ Criar Minha Senha e Entrar'}
+            </button>
+          </form>
+        )}
+
+        {/* ═══ TELA ALTERAR SENHA ═══ */}
+        {tela === 'alterar' && (
           <form onSubmit={handleAlterar} style={{ display: 'flex', flexDirection: 'column', gap: 13 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-              <button type="button" onClick={() => { setTela('login'); setAltMsg(''); }} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>←</button>
+              <button type="button" onClick={() => { setTela('login'); setAltMsg(''); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>←</button>
               <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.92rem' }}>Alterar Senha</div>
             </div>
+
             {[
-              { label: 'Seu CPF', val: altCpf, set: (v: string) => setAltCpf(formatCpf(v)), ph: '000.000.000-00', type: 'text', mode: 'numeric' as const },
-              { label: 'Senha Atual', val: altAtual, set: setAltAtual, ph: '••••••••', type: 'password', mode: undefined },
-              { label: 'Nova Senha', val: altNova, set: setAltNova, ph: 'mínimo 6 caracteres', type: 'password', mode: undefined },
-              { label: 'Confirmar Nova Senha', val: altConfirm, set: setAltConfirm, ph: '••••••••', type: 'password', mode: undefined },
+              { label: 'Seu CPF', val: altCpf, set: (v: string) => setAltCpf(formatCpf(v)), ph: '000.000.000-00', type: 'text', mode: 'numeric' as const, show: undefined, setShow: undefined },
+              { label: 'Senha Atual', val: altAtual, set: setAltAtual, ph: '••••••••', type: 'password', mode: undefined, show: undefined, setShow: undefined },
+              { label: 'Nova Senha', val: altNova, set: setAltNova, ph: 'mínimo 6 caracteres', type: showAltNova ? 'text' : 'password', mode: undefined, show: showAltNova, setShow: () => setShowAltNova(v => !v) },
+              { label: 'Confirmar Nova Senha', val: altConfirm, set: setAltConfirm, ph: '••••••••', type: 'password', mode: undefined, show: undefined, setShow: undefined },
             ].map(f => (
               <div key={f.label}>
-                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.68rem', fontWeight: 700, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{f.label}</div>
-                <input
-                  type={f.type}
-                  inputMode={f.mode}
-                  placeholder={f.ph}
-                  value={f.val}
-                  onChange={e => { f.set(e.target.value); setAltMsg(''); }}
-                  style={{ width: '100%', boxSizing: 'border-box', padding: '9px 12px', background: 'rgba(255,255,255,0.06)', border: '1.5px solid rgba(255,255,255,0.11)', borderRadius: 9, color: '#fff', fontSize: '0.9rem', outline: 'none' }}
-                />
+                <label style={labelStyle}>{f.label}</label>
+                <div style={{ position: 'relative' }}>
+                  <input
+                    type={f.type} inputMode={f.mode}
+                    placeholder={f.ph} value={f.val}
+                    onChange={e => { f.set(e.target.value); setAltMsg(''); }}
+                    style={{ ...inputStyle, padding: f.setShow ? '11px 44px 11px 14px' : '11px 14px', fontSize: '0.9rem' }}
+                  />
+                  {f.setShow && (
+                    <button type="button" onClick={f.setShow}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', cursor: 'pointer', fontSize: '0.85rem', padding: 0 }}>
+                      {f.show ? '🙈' : '👁'}
+                    </button>
+                  )}
+                </div>
               </div>
             ))}
+
             {altMsg && (
               <div style={{ borderRadius: 8, padding: '7px 11px', background: altMsg.startsWith('✓') ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', border: `1px solid ${altMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, color: altMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontSize: '0.77rem', fontWeight: 600 }}>
                 {altMsg}
               </div>
             )}
-            <button
-              type="submit"
-              disabled={altLoading}
-              style={{ padding: '11px', borderRadius: 10, background: `linear-gradient(135deg,${nucleo.color},${nucleo.color}bb)`, border: 'none', color: '#fff', fontWeight: 800, cursor: altLoading ? 'wait' : 'pointer', opacity: altLoading ? 0.7 : 1, fontSize: '0.9rem' }}
-            >
+            <button type="submit" disabled={altLoading}
+              style={{ ...btnPrimary, opacity: altLoading ? 0.7 : 1, cursor: altLoading ? 'wait' : 'pointer', fontSize: '0.9rem' }}>
               {altLoading ? '⏳ Salvando...' : '✅ Salvar Nova Senha'}
             </button>
           </form>
+        )}
+
+        {/* ═══ TELA ESQUECI SENHA ═══ */}
+        {tela === 'esqueci-senha' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+              <button type="button" onClick={() => { setTela('login'); setEsqMsg(''); setEsqEnviado(false); }}
+                style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '1.2rem', padding: 0 }}>←</button>
+              <div style={{ color: '#fff', fontWeight: 700, fontSize: '0.92rem' }}>Recuperar Senha</div>
+            </div>
+
+            {!esqEnviado ? (
+              <form onSubmit={handleEsqueciSenha} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.8rem', lineHeight: 1.5 }}>
+                  Informe seu CPF cadastrado. Enviaremos um link de redefinição de senha para o e-mail vinculado ao seu cadastro.
+                </div>
+
+                <div>
+                  <label style={labelStyle}>Seu CPF</label>
+                  <input
+                    autoFocus type="text" inputMode="numeric"
+                    placeholder="000.000.000-00" value={esqCpf}
+                    onChange={e => { setEsqCpf(formatCpf(e.target.value)); setEsqMsg(''); }}
+                    style={inputStyle}
+                  />
+                </div>
+
+                {esqMsg && (
+                  <div style={{ borderRadius: 8, padding: '8px 12px', background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', fontSize: '0.78rem', fontWeight: 600 }}>
+                    ⚠ {esqMsg}
+                  </div>
+                )}
+
+                <button type="submit" disabled={esqLoading}
+                  style={{ ...btnPrimary, opacity: esqLoading ? 0.7 : 1, cursor: esqLoading ? 'wait' : 'pointer', fontSize: '0.9rem' }}>
+                  {esqLoading ? '⏳ Enviando...' : '📧 Enviar Link de Recuperação'}
+                </button>
+              </form>
+            ) : (
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: '2rem', marginBottom: 10 }}>📬</div>
+                <div style={{ color: '#4ade80', fontWeight: 700, fontSize: '0.95rem', marginBottom: 8 }}>
+                  Solicitação enviada!
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', lineHeight: 1.6, marginBottom: 20 }}>
+                  {esqMsg}
+                </div>
+                <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.72rem', marginBottom: 20 }}>
+                  Verifique sua caixa de entrada e o link de spam.<br/>
+                  O link expira em 30 minutos.<br/>
+                  Sem e-mail cadastrado? Contate o Admin Geral.
+                </div>
+                <button type="button" onClick={() => { setTela('login'); setEsqMsg(''); setEsqEnviado(false); }}
+                  style={{ ...btnPrimary, fontSize: '0.85rem' }}>
+                  ← Voltar ao Login
+                </button>
+              </div>
+            )}
+          </div>
         )}
       </div>
 

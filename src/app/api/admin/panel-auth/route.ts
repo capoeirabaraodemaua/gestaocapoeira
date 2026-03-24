@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import crypto from 'crypto';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +10,7 @@ const supabase = createClient(
 );
 const BUCKET = 'photos';
 const CREDS_KEY = 'config/panel-credentials.json';
+const TOKENS_KEY = 'config/reset-tokens.json';
 
 type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'geral';
 
@@ -19,28 +21,39 @@ interface Credential {
   password: string;
   email?: string;
   createdBy?: string;
-  nome?: string; // nome do responsável para display
+  nome?: string;
+  first_login?: boolean; // true = deve trocar senha no primeiro acesso
 }
 
 type CredsMap = Record<string, Credential>;
 
-// Senhas padrão iniciais por núcleo (usadas ao criar responsável sem senha definida)
+interface ResetToken {
+  cpf: string;
+  token: string;
+  expires: number; // timestamp ms
+}
+type TokensMap = Record<string, ResetToken>; // key = token
+
+// Senha padrão única para todos os responsáveis
+export const DEFAULT_PASSWORD = '123456';
+
+// Senhas padrão iniciais por núcleo (mantidas para compatibilidade — novos CPFs usam DEFAULT_PASSWORD)
 export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
-  'edson-alves':   'edson12345',
-  'ipiranga':      'ipiranga12345',
-  'saracuruna':    'sara12345',
-  'vila-urussai':  'urussai12345',
-  'jayme-fichman': 'jayme12345',
+  'edson-alves':   DEFAULT_PASSWORD,
+  'ipiranga':      DEFAULT_PASSWORD,
+  'saracuruna':    DEFAULT_PASSWORD,
+  'vila-urussai':  DEFAULT_PASSWORD,
+  'jayme-fichman': DEFAULT_PASSWORD,
 };
 
-// Credenciais padrão — admin geral + conta inicial de cada núcleo (acessível pela senha padrão)
+// Credenciais padrão — admin geral + conta inicial de cada núcleo
 const DEFAULT_CREDS: CredsMap = {
   admin:            { nucleo: 'geral',          label: 'Admin Geral',                color: '#1d4ed8', password: 'accbm2025' },
-  'edson-alves':    { nucleo: 'edson-alves',    label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: 'edson12345' },
-  'ipiranga':       { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: 'ipiranga12345' },
-  'saracuruna':     { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',          color: '#16a34a', password: 'sara12345' },
-  'vila-urussai':   { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: 'urussai12345' },
-  'jayme-fichman':  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: 'jayme12345' },
+  'edson-alves':    { nucleo: 'edson-alves',    label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: DEFAULT_PASSWORD, first_login: true },
+  'ipiranga':       { nucleo: 'ipiranga',       label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: DEFAULT_PASSWORD, first_login: true },
+  'saracuruna':     { nucleo: 'saracuruna',     label: 'Núcleo Saracuruna',          color: '#16a34a', password: DEFAULT_PASSWORD, first_login: true },
+  'vila-urussai':   { nucleo: 'vila-urussai',   label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: DEFAULT_PASSWORD, first_login: true },
+  'jayme-fichman':  { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: DEFAULT_PASSWORD, first_login: true },
 };
 
 export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
@@ -51,15 +64,12 @@ export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string;
   'jayme-fichman': { nucleo: 'jayme-fichman',  label: 'Núcleo Jayme Fichman',      color: '#0891b2' },
 };
 
-// Normaliza CPF: remove pontos, traços, espaços → somente dígitos
 function normalizeCpf(s: string): string {
   return s.replace(/\D/g, '');
 }
 
-// Normaliza login genérico: minúsculas, sem espaços
 function normalizeKey(s: string): string {
   const clean = s.trim().toLowerCase();
-  // Se parece CPF (11 dígitos após normalização), usar CPF normalizado
   const cpf = normalizeCpf(clean);
   if (cpf.length === 11 && /^\d{11}$/.test(cpf)) return cpf;
   return clean;
@@ -76,9 +86,7 @@ async function loadCreds(): Promise<CredsMap> {
   } catch { return { ...DEFAULT_CREDS }; }
 }
 
-// Carrega responsáveis cadastrados no módulo responsaveis.json
-interface ResponsavelEntry { nucleo_key: string; cpf: string; cpf2?: string; nome?: string; nome2?: string; }
-async function loadResponsaveis(): Promise<ResponsavelEntry[]> {
+async function loadResponsaveis(): Promise<Array<{ nucleo_key: string; cpf: string; cpf2?: string; nome?: string; nome2?: string; email?: string }>> {
   try {
     const { data } = await supabase.storage.from(BUCKET).createSignedUrl('config/responsaveis.json', 30);
     if (!data?.signedUrl) return [];
@@ -89,7 +97,6 @@ async function loadResponsaveis(): Promise<ResponsavelEntry[]> {
   } catch { return []; }
 }
 
-// Verifica se CPF está registrado no módulo responsáveis para o núcleo informado
 async function cpfAutorizadoParaNucleo(cpf: string, nucleoKey: string): Promise<boolean> {
   const lista = await loadResponsaveis();
   const cpfNorm = normalizeCpf(cpf);
@@ -99,9 +106,35 @@ async function cpfAutorizadoParaNucleo(cpf: string, nucleoKey: string): Promise<
   );
 }
 
+// Busca e-mail do responsável no módulo responsaveis.json
+async function getEmailResponsavel(cpfNorm: string): Promise<string | null> {
+  const lista = await loadResponsaveis();
+  for (const r of lista) {
+    if (normalizeCpf(r.cpf || '') === cpfNorm || normalizeCpf(r.cpf2 || '') === cpfNorm) {
+      return r.email || null;
+    }
+  }
+  return null;
+}
+
 async function saveCreds(map: CredsMap): Promise<void> {
   const blob = new Blob([JSON.stringify(map)], { type: 'application/json' });
   await supabase.storage.from(BUCKET).upload(CREDS_KEY, blob, { upsert: true });
+}
+
+async function loadTokens(): Promise<TokensMap> {
+  try {
+    const { data } = await supabase.storage.from(BUCKET).createSignedUrl(TOKENS_KEY, 30);
+    if (!data?.signedUrl) return {};
+    const res = await fetch(data.signedUrl, { cache: 'no-store' });
+    if (!res.ok) return {};
+    return await res.json();
+  } catch { return {}; }
+}
+
+async function saveTokens(map: TokensMap): Promise<void> {
+  const blob = new Blob([JSON.stringify(map)], { type: 'application/json' });
+  await supabase.storage.from(BUCKET).upload(TOKENS_KEY, blob, { upsert: true });
 }
 
 function checkPassword(stored: string, input: string): boolean {
@@ -110,6 +143,50 @@ function checkPassword(stored: string, input: string): boolean {
 
 function isAdminGeral(creds: CredsMap, key: string): boolean {
   return !!creds[key] && creds[key].nucleo === 'geral';
+}
+
+// Envia e-mail via Resend (se configurado) ou fallback
+async function sendResetEmail(to: string, nome: string, resetUrl: string): Promise<boolean> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    // Sem chave Resend — logar token para desenvolvimento
+    console.log(`[RESET-EMAIL] Para: ${to} | URL: ${resetUrl}`);
+    return false; // indica que e-mail não foi enviado
+  }
+  try {
+    const res = await fetch('https://api.resend.com/emails', {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        from: process.env.RESEND_FROM || 'noreply@accbm.com.br',
+        to,
+        subject: 'Redefinição de senha — Painel ACCBM',
+        html: `
+          <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px 24px;background:#f8fafc;border-radius:12px;">
+            <div style="text-align:center;margin-bottom:24px;">
+              <h2 style="color:#1d4ed8;margin:0 0 4px;">Associação Cultural de Capoeira</h2>
+              <p style="color:#64748b;margin:0;font-size:14px;">Barão de Mauá</p>
+            </div>
+            <p style="color:#334155;">Olá, <strong>${nome || 'Responsável'}</strong>!</p>
+            <p style="color:#334155;">Recebemos uma solicitação para redefinir a senha do painel de núcleo.</p>
+            <div style="text-align:center;margin:28px 0;">
+              <a href="${resetUrl}" style="background:#1d4ed8;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:15px;">
+                Redefinir minha senha
+              </a>
+            </div>
+            <p style="color:#64748b;font-size:13px;">Este link expira em <strong>30 minutos</strong>.</p>
+            <p style="color:#94a3b8;font-size:12px;">Se você não solicitou, ignore este e-mail. Sua senha permanece a mesma.</p>
+          </div>
+        `,
+      }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -126,7 +203,6 @@ export async function POST(req: NextRequest) {
     const key = normalizeKey(username);
     const isCpfLogin = /^\d{11}$/.test(key);
 
-    // Se for login por CPF, verificar no módulo responsáveis e auto-criar credencial se necessário
     if (isCpfLogin) {
       const lista = await loadResponsaveis();
       const cpfNorm = normalizeCpf(key);
@@ -136,7 +212,7 @@ export async function POST(req: NextRequest) {
       if (!entry)
         return NextResponse.json({ error: 'CPF não encontrado como responsável de nenhum núcleo. Solicite o cadastro ao Admin Geral.' }, { status: 403 });
 
-      // Auto-criar credencial na primeira vez com senha padrão do núcleo
+      // Auto-criar credencial na primeira vez com senha padrão 123456
       if (!creds[cpfNorm]) {
         const profile = NUCLEO_PROFILES[entry.nucleo_key];
         if (profile) {
@@ -145,8 +221,10 @@ export async function POST(req: NextRequest) {
             nucleo: entry.nucleo_key as NucleoKey,
             label: profile.label,
             color: profile.color,
-            password: NUCLEO_DEFAULT_PASSWORDS[entry.nucleo_key] || 'acesso12345',
+            password: DEFAULT_PASSWORD,
             nome: isMainCpf ? (entry.nome || '') : (entry.nome2 || entry.nome || ''),
+            email: entry.email || '',
+            first_login: true,
           };
           await saveCreds(creds);
         }
@@ -156,15 +234,31 @@ export async function POST(req: NextRequest) {
       if (!user || !checkPassword(user.password, password))
         return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
 
-      return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral: false });
+      return NextResponse.json({
+        ok: true,
+        nucleo: user.nucleo,
+        label: user.label,
+        color: user.color,
+        nome: user.nome || '',
+        isGeral: false,
+        first_login: user.first_login === true,
+      });
     }
 
-    // Login por chave (admin, nucleo-key) — sem CPF
+    // Login por chave (admin, nucleo-key)
     const user = creds[key];
     if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
     const isGeral = user.nucleo === 'geral';
-    return NextResponse.json({ ok: true, nucleo: user.nucleo, label: user.label, color: user.color, nome: user.nome || '', isGeral });
+    return NextResponse.json({
+      ok: true,
+      nucleo: user.nucleo,
+      label: user.label,
+      color: user.color,
+      nome: user.nome || '',
+      isGeral,
+      first_login: user.first_login === true,
+    });
   }
 
   // ── ALTERAR MINHA SENHA ──
@@ -179,8 +273,122 @@ export async function POST(req: NextRequest) {
     const user = creds[key];
     if (!user || !checkPassword(user.password, current_password))
       return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 401 });
-    creds[key] = { ...user, password: new_password };
+    creds[key] = { ...user, password: new_password, first_login: false };
     await saveCreds(creds);
+    return NextResponse.json({ ok: true });
+  }
+
+  // ── SOLICITAR REDEFINIÇÃO DE SENHA (envia e-mail) ──
+  if (action === 'forgot-password') {
+    const { cpf } = body;
+    if (!cpf) return NextResponse.json({ error: 'CPF obrigatório.' }, { status: 400 });
+    const cpfNorm = normalizeCpf(cpf);
+    if (cpfNorm.length !== 11) return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 });
+
+    const creds = await loadCreds();
+    const user = creds[cpfNorm];
+
+    // Busca e-mail no módulo responsaveis ou nas credentials
+    let email = user?.email || '';
+    if (!email) {
+      email = (await getEmailResponsavel(cpfNorm)) || '';
+    }
+
+    // Gera token mesmo se não achar e-mail (para poder retornar token em dev)
+    const token = crypto.randomBytes(32).toString('hex');
+    const expires = Date.now() + 30 * 60 * 1000; // 30 min
+
+    const tokens = await loadTokens();
+    // Remove tokens antigos do mesmo CPF
+    for (const [k, v] of Object.entries(tokens)) {
+      if (v.cpf === cpfNorm) delete tokens[k];
+    }
+    tokens[token] = { cpf: cpfNorm, token, expires };
+    await saveTokens(tokens);
+
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || `https://${req.headers.get('host')}`;
+    const resetUrl = `${baseUrl}/nucleo/reset-senha?token=${token}`;
+
+    if (email) {
+      const nome = user?.nome || '';
+      const sent = await sendResetEmail(email, nome, resetUrl);
+      if (sent) {
+        return NextResponse.json({ ok: true, message: 'E-mail de redefinição enviado.' });
+      }
+    }
+
+    // Se não tem e-mail configurado ou falhou o envio, retorna token para admin usar
+    return NextResponse.json({
+      ok: true,
+      message: email
+        ? 'Não foi possível enviar o e-mail. Contate o Admin Geral.'
+        : 'CPF sem e-mail cadastrado. Contate o Admin Geral para redefinir sua senha.',
+      // token retornado apenas em desenvolvimento (sem RESEND_API_KEY)
+      ...(process.env.NODE_ENV === 'development' ? { dev_token: token, dev_url: resetUrl } : {}),
+    });
+  }
+
+  // ── VALIDAR TOKEN DE RESET ──
+  if (action === 'validate-reset-token') {
+    const { token } = body;
+    if (!token) return NextResponse.json({ error: 'Token obrigatório.' }, { status: 400 });
+    const tokens = await loadTokens();
+    const entry = tokens[token];
+    if (!entry || entry.expires < Date.now())
+      return NextResponse.json({ error: 'Token inválido ou expirado.' }, { status: 400 });
+    // Busca nome do responsável
+    const creds = await loadCreds();
+    const user = creds[entry.cpf];
+    return NextResponse.json({ ok: true, cpf: entry.cpf, nome: user?.nome || '', nucleo: user?.nucleo });
+  }
+
+  // ── REDEFINIR SENHA VIA TOKEN ──
+  if (action === 'reset-by-token') {
+    const { token, new_password } = body;
+    if (!token || !new_password)
+      return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
+    if (new_password.length < 6)
+      return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+
+    const tokens = await loadTokens();
+    const entry = tokens[token];
+    if (!entry || entry.expires < Date.now())
+      return NextResponse.json({ error: 'Token inválido ou expirado.' }, { status: 400 });
+
+    const creds = await loadCreds();
+    const cpfKey = entry.cpf;
+
+    if (!creds[cpfKey]) {
+      // Usuário não tem credentials ainda — pode ter CPF no responsaveis mas sem login
+      // Verifica se CPF existe no módulo responsaveis
+      const lista = await loadResponsaveis();
+      const respEntry = lista.find(r =>
+        normalizeCpf(r.cpf || '') === cpfKey || normalizeCpf(r.cpf2 || '') === cpfKey
+      );
+      if (!respEntry)
+        return NextResponse.json({ error: 'Responsável não encontrado.' }, { status: 404 });
+      const profile = NUCLEO_PROFILES[respEntry.nucleo_key];
+      if (!profile)
+        return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
+      const isMain = normalizeCpf(respEntry.cpf || '') === cpfKey;
+      creds[cpfKey] = {
+        nucleo: respEntry.nucleo_key as NucleoKey,
+        label: profile.label,
+        color: profile.color,
+        password: new_password,
+        nome: isMain ? (respEntry.nome || '') : (respEntry.nome2 || respEntry.nome || ''),
+        first_login: false,
+      };
+    } else {
+      creds[cpfKey] = { ...creds[cpfKey], password: new_password, first_login: false };
+    }
+
+    await saveCreds(creds);
+
+    // Remove token usado
+    delete tokens[token];
+    await saveTokens(tokens);
+
     return NextResponse.json({ ok: true });
   }
 
@@ -201,7 +409,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Somente o Admin Geral pode redefinir senhas.' }, { status: 403 });
     if (!creds[targetKey])
       return NextResponse.json({ error: 'Usuário não encontrado.' }, { status: 404 });
-    creds[targetKey] = { ...creds[targetKey], password: new_password };
+    creds[targetKey] = { ...creds[targetKey], password: new_password, first_login: true };
     await saveCreds(creds);
     return NextResponse.json({ ok: true });
   }
@@ -209,7 +417,7 @@ export async function POST(req: NextRequest) {
   // ── CRIAR RESPONSÁVEL DE NÚCLEO (login = CPF) ──
   if (action === 'create-user') {
     const { admin_username, admin_password, cpf, nome, nucleo_key } = body;
-    const new_password = body.new_password || NUCLEO_DEFAULT_PASSWORDS[nucleo_key] || 'acesso12345';
+    const new_password = body.new_password || DEFAULT_PASSWORD;
     if (!admin_username || !admin_password || !cpf || !nucleo_key)
       return NextResponse.json({ error: 'Campos obrigatórios ausentes.' }, { status: 400 });
     if (new_password.length < 6)
@@ -233,7 +441,6 @@ export async function POST(req: NextRequest) {
     if (!profile)
       return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
 
-    // Validar que o CPF está cadastrado no módulo responsáveis para o núcleo
     const autorizado = await cpfAutorizadoParaNucleo(cpfKey, nucleo_key);
     if (!autorizado)
       return NextResponse.json({ error: `CPF não encontrado no módulo Responsáveis de Núcleo para ${profile.label}. Cadastre o responsável primeiro na aba Responsáveis.` }, { status: 422 });
@@ -245,6 +452,7 @@ export async function POST(req: NextRequest) {
       password: new_password,
       nome: nome?.trim() || '',
       createdBy: adminKey,
+      first_login: true,
     };
     await saveCreds(creds);
     return NextResponse.json({ ok: true, cpf: cpfKey });
@@ -269,7 +477,6 @@ export async function POST(req: NextRequest) {
     if (!isAdminGeral(creds, adminKey))
       return NextResponse.json({ error: 'Somente o Admin Geral pode criar outros admins.' }, { status: 403 });
 
-    // Máximo 3 admins gerais
     const totalGeral = Object.values(creds).filter(c => c.nucleo === 'geral').length;
     if (totalGeral >= 3)
       return NextResponse.json({ error: 'Limite de 3 administradores gerais atingido.' }, { status: 400 });
@@ -328,6 +535,7 @@ export async function POST(req: NextRequest) {
       email: c.email || '',
       createdBy: c.createdBy || '',
       nome: c.nome || '',
+      first_login: c.first_login || false,
     }));
     return NextResponse.json(list);
   }
@@ -345,6 +553,29 @@ export async function POST(req: NextRequest) {
     creds[key] = { ...user, email: email || '' };
     await saveCreds(creds);
     return NextResponse.json({ ok: true });
+  }
+
+  // ── RESETAR TODOS OS RESPONSÁVEIS PARA SENHA PADRÃO (Admin Geral) ──
+  if (action === 'reset-all-to-default') {
+    const { admin_username, admin_password } = body;
+    if (!admin_username || !admin_password)
+      return NextResponse.json({ error: 'Credenciais obrigatórias.' }, { status: 400 });
+    const creds = await loadCreds();
+    const adminKey = normalizeKey(admin_username);
+    if (!creds[adminKey] || !checkPassword(creds[adminKey].password, admin_password))
+      return NextResponse.json({ error: 'Credenciais de administrador incorretas.' }, { status: 401 });
+    if (!isAdminGeral(creds, adminKey))
+      return NextResponse.json({ error: 'Somente o Admin Geral pode executar esta ação.' }, { status: 403 });
+
+    let count = 0;
+    for (const [key, cred] of Object.entries(creds)) {
+      if (cred.nucleo !== 'geral') {
+        creds[key] = { ...cred, password: DEFAULT_PASSWORD, first_login: true };
+        count++;
+      }
+    }
+    await saveCreds(creds);
+    return NextResponse.json({ ok: true, count });
   }
 
   return NextResponse.json({ error: 'Ação inválida.' }, { status: 400 });

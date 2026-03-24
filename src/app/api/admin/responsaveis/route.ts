@@ -53,13 +53,14 @@ export async function GET() {
   return NextResponse.json(await readConfig());
 }
 
-// Senhas padrão por núcleo para criação automática de acesso
+// Senha padrão única para todos os responsáveis no primeiro acesso
+const DEFAULT_PASSWORD = '123456';
 const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
-  'edson-alves':   'edson12345',
-  'ipiranga':      'ipiranga12345',
-  'saracuruna':    'sara12345',
-  'vila-urussai':  'urussai12345',
-  'jayme-fichman': 'jayme12345',
+  'edson-alves':   DEFAULT_PASSWORD,
+  'ipiranga':      DEFAULT_PASSWORD,
+  'saracuruna':    DEFAULT_PASSWORD,
+  'vila-urussai':  DEFAULT_PASSWORD,
+  'jayme-fichman': DEFAULT_PASSWORD,
 };
 
 const NUCLEO_PROFILES: Record<string, { label: string; color: string }> = {
@@ -120,8 +121,9 @@ export async function POST(req: NextRequest) {
           nucleo: resp.nucleo_key,
           label: profile.label,
           color: profile.color,
-          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || 'acesso12345',
+          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
           nome: resp.nome || '',
+          first_login: true,
         };
         changed = true;
       }
@@ -132,8 +134,9 @@ export async function POST(req: NextRequest) {
           nucleo: resp.nucleo_key,
           label: profile.label,
           color: profile.color,
-          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || 'acesso12345',
+          password: NUCLEO_DEFAULT_PASSWORDS[resp.nucleo_key] || DEFAULT_PASSWORD,
           nome: resp.nome2 || resp.nome || '',
+          first_login: true,
         };
         changed = true;
       }
