@@ -885,7 +885,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         <button
           type="button"
           onClick={() => { setBgModalOpen(true); setBgCpf(''); setBgCpfOk(false); setBgCpfError(''); setBgUploadMsg(''); }}
-          title="Alterar imagem de fundo"
+          title={t('bg_change')}
           style={{
             position: 'absolute', bottom: 8, right: 8,
             background: 'rgba(0,0,0,0.45)', border: '1px solid rgba(255,255,255,0.3)',
@@ -895,7 +895,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             backdropFilter: 'blur(4px)',
           }}
         >
-          🖼 Alterar Fundo
+          {t('bg_change')}
         </button>
 
       </div>
@@ -920,17 +920,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               style={{ position: 'absolute', top: 12, right: 14, background: 'none', border: 'none', fontSize: '1.4rem', cursor: 'pointer', color: '#64748b' }}
             >×</button>
             <div style={{ fontWeight: 800, fontSize: '1rem', color: '#1e3a8a', marginBottom: 16 }}>
-              🖼 Alterar Imagem de Fundo
+              {t('bg_title')}
             </div>
 
             {!bgCpfOk ? (
               <>
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 12 }}>
-                  Digite o CPF do Administrador Geral para continuar.
+                  {t('bg_cpf_prompt')}
                 </p>
                 <input
                   type="text"
-                  placeholder="CPF do Admin Geral"
+                  placeholder={t('bg_cpf_placeholder')}
                   value={bgCpf}
                   onChange={e => setBgCpf(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') {
@@ -949,7 +949,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   }}
                   style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: 'pointer', width: '100%' }}
                 >
-                  Verificar
+                  {t('bg_verify_btn')}
                 </button>
               </>
             ) : (
@@ -961,7 +961,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 )}
                 <p style={{ fontSize: '0.82rem', color: '#64748b', marginBottom: 12 }}>
-                  Selecione uma imagem (JPG, PNG, WEBP) para o fundo da página inicial.
+                  {t('bg_select_hint')}
                 </p>
                 <input
                   type="file"
@@ -999,7 +999,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   disabled={bgUploading}
                   style={{ background: '#1d4ed8', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 20px', fontWeight: 700, cursor: bgUploading ? 'not-allowed' : 'pointer', width: '100%', marginBottom: 8, opacity: bgUploading ? 0.7 : 1 }}
                 >
-                  {bgUploading ? 'Enviando...' : '📤 Escolher Imagem'}
+                  {bgUploading ? t('bg_uploading') : t('bg_choose_btn')}
                 </button>
                 {bgUrl && (
                   <button
@@ -1015,7 +1015,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     disabled={bgUploading}
                     style={{ background: 'none', color: '#dc2626', border: '1.5px solid #dc2626', borderRadius: 8, padding: '7px 16px', fontWeight: 700, cursor: 'pointer', width: '100%', fontSize: '0.82rem' }}
                   >
-                    🗑 Remover / Restaurar Padrão
+                    {t('bg_remove_btn')}
                   </button>
                 )}
                 {bgUploadMsg && (
@@ -1073,7 +1073,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-              🥋 Área do Aluno
+              🥋 {t('student_area')}
             </a>
           </div>
 
@@ -1130,7 +1130,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   style={duplicateErrors.nome ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
                 {checkingDuplicate.nome && (
-                  <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando nome...</span>
+                  <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>{t('checking_name')}</span>
                 )}
                 {duplicateErrors.nome && (
                   <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1203,8 +1203,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="form-group">
                 <label>
-                  CPF{' '}
-                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>(opcional — preencha se possuir)</span>
+                  {t('form_cpf_label')}{' '}
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{t('form_cpf_optional')}</span>
                 </label>
                 <input
                   name="cpf"
@@ -1214,7 +1214,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   placeholder="000.000.000-00"
                   style={duplicateErrors.cpf ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
-                {checkingDuplicate.cpf && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
+                {checkingDuplicate.cpf && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>{t('checking_field')}</span>}
                 {duplicateErrors.cpf && (
                   <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
                     ⚠ {duplicateErrors.cpf}
@@ -1222,7 +1222,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Identidade / Numeração Única (RG / CIN) <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400 }}>(opcional)</span></label>
+                <label>{t('form_rg_label')} <span style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 400 }}>{t('form_rg_optional_label')}</span></label>
                 <input
                   name="identidade"
                   value={form.identidade}
@@ -1231,7 +1231,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   placeholder="Nº do RG, CIN ou Documento Único"
                   style={duplicateErrors.identidade ? { borderColor: '#dc2626', boxShadow: '0 0 0 3px rgba(220,38,38,0.2)' } : {}}
                 />
-                {checkingDuplicate.identidade && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>Verificando...</span>}
+                {checkingDuplicate.identidade && <span style={{ fontSize: '0.78rem', color: '#3b82f6' }}>{t('checking_field')}</span>}
                 {duplicateErrors.identidade && (
                   <span style={{ fontSize: '0.78rem', color: '#dc2626', fontWeight: 600 }}>
                     ⚠ {duplicateErrors.identidade}
@@ -1261,7 +1261,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 />
                 {form.data_nascimento && (
                   <span style={{ fontSize: '0.78rem', marginTop: 4, display: 'block', color: menorDeIdade ? '#dc2626' : '#16a34a', fontWeight: 600 }}>
-                    {menorDeIdade ? '⚠ Menor de idade — preencha o Termo de Autorização abaixo' : '✓ Maior de idade'}
+                    {menorDeIdade ? t('form_age_minor') : t('form_age_adult')}
                   </span>
                 )}
               </div>
@@ -1292,12 +1292,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 )}
               </div>
               <div className="form-group">
-                <label>Nome do Pai</label>
-                <input name="nome_pai" value={form.nome_pai} onChange={handleChange} placeholder="Nome completo do pai" />
+                <label>{t('form_father_name')}</label>
+                <input name="nome_pai" value={form.nome_pai} onChange={handleChange} placeholder={t('form_father_name')} />
               </div>
               <div className="form-group">
-                <label>Nome da Mãe</label>
-                <input name="nome_mae" value={form.nome_mae} onChange={handleChange} placeholder="Nome completo da mãe" />
+                <label>{t('form_mother_name')}</label>
+                <input name="nome_mae" value={form.nome_mae} onChange={handleChange} placeholder={t('form_mother_name')} />
               </div>
             </div>
             </div>
@@ -1309,33 +1309,31 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {/* Cabeçalho */}
               <div style={{ background: '#dc2626', padding: '14px 20px', textAlign: 'center' }}>
                 <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
-                  Termo de Autorização — Menor de Idade
+                  {t('form_minor_term_title')}
                 </div>
               </div>
 
               <div style={{ padding: '20px 20px' }}>
                 <p style={{ fontFamily: 'Georgia, serif', fontSize: '0.9rem', lineHeight: 1.9, textAlign: 'justify', marginBottom: 20, color: 'var(--text-primary)' }}>
-                  Eu, responsável legal pelo menor inscrito, autorizo sua participação nas atividades
-                  de capoeira realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>,
-                  estando ciente das atividades físicas envolvidas.
+                  {t('form_minor_term_text')}
                 </p>
 
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
-                      Nome do Responsável <span style={{ color: '#dc2626' }}>*</span>
+                      {t('form_guardian_name')} <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
                       name="nome_responsavel"
                       value={form.nome_responsavel}
                       onChange={handleChange}
-                      placeholder="Nome completo do responsável legal"
+                      placeholder={t('form_guardian_name')}
                       style={{ width: '100%' }}
                     />
                   </div>
                   <div style={{ gridColumn: '1 / -1' }}>
                     <label style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
-                      CPF do Responsável <span style={{ color: '#dc2626' }}>*</span>
+                      {t('form_guardian_cpf_label')} <span style={{ color: '#dc2626' }}>*</span>
                     </label>
                     <input
                       name="cpf_responsavel"
@@ -1391,28 +1389,28 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <input name="cep" value={form.cep} onChange={handleCEPChange} placeholder="00000-000" />
               </div>
               <div className="form-group">
-                <label>Estado <span className="required">*</span></label>
+                <label>{t('form_estado_label')} <span className="required">*</span></label>
                 <input name="estado" value={form.estado} onChange={handleChange} placeholder="UF" />
               </div>
               <div className="form-group full-width">
-                <label>Endereço <span className="required">*</span></label>
-                <input name="endereco" value={form.endereco} onChange={handleChange} placeholder="Rua, Avenida..." />
+                <label>{t('form_endereco_label')} <span className="required">*</span></label>
+                <input name="endereco" value={form.endereco} onChange={handleChange} placeholder={t('form_street')} />
               </div>
               <div className="form-group">
-                <label>Número <span className="required">*</span></label>
+                <label>{t('form_numero_label')} <span className="required">*</span></label>
                 <input name="numero" value={form.numero} onChange={handleChange} placeholder="Nº" />
               </div>
               <div className="form-group">
-                <label>Complemento</label>
-                <input name="complemento" value={form.complemento} onChange={handleChange} placeholder="Apto, Bloco..." />
+                <label>{t('form_complemento_label')}</label>
+                <input name="complemento" value={form.complemento} onChange={handleChange} placeholder={t('form_complement')} />
               </div>
               <div className="form-group">
-                <label>Bairro <span className="required">*</span></label>
-                <input name="bairro" value={form.bairro} onChange={handleChange} placeholder="Bairro" />
+                <label>{t('form_bairro_label')} <span className="required">*</span></label>
+                <input name="bairro" value={form.bairro} onChange={handleChange} placeholder={t('form_neighborhood')} />
               </div>
               <div className="form-group">
-                <label>Cidade <span className="required">*</span></label>
-                <input name="cidade" value={form.cidade} onChange={handleChange} placeholder="Cidade" />
+                <label>{t('form_cidade_label')} <span className="required">*</span></label>
+                <input name="cidade" value={form.cidade} onChange={handleChange} placeholder={t('form_city')} />
               </div>
             </div>
             </div>
@@ -1427,16 +1425,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div className="form-section-body">
             <div className="form-grid">
               <div className="form-group">
-                <label>Tipo <span className="required">*</span></label>
+                <label>{t('form_tipo_label')} <span className="required">*</span></label>
                 <select value={tipoGraduacao} onChange={(e) => { setTipoGraduacao(e.target.value); setGraduacao(''); }}>
-                  <option value="infantil">Infantil</option>
-                  <option value="adulta">Adulta</option>
+                  <option value="infantil">{t('form_tipo_infantil')}</option>
+                  <option value="adulta">{t('form_tipo_adulta')}</option>
                 </select>
               </div>
               <div className="form-group">
-                <label>Graduação (Corda) <span className="required">*</span></label>
+                <label>{t('form_corda_label')} <span className="required">*</span></label>
                 <select value={graduacao} onChange={(e) => setGraduacao(e.target.value)}>
-                  <option value="">Selecione a graduação</option>
+                  <option value="">{t('form_corda_select')}</option>
                   {graduacoes.map(g => (
                     <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
                   ))}
@@ -1444,7 +1442,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               {graduacao && (
                 <div className="form-group full-width">
-                  <label>Visualização da Corda</label>
+                  <label>{t('form_corda_preview')}</label>
                   <div className="corda-visual" style={{ height: 20, borderRadius: 10, overflow: 'hidden', display: 'flex' }}>
                     {selectedColors.map((color, i) => (
                       <div key={i} className="corda-stripe" style={{ backgroundColor: color, flex: 1, height: '100%', borderRadius: 0 }} />
@@ -1468,11 +1466,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div className="form-section" style={{ borderColor: 'rgba(139,92,246,0.3)' }}>
             <div className="form-section-header" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(109,40,217,0.04))' }}>
               <div className="form-section-icon">🧩</div>
-              <h2 className="form-section-title">{t('form_condicoes_title') || 'Condição do Aluno (Desenvolvimento Atípico / Necessidades Específicas)'}</h2>
+              <h2 className="form-section-title">{t('form_condicoes_title')}</h2>
             </div>
             <div className="form-section-body">
               <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 14px', lineHeight: 1.5 }}>
-                {t('form_condicoes_desc') || 'Selecione uma ou mais condições, se aplicável. Esta informação é opcional e sigilosa, usada apenas para melhor atendimento.'}
+                {t('form_condicoes_desc')}
               </p>
               {(() => {
                 const opcoes = [
@@ -1521,12 +1519,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </div>
                     {selected.includes('Outro') && (
                       <div style={{ marginTop: 12 }}>
-                        <label style={{ fontSize: '0.78rem', color: '#6b7280', display: 'block', marginBottom: 4 }}>Descreva a condição:</label>
+                        <label style={{ fontSize: '0.78rem', color: '#6b7280', display: 'block', marginBottom: 4 }}>{t('form_condicoes_outro')}</label>
                         <input
                           type="text"
                           value={form.condicoes_atipicas_outro as string}
                           onChange={e => setForm(prev => ({ ...prev, condicoes_atipicas_outro: e.target.value }))}
-                          placeholder="Descreva a condição do aluno..."
+                          placeholder={t('form_condicoes_outro_placeholder')}
                           style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid rgba(139,92,246,0.4)', fontSize: '0.85rem', boxSizing: 'border-box', outline: 'none' }}
                         />
                       </div>
@@ -1550,16 +1548,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div className="form-section section-autorizacao">
             <div className="form-section-header">
               <div className="form-section-icon">✅</div>
-              <h2 className="form-section-title">Autorização de Uso de Imagem</h2>
+              <h2 className="form-section-title">{t('form_image_auth_section')}</h2>
             </div>
             <div className="form-section-body">
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <label className="checkbox-group">
                 <input type="checkbox" name="autoriza_imagem" checked={form.autoriza_imagem} onChange={handleChange} />
-                <span>
-                  Autorizo o uso da minha imagem (ou do menor sob minha responsabilidade) para fins de divulgação
-                  em mídias sociais, site e materiais promocionais da Associação Cultural de Capoeira Barão de Mauá.
-                </span>
+                <span>{t('form_image_auth_full')}</span>
               </label>
             </div>
             </div>
@@ -1570,19 +1565,19 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div style={{ margin: '0 0 16px', background: 'rgba(234,179,8,0.05)', border: '1.5px dashed rgba(234,179,8,0.3)', borderRadius: 12, padding: '16px' }}>
               <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#ca8a04', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 7 }}>
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
-                Já tem um rascunho salvo? Carregue aqui para continuar ou editar.
+                {t('draft_access_title')}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input
                   type="text"
-                  placeholder="Digite seu CPF"
+                  placeholder={t('draft_cpf_placeholder')}
                   value={draftAccessCpf}
                   onChange={e => setDraftAccessCpf(e.target.value)}
                   style={{ flex: 1, padding: '9px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}
                 />
                 <button type="button" onClick={loadDraftByCpf} disabled={draftAccessLoading}
                   style={{ padding: '9px 18px', background: '#ca8a04', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 700, fontSize: '0.85rem', cursor: draftAccessLoading ? 'wait' : 'pointer', whiteSpace: 'nowrap' }}>
-                  {draftAccessLoading ? 'Buscando...' : '📂 Carregar'}
+                  {draftAccessLoading ? t('form_saving') : t('draft_load_btn')}
                 </button>
               </div>
               {draftAccessMsg && (
@@ -1595,7 +1590,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {mounted && draftLoaded && (
             <div style={{ margin: '0 0 16px', background: 'rgba(22,163,74,0.06)', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
               <div style={{ fontSize: '0.82rem', color: '#16a34a', fontWeight: 700 }}>
-                ✓ Rascunho carregado — edite os campos acima e clique em Finalizar Cadastro ou Salvar Rascunho.
+                {t('draft_loaded_msg')}
               </div>
               <button type="button" onClick={() => { setDraftLoaded(false); setDraftAccessMsg(''); setDraftAccessCpf(''); }}
                 style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>✕ Fechar</button>
@@ -1632,7 +1627,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {draftLoading ? t('form_saving') : (mounted && draftLoaded) ? '💾 Salvar Rascunho (atualizar)' : `💾 ${t('form_save_draft')}`}
             </button>
             <p style={{ textAlign: 'center', fontSize: '0.76rem', color: 'var(--text-secondary)', margin: 0 }}>
-              Ainda não tem todos os dados? Salve como rascunho e complete depois.
+              {t('draft_hint')}
             </p>
           </div>
         </form>
@@ -1643,14 +1638,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div className="form-section" style={{ borderTopLeftRadius: 0, marginBottom: 32 }}>
             <h2 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-              Credencial do Aluno
+              {t('card_title')}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 16, marginTop: -4 }}>
-              Informe seu CPF para gerar e imprimir sua credencial de associado.
+              {t('card_subtitle')}
             </p>
             <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
               <input
-                placeholder="CPF ou Numeração Única"
+                placeholder={t('card_cpf_placeholder')}
                 value={cardCpf}
                 onChange={e => setCardCpf(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
@@ -1662,7 +1657,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 disabled={cardLoading}
                 style={{ background: 'linear-gradient(135deg,#b45309,#78350f)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
               >
-                {cardLoading ? 'Buscando...' : 'Buscar'}
+                {cardLoading ? t('card_searching') : t('card_search_btn')}
               </button>
             </div>
             {cardError && (
@@ -1682,7 +1677,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   style={{ padding: '12px 32px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-                  Imprimir / Salvar PDF
+                  {t('success_print')}
                 </button>
                 <button
                   type="button"
@@ -1690,7 +1685,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   style={{ padding: '12px 24px', background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.4)', color: '#25d366', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: 8 }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                  Enviar via WhatsApp
+                  {t('success_whatsapp')}
                 </button>
               </div>
             )}
@@ -1702,10 +1697,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div className="form-section" style={{ borderTopLeftRadius: 0 }}>
             <h2 className="form-section-title" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-              Ficha Financeira
+              {t('financial_title')}
             </h2>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 20, marginTop: -4 }}>
-              Acesse sua ficha financeira individual. A senha de acesso é o seu CPF cadastrado na associação.
+              {t('financial_subtitle')}
             </p>
 
             {/* If we already have a student from credencial search, show their card */}
@@ -1727,10 +1722,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '14px', background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 12, textDecoration: 'none', fontWeight: 800, fontSize: '1rem', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
                 >
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                  💰 Acessar Ficha de {cardData.nome.split(' ')[0]}
+                  💰 {t('financial_access_student')} {cardData.nome.split(' ')[0]}
                 </a>
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
-                  Você será levado à ficha financeira. A senha de acesso é o seu CPF.
+                  {t('financial_password_hint')}
                 </p>
               </div>
             ) : (
@@ -1738,7 +1733,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ background: 'rgba(22,163,74,0.05)', border: '1px solid rgba(22,163,74,0.15)', borderRadius: 12, padding: '16px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     <input
-                      placeholder="CPF ou Numeração Única"
+                      placeholder={t('card_cpf_placeholder')}
                       value={cardCpf}
                       onChange={e => setCardCpf(e.target.value)}
                       onKeyDown={e => e.key === 'Enter' && buscarCarteirinha()}
@@ -1750,7 +1745,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       disabled={cardLoading}
                       style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', padding: '10px 20px', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', whiteSpace: 'nowrap' }}
                     >
-                      {cardLoading ? 'Buscando...' : 'Verificar'}
+                      {cardLoading ? t('card_searching') : t('card_verify_btn')}
                     </button>
                   </div>
                   {cardError && <p style={{ color: '#dc2626', fontSize: '0.82rem', margin: 0, fontWeight: 600 }}>⚠ {cardError}</p>}
@@ -1760,10 +1755,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, padding: '13px', background: 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', color: '#fff', borderRadius: 12, textDecoration: 'none', fontWeight: 800, fontSize: '0.95rem', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
                 >
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
-                  💰 Acessar Ficha Financeira
+                  💰 {t('financial_access_btn')}
                 </a>
                 <p style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.75rem', margin: 0 }}>
-                  Digite seu CPF cadastrado para entrar na sua ficha financeira individual.
+                  {t('financial_cpf_hint')}
                 </p>
               </div>
             )}
@@ -1781,9 +1776,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#16a34a,#15803d)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M8 12l3 3 5-5"/></svg>
               </div>
-              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a', margin: '0 0 6px' }}>Cadastro Realizado com Sucesso!</h2>
+              <h2 style={{ fontSize: '1.3rem', fontWeight: 800, color: '#16a34a', margin: '0 0 6px' }}>{t('success_title')}</h2>
               <p style={{ color: 'var(--text-secondary)', fontSize: '0.88rem', margin: '0 0 10px' }}>
-                Bem-vindo(a), <strong style={{ color: 'var(--text-primary)' }}>{successData.nome.split(' ')[0]}</strong>! Sua carteirinha está pronta.
+                {t('success_welcome')} <strong style={{ color: 'var(--text-primary)' }}>{successData.nome.split(' ')[0]}</strong>! {t('success_card_ready')}
               </p>
               {successData.inscricao_numero != null && (
                 <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', borderRadius: 8, padding: '6px 16px' }}>
@@ -1807,21 +1802,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', border: '1px solid rgba(220,38,38,0.4)', color: '#fff', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
-              Imprimir / Salvar PDF
+              {t('success_print')}
             </button>
             <button
               onClick={() => shareCarteirinhaWhatsApp(successData.telefone, successData.nome, successData.cpf)}
               style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,rgba(37,211,102,0.15),rgba(37,211,102,0.08))', border: '1px solid rgba(37,211,102,0.4)', color: '#25d366', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-              Enviar via WhatsApp
+              {t('success_whatsapp')}
             </button>
             <button
               onClick={() => { setSuccess(false); setSuccessData(null); }}
               style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,#0f172a,#1e293b)', border: '1px solid rgba(100,116,139,0.4)', color: '#94a3b8', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, marginBottom: 8 }}
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-              Concluir
+              {t('success_finish')}
             </button>
 
             {/* Criar Conta de Acesso */}
@@ -1832,8 +1827,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2"><circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/></svg>
                   </div>
                   <div>
-                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e3a5f' }}>Criar Conta de Acesso</div>
-                    <div style={{ fontSize: '0.74rem', color: '#0369a1' }}>Aluno poderá acessar a Área do Aluno</div>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#1e3a5f' }}>{t('success_create_account')}</div>
+                    <div style={{ fontSize: '0.74rem', color: '#0369a1' }}>{t('success_create_account_desc')}</div>
                   </div>
                 </div>
 
@@ -1847,10 +1842,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                 {criarContaUsername ? (
                   <div style={{ background: '#dcfce7', border: '1px solid #86efac', borderRadius: 8, padding: '10px 12px' }}>
-                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', marginBottom: 4 }}>✅ Conta criada com sucesso!</div>
+                    <div style={{ fontSize: '0.8rem', fontWeight: 700, color: '#166534', marginBottom: 4 }}>{t('success_account_created')}</div>
                     <div style={{ fontSize: '0.78rem', color: '#15803d' }}>
-                      Login: <strong>{criarContaUsername}</strong><br />
-                      O aluno já pode acessar em <strong>/aluno</strong>
+                      {t('success_account_login')}: <strong>{criarContaUsername}</strong><br />
+                      {t('success_account_access')}
                     </div>
                   </div>
                 ) : criarContaMsg && criarContaMsg.startsWith('❌') ? (
@@ -1860,18 +1855,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {!criarContaUsername && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>Senha inicial *</label>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>{t('success_initial_password')}</label>
                       <input
                         type="password"
                         value={criarContaPassword}
                         onChange={e => setCriarContaPassword(e.target.value)}
-                        placeholder="Mínimo 6 caracteres"
+                        placeholder={t('success_password_hint')}
                         minLength={6}
                         style={{ width: '100%', border: '1.5px solid #bfdbfe', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' }}
                       />
                     </div>
                     <div>
-                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>WhatsApp</label>
+                      <label style={{ display: 'block', fontSize: '0.76rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>{t('form_phone')}</label>
                       <input
                         type="tel"
                         value={criarContaPhone}
@@ -1915,7 +1910,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       }}
                       style={{ background: criarContaLoading || criarContaPassword.length < 6 ? '#9ca3af' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 8, padding: '10px', fontWeight: 700, fontSize: '0.85rem', cursor: criarContaLoading || criarContaPassword.length < 6 ? 'not-allowed' : 'pointer' }}
                     >
-                      {criarContaLoading ? 'Criando...' : '🔐 Criar Conta de Acesso'}
+                      {criarContaLoading ? t('creating_account') : t('success_create_account_btn')}
                     </button>
                   </div>
                 )}
@@ -1927,7 +1922,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               style={{ marginTop: 8, background: 'linear-gradient(135deg,#16a34a,#15803d)' }}
               onClick={() => window.location.reload()}
             >
-              Nova Inscrição
+              {t('success_new_registration')}
             </button>
           </div>
         </div>
@@ -1947,10 +1942,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         }}>
           <div style={{ textAlign:'right' }}>
             <div style={{ fontSize:'0.72rem', color:'var(--text-secondary)', lineHeight:1.4 }}>
-              Site criado pelo
+              {t('footer_created_by')}
             </div>
             <div style={{ fontSize:'0.8rem', fontWeight:700, color:'var(--text-primary)', lineHeight:1.4 }}>
-              Instrutor André Ferreira
+              {t('footer_author')}
             </div>
           </div>
           <a
@@ -1985,7 +1980,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           fontWeight: 700, boxShadow: '0 2px 12px rgba(180,83,9,0.45)',
         }}
       >
-        🔒 Painel Administrativo
+        🔒 {t('admin_panel_title')}
       </button>
 
       {adminModalOpen && (
@@ -1998,8 +1993,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <>
                 <div style={{ textAlign: 'center' }}>
                   <div style={{ fontSize: 28, marginBottom: 4 }}>🔐</div>
-                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', marginBottom: 2 }}>Painel Administrativo</div>
-                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.73rem' }}>Selecione seu perfil de acesso</div>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '1.05rem', marginBottom: 2 }}>{t('admin_panel_title')}</div>
+                  <div style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.73rem' }}>{t('admin_access_profiles')}</div>
                 </div>
 
                 {/* Cards de perfil de acesso */}
@@ -2063,17 +2058,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                 {/* Separador Admin Geral */}
                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 12 }}>
-                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.07em' }}>Login Admin Geral</div>
+                  <div style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.68rem', marginBottom: 10, textAlign: 'center', textTransform: 'uppercase', letterSpacing: '0.07em' }}>{t('admin_geral_login')}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                     <div>
-                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Login / CPF</div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin_login_label')}</div>
                       <input autoFocus value={adminUser} onChange={e => { setAdminUser(e.target.value); setAdminErro(''); }}
                         onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
                         placeholder="admin  ou  CPF (responsável de núcleo)" disabled={adminLoading}
                         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
                     </div>
                     <div>
-                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Senha</div>
+                      <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin_password')}</div>
                       <div style={{ position: 'relative' }}>
                         <input id="adminPassInput" type={adminShowPass ? 'text' : 'password'} value={adminPass} onChange={e => { setAdminPass(e.target.value); setAdminErro(''); }}
                           onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
@@ -2090,21 +2085,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <div style={{ display: 'flex', gap: 10, marginTop: 10 }}>
                     <button onClick={() => { setAdminModalOpen(false); setAdminLoading(false); setAdminUser(''); setAdminPass(''); setAdminErro(''); }}
                       style={{ flex: 1, padding: '10px', borderRadius: 9, background: 'transparent', border: '1px solid rgba(255,255,255,0.16)', color: '#aaa', cursor: 'pointer', fontSize: '0.85rem' }}>
-                      Cancelar
+                      {t('admin_cancel_btn')}
                     </button>
                     <button onClick={handleAdminAccess} disabled={adminLoading}
                       style={{ flex: 2, padding: '10px', borderRadius: 9, background: 'linear-gradient(135deg,#b45309,#d97706)', border: 'none', color: '#fff', cursor: adminLoading ? 'not-allowed' : 'pointer', fontSize: '0.9rem', fontWeight: 700, opacity: adminLoading ? 0.7 : 1 }}>
-                      {adminLoading ? '⏳ Verificando...' : '🔓 Entrar como Admin Geral'}
+                      {adminLoading ? t('admin_verifying') : t('admin_enter_as')}
                     </button>
                   </div>
                   <div style={{ borderTop: '1px solid rgba(255,255,255,0.07)', paddingTop: 10, marginTop: 4, display: 'flex', gap: 6, justifyContent: 'center', flexWrap: 'wrap' }}>
                     <button onClick={() => { setAdminScreen('change'); setAdminChgMsg(''); setAdminChgCurrent(''); setAdminChgNew(''); setAdminChgConfirm(''); }}
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
-                      🔑 Alterar Minha Senha
+                      {t('admin_change_password')}
                     </button>
                     <button onClick={() => { setAdminScreen('recover'); setRecMsg(''); setRecAdminUser(''); setRecAdminPass(''); setRecTargetUser(''); setRecNewPass(''); }}
                       style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.5)', borderRadius: 7, padding: '6px 13px', fontSize: '0.73rem', cursor: 'pointer', fontWeight: 600 }}>
-                      🔄 Redefinir Senha (Admin)
+                      {t('admin_reset_password')}
                     </button>
                   </div>
                 </div>
