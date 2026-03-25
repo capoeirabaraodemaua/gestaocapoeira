@@ -878,9 +878,9 @@ export default function AdminPage() {
             if (!ext) return s;
             return {
               ...s,
-              apelido:     ext.apelido     || s.apelido     || null,
-              nome_social: ext.nome_social || s.nome_social || null,
-              sexo:        ext.sexo        || s.sexo        || null,
+              apelido:     ext.apelido     !== undefined ? (ext.apelido     || null) : (s.apelido     || null),
+              nome_social: ext.nome_social !== undefined ? (ext.nome_social || null) : (s.nome_social || null),
+              sexo:        ext.sexo        !== undefined ? (ext.sexo        || null) : (s.sexo        || null),
             };
           });
         }
@@ -1076,10 +1076,10 @@ export default function AdminPage() {
       // Try to save with optional new columns first
       const fullPayload = {
         ...corePayload,
-        apelido: (editForm as any).apelido || null,
-        nome_social: (editForm as any).nome_social || null,
-        sexo: (editForm as any).sexo || null,
-        email: (editForm as any).email || null,
+        apelido: (editForm as any).apelido !== undefined ? ((editForm as any).apelido || null) : null,
+        nome_social: (editForm as any).nome_social !== undefined ? ((editForm as any).nome_social || null) : null,
+        sexo: (editForm as any).sexo !== undefined ? ((editForm as any).sexo || null) : null,
+        email: (editForm as any).email !== undefined ? ((editForm as any).email || null) : null,
       };
 
       let { error } = await supabase
@@ -1107,9 +1107,9 @@ export default function AdminPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: editing.id,
-              apelido:     (editForm as any).apelido     ?? '',
-              nome_social: (editForm as any).nome_social ?? '',
-              sexo:        (editForm as any).sexo        ?? '',
+              apelido:     String((editForm as any).apelido     ?? ''),
+              nome_social: String((editForm as any).nome_social ?? ''),
+              sexo:        String((editForm as any).sexo        ?? ''),
             }),
           });
         } catch { /* não bloqueia o salvamento */ }
