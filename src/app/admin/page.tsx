@@ -565,8 +565,10 @@ export default function AdminPage() {
   const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '', confirm_new_password: '' });
   const [editContaForm, setEditContaForm] = useState({ student_id: '', new_username: '', new_email: '', new_phone: '' });
   const [editContaLoading, setEditContaLoading] = useState(false);
+  const [showEditContaModal, setShowEditContaModal] = useState(false);
   const [deleteContaForm, setDeleteContaForm] = useState({ student_id: '', confirm_text: '' });
   const [deleteContaLoading, setDeleteContaLoading] = useState(false);
+  const [showDeleteContaModal, setShowDeleteContaModal] = useState(false);
   const [studentDisplayIds, setStudentDisplayIds] = useState<Record<string, string>>({});
   // Auditoria
   type AuditEntry = { id: string; action: string; user: string; nucleo: string; timestamp: string; details?: string };
@@ -6085,6 +6087,124 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
+      {/* ── Edit Conta Modal ── */}
+      {showEditContaModal && (
+        <div className="modal-overlay" onClick={() => { setShowEditContaModal(false); setContasMsg(''); }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 480 }}>
+            <h2 style={{ margin: '0 0 4px' }}>
+              ✏️ Editar Conta de Acesso
+              <button className="modal-close" onClick={() => { setShowEditContaModal(false); setContasMsg(''); }}>&times;</button>
+            </h2>
+            {(() => {
+              const acc = alunoContas.find(a => a.student_id === editContaForm.student_id);
+              const st = students.find(s => s.id === editContaForm.student_id);
+              return (
+                <div style={{ marginBottom: 14, padding: '10px 14px', background: 'var(--bg-input)', borderRadius: 10, border: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{st?.nome_completo || '—'}</div>
+                  <div style={{ fontSize: '0.76rem', color: 'var(--text-secondary)', marginTop: 2 }}>Login atual: <strong>{acc?.username}</strong>{acc?.display_id ? ` · ID: ${acc.display_id}` : ''}</div>
+                </div>
+              );
+            })()}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 18 }}>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nome de usuário (login)</label>
+                <input type="text" value={editContaForm.new_username} onChange={e => setEditContaForm(f => ({ ...f, new_username: e.target.value }))} placeholder="ex: joaosilva123" style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>E-mail (para recuperar senha)</label>
+                <input type="email" value={editContaForm.new_email} onChange={e => setEditContaForm(f => ({ ...f, new_email: e.target.value }))} placeholder="email@exemplo.com" style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>WhatsApp</label>
+                <input type="tel" value={editContaForm.new_phone} onChange={e => setEditContaForm(f => ({ ...f, new_phone: e.target.value }))} placeholder="(21) 99999-9999" style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            {contasMsg && showEditContaModal && (
+              <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 14, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>
+            )}
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+              <button onClick={() => { setShowEditContaModal(false); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Cancelar</button>
+              <button
+                disabled={editContaLoading}
+                onClick={async () => {
+                  setContasMsg('');
+                  setEditContaLoading(true);
+                  const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-edit-account', student_id: editContaForm.student_id, new_username: editContaForm.new_username || undefined, new_email: editContaForm.new_email, new_phone: editContaForm.new_phone }) });
+                  const d = await res.json();
+                  setEditContaLoading(false);
+                  if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                  setContasMsg(`✅ Conta atualizada!`);
+                  fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
+                  setTimeout(() => { setShowEditContaModal(false); setContasMsg(''); }, 1200);
+                }}
+                style={{ padding: '9px 24px', borderRadius: 8, background: editContaLoading ? '#9ca3af' : '#0891b2', color: '#fff', border: 'none', cursor: editContaLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+              >{editContaLoading ? 'Salvando...' : '✏️ Salvar Alterações'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Delete Conta Modal ── */}
+      {showDeleteContaModal && (
+        <div className="modal-overlay" onClick={() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }}>
+          <div className="modal-card" onClick={e => e.stopPropagation()} style={{ maxWidth: 420, textAlign: 'center' }}>
+            <h2 style={{ margin: '0 0 14px', color: '#dc2626' }}>
+              🗑️ Excluir Conta de Acesso
+              <button className="modal-close" onClick={() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }}>&times;</button>
+            </h2>
+            {(() => {
+              const acc = alunoContas.find(a => a.student_id === deleteContaForm.student_id);
+              const st = students.find(s => s.id === deleteContaForm.student_id);
+              return (
+                <>
+                  <div style={{ padding: '12px 16px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, marginBottom: 16, textAlign: 'left' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#dc2626' }}>{st?.nome_completo || '—'}</div>
+                    <div style={{ fontSize: '0.76rem', color: '#991b1b', marginTop: 2 }}>Login: <strong>{acc?.username}</strong></div>
+                  </div>
+                  <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0 0 16px', lineHeight: 1.5 }}>
+                    A conta de acesso será <strong>excluída permanentemente</strong>. O cadastro do aluno é preservado.
+                  </p>
+                  <div style={{ textAlign: 'left', marginBottom: 16 }}>
+                    <label style={{ fontSize: '0.78rem', color: '#dc2626', display: 'block', marginBottom: 6, fontWeight: 700 }}>Digite <strong>EXCLUIR</strong> para confirmar:</label>
+                    <input
+                      type="text"
+                      value={deleteContaForm.confirm_text}
+                      onChange={e => setDeleteContaForm(f => ({ ...f, confirm_text: e.target.value }))}
+                      placeholder="EXCLUIR"
+                      autoFocus
+                      style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '2px solid #fca5a5', fontSize: '0.9rem', background: '#fff5f5', color: '#dc2626', boxSizing: 'border-box', fontWeight: 700, letterSpacing: 2, textAlign: 'center' }}
+                    />
+                  </div>
+                  {contasMsg && showDeleteContaModal && (
+                    <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 14, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+                    <button onClick={() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Cancelar</button>
+                    <button
+                      disabled={deleteContaLoading || deleteContaForm.confirm_text !== 'EXCLUIR'}
+                      onClick={async () => {
+                        if (deleteContaForm.confirm_text !== 'EXCLUIR') return;
+                        setDeleteContaLoading(true);
+                        setContasMsg('');
+                        const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-delete-account', student_id: deleteContaForm.student_id }) });
+                        const d = await res.json();
+                        setDeleteContaLoading(false);
+                        if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                        const acc2 = alunoContas.find(a => a.student_id === deleteContaForm.student_id);
+                        setContasMsg(`✅ Conta excluída!`);
+                        fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
+                        setTimeout(() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }, 1200);
+                      }}
+                      style={{ padding: '9px 24px', borderRadius: 8, background: deleteContaLoading || deleteContaForm.confirm_text !== 'EXCLUIR' ? '#9ca3af' : '#dc2626', color: '#fff', border: 'none', cursor: deleteContaLoading || deleteContaForm.confirm_text !== 'EXCLUIR' ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+                    >{deleteContaLoading ? 'Excluindo...' : '🗑️ Excluir Definitivamente'}</button>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </div>
+      )}
+
       {/* Delete Confirm Modal */}
       {deleteConfirm && (
         <div className="modal-overlay" onClick={() => setDeleteConfirm(null)}>
@@ -8570,7 +8690,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                       title="Editar conta"
                                       onClick={() => {
                                         setEditContaForm({ student_id: acc.student_id, new_username: acc.username, new_email: acc.email || '', new_phone: acc.phone || '' });
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        setShowEditContaModal(true);
                                       }}
                                       style={{ padding: '3px 10px', borderRadius: 6, background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, marginRight: 6 }}
                                     >✏️ Editar</button>
@@ -8578,7 +8698,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                       title="Excluir conta"
                                       onClick={() => {
                                         setDeleteContaForm({ student_id: acc.student_id, confirm_text: '' });
-                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                        setShowDeleteContaModal(true);
                                       }}
                                       style={{ padding: '3px 10px', borderRadius: 6, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                                     >🗑️ Excluir</button>
