@@ -46,6 +46,15 @@ export const LOCAIS: Local[] = [
     mapUrl: 'https://maps.google.com/?q=-22.6681359,-43.2545703',
   },
   {
+    id: 'nucleo-vila-urussai-2',
+    nome: 'Núcleo Vila Urussaí (Ponto 2)',
+    endereco: 'Vila Urussaí, Duque de Caxias - RJ',
+    nucleo: 'Vila Urussaí',
+    lat: -22.664880,
+    lng: -43.253089,
+    mapUrl: 'https://maps.google.com/?q=-22.664880,-43.253089',
+  },
+  {
     id: 'nucleo-jayme-fichman',
     nome: 'Núcleo Jayme Fichman',
     endereco: 'Jayme Fichman, Duque de Caxias - RJ',

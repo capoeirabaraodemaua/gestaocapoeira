@@ -46,7 +46,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -138,6 +138,10 @@ export default function AlunoPage() {
   const [fotosMsg, setFotosMsg] = useState('');
   const fotosFileRef = useRef<HTMLInputElement>(null);
 
+  // ── Playlist ───────────────────────────────────────────────────────────────
+  const [playlistItems, setPlaylistItems] = useState<{ id: string; title: string; url: string; platform: string; created_at: string }[]>([]);
+  const [playlistLoading, setPlaylistLoading] = useState(false);
+
   // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
@@ -198,6 +202,10 @@ export default function AlunoPage() {
       if (activeTab === 'justificativas') loadJustificativas(session.student_id);
       if (activeTab === 'graduacao') loadHistorico(session.student_id);
       if (activeTab === 'fotos') loadFotos(session.student_id);
+      if (activeTab === 'playlist') {
+        setPlaylistLoading(true);
+        fetch('/api/admin/manual-videos').then(r => r.json()).then(d => { setPlaylistItems(d.videos || []); setPlaylistLoading(false); }).catch(() => setPlaylistLoading(false));
+      }
     }
   }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
 
@@ -534,6 +542,7 @@ export default function AlunoPage() {
     { id: 'graduacao',      icon: '🎖️', label: 'Graduação' },
     { id: 'fotos',          icon: '📸', label: 'Fotos' },
     { id: 'justificativas', icon: '📝', label: 'Justific.' },
+    { id: 'playlist',       icon: '🎵', label: 'Playlist' },
   ];
 
   // ── DASHBOARD (LOGGED IN) ─────────────────────────────────────────────────
@@ -1014,6 +1023,85 @@ export default function AlunoPage() {
             </div>
           </div>
         )}
+
+        {/* ── PLAYLIST ── */}
+        {activeTab === 'playlist' && (() => {
+          function getPlatformEmbed(item: { url: string; platform: string }) {
+            try {
+              const u = new URL(item.url);
+              if (item.platform === 'youtube' || u.hostname.includes('youtu')) {
+                const m = u.pathname.match(/\/shorts\/([\w-]+)/) || u.pathname.match(/\/([\w-]{11})$/) || (u.search.match(/[?&]v=([\w-]+)/));
+                const vid = m ? m[1] : null;
+                if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}?rel=0` };
+              }
+              if (item.platform === 'spotify' || u.hostname.includes('spotify')) {
+                const path = u.pathname;
+                return { type: 'iframe', src: `https://open.spotify.com/embed${path}?utm_source=generator&theme=0` };
+              }
+              if (item.platform === 'deezer' || u.hostname.includes('deezer')) {
+                const m = u.pathname.match(/(track|album|playlist)\/(\d+)/);
+                if (m) return { type: 'iframe', src: `https://widget.deezer.com/widget/dark/${m[1]}/${m[2]}` };
+              }
+            } catch {}
+            return null;
+          }
+          const platformMeta: Record<string, { icon: string; color: string; label: string }> = {
+            youtube: { icon: '▶', color: '#dc2626', label: 'YouTube' },
+            spotify: { icon: '🎧', color: '#16a34a', label: 'Spotify' },
+            deezer:  { icon: '🎵', color: '#7c3aed', label: 'Deezer' },
+            tiktok:  { icon: '🎶', color: '#0891b2', label: 'TikTok' },
+            kwai:    { icon: '📱', color: '#ea580c', label: 'Kwai' },
+            outro:   { icon: '🔗', color: '#64748b', label: 'Link' },
+          };
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🎵 Playlist do Mestre</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Músicas e vídeos selecionados para seus treinos</p>
+              </div>
+              {playlistLoading ? (
+                <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando playlist...</div>
+              ) : playlistItems.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '60px 20px', background: '#f5f3ff', borderRadius: 16, border: '2px dashed #a78bfa' }}>
+                  <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎵</div>
+                  <div style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.95rem' }}>Playlist vazia</div>
+                  <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>O administrador ainda não adicionou músicas à playlist.</div>
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  {playlistItems.map(item => {
+                    const embed = getPlatformEmbed(item);
+                    const meta = platformMeta[item.platform] || platformMeta.outro;
+                    const embedH = item.platform === 'spotify' ? 80 : item.platform === 'deezer' ? 100 : 157;
+                    return (
+                      <div key={item.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: embed ? '1px solid #f3f4f6' : 'none' }}>
+                          <span style={{ background: meta.color, color: '#fff', borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', flexShrink: 0, fontWeight: 800 }}>{meta.icon}</span>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                            <div style={{ fontSize: '0.72rem', color: meta.color, fontWeight: 600, marginTop: 1 }}>{meta.label}</div>
+                          </div>
+                          <a href={item.url} target="_blank" rel="noopener noreferrer"
+                            style={{ padding: '5px 10px', borderRadius: 7, background: '#f8fafc', border: '1px solid #e5e7eb', color: '#374151', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
+                            Abrir
+                          </a>
+                        </div>
+                        {embed && embed.type === 'iframe' && (
+                          <iframe src={embed.src} height={embedH} width="100%" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style={{ display: 'block', border: 'none' }} />
+                        )}
+                        {!embed && (
+                          <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', textDecoration: 'none', color: meta.color, fontSize: '0.85rem', fontWeight: 600 }}>
+                            🔗 Abrir no {meta.label}
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
       </main>
     </div>

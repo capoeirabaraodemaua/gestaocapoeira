@@ -569,6 +569,8 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
+  // ── Engagement Dashboard ──────────────────────────────────────────────────
+  const [engagementFilter, setEngagementFilter] = useState<'todos' | 'ativos' | 'nunca' | 'sem-email'>('todos');
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -1843,6 +1845,7 @@ export default function AdminPage() {
                   <th>Graduação</th>
                   <th>Tipo</th>
                   <th>Data</th>
+                  <th>Último Acesso</th>
                   <th>Ações</th>
                 </tr>
               </thead>
@@ -1911,6 +1914,15 @@ export default function AdminPage() {
                       </td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                         {new Date(student.created_at).toLocaleDateString('pt-BR')}
+                      </td>
+                      <td style={{ whiteSpace: 'nowrap' }}>
+                        {(() => {
+                          const ll = alunoContas.find(a => a.student_id === student.id)?.last_login;
+                          const now = Date.now();
+                          const isActive = ll && new Date(ll).getTime() >= now - 86400000;
+                          if (!ll) return <span style={{ fontSize: '0.72rem', color: '#d97706', fontWeight: 600 }}>Nunca acessou</span>;
+                          return <span style={{ fontSize: '0.76rem', color: isActive ? '#16a34a' : 'var(--text-secondary)', fontWeight: isActive ? 700 : 400 }}>{isActive ? '🟢 ' : ''}{new Date(ll).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>;
+                        })()}
                       </td>
                       <td>
                         <div style={{ display: 'flex', gap: 6 }}>
@@ -8420,6 +8432,220 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA AUDITORIA (geral only) ===== */}
       {activeTab === 'auditoria' && activeNucleo === 'geral' && (
         <div style={{ paddingTop: 24 }}>
+
+          {/* ── ENGAGEMENT DASHBOARD ── */}
+          {(() => {
+            const now = Date.now();
+            const h24ago = now - 24 * 60 * 60 * 1000;
+            // Build map student_id -> last_login
+            const loginMap: Record<string, string | undefined> = {};
+            alunoContas.forEach(a => { loginMap[a.student_id] = a.last_login; });
+            // Only active (non-trash) students
+            const allStudents = students.filter((s: any) => !s.deleted_at);
+            const total = allStudents.length;
+            const ativos24h = allStudents.filter((s: any) => {
+              const ll = loginMap[s.id];
+              return ll && new Date(ll).getTime() >= h24ago;
+            }).length;
+            const nuncaAcessou = allStudents.filter((s: any) => !loginMap[s.id]).length;
+            const semEmail = allStudents.filter((s: any) => {
+              const contaEmail = alunoContas.find(a => a.student_id === s.id)?.email;
+              return !s.email && !contaEmail;
+            }).length;
+            const ativosPorc = total > 0 ? Math.round((ativos24h / total) * 100) : 0;
+            const inativosPorc = 100 - ativosPorc;
+
+            // By nucleo counts (active today)
+            const nucleoNames = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
+            const nucleoColors: Record<string, string> = {
+              'Poliesportivo Edson Alves': '#dc2626', 'Poliesportivo do Ipiranga': '#ea580c',
+              'Saracuruna': '#16a34a', 'Vila Urussaí': '#9333ea', 'Jayme Fichman': '#0891b2', 'Academia Mais Saúde': '#059669',
+            };
+            const nucleoStats = nucleoNames.map(nc => {
+              const ncStudents = allStudents.filter((s: any) => s.nucleo === nc);
+              const ncAtivos = ncStudents.filter((s: any) => {
+                const ll = loginMap[s.id];
+                return ll && new Date(ll).getTime() >= h24ago;
+              }).length;
+              return { nc, total: ncStudents.length, ativos: ncAtivos, color: nucleoColors[nc] || '#64748b' };
+            }).filter(x => x.total > 0);
+
+            // Donut chart SVG
+            const R = 44, cx = 56, cy = 56, strokeW = 18;
+            const circumference = 2 * Math.PI * R;
+            const ativosStroke = (ativos24h / Math.max(total, 1)) * circumference;
+            const inativosStroke = circumference - ativosStroke;
+
+            return (
+              <div style={{ background: 'var(--bg-card)', border: '1.5px solid rgba(124,58,237,0.2)', borderRadius: 16, padding: '18px 20px', marginBottom: 28 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
+                  <span style={{ fontSize: '1.2rem' }}>📊</span>
+                  <div>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: 'var(--text-primary)' }}>Dashboard de Engajamento</div>
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 1 }}>Atividade de login das últimas 24 horas · {total} alunos cadastrados</div>
+                  </div>
+                </div>
+
+                {/* Metrics row */}
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: 10, marginBottom: 18 }}>
+                  {[
+                    { label: 'Ativos hoje', value: ativos24h, sub: `${ativosPorc}% do total`, color: '#16a34a', bg: 'rgba(22,163,74,0.07)', icon: '✅' },
+                    { label: 'Nunca acessaram', value: nuncaAcessou, sub: `${total > 0 ? Math.round(nuncaAcessou/total*100) : 0}% sem acesso`, color: '#d97706', bg: 'rgba(217,119,6,0.07)', icon: '⚠️' },
+                    { label: 'Sem e-mail', value: semEmail, sub: 'Busca ativa WhatsApp', color: '#dc2626', bg: 'rgba(220,38,38,0.07)', icon: '📧' },
+                    { label: 'Total alunos', value: total, sub: 'Matrículas ativas', color: '#1d4ed8', bg: 'rgba(29,78,216,0.07)', icon: '👥' },
+                  ].map(m => (
+                    <div key={m.label} style={{ background: m.bg, border: `1px solid ${m.color}30`, borderRadius: 12, padding: '12px 14px' }}>
+                      <div style={{ fontSize: '1.2rem', marginBottom: 4 }}>{m.icon}</div>
+                      <div style={{ fontWeight: 800, fontSize: '1.5rem', color: m.color, lineHeight: 1 }}>{m.value}</div>
+                      <div style={{ fontWeight: 600, fontSize: '0.76rem', color: 'var(--text-primary)', marginTop: 4 }}>{m.label}</div>
+                      <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: 2 }}>{m.sub}</div>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Donut chart + nucleo breakdown */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 20, alignItems: 'flex-start' }}>
+                  {/* Donut */}
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                    <svg width="112" height="112" viewBox="0 0 112 112">
+                      <circle cx={cx} cy={cy} r={R} fill="none" stroke="#e5e7eb" strokeWidth={strokeW} />
+                      {total > 0 && (
+                        <>
+                          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#e5e7eb" strokeWidth={strokeW}
+                            strokeDasharray={`${inativosStroke} ${circumference}`}
+                            strokeDashoffset={-ativosStroke}
+                            style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px` }}
+                          />
+                          <circle cx={cx} cy={cy} r={R} fill="none" stroke="#16a34a" strokeWidth={strokeW}
+                            strokeDasharray={`${ativosStroke} ${circumference}`}
+                            strokeDashoffset={0}
+                            style={{ transform: 'rotate(-90deg)', transformOrigin: `${cx}px ${cy}px` }}
+                          />
+                        </>
+                      )}
+                      <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text-primary)" fontSize="18" fontWeight="800">{ativosPorc}%</text>
+                      <text x={cx} y={cy + 10} textAnchor="middle" fill="var(--text-secondary)" fontSize="9">ativos</text>
+                      <text x={cx} y={cy + 21} textAnchor="middle" fill="var(--text-secondary)" fontSize="9">hoje</text>
+                    </svg>
+                    <div style={{ display: 'flex', gap: 10, fontSize: '0.72rem', fontWeight: 600 }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#16a34a', display: 'inline-block' }} />Ativos ({ativos24h})</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 10, height: 10, borderRadius: '50%', background: '#e5e7eb', border: '1px solid #d1d5db', display: 'inline-block' }} />Inativos ({total - ativos24h})</span>
+                    </div>
+                  </div>
+
+                  {/* Per-núcleo bars */}
+                  <div style={{ flex: 1, minWidth: 200 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 10, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Atividade por Núcleo</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {nucleoStats.map(ns => {
+                        const pct = ns.total > 0 ? Math.round((ns.ativos / ns.total) * 100) : 0;
+                        return (
+                          <div key={ns.nc}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', marginBottom: 3 }}>
+                              <span style={{ fontWeight: 600, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '70%' }}>{ns.nc}</span>
+                              <span style={{ fontWeight: 700, color: ns.color, flexShrink: 0 }}>{ns.ativos}/{ns.total} ({pct}%)</span>
+                            </div>
+                            <div style={{ height: 8, background: '#e5e7eb', borderRadius: 4, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${pct}%`, background: ns.color, borderRadius: 4, transition: 'width 0.5s ease' }} />
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick filter for student list */}
+                <div style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 8, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Filtro Rápido de Alunos</div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                    {[
+                      { key: 'todos', label: '👥 Todos os alunos', count: total, color: '#1d4ed8' },
+                      { key: 'ativos', label: '✅ Ativos nas últimas 24h', count: ativos24h, color: '#16a34a' },
+                      { key: 'nunca', label: '⚠️ Nunca acessaram', count: nuncaAcessou, color: '#d97706' },
+                      { key: 'sem-email', label: '📧 Sem e-mail cadastrado', count: semEmail, color: '#dc2626' },
+                    ].map(f => (
+                      <button key={f.key} onClick={() => setEngagementFilter(f.key as typeof engagementFilter)}
+                        style={{ padding: '6px 14px', borderRadius: 20, border: `1.5px solid ${f.color}40`, background: engagementFilter === f.key ? f.color : 'transparent', color: engagementFilter === f.key ? '#fff' : f.color, fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer', transition: 'all 0.15s' }}>
+                        {f.label} <span style={{ opacity: 0.8 }}>({f.count})</span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Filtered list */}
+                  {engagementFilter !== 'todos' && (() => {
+                    const filtered = allStudents.filter((s: any) => {
+                      if (engagementFilter === 'ativos') {
+                        const ll = loginMap[s.id];
+                        return ll && new Date(ll).getTime() >= h24ago;
+                      }
+                      if (engagementFilter === 'nunca') return !loginMap[s.id];
+                      if (engagementFilter === 'sem-email') {
+                        const contaEmail = alunoContas.find(a => a.student_id === s.id)?.email;
+                        return !s.email && !contaEmail;
+                      }
+                      return true;
+                    });
+                    if (filtered.length === 0) return <div style={{ marginTop: 12, fontSize: '0.82rem', color: 'var(--text-secondary)', fontStyle: 'italic' }}>Nenhum aluno neste filtro.</div>;
+                    return (
+                      <div style={{ marginTop: 12, overflowX: 'auto' }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                          <thead>
+                            <tr style={{ background: 'var(--bg-input)', borderBottom: '2px solid var(--border)' }}>
+                              {['Nome', 'Núcleo', 'Último Acesso', engagementFilter === 'sem-email' ? 'Telefone' : 'Status'].map(h => (
+                                <th key={h} style={{ textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.76rem', whiteSpace: 'nowrap' }}>{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {filtered.slice(0, 50).map((s: any) => {
+                              const ll = loginMap[s.id];
+                              const hasLogin = !!loginMap[s.id];
+                              const isActive = ll && new Date(ll).getTime() >= h24ago;
+                              const tel = (s.telefone || '').replace(/\D/g, '');
+                              const contaEmail = alunoContas.find(a => a.student_id === s.id)?.email;
+                              return (
+                                <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
+                                  <td style={{ padding: '7px 10px', fontWeight: 600, color: 'var(--text-primary)' }}>{s.nome_completo}</td>
+                                  <td style={{ padding: '7px 10px', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>{s.nucleo || '—'}</td>
+                                  <td style={{ padding: '7px 10px', whiteSpace: 'nowrap' }}>
+                                    {ll ? (
+                                      <span style={{ color: isActive ? '#16a34a' : 'var(--text-secondary)', fontSize: '0.78rem', fontWeight: isActive ? 700 : 400 }}>
+                                        {new Date(ll).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}
+                                      </span>
+                                    ) : (
+                                      <span style={{ color: '#d97706', fontSize: '0.74rem', fontWeight: 600 }}>Nunca acessou</span>
+                                    )}
+                                  </td>
+                                  <td style={{ padding: '7px 10px' }}>
+                                    {engagementFilter === 'sem-email' ? (
+                                      tel ? (
+                                        <a href={`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent('Olá! Precisamos que você atualize seu e-mail no cadastro da ACCBM. Acesse a área do aluno.')}`}
+                                          target="_blank" rel="noopener noreferrer"
+                                          style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 700 }}>
+                                          📱 WhatsApp
+                                        </a>
+                                      ) : <span style={{ fontSize: '0.72rem', color: '#f87171', fontStyle: 'italic' }}>Sem telefone</span>
+                                    ) : (
+                                      <span style={{ padding: '2px 8px', borderRadius: 8, fontSize: '0.74rem', fontWeight: 700, background: hasLogin ? (isActive ? 'rgba(22,163,74,0.1)' : 'rgba(107,114,128,0.1)') : 'rgba(217,119,6,0.1)', color: hasLogin ? (isActive ? '#16a34a' : '#6b7280') : '#d97706' }}>
+                                        {hasLogin ? (isActive ? 'Ativo hoje' : 'Conta ativa') : 'Conta pendente'}
+                                      </span>
+                                    )}
+                                  </td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                        {filtered.length > 50 && <div style={{ textAlign: 'center', padding: '8px', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Exibindo 50 de {filtered.length} resultados</div>}
+                      </div>
+                    );
+                  })()}
+                </div>
+              </div>
+            );
+          })()}
+
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 20 }}>
             <div>
               <h2 style={{ margin: '0 0 2px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>🔍 Auditoria do Sistema</h2>
@@ -8675,7 +8901,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         // Preenche com senha padrão do núcleo (sequência 12345)
                         const defaultPasswords: Record<string, string> = {
                           'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                          'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345',
+                          'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
                         };
                         setRespNewPass(nk ? (defaultPasswords[nk] || 'acesso12345') : '');
                         setRespShowPass(true);
@@ -8687,6 +8913,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <option value="saracuruna">Núcleo Saracuruna</option>
                         <option value="vila-urussai">Núcleo Vila Urussaí</option>
                         <option value="jayme-fichman">Núcleo Jayme Fichman</option>
+                        <option value="academia-mais-saude">Academia Mais Saúde</option>
                       </select>
                     </div>
                     <div>
@@ -8711,7 +8938,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <button type="button" onClick={() => {
                           const defaultPasswords: Record<string, string> = {
                             'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                            'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345',
+                            'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
                           };
                           setRespNewPass(defaultPasswords[respNewNucleo] || 'acesso12345'); setRespCreateMsg('');
                         }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Restaurar senha padrão">

@@ -23,6 +23,34 @@
   box-sizing: border-box;
 }
 
+/* ── Global button press / sink effect ─────────────────────────────────── */
+button,
+a[role="button"],
+[type="button"],
+[type="submit"],
+[type="reset"] {
+  transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.08s ease;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+button:active:not(:disabled),
+a[role="button"]:active,
+[type="button"]:active:not(:disabled),
+[type="submit"]:active:not(:disabled),
+[type="reset"]:active:not(:disabled) {
+  transform: scale(0.95) translateY(1px);
+  filter: brightness(0.92);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+}
+
+button:disabled,
+[type="button"]:disabled,
+[type="submit"]:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
 html, body {
   font-family: 'Inter', sans-serif;
   background: var(--bg-primary);
