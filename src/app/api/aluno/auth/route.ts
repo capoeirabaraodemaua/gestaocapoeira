@@ -547,6 +547,45 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── Admin: edit account (username, email, phone) — no password required
+    if (action === 'admin-edit-account') {
+      const { student_id, new_username, new_email, new_phone } = body;
+      if (!student_id) return NextResponse.json({ error: 'student_id obrigatório.' }, { status: 400 });
+      const authMap = await loadAuthMap();
+      const account = authMap[student_id];
+      if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
+
+      // Check username uniqueness if changing
+      if (new_username && new_username.trim() !== account.username) {
+        const taken = Object.values(authMap).find(
+          a => a.student_id !== student_id && a.username.toLowerCase() === new_username.trim().toLowerCase()
+        );
+        if (taken) return NextResponse.json({ error: 'Nome de usuário já está em uso por outra conta.' }, { status: 409 });
+        account.username = new_username.trim();
+      }
+
+      if (new_email !== undefined) {
+        account.email = new_email || '';
+        try { await supabaseAdmin.from('students').update({ email: new_email || null }).eq('id', student_id); } catch { /* column may not exist */ }
+      }
+      if (new_phone !== undefined) account.phone = new_phone || '';
+
+      authMap[student_id] = account;
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true, username: account.username, email: account.email, phone: account.phone });
+    }
+
+    // ── Admin: delete account — no password required (admin privilege)
+    if (action === 'admin-delete-account') {
+      const { student_id } = body;
+      if (!student_id) return NextResponse.json({ error: 'student_id obrigatório.' }, { status: 400 });
+      const authMap = await loadAuthMap();
+      if (!authMap[student_id]) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
+      delete authMap[student_id];
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Ação desconhecida.' }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);

@@ -563,6 +563,10 @@ export default function AdminPage() {
   const [contasMsg, setContasMsg] = useState('');
   const [novaContaForm, setNovaContaForm] = useState({ student_id: '', password: '', confirm_password: '', email: '' });
   const [resetPassForm, setResetPassForm] = useState({ student_id: '', new_password: '', confirm_new_password: '' });
+  const [editContaForm, setEditContaForm] = useState({ student_id: '', new_username: '', new_email: '', new_phone: '' });
+  const [editContaLoading, setEditContaLoading] = useState(false);
+  const [deleteContaForm, setDeleteContaForm] = useState({ student_id: '', confirm_text: '' });
+  const [deleteContaLoading, setDeleteContaLoading] = useState(false);
   const [studentDisplayIds, setStudentDisplayIds] = useState<Record<string, string>>({});
   // Auditoria
   type AuditEntry = { id: string; action: string; user: string; nucleo: string; timestamp: string; details?: string };
@@ -8342,6 +8346,132 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             >🔑 Redefinir Senha</button>
           </div>
 
+          {/* Edit account */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>✏️ Editar dados da conta</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Corrija o nome de usuário, e-mail ou WhatsApp vinculado à conta de um aluno.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Aluno *</label>
+                <select
+                  value={editContaForm.student_id}
+                  onChange={e => {
+                    const sid = e.target.value;
+                    const acc = alunoContas.find(a => a.student_id === sid);
+                    setEditContaForm({ student_id: sid, new_username: acc?.username || '', new_email: acc?.email || '', new_phone: acc?.phone || '' });
+                  }}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                >
+                  <option value="">— Selecione o aluno —</option>
+                  {alunoContas
+                    .filter(acc => {
+                      if (activeNucleo === 'geral') return true;
+                      const st = students.find(s => s.id === acc.student_id);
+                      return st?.nucleo === nucleoFilter;
+                    })
+                    .map(acc => {
+                      const st = students.find(s => s.id === acc.student_id);
+                      return (
+                        <option key={acc.student_id} value={acc.student_id}>
+                          {st?.nome_completo || acc.student_id.slice(0, 8)} — {acc.username}{acc.display_id ? ` (${acc.display_id})` : ''}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Nome de usuário (login)</label>
+                <input type="text" value={editContaForm.new_username} onChange={e => setEditContaForm(f => ({ ...f, new_username: e.target.value }))} placeholder="ex: joaosilva123" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>E-mail</label>
+                <input type="email" value={editContaForm.new_email} onChange={e => setEditContaForm(f => ({ ...f, new_email: e.target.value }))} placeholder="email@exemplo.com" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>WhatsApp</label>
+                <input type="tel" value={editContaForm.new_phone} onChange={e => setEditContaForm(f => ({ ...f, new_phone: e.target.value }))} placeholder="(21) 99999-9999" style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
+              </div>
+            </div>
+            <button
+              disabled={editContaLoading || !editContaForm.student_id}
+              onClick={async () => {
+                setContasMsg('');
+                if (!editContaForm.student_id) { setContasMsg('❌ Selecione um aluno.'); return; }
+                setEditContaLoading(true);
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-edit-account', student_id: editContaForm.student_id, new_username: editContaForm.new_username || undefined, new_email: editContaForm.new_email, new_phone: editContaForm.new_phone }) });
+                const d = await res.json();
+                setEditContaLoading(false);
+                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                setContasMsg(`✅ Conta atualizada! Login: ${d.username}${d.email ? ` | E-mail: ${d.email}` : ''}`);
+                setEditContaForm({ student_id: '', new_username: '', new_email: '', new_phone: '' });
+                fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
+              }}
+              style={{ padding: '9px 24px', borderRadius: 8, background: editContaLoading || !editContaForm.student_id ? '#9ca3af' : '#0891b2', color: '#fff', border: 'none', cursor: editContaLoading || !editContaForm.student_id ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+            >{editContaLoading ? 'Salvando...' : '✏️ Salvar Alterações'}</button>
+          </div>
+
+          {/* Delete account */}
+          <div style={{ background: 'var(--card-bg)', border: '2px solid #fecaca', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 6px', fontSize: '0.95rem', color: '#dc2626' }}>🗑️ Excluir conta de acesso</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Remove a conta de login do aluno. Os dados cadastrais do aluno são preservados. Esta ação <strong>não pode ser desfeita</strong>.</p>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 12, marginBottom: 12 }}>
+              <div style={{ gridColumn: '1 / -1' }}>
+                <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Aluno *</label>
+                <select
+                  value={deleteContaForm.student_id}
+                  onChange={e => setDeleteContaForm(f => ({ ...f, student_id: e.target.value, confirm_text: '' }))}
+                  style={{ width: '100%', padding: '9px 10px', borderRadius: 6, border: '1px solid #fecaca', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
+                >
+                  <option value="">— Selecione o aluno —</option>
+                  {alunoContas
+                    .filter(acc => {
+                      if (activeNucleo === 'geral') return true;
+                      const st = students.find(s => s.id === acc.student_id);
+                      return st?.nucleo === nucleoFilter;
+                    })
+                    .map(acc => {
+                      const st = students.find(s => s.id === acc.student_id);
+                      return (
+                        <option key={acc.student_id} value={acc.student_id}>
+                          {st?.nome_completo || acc.student_id.slice(0, 8)} — {acc.username}
+                        </option>
+                      );
+                    })}
+                </select>
+              </div>
+              {deleteContaForm.student_id && (
+                <div style={{ gridColumn: '1 / -1' }}>
+                  <label style={{ fontSize: '0.78rem', color: '#dc2626', display: 'block', marginBottom: 4 }}>Digite <strong>EXCLUIR</strong> para confirmar *</label>
+                  <input
+                    type="text"
+                    value={deleteContaForm.confirm_text}
+                    onChange={e => setDeleteContaForm(f => ({ ...f, confirm_text: e.target.value }))}
+                    placeholder="EXCLUIR"
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #fca5a5', fontSize: '0.82rem', background: '#fff5f5', color: '#dc2626', boxSizing: 'border-box', fontWeight: 700, letterSpacing: 1 }}
+                  />
+                </div>
+              )}
+            </div>
+            <button
+              disabled={deleteContaLoading || !deleteContaForm.student_id || deleteContaForm.confirm_text !== 'EXCLUIR'}
+              onClick={async () => {
+                setContasMsg('');
+                if (!deleteContaForm.student_id) { setContasMsg('❌ Selecione um aluno.'); return; }
+                if (deleteContaForm.confirm_text !== 'EXCLUIR') { setContasMsg('❌ Digite EXCLUIR para confirmar.'); return; }
+                setDeleteContaLoading(true);
+                const acc = alunoContas.find(a => a.student_id === deleteContaForm.student_id);
+                const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-delete-account', student_id: deleteContaForm.student_id }) });
+                const d = await res.json();
+                setDeleteContaLoading(false);
+                if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                setContasMsg(`✅ Conta de "${acc?.username || deleteContaForm.student_id.slice(0,8)}" excluída com sucesso.`);
+                setDeleteContaForm({ student_id: '', confirm_text: '' });
+                fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
+              }}
+              style={{ padding: '9px 24px', borderRadius: 8, background: deleteContaLoading || !deleteContaForm.student_id || deleteContaForm.confirm_text !== 'EXCLUIR' ? '#9ca3af' : '#dc2626', color: '#fff', border: 'none', cursor: deleteContaLoading || !deleteContaForm.student_id || deleteContaForm.confirm_text !== 'EXCLUIR' ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+            >{deleteContaLoading ? 'Excluindo...' : '🗑️ Excluir Conta Definitivamente'}</button>
+          </div>
+
           {/* Accounts report — filtered by nucleo for responsáveis */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, flexWrap: 'wrap', gap: 8 }}>
@@ -8409,7 +8539,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                           <thead>
                             <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg-input)' }}>
-                              {['ID ACCBM', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso'].map(h => (
+                              {['ID ACCBM', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso', 'Ações'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
                               ))}
                             </tr>
@@ -8435,6 +8565,24 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   </td>
                                   <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
                                   <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : <span style={{ color: '#d97706', fontSize: '0.74rem' }}>Nunca acessou</span>}</td>
+                                  <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
+                                    <button
+                                      title="Editar conta"
+                                      onClick={() => {
+                                        setEditContaForm({ student_id: acc.student_id, new_username: acc.username, new_email: acc.email || '', new_phone: acc.phone || '' });
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                      style={{ padding: '3px 10px', borderRadius: 6, background: '#e0f2fe', color: '#0369a1', border: '1px solid #bae6fd', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, marginRight: 6 }}
+                                    >✏️ Editar</button>
+                                    <button
+                                      title="Excluir conta"
+                                      onClick={() => {
+                                        setDeleteContaForm({ student_id: acc.student_id, confirm_text: '' });
+                                        window.scrollTo({ top: 0, behavior: 'smooth' });
+                                      }}
+                                      style={{ padding: '3px 10px', borderRadius: 6, background: '#fee2e2', color: '#dc2626', border: '1px solid #fca5a5', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
+                                    >🗑️ Excluir</button>
+                                  </td>
                                 </tr>
                               );
                             })}
