@@ -872,7 +872,7 @@ export default function AdminPage() {
       try {
         const extRes = await fetch('/api/student-extras');
         if (extRes.ok) {
-          const extMap: Record<string, { apelido?: string; nome_social?: string; sexo?: string }> = await extRes.json();
+          const extMap: Record<string, { apelido?: string; nome_social?: string; sexo?: string; email?: string }> = await extRes.json();
           listWithNum = listWithNum.map(s => {
             const ext = extMap[s.id];
             if (!ext) return s;
@@ -881,6 +881,10 @@ export default function AdminPage() {
               apelido:     ext.apelido     !== undefined ? (ext.apelido     || null) : (s.apelido     || null),
               nome_social: ext.nome_social !== undefined ? (ext.nome_social || null) : (s.nome_social || null),
               sexo:        ext.sexo        !== undefined ? (ext.sexo        || null) : (s.sexo        || null),
+              // email: extras is source of truth when DB column missing; DB value takes priority if present
+              email:       s.email         !== null && s.email !== undefined
+                             ? s.email
+                             : (ext.email  !== undefined ? (ext.email || null) : null),
             };
           });
         }
@@ -1078,6 +1082,8 @@ export default function AdminPage() {
         nome_responsavel: editForm.nome_responsavel,
         cpf_responsavel: editForm.cpf_responsavel,
         foto_url,
+        // email included in core so it's saved even if optional columns (apelido/sexo) are missing
+        email: (editForm as any).email !== undefined ? ((editForm as any).email || null) : undefined,
       };
 
       // Try to save with optional new columns first
@@ -1094,13 +1100,22 @@ export default function AdminPage() {
         .update(fullPayload)
         .eq('id', editing.id);
 
-      // If error is about missing columns, retry with core fields only
+      // If error is about missing columns, retry with core fields (still includes email)
       if (error && (error.message.includes('column') || error.code === '42703')) {
         const retry = await supabase
           .from('students')
           .update(corePayload)
           .eq('id', editing.id);
         error = retry.error;
+        // If email column also missing, retry without it
+        if (error && (error.message.includes('column') || error.code === '42703')) {
+          const { email: _emailOmit, ...coreNoEmail } = corePayload;
+          const retry2 = await supabase
+            .from('students')
+            .update(coreNoEmail)
+            .eq('id', editing.id);
+          error = retry2.error;
+        }
       }
 
       if (error) {
@@ -1117,6 +1132,7 @@ export default function AdminPage() {
               apelido:     String((editForm as any).apelido     ?? ''),
               nome_social: String((editForm as any).nome_social ?? ''),
               sexo:        String((editForm as any).sexo        ?? ''),
+              email:       String((editForm as any).email       ?? ''),
             }),
           });
         } catch { /* não bloqueia o salvamento */ }

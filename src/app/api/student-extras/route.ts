@@ -15,6 +15,7 @@ export interface StudentExtras {
   apelido?: string;
   nome_social?: string;
   sexo?: string;
+  email?: string;
 }
 
 type ExtrasMap = Record<string, StudentExtras>; // key = student id
@@ -45,13 +46,14 @@ export async function GET(req: NextRequest) {
 
 // POST /api/student-extras — upsert one student's extras (empty string = clear field)
 export async function POST(req: NextRequest) {
-  const { id, apelido, nome_social, sexo } = await req.json();
+  const { id, apelido, nome_social, sexo, email } = await req.json();
   if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
   const map = await loadExtras();
   map[id] = {
     apelido:     apelido     !== undefined ? apelido     : (map[id]?.apelido     ?? ''),
     nome_social: nome_social !== undefined ? nome_social : (map[id]?.nome_social ?? ''),
     sexo:        sexo        !== undefined ? sexo        : (map[id]?.sexo        ?? ''),
+    email:       email       !== undefined ? email       : (map[id]?.email       ?? ''),
   };
   await saveExtras(map);
   return NextResponse.json({ ok: true });
