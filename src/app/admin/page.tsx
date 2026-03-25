@@ -102,6 +102,7 @@ interface Student {
   ordem_inscricao?: number | null;
   ultimo_checkin?: string | null;
   checkin_nucleo?: string | null;
+  condicoes_atipicas?: string | null; // JSON array string
 }
 
 type EditForm = Partial<Student>;
@@ -514,6 +515,7 @@ export default function AdminPage() {
   const [search, setSearch] = useState('');
   const [filterNucleo, setFilterNucleo] = useState('');
   const [filterGraduacao, setFilterGraduacao] = useState('');
+  const [filterCondicao, setFilterCondicao] = useState('');
   const [sortOrder, setSortOrder] = useState<'nome-asc' | 'nome-desc' | 'grad-asc' | 'grad-desc' | 'data-asc' | 'data-desc'>('nome-asc');
   const [selected, setSelected] = useState<Student | null>(null);
   const [editing, setEditing] = useState<Student | null>(null);
@@ -878,19 +880,20 @@ export default function AdminPage() {
       try {
         const extRes = await fetch('/api/student-extras');
         if (extRes.ok) {
-          const extMap: Record<string, { apelido?: string; nome_social?: string; sexo?: string; email?: string }> = await extRes.json();
+          const extMap: Record<string, { apelido?: string; nome_social?: string; sexo?: string; email?: string; condicoes_atipicas?: string }> = await extRes.json();
           listWithNum = listWithNum.map(s => {
             const ext = extMap[s.id];
             if (!ext) return s;
             return {
               ...s,
-              apelido:     ext.apelido     !== undefined ? (ext.apelido     || null) : (s.apelido     || null),
-              nome_social: ext.nome_social !== undefined ? (ext.nome_social || null) : (s.nome_social || null),
-              sexo:        ext.sexo        !== undefined ? (ext.sexo        || null) : (s.sexo        || null),
+              apelido:            ext.apelido            !== undefined ? (ext.apelido            || null) : (s.apelido            || null),
+              nome_social:        ext.nome_social        !== undefined ? (ext.nome_social        || null) : (s.nome_social        || null),
+              sexo:               ext.sexo               !== undefined ? (ext.sexo               || null) : (s.sexo               || null),
+              condicoes_atipicas: ext.condicoes_atipicas !== undefined ? (ext.condicoes_atipicas || null) : (s.condicoes_atipicas || null),
               // email: extras is source of truth when DB column missing; DB value takes priority if present
-              email:       s.email         !== null && s.email !== undefined
-                             ? s.email
-                             : (ext.email  !== undefined ? (ext.email || null) : null),
+              email:              s.email !== null && s.email !== undefined
+                                    ? s.email
+                                    : (ext.email !== undefined ? (ext.email || null) : null),
             };
           });
         }
@@ -1019,7 +1022,13 @@ export default function AdminPage() {
     const matchNucleo = !filterNucleo || s.nucleo === filterNucleo;
     const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter;
     const matchGraduacao = !filterGraduacao || s.graduacao === filterGraduacao;
-    return matchSearch && matchNucleo && matchProfile && matchGraduacao;
+    const matchCondicao = !filterCondicao || (() => {
+      try {
+        const conds: string[] = s.condicoes_atipicas ? JSON.parse(s.condicoes_atipicas) : [];
+        return conds.some(c => c.toLowerCase().includes(filterCondicao.toLowerCase()));
+      } catch { return false; }
+    })();
+    return matchSearch && matchNucleo && matchProfile && matchGraduacao && matchCondicao;
   }).sort((a, b) => {
     if (sortOrder === 'nome-asc') return a.nome_completo.localeCompare(b.nome_completo, 'pt-BR');
     if (sortOrder === 'nome-desc') return b.nome_completo.localeCompare(a.nome_completo, 'pt-BR');
@@ -1135,10 +1144,11 @@ export default function AdminPage() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               id: editing.id,
-              apelido:     String((editForm as any).apelido     ?? ''),
-              nome_social: String((editForm as any).nome_social ?? ''),
-              sexo:        String((editForm as any).sexo        ?? ''),
-              email:       String((editForm as any).email       ?? ''),
+              apelido:             String((editForm as any).apelido             ?? ''),
+              nome_social:         String((editForm as any).nome_social         ?? ''),
+              sexo:                String((editForm as any).sexo                ?? ''),
+              email:               String((editForm as any).email               ?? ''),
+              condicoes_atipicas:  String((editForm as any).condicoes_atipicas  ?? ''),
             }),
           });
         } catch { /* não bloqueia o salvamento */ }
@@ -1524,6 +1534,30 @@ export default function AdminPage() {
                 <option value="data-asc">Cadastro mais antigo</option>
                 <option value="data-desc">Cadastro mais recente</option>
               </select>
+              <select
+                className="search-input"
+                style={{ width: 230, borderColor: filterCondicao ? 'rgba(139,92,246,0.6)' : undefined, background: filterCondicao ? 'rgba(139,92,246,0.05)' : undefined }}
+                value={filterCondicao}
+                onChange={e => setFilterCondicao(e.target.value)}
+              >
+                <option value="">🧩 Todas as condições</option>
+                <option value="TEA">Transtorno do Espectro Autista (TEA)</option>
+                <option value="TDAH">Déficit de Atenção e Hiperatividade (TDAH)</option>
+                <option value="Deficiência Intelectual">Deficiência Intelectual</option>
+                <option value="Síndrome de Down">Síndrome de Down</option>
+                <option value="Dislexia">Dislexia</option>
+                <option value="Discalculia">Discalculia</option>
+                <option value="Transtorno de Ansiedade">Transtorno de Ansiedade</option>
+                <option value="Transtornos de Aprendizagem">Transtornos de Aprendizagem</option>
+                <option value="Atraso no Desenvolvimento">Atraso no Desenvolvimento</option>
+                <option value="Deficiência Visual">Deficiência Visual</option>
+                <option value="Deficiência Auditiva">Deficiência Auditiva</option>
+                <option value="Deficiência Física">Deficiência Física / Motora</option>
+                <option value="TOD">Transtorno Opositivo-Desafiador (TOD)</option>
+                <option value="Altas Habilidades">Altas Habilidades / Superdotação</option>
+                <option value="Epilepsia">Epilepsia</option>
+                <option value="Outro">Outro</option>
+              </select>
             </>}
           </div>
         </div>
@@ -1894,7 +1928,12 @@ export default function AdminPage() {
                           </div>
                         )}
                       </td>
-                      <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
+                      <td style={{ fontWeight: 600 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                          {student.nome_completo}
+                          {(() => { try { const c: string[] = student.condicoes_atipicas ? JSON.parse(student.condicoes_atipicas) : []; return c.length > 0 ? <span title={c.join(', ')} style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.12)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, cursor: 'default', flexShrink: 0 }}>🧩 {c.length}</span> : null; } catch { return null; } })()}
+                        </div>
+                      </td>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#6366f1', fontWeight: 700, whiteSpace: 'nowrap' }}>
                         {studentDisplayIds[student.id] || <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>—</span>}
                       </td>
@@ -5642,6 +5681,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Data de Inscrição</span>
                 <span className="detail-value">{new Date(selected.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
+              {(() => {
+                let conds: string[] = [];
+                try { conds = selected.condicoes_atipicas ? JSON.parse(selected.condicoes_atipicas) : []; } catch { conds = []; }
+                if (conds.length === 0) return null;
+                return (
+                  <div className="detail-item detail-full" style={{ marginTop: 8 }}>
+                    <span className="detail-label" style={{ color: '#7c3aed' }}>🧩 Condições Atípicas</span>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginTop: 4 }}>
+                      {conds.map((c, i) => (
+                        <span key={i} style={{ background: 'rgba(139,92,246,0.1)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '3px 10px', fontSize: '0.76rem', fontWeight: 600 }}>{c}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* ── Botão Histórico de Graduações ── */}
@@ -6066,6 +6120,69 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 </>
               )}
+
+              {/* ── Condições Atípicas ── */}
+              <div className="detail-item detail-full" style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--border)' }}>
+                <span className="detail-label" style={{ color: '#7c3aed', marginBottom: 10, display: 'block' }}>🧩 Condição do Aluno (Desenvolvimento Atípico / Necessidades Específicas)</span>
+                {(() => {
+                  const OPCOES = [
+                    'Transtorno do Espectro Autista (TEA)',
+                    'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
+                    'Deficiência Intelectual',
+                    'Síndrome de Down',
+                    'Dislexia',
+                    'Discalculia',
+                    'Transtorno de Ansiedade',
+                    'Transtornos de Aprendizagem',
+                    'Atraso no Desenvolvimento (fala, motor ou cognitivo)',
+                    'Deficiência Visual',
+                    'Deficiência Auditiva',
+                    'Deficiência Física / Motora',
+                    'Transtorno Opositivo-Desafiador (TOD)',
+                    'Altas Habilidades / Superdotação',
+                    'Epilepsia',
+                    'Outro',
+                  ];
+                  let currentConds: string[] = [];
+                  try { currentConds = (editForm as any).condicoes_atipicas ? JSON.parse((editForm as any).condicoes_atipicas) : []; } catch { currentConds = []; }
+                  const hasOutro = currentConds.some(c => c.startsWith('Outro'));
+                  const outroText = currentConds.find(c => c.startsWith('Outro: '))?.replace('Outro: ', '') || '';
+                  const toggle = (op: string) => {
+                    let next = currentConds.includes(op)
+                      ? currentConds.filter(x => x !== op)
+                      : [...currentConds, op];
+                    setEditForm(prev => ({ ...prev, condicoes_atipicas: JSON.stringify(next) } as any));
+                  };
+                  const setOutroText = (txt: string) => {
+                    const base = currentConds.filter(c => !c.startsWith('Outro'));
+                    const next = txt.trim() ? [...base, `Outro: ${txt.trim()}`] : [...base, 'Outro'];
+                    setEditForm(prev => ({ ...prev, condicoes_atipicas: JSON.stringify(next) } as any));
+                  };
+                  return (
+                    <div>
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: '6px 12px', marginBottom: 8 }}>
+                        {OPCOES.map(op => {
+                          const isChecked = op === 'Outro' ? hasOutro : currentConds.includes(op);
+                          return (
+                            <label key={op} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', padding: '6px 8px', borderRadius: 7, border: `1.5px solid ${isChecked ? 'rgba(139,92,246,0.5)' : 'var(--border)'}`, background: isChecked ? 'rgba(139,92,246,0.07)' : 'transparent', transition: 'all 0.12s' }}>
+                              <input type="checkbox" checked={isChecked} onChange={() => toggle(op === 'Outro' && hasOutro ? currentConds.find(c => c.startsWith('Outro'))! : op)} style={{ marginTop: 2, accentColor: '#7c3aed', flexShrink: 0 }} />
+                              <span style={{ fontSize: '0.8rem', color: isChecked ? '#5b21b6' : 'var(--text-primary)', fontWeight: isChecked ? 600 : 400, lineHeight: 1.4 }}>{op}</span>
+                            </label>
+                          );
+                        })}
+                      </div>
+                      {hasOutro && (
+                        <input type="text" value={outroText} onChange={e => setOutroText(e.target.value)} placeholder="Descreva a condição..." style={{ width: '100%', padding: '8px 10px', borderRadius: 7, border: '1.5px solid rgba(139,92,246,0.4)', fontSize: '0.83rem', boxSizing: 'border-box', marginBottom: 6, background: 'var(--input-bg)', color: 'var(--text-primary)' }} />
+                      )}
+                      {currentConds.length > 0 && (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 6 }}>
+                          {currentConds.map((c, i) => <span key={i} style={{ background: 'rgba(139,92,246,0.1)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '2px 9px', fontSize: '0.73rem', fontWeight: 600 }}>{c}</span>)}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+              </div>
             </div>
 
             <div style={{ display: 'flex', gap: 10, marginTop: 24 }}>

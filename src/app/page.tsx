@@ -239,6 +239,9 @@ export default function Home() {
     // Assinaturas separadas pai/mãe
     assinatura_pai: false,
     assinatura_mae: false,
+    // Condições atípicas (array serializado como JSON)
+    condicoes_atipicas: [] as string[],
+    condicoes_atipicas_outro: '',
   });
 
   useEffect(() => {
@@ -704,6 +707,20 @@ export default function Home() {
         }).then(r => r.json()).then(d => {
           if (d.display_id) setSuccessDisplayId(d.display_id);
         }).catch(() => {});
+
+        // Save atypical conditions to student-extras
+        const condicoesArr = [...form.condicoes_atipicas];
+        if (condicoesArr.includes('Outro') && form.condicoes_atipicas_outro.trim()) {
+          const idx = condicoesArr.indexOf('Outro');
+          condicoesArr[idx] = `Outro: ${form.condicoes_atipicas_outro.trim()}`;
+        }
+        if (condicoesArr.length > 0) {
+          fetch('/api/student-extras', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: student_id, condicoes_atipicas: JSON.stringify(condicoesArr) }),
+          }).catch(() => {});
+        }
       }
     } catch (err: unknown) {
       console.error('Erro inscrição:', err);
@@ -1444,6 +1461,88 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
               )}
             </div>
+            </div>
+          </div>
+
+          {/* Condição do Aluno – Desenvolvimento Atípico */}
+          <div className="form-section" style={{ borderColor: 'rgba(139,92,246,0.3)' }}>
+            <div className="form-section-header" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.08), rgba(109,40,217,0.04))' }}>
+              <div className="form-section-icon">🧩</div>
+              <h2 className="form-section-title">{t('form_condicoes_title') || 'Condição do Aluno (Desenvolvimento Atípico / Necessidades Específicas)'}</h2>
+            </div>
+            <div className="form-section-body">
+              <p style={{ fontSize: '0.82rem', color: '#6b7280', margin: '0 0 14px', lineHeight: 1.5 }}>
+                {t('form_condicoes_desc') || 'Selecione uma ou mais condições, se aplicável. Esta informação é opcional e sigilosa, usada apenas para melhor atendimento.'}
+              </p>
+              {(() => {
+                const opcoes = [
+                  'Transtorno do Espectro Autista (TEA)',
+                  'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
+                  'Deficiência Intelectual',
+                  'Síndrome de Down',
+                  'Dislexia',
+                  'Discalculia',
+                  'Transtorno de Ansiedade',
+                  'Transtornos de Aprendizagem',
+                  'Atraso no Desenvolvimento (fala, motor ou cognitivo)',
+                  'Deficiência Visual',
+                  'Deficiência Auditiva',
+                  'Deficiência Física / Motora',
+                  'Transtorno Opositivo-Desafiador (TOD)',
+                  'Altas Habilidades / Superdotação',
+                  'Epilepsia',
+                  'Outro',
+                ];
+                const selected: string[] = form.condicoes_atipicas as string[];
+                const toggle = (op: string) => {
+                  setForm(prev => {
+                    const cur: string[] = prev.condicoes_atipicas as string[];
+                    const next = cur.includes(op) ? cur.filter(x => x !== op) : [...cur, op];
+                    return { ...prev, condicoes_atipicas: next };
+                  });
+                };
+                return (
+                  <div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: '8px 16px' }}>
+                      {opcoes.map(op => {
+                        const checked = selected.includes(op);
+                        return (
+                          <label key={op} style={{ display: 'flex', alignItems: 'flex-start', gap: 9, cursor: 'pointer', padding: '7px 10px', borderRadius: 8, border: `1.5px solid ${checked ? 'rgba(139,92,246,0.5)' : 'var(--border, #e5e7eb)'}`, background: checked ? 'rgba(139,92,246,0.06)' : 'transparent', transition: 'all 0.15s' }}>
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => toggle(op)}
+                              style={{ marginTop: 2, accentColor: '#7c3aed', flexShrink: 0, width: 16, height: 16 }}
+                            />
+                            <span style={{ fontSize: '0.84rem', color: checked ? '#5b21b6' : '#374151', fontWeight: checked ? 600 : 400, lineHeight: 1.4 }}>{op}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    {selected.includes('Outro') && (
+                      <div style={{ marginTop: 12 }}>
+                        <label style={{ fontSize: '0.78rem', color: '#6b7280', display: 'block', marginBottom: 4 }}>Descreva a condição:</label>
+                        <input
+                          type="text"
+                          value={form.condicoes_atipicas_outro as string}
+                          onChange={e => setForm(prev => ({ ...prev, condicoes_atipicas_outro: e.target.value }))}
+                          placeholder="Descreva a condição do aluno..."
+                          style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid rgba(139,92,246,0.4)', fontSize: '0.85rem', boxSizing: 'border-box', outline: 'none' }}
+                        />
+                      </div>
+                    )}
+                    {selected.length > 0 && (
+                      <div style={{ marginTop: 10, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                        {selected.map(s => (
+                          <span key={s} style={{ background: 'rgba(139,92,246,0.12)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '2px 10px', fontSize: '0.74rem', fontWeight: 600 }}>
+                            {s === 'Outro' && (form.condicoes_atipicas_outro as string) ? `Outro: ${form.condicoes_atipicas_outro}` : s}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
           </div>
 
