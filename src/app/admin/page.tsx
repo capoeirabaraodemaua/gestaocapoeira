@@ -1564,12 +1564,12 @@ export default function AdminPage() {
           const justPendCount = justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length;
           const dadosFaltandoCount = (nucleoFilter ? rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter) : rascunhos).filter((r: any) => (r.dados_pendentes || []).length > 0).length;
 
-          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean };
+          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean; href?: string };
           const columns: { title: string; color: string; bg: string; buttons: ColBtn[] }[] = [
             {
               title: 'Gestão Principal', color: '#16a34a', bg: 'rgba(22,163,74,0.08)',
               buttons: [
-                { key: 'presencas',   icon: '📋', label: 'Registrar Presenças' },
+                { key: 'registrar-presenca', icon: '📋', label: 'Registrar Presença', href: '/presenca' },
                 { key: 'presencas',   icon: '👥', label: 'Presenças' },
                 { key: 'certificado', icon: '🏅', label: 'Certificado' },
                 { key: 'manual',      icon: '📖', label: 'Manual Ginga Gestão' },
@@ -1634,15 +1634,15 @@ export default function AdminPage() {
                     <div style={{ fontSize: '0.6rem', fontWeight: 800, color: col.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>{col.title}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                       {col.buttons.filter(b => !b.geralOnly || activeNucleo === 'geral').map((btn, bi) => (
-                        <button key={`${btn.key}-${bi}`} onClick={() => goTab(btn.key)}
+                        <button key={`${btn.key}-${bi}`} onClick={() => btn.href ? window.open(btn.href, '_blank') : goTab(btn.key)}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 7,
                             padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                            background: activeTab === btn.key ? col.color : 'rgba(255,255,255,0.06)',
-                            color: activeTab === btn.key ? '#fff' : 'var(--text-primary)',
-                            fontWeight: activeTab === btn.key ? 700 : 500,
+                            background: !btn.href && activeTab === btn.key ? col.color : btn.href ? 'rgba(22,163,74,0.18)' : 'rgba(255,255,255,0.06)',
+                            color: !btn.href && activeTab === btn.key ? '#fff' : btn.href ? '#16a34a' : 'var(--text-primary)',
+                            fontWeight: (!btn.href && activeTab === btn.key) || btn.href ? 700 : 500,
                             fontSize: '0.78rem', textAlign: 'left', transition: 'all 0.15s',
-                            boxShadow: activeTab === btn.key ? `0 2px 8px ${col.color}50` : 'none',
+                            boxShadow: !btn.href && activeTab === btn.key ? `0 2px 8px ${col.color}50` : 'none',
                             position: 'relative',
                           }}
                         >
