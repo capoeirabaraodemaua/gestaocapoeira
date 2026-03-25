@@ -895,11 +895,18 @@ export default function AdminPage() {
           setAlunoContas(Array.isArray(contasData) ? contasData : []);
           listWithNum = listWithNum.map(s => ({
             ...s,
-            email: s.email || contaEmailMap[s.id] || null,
+            // Only fill email from conta if student has NO email in DB
+            email: s.email ?? contaEmailMap[s.id] ?? null,
           }));
         }
       } catch { /* contas são opcionais */ }
       setStudents(listWithNum);
+      // Refresh `selected` if still open — ensures edit modal gets fresh data
+      setSelected(prev => {
+        if (!prev) return null;
+        const fresh = listWithNum.find(s => s.id === prev.id);
+        return fresh || prev;
+      });
       // Load display IDs (ACCBM-XXXX) for all students
       fetch('/api/aluno/gerar-id').then(r => r.json()).then(d => {
         if (d && typeof d === 'object') setStudentDisplayIds(d as Record<string, string>);
@@ -1116,6 +1123,8 @@ export default function AdminPage() {
         logAdminAction('edit_student', `id:${editing.id} nome:${editForm.nome_completo}`);
         setEditing(null);
         setEditFotoFile(null);
+        // Optimistic update of selected so detail panel reflects changes immediately
+        setSelected(prev => prev?.id === editing.id ? { ...prev, ...editForm } as typeof prev : prev);
         await fetchStudents();
       }
     } finally {
