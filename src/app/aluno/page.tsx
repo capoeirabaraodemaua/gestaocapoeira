@@ -46,7 +46,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -141,6 +141,14 @@ export default function AlunoPage() {
   // ── Playlist ───────────────────────────────────────────────────────────────
   const [playlistItems, setPlaylistItems] = useState<{ id: string; title: string; url: string; platform: string; created_at: string }[]>([]);
   const [playlistLoading, setPlaylistLoading] = useState(false);
+
+  // ── Conta / Perfil ─────────────────────────────────────────────────────────
+  const [contaSection, setContaSection] = useState<'main' | 'edit-profile' | 'change-password' | 'delete-account'>('main');
+  const [contaForm, setContaForm] = useState({ new_username: '', new_email: '', current_password: '', new_password: '', confirm_password: '' });
+  const [contaMsg, setContaMsg] = useState('');
+  const [contaMsgType, setContaMsgType] = useState<'success' | 'error'>('success');
+  const [contaLoading, setContaLoading] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -543,6 +551,7 @@ export default function AlunoPage() {
     { id: 'fotos',          icon: '📸', label: 'Fotos' },
     { id: 'justificativas', icon: '📝', label: 'Justific.' },
     { id: 'playlist',       icon: '🎵', label: 'Playlist' },
+    { id: 'conta',          icon: '⚙️', label: 'Conta' },
   ];
 
   // ── DASHBOARD (LOGGED IN) ─────────────────────────────────────────────────
@@ -1021,6 +1030,234 @@ export default function AlunoPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
               Formatos aceitos: JPG, PNG, GIF, MP4, MOV • Máx. 50 MB por arquivo
             </div>
+          </div>
+        )}
+
+        {/* ── CONTA / PERFIL ── */}
+        {activeTab === 'conta' && session && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            {contaSection === 'main' && (
+              <>
+                <div>
+                  <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>⚙️ Minha Conta</h2>
+                  <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Gerencie suas credenciais de acesso</p>
+                </div>
+
+                {/* Current account info */}
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '16px 18px', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 4 }}>Dados da Conta</div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 1 }}>Usuário</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#111827' }}>{session.username}</div>
+                    </div>
+                    <span style={{ background: '#dcfce7', color: '#15803d', borderRadius: 20, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700 }}>Ativo</span>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginBottom: 1 }}>E-mail de recuperação</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.88rem', color: student?.email ? '#111827' : '#9ca3af', fontStyle: student?.email ? 'normal' : 'italic' }}>
+                      {student?.email || 'Não cadastrado'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <button onClick={() => { setContaSection('edit-profile'); setContaForm(f => ({ ...f, new_username: session.username, new_email: student?.email || '' })); setContaMsg(''); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#dbeafe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>✏️</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#1e40af' }}>Editar Perfil</div>
+                      <div style={{ fontSize: '0.73rem', color: '#6b7280', marginTop: 1 }}>Alterar usuário e e-mail de recuperação</div>
+                    </div>
+                    <span style={{ color: '#93c5fd', fontSize: '1.1rem' }}>›</span>
+                  </button>
+
+                  <button onClick={() => { setContaSection('change-password'); setContaForm(f => ({ ...f, current_password: '', new_password: '', confirm_password: '' })); setContaMsg(''); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#faf5ff', border: '1px solid #e9d5ff', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🔒</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#7e22ce' }}>Alterar Senha</div>
+                      <div style={{ fontSize: '0.73rem', color: '#6b7280', marginTop: 1 }}>Trocar sua senha de acesso</div>
+                    </div>
+                    <span style={{ color: '#c4b5fd', fontSize: '1.1rem' }}>›</span>
+                  </button>
+
+                  <button onClick={() => { setContaSection('delete-account'); setContaForm(f => ({ ...f, current_password: '' })); setDeleteConfirmText(''); setContaMsg(''); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 12, padding: '14px 16px', cursor: 'pointer', textAlign: 'left' }}>
+                    <div style={{ width: 38, height: 38, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.1rem', flexShrink: 0 }}>🗑️</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#dc2626' }}>Excluir Conta de Acesso</div>
+                      <div style={{ fontSize: '0.73rem', color: '#6b7280', marginTop: 1 }}>Remove apenas o login — seu histórico é mantido</div>
+                    </div>
+                    <span style={{ color: '#fca5a5', fontSize: '1.1rem' }}>›</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {/* ── EDIT PROFILE ── */}
+            {contaSection === 'edit-profile' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => setContaSection('main')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280', padding: '4px 6px', borderRadius: 8 }}>←</button>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#111827' }}>✏️ Editar Perfil</h2>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280' }}>Confirme sua senha para alterar</p>
+                  </div>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '18px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Novo Usuário</label>
+                      <input type="text" value={contaForm.new_username} onChange={e => setContaForm(f => ({ ...f, new_username: e.target.value }))}
+                        style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>E-mail de Recuperação</label>
+                      <input type="email" value={contaForm.new_email} onChange={e => setContaForm(f => ({ ...f, new_email: e.target.value }))}
+                        placeholder="seu@email.com"
+                        style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Atual <span style={{ color: '#dc2626' }}>*</span></label>
+                      <input type="password" value={contaForm.current_password} onChange={e => setContaForm(f => ({ ...f, current_password: e.target.value }))}
+                        placeholder="Confirme sua senha atual"
+                        style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    {contaMsg && (
+                      <div style={{ padding: '10px 14px', borderRadius: 10, background: contaMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${contaMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: contaMsgType === 'success' ? '#166534' : '#991b1b', fontSize: '0.83rem', fontWeight: 600 }}>
+                        {contaMsg}
+                      </div>
+                    )}
+                    <button disabled={contaLoading} onClick={async () => {
+                      if (!contaForm.current_password) { setContaMsg('Informe sua senha atual.'); setContaMsgType('error'); return; }
+                      setContaLoading(true); setContaMsg('');
+                      try {
+                        const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'update-profile', student_id: session.student_id, new_username: contaForm.new_username.trim(), new_email: contaForm.new_email.trim(), current_password: contaForm.current_password }) });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setContaMsg('✓ Perfil atualizado com sucesso!'); setContaMsgType('success');
+                          const newSess = { ...session, username: data.username };
+                          sessionStorage.setItem('aluno_session', JSON.stringify(newSess));
+                          setSession(newSess);
+                          if (student) setStudent({ ...student, email: data.email || student.email });
+                          setTimeout(() => setContaSection('main'), 1500);
+                        } else { setContaMsg(data.error || 'Erro ao atualizar.'); setContaMsgType('error'); }
+                      } catch { setContaMsg('Erro de conexão.'); setContaMsgType('error'); }
+                      setContaLoading(false);
+                    }} style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: contaLoading ? 'wait' : 'pointer', opacity: contaLoading ? 0.7 : 1 }}>
+                      {contaLoading ? '⏳ Salvando...' : '💾 Salvar Alterações'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── CHANGE PASSWORD ── */}
+            {contaSection === 'change-password' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => setContaSection('main')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280', padding: '4px 6px', borderRadius: 8 }}>←</button>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#111827' }}>🔒 Alterar Senha</h2>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280' }}>Escolha uma senha forte</p>
+                  </div>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '18px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    {(['current_password', 'new_password', 'confirm_password'] as const).map((field, i) => (
+                      <div key={field}>
+                        <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+                          {['Senha Atual', 'Nova Senha', 'Confirmar Nova Senha'][i]} <span style={{ color: '#dc2626' }}>*</span>
+                        </label>
+                        <input type="password" value={contaForm[field]} onChange={e => setContaForm(f => ({ ...f, [field]: e.target.value }))}
+                          style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                    ))}
+                    {contaMsg && (
+                      <div style={{ padding: '10px 14px', borderRadius: 10, background: contaMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${contaMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: contaMsgType === 'success' ? '#166534' : '#991b1b', fontSize: '0.83rem', fontWeight: 600 }}>
+                        {contaMsg}
+                      </div>
+                    )}
+                    <button disabled={contaLoading} onClick={async () => {
+                      if (contaForm.new_password !== contaForm.confirm_password) { setContaMsg('As senhas não coincidem.'); setContaMsgType('error'); return; }
+                      if (contaForm.new_password.length < 6) { setContaMsg('A nova senha deve ter pelo menos 6 caracteres.'); setContaMsgType('error'); return; }
+                      setContaLoading(true); setContaMsg('');
+                      try {
+                        const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'change-password', student_id: session.student_id, current_password: contaForm.current_password, new_password: contaForm.new_password }) });
+                        const data = await res.json();
+                        if (res.ok) { setContaMsg('✓ Senha alterada com sucesso!'); setContaMsgType('success'); setContaForm(f => ({ ...f, current_password: '', new_password: '', confirm_password: '' })); setTimeout(() => setContaSection('main'), 1500); }
+                        else { setContaMsg(data.error || 'Erro ao alterar senha.'); setContaMsgType('error'); }
+                      } catch { setContaMsg('Erro de conexão.'); setContaMsgType('error'); }
+                      setContaLoading(false);
+                    }} style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: contaLoading ? 'wait' : 'pointer', opacity: contaLoading ? 0.7 : 1 }}>
+                      {contaLoading ? '⏳ Alterando...' : '🔒 Alterar Senha'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── DELETE ACCOUNT ── */}
+            {contaSection === 'delete-account' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <button onClick={() => setContaSection('main')} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem', color: '#6b7280', padding: '4px 6px', borderRadius: 8 }}>←</button>
+                  <div>
+                    <h2 style={{ margin: 0, fontSize: '1rem', fontWeight: 800, color: '#dc2626' }}>⚠️ Excluir Conta</h2>
+                    <p style={{ margin: 0, fontSize: '0.72rem', color: '#6b7280' }}>Esta ação é irreversível</p>
+                  </div>
+                </div>
+                <div style={{ background: '#fef2f2', border: '1.5px solid #fecaca', borderRadius: 14, padding: '16px 18px' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#991b1b', marginBottom: 8 }}>⚠️ O que acontece ao excluir:</div>
+                  <ul style={{ margin: 0, padding: '0 0 0 18px', fontSize: '0.82rem', color: '#7f1d1d', lineHeight: 1.7 }}>
+                    <li>Seu login e senha são <strong>removidos permanentemente</strong></li>
+                    <li>Seu histórico de presenças e graduações <strong>é mantido</strong></li>
+                    <li>Você precisará de nova conta para acessar a plataforma</li>
+                  </ul>
+                </div>
+                <div style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '18px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Digite <strong>EXCLUIR</strong> para confirmar</label>
+                      <input type="text" value={deleteConfirmText} onChange={e => setDeleteConfirmText(e.target.value)}
+                        placeholder="EXCLUIR"
+                        style={{ width: '100%', border: `1.5px solid ${deleteConfirmText === 'EXCLUIR' ? '#dc2626' : '#e5e7eb'}`, borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: '#374151', marginBottom: 5, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Senha Atual <span style={{ color: '#dc2626' }}>*</span></label>
+                      <input type="password" value={contaForm.current_password} onChange={e => setContaForm(f => ({ ...f, current_password: e.target.value }))}
+                        placeholder="Confirme sua senha"
+                        style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                    </div>
+                    {contaMsg && (
+                      <div style={{ padding: '10px 14px', borderRadius: 10, background: contaMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${contaMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: contaMsgType === 'success' ? '#166534' : '#991b1b', fontSize: '0.83rem', fontWeight: 600 }}>
+                        {contaMsg}
+                      </div>
+                    )}
+                    <button disabled={contaLoading || deleteConfirmText !== 'EXCLUIR'} onClick={async () => {
+                      if (deleteConfirmText !== 'EXCLUIR') return;
+                      setContaLoading(true); setContaMsg('');
+                      try {
+                        const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'delete-account', student_id: session.student_id, current_password: contaForm.current_password }) });
+                        const data = await res.json();
+                        if (res.ok) {
+                          setContaMsg('✓ Conta excluída. Você será desconectado.'); setContaMsgType('success');
+                          setTimeout(() => { sessionStorage.removeItem('aluno_session'); setSession(null); setStudent(null); setActiveTab('dashboard'); }, 2000);
+                        } else { setContaMsg(data.error || 'Erro ao excluir conta.'); setContaMsgType('error'); }
+                      } catch { setContaMsg('Erro de conexão.'); setContaMsgType('error'); }
+                      setContaLoading(false);
+                    }} style={{ background: deleteConfirmText === 'EXCLUIR' ? 'linear-gradient(135deg,#dc2626,#b91c1c)' : '#e5e7eb', color: deleteConfirmText === 'EXCLUIR' ? '#fff' : '#9ca3af', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: (contaLoading || deleteConfirmText !== 'EXCLUIR') ? 'not-allowed' : 'pointer', opacity: contaLoading ? 0.7 : 1 }}>
+                      {contaLoading ? '⏳ Excluindo...' : '🗑️ Excluir Minha Conta Definitivamente'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         )}
 

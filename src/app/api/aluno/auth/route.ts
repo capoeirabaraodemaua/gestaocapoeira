@@ -469,6 +469,84 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── Update profile (email, username) — requires session token (student_id)
+    if (action === 'update-profile') {
+      const { student_id, new_email, new_username, current_password } = body;
+      if (!student_id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+      const authMap = await loadAuthMap();
+      const account = authMap[student_id];
+      if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
+
+      // Verify current password
+      if (!current_password || hashPassword(current_password, account.salt) !== account.password_hash) {
+        return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 403 });
+      }
+
+      // Check username uniqueness if changing
+      if (new_username && new_username !== account.username) {
+        const taken = Object.values(authMap).find(
+          a => a.student_id !== student_id && a.username.toLowerCase() === new_username.toLowerCase()
+        );
+        if (taken) return NextResponse.json({ error: 'Usuário já em uso.' }, { status: 409 });
+        account.username = new_username;
+      }
+
+      // Update email
+      if (new_email !== undefined) {
+        account.email = new_email || '';
+        // Also save to Supabase students table
+        try {
+          await supabaseAdmin.from('students').update({ email: new_email || null }).eq('id', student_id);
+        } catch { /* column may not exist yet */ }
+      }
+
+      authMap[student_id] = account;
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true, username: account.username, email: account.email });
+    }
+
+    // ── Change password — requires current password verification
+    if (action === 'change-password') {
+      const { student_id, current_password, new_password } = body;
+      if (!student_id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+      const authMap = await loadAuthMap();
+      const account = authMap[student_id];
+      if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
+
+      if (!current_password || hashPassword(current_password, account.salt) !== account.password_hash) {
+        return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 403 });
+      }
+      if (!new_password || new_password.length < 6) {
+        return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+      }
+
+      const salt = generateSalt();
+      authMap[student_id] = {
+        ...account,
+        password_hash: hashPassword(new_password, salt),
+        salt,
+      };
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true });
+    }
+
+    // ── Delete account — removes login credentials (student record kept for history)
+    if (action === 'delete-account') {
+      const { student_id, current_password } = body;
+      if (!student_id) return NextResponse.json({ error: 'Não autenticado.' }, { status: 401 });
+      const authMap = await loadAuthMap();
+      const account = authMap[student_id];
+      if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
+
+      if (!current_password || hashPassword(current_password, account.salt) !== account.password_hash) {
+        return NextResponse.json({ error: 'Senha incorreta. Não é possível excluir.' }, { status: 403 });
+      }
+
+      delete authMap[student_id];
+      await saveAuthMap(authMap);
+      return NextResponse.json({ success: true });
+    }
+
     return NextResponse.json({ error: 'Ação desconhecida.' }, { status: 400 });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
