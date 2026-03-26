@@ -47,7 +47,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -153,6 +153,10 @@ export default function AlunoPage() {
   const [playlistEditTitle, setPlaylistEditTitle] = useState('');
   const [playlistEditUrl, setPlaylistEditUrl] = useState('');
 
+  // ── Evolução / Dashboard Pessoal ───────────────────────────────────────────
+  const [evolucaoDates, setEvolucaoDates] = useState<string[]>([]);
+  const [evolucaoLoading, setEvolucaoLoading] = useState(false);
+
   // ── Conta / Perfil ─────────────────────────────────────────────────────────
   const [contaSection, setContaSection] = useState<'main' | 'edit-profile' | 'change-password' | 'delete-account'>('main');
   const [contaForm, setContaForm] = useState({ new_username: '', new_email: '', current_password: '', new_password: '', confirm_password: '' });
@@ -241,6 +245,10 @@ export default function AlunoPage() {
       if (activeTab === 'playlist') {
         setPlaylistLoading(true);
         fetch(`/api/aluno/playlist?student_id=${session.student_id}`).then(r => r.json()).then(d => { setPlaylistItems(Array.isArray(d) ? d : []); setPlaylistLoading(false); }).catch(() => setPlaylistLoading(false));
+      }
+      if (activeTab === 'evolucao') {
+        setEvolucaoLoading(true);
+        fetch(`/api/aluno/evolucao?student_id=${session.student_id}`).then(r => r.json()).then(d => { setEvolucaoDates(Array.isArray(d.dates) ? d.dates : []); setEvolucaoLoading(false); }).catch(() => setEvolucaoLoading(false));
       }
     }
   }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
@@ -573,6 +581,7 @@ export default function AlunoPage() {
   // ── TABS NAVIGATION ───────────────────────────────────────────────────────
   const tabs: { id: Tab; icon: string; label: string }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
+    { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
     { id: 'presenca',       icon: '📍', label: 'Presença' },
     { id: 'financeiro',     icon: '💰', label: 'Financeiro' },
@@ -1515,6 +1524,181 @@ export default function AlunoPage() {
               <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
                 Plataformas suportadas: Spotify · Deezer · YouTube · TikTok · Kwai · outros links
               </div>
+            </div>
+          );
+        })()}
+
+        {/* ── EVOLUÇÃO / DASHBOARD PESSOAL ── */}
+        {activeTab === 'evolucao' && session && (() => {
+          // ── helpers ────────────────────────────────────────────────────────
+          const today = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+          const todayStr = today.toISOString().split('T')[0];
+
+          // Frequency per month: { '2025-03': 4, ... }
+          const byMonth: Record<string, number> = {};
+          for (const d of evolucaoDates) {
+            const ym = d.slice(0, 7); // 'YYYY-MM'
+            byMonth[ym] = (byMonth[ym] || 0) + 1;
+          }
+
+          // Last 6 months including current
+          const months6: { key: string; label: string; count: number }[] = [];
+          for (let i = 5; i >= 0; i--) {
+            const d = new Date(today.getFullYear(), today.getMonth() - i, 1);
+            const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+            const label = d.toLocaleDateString('pt-BR', { month: 'short', year: '2-digit' });
+            months6.push({ key, label, count: byMonth[key] || 0 });
+          }
+
+          const maxCount = Math.max(...months6.map(m => m.count), 1);
+
+          // Last 30 days attendance set
+          const last30 = new Set<string>();
+          const last30Arr: string[] = [];
+          for (let i = 29; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const s = d.toISOString().split('T')[0];
+            last30Arr.push(s);
+            if (evolucaoDates.includes(s)) last30.add(s);
+          }
+
+          const totalDays = evolucaoDates.length;
+          const thisMonthKey = todayStr.slice(0, 7);
+          const thisMonthCount = byMonth[thisMonthKey] || 0;
+          const lastMonthKey = (() => {
+            const d = new Date(today.getFullYear(), today.getMonth() - 1, 1);
+            return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+          })();
+          const lastMonthCount = byMonth[lastMonthKey] || 0;
+
+          // Streak — consecutive days (backwards from today)
+          let streak = 0;
+          for (let i = 0; i < 365; i++) {
+            const d = new Date(today);
+            d.setDate(d.getDate() - i);
+            const s = d.toISOString().split('T')[0];
+            if (evolucaoDates.includes(s)) streak++;
+            else if (i > 0) break; // gap found
+          }
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📊 Dashboard de Evolução</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Acompanhe sua frequência e evolução nos treinos</p>
+              </div>
+
+              {evolucaoLoading ? (
+                <div style={{ textAlign: 'center', padding: '60px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando dados...</div>
+              ) : (
+                <>
+                  {/* Stats cards */}
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 10 }}>
+                    {[
+                      { label: 'Total de treinos', value: totalDays, icon: '🥋', color: nucleoColor, bg: `${nucleoColor}15`, border: `${nucleoColor}30` },
+                      { label: 'Este mês', value: thisMonthCount, icon: '📅', color: '#7c3aed', bg: '#f5f3ff', border: '#e9d5ff' },
+                      { label: 'Mês passado', value: lastMonthCount, icon: '📆', color: '#0891b2', bg: '#f0f9ff', border: '#bae6fd' },
+                      { label: 'Sequência atual', value: `${streak}d`, icon: '🔥', color: '#dc2626', bg: '#fef2f2', border: '#fecaca' },
+                    ].map(s => (
+                      <div key={s.label} style={{ background: s.bg, border: `1px solid ${s.border}`, borderRadius: 14, padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <div style={{ fontSize: '1.6rem', lineHeight: 1 }}>{s.icon}</div>
+                        <div>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 900, color: s.color, lineHeight: 1 }}>{s.value}</div>
+                          <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 2 }}>{s.label}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Monthly frequency bar chart */}
+                  <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 16 }}>Frequência Mensal</div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8, height: 100 }}>
+                      {months6.map(m => {
+                        const heightPct = maxCount > 0 ? (m.count / maxCount) * 100 : 0;
+                        const isCurrent = m.key === thisMonthKey;
+                        return (
+                          <div key={m.key} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 700, color: isCurrent ? nucleoColor : '#6b7280' }}>{m.count}</div>
+                            <div style={{ width: '100%', borderRadius: '6px 6px 0 0', background: isCurrent ? nucleoColor : `${nucleoColor}55`, minHeight: 4, height: `${Math.max(heightPct, 4)}%`, transition: 'height 0.3s' }} />
+                            <div style={{ fontSize: '0.6rem', color: isCurrent ? nucleoColor : '#9ca3af', fontWeight: isCurrent ? 700 : 400, whiteSpace: 'nowrap' }}>{m.label}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Last 30 days calendar grid */}
+                  <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 12 }}>Últimos 30 Dias</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(10, 1fr)', gap: 5 }}>
+                      {last30Arr.map(d => {
+                        const present = last30.has(d);
+                        const isToday = d === todayStr;
+                        return (
+                          <div key={d} title={new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
+                            style={{ aspectRatio: '1', borderRadius: 6, background: present ? nucleoColor : '#f3f4f6', border: isToday ? `2px solid ${nucleoColor}` : '2px solid transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.55rem', color: present ? '#fff' : '#d1d5db', fontWeight: 700 }}>
+                            {new Date(d + 'T12:00:00').getDate()}
+                          </div>
+                        );
+                      })}
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginTop: 10, fontSize: '0.7rem', color: '#9ca3af' }}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: nucleoColor, display: 'inline-block' }} /> Treinou</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, background: '#f3f4f6', border: '1px solid #e5e7eb', display: 'inline-block' }} /> Não treinou</span>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}><span style={{ width: 12, height: 12, borderRadius: 3, border: `2px solid ${nucleoColor}`, display: 'inline-block' }} /> Hoje</span>
+                    </div>
+                  </div>
+
+                  {/* Attendance list — last 10 */}
+                  {evolucaoDates.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 12 }}>Últimas Presenças</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {[...evolucaoDates].reverse().slice(0, 10).map(d => (
+                          <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#f8fafc', borderRadius: 10 }}>
+                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: nucleoColor, flexShrink: 0 }} />
+                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>
+                              {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      {evolucaoDates.length > 10 && (
+                        <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.75rem', color: '#9ca3af' }}>
+                          e mais {evolucaoDates.length - 10} registros anteriores
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {evolucaoDates.length === 0 && (
+                    <div style={{ textAlign: 'center', padding: '40px 20px', background: '#f9fafb', borderRadius: 16, border: '2px dashed #e5e7eb' }}>
+                      <div style={{ fontSize: '3rem', marginBottom: 10 }}>🥋</div>
+                      <div style={{ fontWeight: 700, fontSize: '0.95rem', color: '#374151' }}>Nenhuma presença registrada</div>
+                      <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6, lineHeight: 1.5 }}>
+                        Use a aba <strong>Presença</strong> para registrar seus treinos. Eles aparecerão aqui automaticamente.
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Performance tip */}
+                  {totalDays > 0 && (
+                    <div style={{ background: `${nucleoColor}10`, borderRadius: 12, padding: '14px 16px', border: `1px solid ${nucleoColor}30`, fontSize: '0.8rem', color: '#374151', lineHeight: 1.6 }}>
+                      {streak >= 7 ? (
+                        <span>🔥 <strong>Incrível!</strong> Você está em sequência há {streak} dias. Continue assim!</span>
+                      ) : thisMonthCount >= 8 ? (
+                        <span>⭐ <strong>Ótima frequência</strong> este mês! {thisMonthCount} treinos registrados.</span>
+                      ) : thisMonthCount >= 4 ? (
+                        <span>💪 Você treinou {thisMonthCount} vezes este mês. Tente aumentar a frequência para evoluir mais rápido!</span>
+                      ) : (
+                        <span>📈 Frequência regular é chave para a evolução na capoeira. Tente treinar pelo menos 2x por semana.</span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
             </div>
           );
         })()}

@@ -450,6 +450,14 @@ export async function POST(req: NextRequest) {
         created_at: new Date().toISOString(),
       };
       await saveAuthMap(authMap);
+
+      // Send welcome message via WhatsApp
+      if (studentPhone) {
+        const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://accbm.vercel.app';
+        const welcomeMsg = `Olá, *${studentName.split(' ')[0]}*! 👋\n\nSua conta foi criada com sucesso! Já liberamos seu acesso à área do aluno ✅\n\nAgora você pode entrar na plataforma, registrar sua presença e utilizar todas as funcionalidades disponíveis.\n\n🔗 *${appUrl}/aluno*\n\n👤 Usuário: *${username}*\n🔑 Senha: *${password}*\n\nSeja bem-vindo(a) e bons treinos! 💪🔥\n\n_Associação Cultural de Capoeira Barão de Mauá_`;
+        void sendWhatsAppMessage(studentPhone, welcomeMsg);
+      }
+
       return NextResponse.json({ success: true, username, display_id: displayId, phone: studentPhone, email: studentEmail });
     }
 
@@ -599,6 +607,37 @@ async function sendEmailOTP(email: string, otp: string, name: string): Promise<v
     const { subject, html } = buildOtpHtml(name, otp);
     await sendEmail(email, subject, html);
   } catch { /* silent fail */ }
+}
+
+async function sendWhatsAppMessage(phone: string, message: string): Promise<void> {
+  const digits = phone.replace(/\D/g, '');
+  const fullPhone = digits.startsWith('55') ? digits : `55${digits}`;
+  const zapiInstance = process.env.ZAPI_INSTANCE_ID;
+  const zapiToken = process.env.ZAPI_TOKEN;
+  const zapiClientToken = process.env.ZAPI_CLIENT_TOKEN;
+  if (zapiInstance && zapiToken) {
+    try {
+      await fetch(`https://api.z-api.io/instances/${zapiInstance}/token/${zapiToken}/send-text`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(zapiClientToken ? { 'Client-Token': zapiClientToken } : {}) },
+        body: JSON.stringify({ phone: fullPhone, message }),
+      });
+      return;
+    } catch { /* fallthrough */ }
+  }
+  const twilioSid = process.env.TWILIO_ACCOUNT_SID;
+  const twilioToken = process.env.TWILIO_AUTH_TOKEN;
+  const twilioFrom = process.env.TWILIO_WHATSAPP_FROM;
+  if (twilioSid && twilioToken && twilioFrom) {
+    try {
+      const params = new URLSearchParams({ From: `whatsapp:${twilioFrom}`, To: `whatsapp:+${fullPhone}`, Body: message });
+      await fetch(`https://api.twilio.com/2010-04-01/Accounts/${twilioSid}/Messages.json`, {
+        method: 'POST',
+        headers: { Authorization: `Basic ${Buffer.from(`${twilioSid}:${twilioToken}`).toString('base64')}`, 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: params,
+      });
+    } catch { /* silent fail */ }
+  }
 }
 
 async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset = false): Promise<void> {

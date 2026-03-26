@@ -8620,6 +8620,36 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </button>
           </div>
 
+          {/* WhatsApp template — request student email */}
+          <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>📨 Solicitar E-mail do Aluno via WhatsApp</h3>
+            <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Use este modelo para pedir o e-mail ao aluno e criar a conta de acesso.</p>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '14px 16px', fontSize: '0.82rem', color: '#14532d', lineHeight: 1.7, fontFamily: 'monospace', whiteSpace: 'pre-wrap', userSelect: 'text' }}>
+{`Olá! Tudo bem? 👋🏽
+
+Somos da Associação Cultural de Capoeira Barão de Mauá.
+
+Para finalizar seu cadastro e liberar seu acesso à área do aluno, precisamos que você nos informe um *e-mail válido*.
+
+Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍🏽`}
+            </div>
+            <button
+              onClick={() => {
+                const template = `Olá! Tudo bem? 👋🏽\n\nSomos da Associação Cultural de Capoeira Barão de Mauá.\n\nPara finalizar seu cadastro e liberar seu acesso à área do aluno, precisamos que você nos informe um *e-mail válido*.\n\nAssim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍🏽`;
+                navigator.clipboard.writeText(template).then(() => {
+                  setContasMsg('✅ Texto copiado para a área de transferência!');
+                  setTimeout(() => setContasMsg(''), 3000);
+                }).catch(() => {
+                  setContasMsg('❌ Não foi possível copiar. Copie o texto manualmente acima.');
+                });
+              }}
+              style={{ marginTop: 10, padding: '8px 18px', borderRadius: 8, background: '#25d366', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              Copiar Texto
+            </button>
+          </div>
+
           {/* Reset password */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
             <h3 style={{ margin: '0 0 6px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>🔑 Resetar / Alterar senha de aluno</h3>
