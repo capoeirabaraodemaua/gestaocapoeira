@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
-import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 const SUPER_ADMIN_CPF = '09856925703';
@@ -203,9 +202,9 @@ export default function OrganogramaPage() {
       {/* Header */}
       <div style={{ maxWidth: 900, margin: '0 auto 28px' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
-          <Link href="/" style={{ color: 'rgba(255,255,255,0.5)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <button onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/aluno'} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6, padding: 0 }}>
             ← {t('common_back')}
-          </Link>
+          </button>
           <div style={{ display: 'flex', gap: 8 }}>
             {isAdmin && editMode ? (
               <>
