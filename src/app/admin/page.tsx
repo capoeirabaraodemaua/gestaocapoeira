@@ -7,6 +7,7 @@ import { getCheckins, getHistorico, removeCheckin, CheckinRecord } from '@/lib/c
 import Link from 'next/link';
 import Carteirinha from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
+import AlunoViewer from '@/components/AlunoViewer';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface PresencaCount {
@@ -553,7 +554,6 @@ export default function AdminPage() {
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
   const [alunoViewSearch, setAlunoViewSearch] = useState('');
-  const [alunoViewIframeKey, setAlunoViewIframeKey] = useState(0);
   // Responsáveis de núcleo
   const [respUsers, setRespUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; email: string }>>([]);
   const [respLoading, setRespLoading] = useState(false);
@@ -8530,15 +8530,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         const selectedStudent = students.find(s => s.id === alunoViewStudentId) || null;
 
         const launchPreview = (studentId: string) => {
-          // Write a same-origin preview token into localStorage so /aluno can read it
-          const token = {
-            student_id: studentId,
-            expires: Date.now() + 10 * 60 * 1000, // 10 min
-            issued_by: activeNucleo,
-          };
-          localStorage.setItem('accbm_admin_preview', JSON.stringify(token));
           setAlunoViewStudentId(studentId);
-          setAlunoViewIframeKey(k => k + 1); // force iframe reload
         };
 
         return (
@@ -8596,38 +8588,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
               </div>
 
-              {/* ── Iframe preview ── */}
+              {/* ── Embedded AlunoViewer ── */}
               {alunoViewStudentId && (
-                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-                  {/* Header bar */}
-                  <div style={{ padding: '10px 16px', background: 'rgba(29,78,216,0.08)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1d4ed8', flex: 1 }}>
-                      {selectedStudent?.nome_completo || ''}
-                      {selectedStudent?.nucleo && <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 8, fontSize: '0.75rem' }}>{selectedStudent.nucleo}</span>}
-                    </div>
-                    <div style={{ display: 'flex', gap: 6 }}>
-                      <button
-                        onClick={() => setAlunoViewIframeKey(k => k + 1)}
-                        title="Recarregar"
-                        style={{ padding: '5px 10px', borderRadius: 7, background: '#f3f4f6', border: '1px solid #e5e7eb', cursor: 'pointer', fontSize: '0.75rem', color: '#374151' }}>
-                        ↺ Recarregar
-                      </button>
-                      <button
-                        onClick={() => { localStorage.removeItem('accbm_admin_preview'); setAlunoViewStudentId(''); }}
-                        title="Fechar"
-                        style={{ padding: '5px 10px', borderRadius: 7, background: '#fee2e2', border: '1px solid #fecaca', cursor: 'pointer', fontSize: '0.75rem', color: '#dc2626', fontWeight: 700 }}>
-                        ✕ Fechar
-                      </button>
-                    </div>
-                  </div>
-                  <div style={{ background: '#f1f5f9', padding: '4px 16px', fontSize: '0.7rem', color: '#64748b', borderBottom: '1px solid var(--border)' }}>
-                    🔒 Visualização somente leitura • Alterações no banco refletem em tempo real
-                  </div>
-                  <iframe
-                    key={alunoViewIframeKey}
-                    src="/aluno?admin_preview=1"
-                    style={{ width: '100%', height: 'calc(100vh - 260px)', minHeight: 600, border: 'none', display: 'block' }}
-                    title={`Área do aluno — ${selectedStudent?.nome_completo || ''}`}
+                <div style={{ minWidth: 0 }}>
+                  <AlunoViewer
+                    studentId={alunoViewStudentId}
+                    onClose={() => setAlunoViewStudentId('')}
                   />
                 </div>
               )}
