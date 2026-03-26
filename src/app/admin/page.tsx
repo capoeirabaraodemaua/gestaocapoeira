@@ -548,8 +548,12 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
+  // Área do Aluno — visualização pelo admin
+  const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
+  const [alunoViewSearch, setAlunoViewSearch] = useState('');
+  const [alunoViewIframeKey, setAlunoViewIframeKey] = useState(0);
   // Responsáveis de núcleo
   const [respUsers, setRespUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; email: string }>>([]);
   const [respLoading, setRespLoading] = useState(false);
@@ -1615,6 +1619,7 @@ export default function AdminPage() {
             {
               title: 'Matrícula e Comunicação', color: '#1d4ed8', bg: 'rgba(29,78,216,0.08)',
               buttons: [
+                { key: 'aluno-view',    icon: '🔭', label: 'Área do Aluno' },
                 { key: 'contas',        icon: '👤', label: 'Contas Alunos', badge: undefined },
                 { key: 'alunos',        icon: '🎓', label: 'Alunos' },
                 { key: 'responsaveis',  icon: '👥', label: 'Responsáveis de Núcleos', geralOnly: true },
@@ -8509,6 +8514,140 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
         </div>
       )}
+
+      {/* ===== ABA ÁREA DO ALUNO (VISUALIZAÇÃO ADMIN) ===== */}
+      {activeTab === 'aluno-view' && (() => {
+        // Students visible to this admin (nucleo-filtered for non-geral)
+        const visibleStudents = (nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students)
+          .filter(s => {
+            if (!alunoViewSearch.trim()) return true;
+            const q = alunoViewSearch.toLowerCase();
+            return s.nome_completo.toLowerCase().includes(q) ||
+              (studentDisplayIds[s.id] || '').toLowerCase().includes(q);
+          })
+          .sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+
+        const selectedStudent = students.find(s => s.id === alunoViewStudentId) || null;
+
+        const launchPreview = (studentId: string) => {
+          // Write a same-origin preview token into localStorage so /aluno can read it
+          const token = {
+            student_id: studentId,
+            expires: Date.now() + 10 * 60 * 1000, // 10 min
+            issued_by: activeNucleo,
+          };
+          localStorage.setItem('accbm_admin_preview', JSON.stringify(token));
+          setAlunoViewStudentId(studentId);
+          setAlunoViewIframeKey(k => k + 1); // force iframe reload
+        };
+
+        return (
+          <div style={{ paddingTop: 24 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20, flexWrap: 'wrap' }}>
+              <h2 style={{ margin: 0, fontSize: '1.15rem', color: 'var(--text-primary)' }}>🔭 Área do Aluno — Visualização</h2>
+              <span style={{ fontSize: '0.75rem', color: '#6b7280', background: '#f3f4f6', borderRadius: 20, padding: '3px 10px' }}>
+                {activeNucleo === 'geral' ? 'Todos os núcleos' : nucleoFilter || 'Todos'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: alunoViewStudentId ? '300px 1fr' : '1fr', gap: 16, alignItems: 'flex-start' }}>
+              {/* ── Student picker ── */}
+              <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)', background: 'rgba(29,78,216,0.05)' }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 8 }}>Selecionar aluno</div>
+                  <input
+                    type="text"
+                    placeholder="Buscar por nome ou ID..."
+                    value={alunoViewSearch}
+                    onChange={e => setAlunoViewSearch(e.target.value)}
+                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.82rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box', outline: 'none' }}
+                  />
+                </div>
+                <div style={{ maxHeight: alunoViewStudentId ? 'calc(100vh - 300px)' : 500, overflowY: 'auto' }}>
+                  {visibleStudents.length === 0 ? (
+                    <div style={{ padding: '32px 16px', textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>
+                      Nenhum aluno encontrado.
+                    </div>
+                  ) : visibleStudents.map(s => {
+                    const isActive = s.id === alunoViewStudentId;
+                    const hasAccount = alunoContas.some(a => a.student_id === s.id);
+                    return (
+                      <button
+                        key={s.id}
+                        onClick={() => launchPreview(s.id)}
+                        style={{ width: '100%', textAlign: 'left', padding: '10px 16px', borderBottom: '1px solid var(--border)', background: isActive ? 'rgba(29,78,216,0.1)' : 'transparent', border: 'none', borderLeft: isActive ? '3px solid #1d4ed8' : '3px solid transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 10 }}
+                      >
+                        {s.foto_url ? (
+                          <img src={s.foto_url} alt="" style={{ width: 32, height: 32, borderRadius: '50%', objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.85rem', flexShrink: 0 }}>👤</div>
+                        )}
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: isActive ? 700 : 500, color: isActive ? '#1d4ed8' : 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.nome_completo}</div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                            {studentDisplayIds[s.id] && <span>{studentDisplayIds[s.id]}</span>}
+                            {!hasAccount && <span style={{ color: '#f59e0b' }}>sem conta</span>}
+                          </div>
+                        </div>
+                        {isActive && <span style={{ color: '#1d4ed8', fontSize: '0.8rem' }}>▶</span>}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* ── Iframe preview ── */}
+              {alunoViewStudentId && (
+                <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+                  {/* Header bar */}
+                  <div style={{ padding: '10px 16px', background: 'rgba(29,78,216,0.08)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#1d4ed8', flex: 1 }}>
+                      {selectedStudent?.nome_completo || ''}
+                      {selectedStudent?.nucleo && <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 8, fontSize: '0.75rem' }}>{selectedStudent.nucleo}</span>}
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        onClick={() => setAlunoViewIframeKey(k => k + 1)}
+                        title="Recarregar"
+                        style={{ padding: '5px 10px', borderRadius: 7, background: '#f3f4f6', border: '1px solid #e5e7eb', cursor: 'pointer', fontSize: '0.75rem', color: '#374151' }}>
+                        ↺ Recarregar
+                      </button>
+                      <button
+                        onClick={() => { localStorage.removeItem('accbm_admin_preview'); setAlunoViewStudentId(''); }}
+                        title="Fechar"
+                        style={{ padding: '5px 10px', borderRadius: 7, background: '#fee2e2', border: '1px solid #fecaca', cursor: 'pointer', fontSize: '0.75rem', color: '#dc2626', fontWeight: 700 }}>
+                        ✕ Fechar
+                      </button>
+                    </div>
+                  </div>
+                  <div style={{ background: '#f1f5f9', padding: '4px 16px', fontSize: '0.7rem', color: '#64748b', borderBottom: '1px solid var(--border)' }}>
+                    🔒 Visualização somente leitura • Alterações no banco refletem em tempo real
+                  </div>
+                  <iframe
+                    key={alunoViewIframeKey}
+                    src="/aluno?admin_preview=1"
+                    style={{ width: '100%', height: 'calc(100vh - 260px)', minHeight: 600, border: 'none', display: 'block' }}
+                    title={`Área do aluno — ${selectedStudent?.nome_completo || ''}`}
+                  />
+                </div>
+              )}
+
+              {/* ── Empty state ── */}
+              {!alunoViewStudentId && (
+                <div style={{ display: 'none' }} />
+              )}
+            </div>
+
+            {!alunoViewStudentId && visibleStudents.length > 0 && (
+              <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-secondary)', fontSize: '0.88rem', marginTop: 16 }}>
+                <div style={{ fontSize: '3rem', marginBottom: 10 }}>🔭</div>
+                <div style={{ fontWeight: 700, marginBottom: 6, color: 'var(--text-primary)' }}>Selecione um aluno para visualizar</div>
+                <div style={{ fontSize: '0.78rem' }}>Clique em qualquer aluno na lista para abrir a área do aluno em modo de visualização.</div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
 
       {/* ===== ABA CONTAS ALUNOS ===== */}
       {activeTab === 'contas' && (

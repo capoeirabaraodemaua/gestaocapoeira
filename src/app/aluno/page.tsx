@@ -166,9 +166,30 @@ export default function AlunoPage() {
   const [contaLoading, setContaLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
+  // ── Admin preview mode flag ────────────────────────────────────────────────
+  const [isAdminPreview, setIsAdminPreview] = useState(false);
+
   // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
     try {
+      // Check for admin preview mode via URL param + localStorage token
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('admin_preview') === '1') {
+        const tokenRaw = localStorage.getItem('accbm_admin_preview');
+        if (tokenRaw) {
+          const token = JSON.parse(tokenRaw);
+          if (token?.student_id && token.expires > Date.now()) {
+            setIsAdminPreview(true);
+            setSession({ student_id: token.student_id, username: '__admin_preview__' });
+            loadStudentData(token.student_id, true);
+            return;
+          }
+        }
+        // Token invalid/expired — show error
+        setLoading(false);
+        return;
+      }
+
       const raw = sessionStorage.getItem('aluno_session');
       if (raw) {
         const sess = JSON.parse(raw);
@@ -599,6 +620,14 @@ export default function AlunoPage() {
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
 
+      {/* Admin preview banner */}
+      {isAdminPreview && (
+        <div style={{ background: '#1d4ed8', color: '#fff', fontSize: '0.75rem', padding: '6px 20px', textAlign: 'center', fontWeight: 600, letterSpacing: '0.01em', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+          Modo visualização admin — você está vendo a área do aluno como <strong style={{ marginLeft: 4 }}>{student?.nome_completo || '...'}</strong>
+        </div>
+      )}
+
       {/* Header */}
       <header style={{ color: '#fff', boxShadow: '0 2px 12px rgba(0,0,0,0.15)', backgroundColor: nucleoColor }}>
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '14px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -616,7 +645,11 @@ export default function AlunoPage() {
               <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 1 }}>{student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Aluno'}</div>
             </div>
           </div>
-          <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Sair</button>
+          {isAdminPreview ? (
+            <span style={{ background: 'rgba(255,255,255,0.25)', border: '1px solid rgba(255,255,255,0.4)', borderRadius: 8, padding: '6px 14px', color: '#fff', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.02em' }}>🔭 Visualização</span>
+          ) : (
+            <button onClick={handleLogout} style={{ background: 'rgba(255,255,255,0.18)', border: '1px solid rgba(255,255,255,0.3)', borderRadius: 8, padding: '6px 14px', color: '#fff', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}>Sair</button>
+          )}
         </div>
       </header>
 
