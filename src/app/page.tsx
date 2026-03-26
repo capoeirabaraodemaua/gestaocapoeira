@@ -778,14 +778,27 @@ export default function Home() {
           return;
         }
 
-        // Busca matrícula fixa do mapa no Storage (garante número estável)
+        // Busca matrícula via gerar-id (mapa estável por student_id)
         let cardInscricaoNum: number | null = (data as any).ordem_inscricao ?? null;
+        const studentUuid = (data as any).id as string | null;
+        if (!cardInscricaoNum && studentUuid) {
+          try {
+            const idRes = await fetch(`/api/aluno/gerar-id?student_id=${encodeURIComponent(studentUuid)}`);
+            const idData = await idRes.json();
+            if (idData.display_id) {
+              // display_id format: "ACCBM-0042" → extract numeric part
+              const match = (idData.display_id as string).match(/(\d+)$/);
+              if (match) cardInscricaoNum = parseInt(match[1], 10);
+            }
+          } catch { cardInscricaoNum = null; }
+        }
+        // Fallback: fix-matriculas map (in case gerar-id map not yet populated)
         if (!cardInscricaoNum) {
           try {
             const matRes = await fetch('/api/fix-matriculas', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: (data as any).id, cpf: data.cpf }),
+              body: JSON.stringify({ id: studentUuid, cpf: data.cpf }),
             });
             const matData = await matRes.json();
             cardInscricaoNum = matData.matricula ?? null;

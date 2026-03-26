@@ -36,6 +36,19 @@ function CarteirinhaContent() {
       if (err || !row) {
         setError('Aluno não encontrado. Verifique o CPF informado.');
       } else {
+        const studentUuid = (row as any).id as string | null;
+        let inscricaoNum: number | null = (row as any).ordem_inscricao ?? null;
+        // Fallback: busca via gerar-id (mapa estável por student_id)
+        if (!inscricaoNum && studentUuid) {
+          try {
+            const idRes = await fetch(`/api/aluno/gerar-id?student_id=${encodeURIComponent(studentUuid)}`);
+            const idData = await idRes.json();
+            if (idData.display_id) {
+              const match = (idData.display_id as string).match(/(\d+)$/);
+              if (match) inscricaoNum = parseInt(match[1], 10);
+            }
+          } catch {}
+        }
         setData({
           nome: row.nome_completo,
           cpf: row.cpf,
@@ -49,8 +62,9 @@ function CarteirinhaContent() {
           nome_mae: row.nome_mae || '',
           nome_responsavel: row.nome_responsavel || null,
           cpf_responsavel: row.cpf_responsavel || null,
-          inscricao_numero: (row as any).ordem_inscricao ?? null,
+          inscricao_numero: inscricaoNum,
           telefone: row.telefone || null,
+          student_id: studentUuid,
         });
       }
     } catch { setError('Erro ao buscar dados. Tente novamente.'); }

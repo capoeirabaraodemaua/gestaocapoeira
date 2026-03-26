@@ -83,6 +83,7 @@ export default function AlunoPage() {
   const [student, setStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
+  const [alunoInscricaoNum, setAlunoInscricaoNum] = useState<number | null>(null);
   const carteirinhaRef = useRef<HTMLDivElement>(null);
 
   // ── Login ──────────────────────────────────────────────────────────────────
@@ -171,7 +172,24 @@ export default function AlunoPage() {
       const res = await fetch(`/api/aluno/dados?student_id=${student_id}`);
       if (res.ok) {
         const { student } = await res.json();
-        if (student) setStudent(student);
+        if (student) {
+          setStudent(student);
+          // Fetch display ID for carteirinha (gerar-id is the authoritative source)
+          const ordNum = (student as Record<string, unknown>).ordem_inscricao as number | null ?? null;
+          if (ordNum) {
+            setAlunoInscricaoNum(ordNum);
+          } else {
+            fetch(`/api/aluno/gerar-id?student_id=${encodeURIComponent(student_id)}`)
+              .then(r => r.json())
+              .then(d => {
+                if (d.display_id) {
+                  const match = (d.display_id as string).match(/(\d+)$/);
+                  if (match) setAlunoInscricaoNum(parseInt(match[1], 10));
+                }
+              })
+              .catch(() => {});
+          }
+        }
       }
     } catch {}
     if (showGlobalLoader) setLoading(false);
@@ -358,7 +376,7 @@ export default function AlunoPage() {
     nome_mae: student.nome_mae as string || '',
     nome_responsavel: student.nome_responsavel as string || '',
     cpf_responsavel: student.cpf_responsavel as string || '',
-    inscricao_numero: student.inscricao_numero || null,
+    inscricao_numero: alunoInscricaoNum ?? (student.inscricao_numero as number | null) ?? null,
     telefone: student.telefone || '',
     student_id: student.id,
     data_nascimento: student.data_nascimento || '',
