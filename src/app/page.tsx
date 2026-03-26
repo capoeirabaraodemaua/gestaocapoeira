@@ -736,93 +736,66 @@ export default function Home() {
     if (!raw) { setCardError('Digite seu CPF ou Numeração Única.'); return; }
     setCardLoading(true); setCardError(''); setCardData(null);
     try {
-      const { data: rows, error } = await supabase.from('students').select('*');
-      const data = (!error && rows) ? rows.find(s => {
-        const storedCpf = (s.cpf || '').replace(/\D/g, '');
-        const storedId  = (s.identidade || '').replace(/\D/g, '').toLowerCase();
-        const rawLower  = raw.replace(/\s/g, '').toLowerCase();
-        if (digits.length >= 11 && storedCpf === digits) return true;
-        if (rawLower && (
-          (s.identidade || '').replace(/\s/g, '').toLowerCase() === rawLower ||
-          (storedId && storedId === digits)
-        )) return true;
-        return false;
-      }) ?? null : null;
-      if (error || !data) { setCardError('Aluno não encontrado. Verifique o CPF ou Numeração Única.'); }
-      else {
-        // Verificar cadastro completo antes de emitir carteirinha
-        const camposObrigatorios: Record<string, string> = {
-          nome_completo: 'Nome Completo',
-          data_nascimento: 'Data de Nascimento',
-          telefone: 'Telefone',
-          cep: 'CEP',
-          endereco: 'Endereço',
-          numero: 'Número',
-          bairro: 'Bairro',
-          cidade: 'Cidade',
-          estado: 'Estado',
-          nucleo: 'Núcleo',
-          graduacao: 'Graduação',
-          tipo_graduacao: 'Tipo de Graduação',
-        };
-        const pendentes = Object.entries(camposObrigatorios)
-          .filter(([field]) => {
-            const val = (data as Record<string, unknown>)[field];
-            return !val || (typeof val === 'string' && !val.trim());
-          })
-          .map(([, label]) => label);
-
-        if (pendentes.length > 0) {
-          setCardError(`Cadastro incompleto. A carteirinha só pode ser emitida com o cadastro completo.\n\nDados pendentes: ${pendentes.join(', ')}`);
-          setCardLoading(false);
-          return;
-        }
-
-        // Busca matrícula via gerar-id (mapa estável por student_id)
-        let cardInscricaoNum: number | null = (data as any).ordem_inscricao ?? null;
-        const studentUuid = (data as any).id as string | null;
-        if (!cardInscricaoNum && studentUuid) {
-          try {
-            const idRes = await fetch(`/api/aluno/gerar-id?student_id=${encodeURIComponent(studentUuid)}`);
-            const idData = await idRes.json();
-            if (idData.display_id) {
-              // display_id format: "ACCBM-0042" → extract numeric part
-              const match = (idData.display_id as string).match(/(\d+)$/);
-              if (match) cardInscricaoNum = parseInt(match[1], 10);
-            }
-          } catch { cardInscricaoNum = null; }
-        }
-        // Fallback: fix-matriculas map (in case gerar-id map not yet populated)
-        if (!cardInscricaoNum) {
-          try {
-            const matRes = await fetch('/api/fix-matriculas', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ id: studentUuid, cpf: data.cpf }),
-            });
-            const matData = await matRes.json();
-            cardInscricaoNum = matData.matricula ?? null;
-          } catch { cardInscricaoNum = null; }
-        }
-        setCardData({
-          nome: data.nome_completo,
-          cpf: data.cpf,
-          identidade: data.identidade,
-          nucleo: data.nucleo || '',
-          graduacao: data.graduacao || '',
-          tipo_graduacao: data.tipo_graduacao || '',
-          foto_url: data.foto_url || null,
-          menor_de_idade: data.menor_de_idade || false,
-          nome_pai: data.nome_pai || '',
-          nome_mae: data.nome_mae || '',
-          nome_responsavel: data.nome_responsavel || null,
-          cpf_responsavel: data.cpf_responsavel || null,
-          inscricao_numero: cardInscricaoNum,
-          telefone: data.telefone || null,
-          student_id: (data as any).id ?? null,
-          data_nascimento: (data as any).data_nascimento ?? null,
-        });
+      // Use server-side API (supabaseAdmin) to bypass RLS and get reliable data + inscricao_numero
+      const param = digits.length >= 11
+        ? `cpf=${encodeURIComponent(raw)}`
+        : `identidade=${encodeURIComponent(raw)}`;
+      const res = await fetch(`/api/carteirinha?${param}`);
+      if (!res.ok) {
+        setCardError('Aluno não encontrado. Verifique o CPF ou Numeração Única.');
+        setCardLoading(false);
+        return;
       }
+      const { student: data, inscricao_numero: inscricaoNumApi } = await res.json();
+
+      // Verificar cadastro completo antes de emitir carteirinha
+      const camposObrigatorios: Record<string, string> = {
+        nome_completo: 'Nome Completo',
+        data_nascimento: 'Data de Nascimento',
+        telefone: 'Telefone',
+        cep: 'CEP',
+        endereco: 'Endereço',
+        numero: 'Número',
+        bairro: 'Bairro',
+        cidade: 'Cidade',
+        estado: 'Estado',
+        nucleo: 'Núcleo',
+        graduacao: 'Graduação',
+        tipo_graduacao: 'Tipo de Graduação',
+      };
+      const pendentes = Object.entries(camposObrigatorios)
+        .filter(([field]) => {
+          const val = (data as Record<string, unknown>)[field];
+          return !val || (typeof val === 'string' && !val.trim());
+        })
+        .map(([, label]) => label);
+
+      if (pendentes.length > 0) {
+        setCardError(`Cadastro incompleto. A carteirinha só pode ser emitida com o cadastro completo.\n\nDados pendentes: ${pendentes.join(', ')}`);
+        setCardLoading(false);
+        return;
+      }
+
+      setCardData({
+        nome: data.nome_completo,
+        cpf: data.cpf,
+        identidade: data.identidade,
+        nucleo: data.nucleo || '',
+        graduacao: data.graduacao || '',
+        tipo_graduacao: data.tipo_graduacao || '',
+        foto_url: data.foto_url || null,
+        menor_de_idade: data.menor_de_idade || false,
+        nome_pai: data.nome_pai || '',
+        nome_mae: data.nome_mae || '',
+        nome_responsavel: data.nome_responsavel || null,
+        cpf_responsavel: data.cpf_responsavel || null,
+        inscricao_numero: inscricaoNumApi ?? null,
+        telefone: data.telefone || null,
+        student_id: data.id ?? null,
+        data_nascimento: data.data_nascimento ?? null,
+        apelido: data.apelido || null,
+        nome_social: data.nome_social || null,
+      });
     } catch { setCardError('Erro ao buscar dados.'); }
     setCardLoading(false);
   };
