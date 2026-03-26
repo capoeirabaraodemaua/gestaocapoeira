@@ -315,7 +315,7 @@ export default function AdminPage() {
 
   async function saveHistGrad(studentId: string, form: typeof EMPTY_GRAD_FORM, editing: RegistroGraduacao | null) {
     if (!form.data_graduacao || !form.graduacao_recebida || !form.professor_responsavel) {
-      setHistGradMsg('Preencha data, graduação e professor.'); return;
+      setHistGradMsg(t('admin_fill_grad_fields')); return;
     }
     setHistGradSaving(true); setHistGradMsg('');
     try {
@@ -330,7 +330,7 @@ export default function AdminPage() {
         setHistGradRecords(data.records || []);
         setHistGradForm(EMPTY_GRAD_FORM);
         setHistGradEditing(null);
-        setHistGradMsg('✓ Salvo!');
+        setHistGradMsg(t('admin_saved_ok'));
         setTimeout(() => setHistGradMsg(''), 3000);
       } else { setHistGradMsg('Erro: ' + (data.error || '')); }
     } catch (e: any) { setHistGradMsg('Erro: ' + e.message); }
@@ -1307,7 +1307,7 @@ export default function AdminPage() {
             </div>
             {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
             <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>Cancelar</button>
+              <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>{t('admin_cancel')}</button>
               <button type="submit" style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>Salvar</button>
             </div>
           </form>
@@ -1853,15 +1853,15 @@ export default function AdminPage() {
             })()}
             <div className="stat-card">
               <div className="stat-value">{visibleStudents.filter(s => s.menor_de_idade).length}</div>
-              <div className="stat-label">Menores de Idade</div>
+              <div className="stat-label">{t('admin_minors')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{visibleStudents.filter(s => !s.menor_de_idade).length}</div>
-              <div className="stat-label">Maiores de Idade</div>
+              <div className="stat-label">{t('admin_adults')}</div>
             </div>
             <div className="stat-card">
               <div className="stat-value">{visibleStudents.filter(s => s.assinatura_responsavel).length}</div>
-              <div className="stat-label">Termos Assinados</div>
+              <div className="stat-label">{t('admin_signed_terms')}</div>
             </div>
             </>
           ) : (
@@ -1882,7 +1882,7 @@ export default function AdminPage() {
             ))}
             <div className="stat-card">
               <div className="stat-value">{menores}</div>
-              <div className="stat-label">Menores de Idade</div>
+              <div className="stat-label">{t('admin_minors')}</div>
             </div>
             </>
           )}
@@ -1892,26 +1892,26 @@ export default function AdminPage() {
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
-            Carregando alunos...
+            {t('admin_loading_students')}
           </div>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
-            {search || filterNucleo ? 'Nenhum aluno encontrado.' : 'Nenhum aluno cadastrado ainda.'}
+            {search || filterNucleo ? t('admin_no_students_found') : t('admin_no_students')}
           </div>
         ) : (
           <div className="table-responsive">
             <table className="student-table">
               <thead>
                 <tr>
-                  <th>Foto</th>
-                  <th>Nome</th>
-                  <th>ID ACCBM</th>
-                  <th>Núcleo</th>
-                  <th>Graduação</th>
-                  <th>Tipo</th>
-                  <th>Data</th>
-                  <th>Último Acesso</th>
-                  <th>Ações</th>
+                  <th>{t('admin_th_photo')}</th>
+                  <th>{t('common_name')}</th>
+                  <th>{t('admin_th_id')}</th>
+                  <th>{t('common_nucleus')}</th>
+                  <th>{t('common_graduation')}</th>
+                  <th>{t('admin_th_type')}</th>
+                  <th>{t('common_date')}</th>
+                  <th>{t('admin_th_last_access')}</th>
+                  <th>{t('admin_th_actions')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -1962,20 +1962,20 @@ export default function AdminPage() {
                       <td>
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                           <span className={`badge ${student.menor_de_idade ? 'badge-minor' : 'badge-adult'}`}>
-                            {student.menor_de_idade ? 'Menor' : 'Adulto'}
+                            {student.menor_de_idade ? t('admin_minor') : t('admin_adult')}
                           </span>
                           {student.menor_de_idade && (() => {
                             const assinado = student.assinatura_responsavel;
                             const enviado = termosEnviados[student.id];
                             if (assinado) return (
                               <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(22,163,74,0.15)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)' }}>
-                                ✅ Termo assinado
+                                {t('admin_term_signed')}
                               </span>
                             );
                             if (enviado) return (
                               <span style={{ fontSize: '0.68rem', fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: 'rgba(234,179,8,0.15)', color: '#ca8a04', border: '1px solid rgba(234,179,8,0.3)' }}
                                 title={`Enviado em ${new Date(enviado.sent_at).toLocaleString('pt-BR')}`}>
-                                📨 Enviado {enviado.sent_count > 1 ? `(${enviado.sent_count}×)` : ''} — aguardando assinatura
+                                📨 {t('admin_term_sent')} {enviado.sent_count > 1 ? `(${enviado.sent_count}×)` : ''} — {t('admin_term_awaiting')}
                               </span>
                             );
                             return null;
@@ -1990,7 +1990,7 @@ export default function AdminPage() {
                           const ll = alunoContas.find(a => a.student_id === student.id)?.last_login;
                           const now = Date.now();
                           const isActive = ll && new Date(ll).getTime() >= now - 86400000;
-                          if (!ll) return <span style={{ fontSize: '0.72rem', color: '#d97706', fontWeight: 600 }}>Nunca acessou</span>;
+                          if (!ll) return <span style={{ fontSize: '0.72rem', color: '#d97706', fontWeight: 600 }}>{t('admin_never_logged')}</span>;
                           return <span style={{ fontSize: '0.76rem', color: isActive ? '#16a34a' : 'var(--text-secondary)', fontWeight: isActive ? 700 : 400 }}>{isActive ? '🟢 ' : ''}{new Date(ll).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })}</span>;
                         })()}
                       </td>
@@ -2047,7 +2047,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             onClick={() => setDeleteConfirm(student)}
                             style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', padding: '5px 10px', borderRadius: 7, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600 }}
                           >
-                            Excluir
+                            {t('admin_delete')}
                           </button>
                         </div>
                       </td>
@@ -2072,7 +2072,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="stat-card">
                 <div className="stat-value">{students.filter(s => !filterPresencaNucleo || s.nucleo === filterPresencaNucleo).length}</div>
-                <div className="stat-label">Total de Alunos</div>
+                <div className="stat-label">{t('admin_total_students')}</div>
               </div>
               <div className="stat-card">
                 <div className="stat-value" style={{ color: '#dc2626' }}>
@@ -2121,17 +2121,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: refreshing ? '#16a34a' : 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: refreshing ? 'default' : 'pointer', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.2s' }}
               >
                 <span style={{ display: 'inline-block', animation: refreshing ? 'spin 0.7s linear infinite' : 'none' }}>↻</span>
-                {refreshing ? 'Atualizando...' : 'Atualizar'}
+                {refreshing ? t('admin_updating') : t('admin_update')}
               </button>
               <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
               <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center' }}>
-                + Registrar Presença
+                + {t('attendance_title')}
               </Link>
               <button
                 onClick={() => setShowGpsMap(v => !v)}
                 style={{ background: showGpsMap ? 'linear-gradient(135deg,#0ea5e9,#0284c7)' : 'var(--bg-input)', border: showGpsMap ? 'none' : '1px solid var(--border)', color: showGpsMap ? '#fff' : 'var(--text-secondary)', padding: '8px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6 }}
               >
-                🗺 {showGpsMap ? 'Ocultar Mapa' : 'Ver Mapa GPS'}
+                🗺 {showGpsMap ? t('admin_hide_map') : t('admin_view_map')}
               </button>
             </div>
 
@@ -3055,7 +3055,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="admin-stats" style={{ marginBottom: 20 }}>
                 <div className="stat-card">
                   <div className="stat-value">{students.length}</div>
-                  <div className="stat-label">Total de Alunos</div>
+                  <div className="stat-label">{t('admin_total_students')}</div>
                 </div>
                 <div className="stat-card">
                   <div className="stat-value" style={{ color: '#16a34a' }}>
@@ -3200,7 +3200,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ textAlign: 'center', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: '32px 20px' }}>
                   <div style={{ fontSize: 36, marginBottom: 8 }}>👤</div>
                   <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                    {nucleoFilter ? `Nenhuma conta cadastrada para ${nucleoFilter}.` : 'Nenhuma conta de acesso cadastrada ainda.'}
+                    {nucleoFilter ? `${t('admin_no_accounts_for')} ${nucleoFilter}.` : t('admin_no_accounts')}
                   </div>
                   <div style={{ marginTop: 8, fontSize: '0.76rem', color: 'var(--text-secondary)' }}>
                     Crie contas na aba 👤 Contas Alunos.
@@ -3214,7 +3214,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                       <thead>
                         <tr style={{ background: 'var(--bg-input)' }}>
-                          {['ID ACCBM', 'Nome Completo do Aluno', 'E-mail', 'Login', 'Núcleo', 'Status'].map(h => (
+                          {[t('admin_th_id'), t('admin_th_name'), t('admin_th_email'), t('admin_th_login'), t('common_nucleus'), t('admin_th_status')].map(h => (
                             <th key={h} style={{ textAlign: 'left', padding: '10px 14px', color: 'var(--text-secondary)', fontWeight: 700, fontSize: '0.76rem', whiteSpace: 'nowrap', borderBottom: '2px solid var(--border)' }}>{h}</th>
                           ))}
                         </tr>
@@ -3243,7 +3243,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               <td style={{ padding: '10px 14px', color: 'var(--text-secondary)', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
                               <td style={{ padding: '10px 14px' }}>
                                 <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
-                                  {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                                  {acc.active ? t('admin_account_active') : t('admin_account_pending')}
                                 </span>
                               </td>
                             </tr>
@@ -3269,7 +3269,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         <div>
           {/* Alert strip */}
           {finLoadingAlerts ? (
-            <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Verificando alertas financeiros...</div>
+            <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{t('admin_checking_alerts')}</div>
           ) : finAlerts.filter(a => !nucleoFilter || a.nucleo === nucleoFilter).length > 0 && (
             <div style={{ marginBottom: 20, background: 'rgba(22,163,74,0.05)', border: '2px solid rgba(22,163,74,0.25)', borderRadius: 14, overflow: 'hidden' }}>
               {/* Header */}
@@ -3437,7 +3437,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </div>
                   );
                 })}
-                {list.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Nenhum aluno encontrado.</div>}
+                {list.length === 0 && <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>{t('admin_no_students_found')}</div>}
               </div>
             );
           })()}
@@ -3462,7 +3462,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             };
 
             const statusColor: Record<string, string> = { pago: '#16a34a', pendente: '#ca8a04', atrasado: '#dc2626', nao_definido: '#64748b' };
-            const statusLabel: Record<string, string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado', nao_definido: '— N/D' };
+            const statusLabel: Record<string, string> = { pago: `✓ ${t('financial_paid')}`, pendente: `⏳ ${t('financial_pending')}`, atrasado: `⚠ ${t('financial_delayed')}`, nao_definido: '— N/D' };
 
             return (
               <div>
@@ -3470,7 +3470,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                   <button onClick={() => { setFinStudent(null); setFinFicha(null); }}
                     style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    ← Voltar
+                    ← {t('common_back')}
                   </button>
                   {finStudent.foto_url
                     ? <img src={finStudent.foto_url} alt="" style={{ width: 40, height: 40, borderRadius: '50%', objectFit: 'cover', border: '2px solid var(--border)' }} />
@@ -3587,7 +3587,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                       setFinFicha(updated); await adminSaveFicha(updated);
                                     }}
                                       style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                                      ✓ Confirmar pagamento
+                                      ✓ {t('admin_confirm_payment')}
                                     </button>
                                   )}
                                 </div>
@@ -3614,11 +3614,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         setFinFicha(updated); await adminSaveFicha(updated);
                       }}
                         style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                        + Adicionar mês
+                        + {t('admin_add_month')}
                       </button>
                     </div>
                     <div style={{ padding: '16px' }}>
-                      {f.mensalidades.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0', fontSize: '0.85rem' }}>Nenhuma mensalidade registrada.</div>}
+                      {f.mensalidades.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0', fontSize: '0.85rem' }}>{t('admin_no_mensalidades')}</div>}
                       {f.mensalidades.map((m: any) => {
                         const [y, mo] = m.mes.split('-');
                         const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
@@ -3665,7 +3665,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                     setFinFicha(updated); await adminSaveFicha(updated);
                                   }}
                                     style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                                    ✓ Confirmar pagamento
+                                    ✓ {t('admin_confirm_payment')}
                                   </button>
                                 )}
                                 {m.admin_confirmado && <span style={{ color: '#4ade80', fontSize: '0.72rem' }}>✅ Confirmado</span>}
@@ -3857,7 +3857,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </button>
                 <button onClick={() => { setShowDoacaoForm(false); setDoacaoForm({}); }}
                   style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Cancelar
+{t('admin_cancel')}
                 </button>
               </div>
             </div>
@@ -4206,7 +4206,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </button>
                 <button onClick={() => { setShowEditalForm(false); setEditalForm({}); }}
                   style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Cancelar
+{t('admin_cancel')}
                 </button>
               </div>
             </div>
@@ -4377,7 +4377,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </button>
                 <button onClick={() => { setShowMaterialForm(false); setMaterialForm({}); setMaterialEditId(null); }}
                   style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Cancelar
+{t('admin_cancel')}
                 </button>
               </div>
             </div>
@@ -4515,7 +4515,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </button>
                 <button onClick={() => { setShowPatrimonioForm(false); setPatrimonioForm({}); setPatrimonioEditId(null); }}
                   style={{ padding: '10px 20px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.85rem' }}>
-                  Cancelar
+{t('admin_cancel')}
                 </button>
               </div>
             </div>
@@ -6190,7 +6190,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 onClick={() => setEditing(null)}
                 style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
               >
-                Cancelar
+{t('admin_cancel')}
               </button>
               <button
                 onClick={saveEdit}
@@ -6240,7 +6240,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 14, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>
             )}
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-              <button onClick={() => { setShowEditContaModal(false); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Cancelar</button>
+              <button onClick={() => { setShowEditContaModal(false); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>{t('admin_cancel')}</button>
               <button
                 disabled={editContaLoading}
                 onClick={async () => {
@@ -6255,7 +6255,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   setTimeout(() => { setShowEditContaModal(false); setContasMsg(''); }, 1200);
                 }}
                 style={{ padding: '9px 24px', borderRadius: 8, background: editContaLoading ? '#9ca3af' : '#0891b2', color: '#fff', border: 'none', cursor: editContaLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
-              >{editContaLoading ? 'Salvando...' : '✏️ Salvar Alterações'}</button>
+              >{editContaLoading ? t('admin_saving') : '✏️ ' + t('admin_save')}</button>
             </div>
           </div>
         </div>
@@ -6296,7 +6296,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 14, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>
                   )}
                   <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
-                    <button onClick={() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>Cancelar</button>
+                    <button onClick={() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }} style={{ padding: '9px 20px', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}>{t('admin_cancel')}</button>
                     <button
                       disabled={deleteContaLoading || deleteContaForm.confirm_text !== 'EXCLUIR'}
                       onClick={async () => {
@@ -6395,7 +6395,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   onClick={() => setRemoveConfirm(null)}
                   style={{ flex: 1, padding: '10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}
                 >
-                  Cancelar
+{t('admin_cancel')}
                 </button>
                 <button
                   onClick={confirmRemoveCheckin}
@@ -7390,7 +7390,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               onClick={() => setLixeiraEditing(null)}
                               style={{ padding: '9px 22px', borderRadius: 8, background: 'var(--card-bg)', color: 'var(--text-secondary)', border: '1px solid var(--border)', cursor: 'pointer', fontSize: '0.88rem' }}
                             >
-                              Cancelar
+{t('admin_cancel')}
                             </button>
                           </div>
                         </div>
@@ -8010,7 +8010,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <button
                       onClick={() => { setEventoParticipantStaging(null); setEventoParticipantSearch(''); }}
                       style={{ padding: '10px 18px', background: 'var(--bg)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 9, cursor: 'pointer', fontWeight: 600, fontSize: '0.82rem' }}>
-                      Cancelar
+{t('admin_cancel')}
                     </button>
                   </div>
                 </div>
@@ -8246,7 +8246,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button onClick={() => setRascunhoEditId(null)}
-                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>{t('admin_cancel')}</button>
               <button disabled={rascunhoSaving} onClick={async () => {
                 setRascunhoSaving(true);
                 try {
@@ -8308,7 +8308,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
             <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
               <button onClick={() => setShowRascunhoNew(false)}
-                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>Cancelar</button>
+                style={{ flex: 1, padding: 10, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 10, cursor: 'pointer', fontWeight: 600 }}>{t('admin_cancel')}</button>
               <button onClick={async () => {
                 setRascunhoSaving(true);
                 try {
@@ -8644,7 +8644,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
               }}
               style={{ padding: '9px 24px', borderRadius: 8, background: editContaLoading || !editContaForm.student_id ? '#9ca3af' : '#0891b2', color: '#fff', border: 'none', cursor: editContaLoading || !editContaForm.student_id ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
-            >{editContaLoading ? 'Salvando...' : '✏️ Salvar Alterações'}</button>
+            >{editContaLoading ? t('admin_saving') : '✏️ ' + t('admin_save')}</button>
           </div>
 
           {/* Delete account */}
@@ -8797,7 +8797,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', maxWidth: 120, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{st?.nucleo || '—'}</td>
                                   <td style={{ padding: '8px 10px' }}>
                                     <span style={{ padding: '2px 8px', borderRadius: 10, fontSize: '0.72rem', fontWeight: 700, background: acc.active ? '#dcfce7' : '#fef9c3', color: acc.active ? '#166534' : '#854d0e' }}>
-                                      {acc.active ? '✅ Ativa' : '⏳ Pendente'}
+                                      {acc.active ? t('admin_account_active') : t('admin_account_pending')}
                                     </span>
                                   </td>
                                   <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
@@ -9293,7 +9293,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       }} style={{ padding: '7px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', border: 'none', color: '#fff', fontWeight: 700, cursor: respDeleting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
                         {respDeleting ? '⏳' : '🗑 Confirmar'}
                       </button>
-                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>Cancelar</button>
+                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>{t('admin_cancel')}</button>
                     </div>
                     {respDeleteMsg && <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{respDeleteMsg}</div>}
                   </div>
@@ -9463,7 +9463,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       }} style={{ padding: '7px 16px', borderRadius: 8, background: 'linear-gradient(135deg,#dc2626,#b91c1c)', border: 'none', color: '#fff', fontWeight: 700, cursor: respDeleting ? 'wait' : 'pointer', fontSize: '0.85rem' }}>
                         {respDeleting ? '⏳' : '🗑 Confirmar'}
                       </button>
-                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>Cancelar</button>
+                      <button onClick={() => { setRespDeleteTarget(''); setRespDeleteMsg(''); }} style={{ padding: '7px 12px', borderRadius: 8, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.82rem' }}>{t('admin_cancel')}</button>
                     </div>
                     {respDeleteMsg && <div style={{ marginTop: 6, fontSize: '0.75rem', color: '#ef4444', fontWeight: 600 }}>{respDeleteMsg}</div>}
                   </div>

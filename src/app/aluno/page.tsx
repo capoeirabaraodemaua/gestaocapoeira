@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Carteirinha from '@/components/Carteirinha';
+import DocumentsBar from '@/components/DocumentsBar';
 
 type Student = {
   id: string;
@@ -666,6 +667,12 @@ export default function AlunoPage() {
                   <span style={{ marginLeft: 'auto', color: item.textColor, opacity: 0.5, fontSize: '0.9rem' }}>›</span>
                 </a>
               ))}
+            </div>
+
+            {/* Documentos institucionais — bibliografia, estatuto, regimento, informações */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Documentos da Associação</div>
+              <DocumentsBar readOnly studentPhone={student?.telefone} studentName={student?.nome_completo} />
             </div>
 
             {/* Student info card */}

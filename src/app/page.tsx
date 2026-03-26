@@ -5,7 +5,6 @@ import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
 import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
-import DocumentsBar from '@/components/DocumentsBar';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 type SuccessData = CarteirinhaData;
@@ -1474,22 +1473,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </p>
               {(() => {
                 const opcoes = [
-                  'Transtorno do Espectro Autista (TEA)',
-                  'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
-                  'Deficiência Intelectual',
-                  'Síndrome de Down',
-                  'Dislexia',
-                  'Discalculia',
-                  'Transtorno de Ansiedade',
-                  'Transtornos de Aprendizagem',
-                  'Atraso no Desenvolvimento (fala, motor ou cognitivo)',
-                  'Deficiência Visual',
-                  'Deficiência Auditiva',
-                  'Deficiência Física / Motora',
-                  'Transtorno Opositivo-Desafiador (TOD)',
-                  'Altas Habilidades / Superdotação',
-                  'Epilepsia',
-                  'Outro',
+                  t('cond_tea'),
+                  t('cond_tdah'),
+                  t('cond_def_intelectual'),
+                  t('cond_down'),
+                  t('cond_dislexia'),
+                  t('cond_discalculia'),
+                  t('cond_ansiedade'),
+                  t('cond_aprendizagem'),
+                  t('cond_atraso'),
+                  t('cond_def_visual'),
+                  t('cond_def_auditiva'),
+                  t('cond_def_fisica'),
+                  t('cond_tod'),
+                  t('cond_superdotacao'),
+                  t('cond_epilepsia'),
+                  t('cond_outro'),
                 ];
                 const selected: string[] = form.condicoes_atipicas as string[];
                 const toggle = (op: string) => {
@@ -1593,7 +1592,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {t('draft_loaded_msg')}
               </div>
               <button type="button" onClick={() => { setDraftLoaded(false); setDraftAccessMsg(''); setDraftAccessCpf(''); }}
-                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>✕ Fechar</button>
+                style={{ background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap' }}>✕ {t('common_close')}</button>
             </div>
           )}
 
@@ -1927,11 +1926,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
         </div>
       )}
-
-      {/* ── Documentos ACCBM — parte inferior da página ── */}
-      <div className="container" style={{ marginTop: 8 }}>
-        <DocumentsBar readOnly />
-      </div>
 
       {/* ── Rodapé ── */}
       <footer style={{ marginTop:24, paddingBottom:24, display:'flex', justifyContent:'flex-end', paddingRight:4 }}>
