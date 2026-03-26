@@ -155,6 +155,7 @@ export default function AlunoPage() {
 
   // ── Evolução / Dashboard Pessoal ───────────────────────────────────────────
   const [evolucaoDates, setEvolucaoDates] = useState<string[]>([]);
+  const [evolucaoEntries, setEvolucaoEntries] = useState<{ date: string; nucleo: string | null; local_nome: string | null; hora: string | null }[]>([]);
   const [evolucaoLoading, setEvolucaoLoading] = useState(false);
 
   // ── Conta / Perfil ─────────────────────────────────────────────────────────
@@ -248,7 +249,7 @@ export default function AlunoPage() {
       }
       if (activeTab === 'evolucao') {
         setEvolucaoLoading(true);
-        fetch(`/api/aluno/evolucao?student_id=${session.student_id}`).then(r => r.json()).then(d => { setEvolucaoDates(Array.isArray(d.dates) ? d.dates : []); setEvolucaoLoading(false); }).catch(() => setEvolucaoLoading(false));
+        fetch(`/api/aluno/evolucao?student_id=${session.student_id}`).then(r => r.json()).then(d => { setEvolucaoDates(Array.isArray(d.dates) ? d.dates : []); setEvolucaoEntries(Array.isArray(d.entries) ? d.entries : []); setEvolucaoLoading(false); }).catch(() => setEvolucaoLoading(false));
       }
     }
   }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
@@ -1654,16 +1655,36 @@ export default function AlunoPage() {
                   {/* Attendance list — last 10 */}
                   {evolucaoDates.length > 0 && (
                     <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 12 }}>Últimas Presenças</div>
-                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                        {[...evolucaoDates].reverse().slice(0, 10).map(d => (
-                          <div key={d} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', background: '#f8fafc', borderRadius: 10 }}>
-                            <span style={{ width: 8, height: 8, borderRadius: '50%', background: nucleoColor, flexShrink: 0 }} />
-                            <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#111827' }}>
-                              {new Date(d + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
-                            </span>
-                          </div>
-                        ))}
+                      <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 12 }}>Histórico de Presenças</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                        {([...evolucaoEntries].length > 0
+                          ? [...evolucaoEntries].reverse()
+                          : [...evolucaoDates].reverse().map(d => ({ date: d, nucleo: null, local_nome: null, hora: null }))
+                        ).slice(0, 10).map(entry => {
+                          const localLabel = entry.local_nome || entry.nucleo || null;
+                          return (
+                            <div key={entry.date} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 12px', background: '#f8fafc', borderRadius: 10, borderLeft: `3px solid ${nucleoColor}` }}>
+                              <span style={{ width: 8, height: 8, borderRadius: '50%', background: nucleoColor, flexShrink: 0, marginTop: 5 }} />
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontSize: '0.85rem', fontWeight: 700, color: '#111827', textTransform: 'capitalize' }}>
+                                  {new Date(entry.date + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                                </div>
+                                {localLabel && (
+                                  <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 2, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                                    <span>Núcleo: <strong style={{ color: '#374151' }}>{localLabel}</strong></span>
+                                  </div>
+                                )}
+                                {entry.hora && (
+                                  <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 1, display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                                    {entry.hora}
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })}
                       </div>
                       {evolucaoDates.length > 10 && (
                         <div style={{ textAlign: 'center', marginTop: 10, fontSize: '0.75rem', color: '#9ca3af' }}>
