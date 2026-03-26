@@ -121,6 +121,7 @@ export default function AlunoPage() {
   const [presencaMsg, setPresencaMsg] = useState('');
   const [presencaLoading, setPresencaLoading] = useState(false);
   const [presencaStatus, setPresencaStatus] = useState<'idle' | 'success' | 'error'>('idle');
+  const [presencaLocalSelecionado, setPresencaLocalSelecionado] = useState('');
 
   // ── Justificativas ────────────────────────────────────────────────────────
   const [justificativas, setJustificativas] = useState<Justificativa[]>([]);
@@ -143,6 +144,14 @@ export default function AlunoPage() {
   // ── Playlist ───────────────────────────────────────────────────────────────
   const [playlistItems, setPlaylistItems] = useState<{ id: string; title: string; url: string; platform: string; created_at: string }[]>([]);
   const [playlistLoading, setPlaylistLoading] = useState(false);
+  const [playlistAddUrl, setPlaylistAddUrl] = useState('');
+  const [playlistAddTitle, setPlaylistAddTitle] = useState('');
+  const [playlistAdding, setPlaylistAdding] = useState(false);
+  const [playlistMsg, setPlaylistMsg] = useState('');
+  const [playlistMsgType, setPlaylistMsgType] = useState<'success' | 'error'>('success');
+  const [playlistEditId, setPlaylistEditId] = useState<string | null>(null);
+  const [playlistEditTitle, setPlaylistEditTitle] = useState('');
+  const [playlistEditUrl, setPlaylistEditUrl] = useState('');
 
   // ── Conta / Perfil ─────────────────────────────────────────────────────────
   const [contaSection, setContaSection] = useState<'main' | 'edit-profile' | 'change-password' | 'delete-account'>('main');
@@ -231,7 +240,7 @@ export default function AlunoPage() {
       if (activeTab === 'fotos') loadFotos(session.student_id);
       if (activeTab === 'playlist') {
         setPlaylistLoading(true);
-        fetch('/api/admin/manual-videos').then(r => r.json()).then(d => { setPlaylistItems(d.videos || []); setPlaylistLoading(false); }).catch(() => setPlaylistLoading(false));
+        fetch(`/api/aluno/playlist?student_id=${session.student_id}`).then(r => r.json()).then(d => { setPlaylistItems(Array.isArray(d) ? d : []); setPlaylistLoading(false); }).catch(() => setPlaylistLoading(false));
       }
     }
   }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
@@ -329,7 +338,8 @@ export default function AlunoPage() {
               id: session!.student_id,
               nome_completo: student?.nome_completo || '',
               graduacao: student?.graduacao || '',
-              nucleo: student?.nucleo || '',
+              nucleo: presencaLocalSelecionado || student?.nucleo || '',
+              local_treino: presencaLocalSelecionado || student?.nucleo || '',
               foto_url: student?.foto_url || null,
               telefone: student?.telefone || '',
               lat: pos.coords.latitude,
@@ -774,6 +784,31 @@ export default function AlunoPage() {
                 Você precisa estar no local de treino (raio de 200m).
               </p>
 
+              {/* Local de treino */}
+              <div style={{ textAlign: 'left', marginBottom: 18 }}>
+                <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
+                  📍 Local de Treino <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span>
+                </label>
+                <select
+                  value={presencaLocalSelecionado}
+                  onChange={e => setPresencaLocalSelecionado(e.target.value)}
+                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box', background: '#fff', color: '#111827' }}
+                >
+                  <option value="">— Selecione o local de treino —</option>
+                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves — Magé</option>
+                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga — Magé</option>
+                  <option value="Saracuruna">CIEP 318 — Saracuruna, Duque de Caxias</option>
+                  <option value="Vila Urussaí">Núcleo Vila Urussaí — Duque de Caxias</option>
+                  <option value="Jayme Fichman">Núcleo Jayme Fichman — Duque de Caxias</option>
+                  <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                </select>
+                {!presencaLocalSelecionado && student?.nucleo && (
+                  <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
+                    Se não selecionado, será usado o seu núcleo: <strong>{student.nucleo}</strong>
+                  </div>
+                )}
+              </div>
+
               {presencaMsg && (
                 <div style={{ background: presencaStatus === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${presencaStatus === 'success' ? '#bbf7d0' : '#fecaca'}`, color: presencaStatus === 'success' ? '#166534' : '#991b1b', borderRadius: 12, padding: '12px 16px', marginBottom: 18, fontSize: '0.85rem', fontWeight: 500 }}>
                   {presencaStatus === 'success' ? '✅ ' : '❌ '}{presencaMsg}
@@ -1167,7 +1202,10 @@ export default function AlunoPage() {
                           const newSess = { ...session, username: data.username };
                           sessionStorage.setItem('aluno_session', JSON.stringify(newSess));
                           setSession(newSess);
-                          if (student) setStudent({ ...student, email: data.email || student.email });
+                          // Update email in student state directly from API response
+                          if (student) setStudent(prev => prev ? { ...prev, email: data.email !== undefined ? data.email : prev.email } : prev);
+                          // Reload full student data to ensure all fields are fresh
+                          loadStudentData(session.student_id);
                           setTimeout(() => setContaSection('main'), 1500);
                         } else { setContaMsg(data.error || 'Erro ao atualizar.'); setContaMsgType('error'); }
                       } catch { setContaMsg('Erro de conexão.'); setContaMsgType('error'); }
@@ -1286,8 +1324,8 @@ export default function AlunoPage() {
           </div>
         )}
 
-        {/* ── PLAYLIST ── */}
-        {activeTab === 'playlist' && (() => {
+        {/* ── PLAYLIST DO ALUNO ── */}
+        {activeTab === 'playlist' && session && (() => {
           function getPlatformEmbed(item: { url: string; platform: string }) {
             try {
               const u = new URL(item.url);
@@ -1297,8 +1335,7 @@ export default function AlunoPage() {
                 if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}?rel=0` };
               }
               if (item.platform === 'spotify' || u.hostname.includes('spotify')) {
-                const path = u.pathname;
-                return { type: 'iframe', src: `https://open.spotify.com/embed${path}?utm_source=generator&theme=0` };
+                return { type: 'iframe', src: `https://open.spotify.com/embed${u.pathname}?utm_source=generator&theme=0` };
               }
               if (item.platform === 'deezer' || u.hostname.includes('deezer')) {
                 const m = u.pathname.match(/(track|album|playlist)\/(\d+)/);
@@ -1313,54 +1350,171 @@ export default function AlunoPage() {
             deezer:  { icon: '🎵', color: '#7c3aed', label: 'Deezer' },
             tiktok:  { icon: '🎶', color: '#0891b2', label: 'TikTok' },
             kwai:    { icon: '📱', color: '#ea580c', label: 'Kwai' },
-            outro:   { icon: '🔗', color: '#64748b', label: 'Link' },
+            link:    { icon: '🔗', color: '#64748b', label: 'Link' },
           };
+
+          const handleAddPlaylist = async () => {
+            if (!playlistAddUrl.trim()) return;
+            setPlaylistAdding(true); setPlaylistMsg('');
+            try {
+              const res = await fetch('/api/aluno/playlist', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: session.student_id, url: playlistAddUrl.trim(), title: playlistAddTitle.trim() || undefined }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                setPlaylistItems(prev => [data.item, ...prev]);
+                setPlaylistAddUrl('');
+                setPlaylistAddTitle('');
+                setPlaylistMsg('✅ Link adicionado!');
+                setPlaylistMsgType('success');
+              } else {
+                setPlaylistMsg(data.error || 'Erro ao adicionar.');
+                setPlaylistMsgType('error');
+              }
+            } catch { setPlaylistMsg('Erro de conexão.'); setPlaylistMsgType('error'); }
+            setPlaylistAdding(false);
+          };
+
+          const handleDeletePlaylist = async (id: string) => {
+            if (!confirm('Remover este item da playlist?')) return;
+            try {
+              const res = await fetch('/api/aluno/playlist', {
+                method: 'DELETE',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: session.student_id, id }),
+              });
+              if (res.ok) setPlaylistItems(prev => prev.filter(i => i.id !== id));
+            } catch {}
+          };
+
+          const handleEditPlaylist = async (id: string) => {
+            try {
+              const res = await fetch('/api/aluno/playlist', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: session.student_id, id, title: playlistEditTitle.trim() || undefined, url: playlistEditUrl.trim() || undefined }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                setPlaylistItems(prev => prev.map(i => i.id === id ? data.item : i));
+                setPlaylistEditId(null);
+              }
+            } catch {}
+          };
+
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div>
-                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🎵 Playlist do Mestre</h2>
-                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Músicas e vídeos selecionados para seus treinos</p>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🎵 Minha Playlist</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Adicione links do Spotify, Deezer, YouTube, TikTok e Kwai</p>
               </div>
+
+              {/* Formulário para adicionar */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', marginBottom: 12 }}>➕ Adicionar link</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <input
+                    type="url"
+                    value={playlistAddUrl}
+                    onChange={e => setPlaylistAddUrl(e.target.value)}
+                    placeholder="Cole aqui o link (Spotify, YouTube, TikTok, Deezer, Kwai...)"
+                    style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }}
+                    onKeyDown={e => e.key === 'Enter' && handleAddPlaylist()}
+                  />
+                  <input
+                    type="text"
+                    value={playlistAddTitle}
+                    onChange={e => setPlaylistAddTitle(e.target.value)}
+                    placeholder="Título (opcional — será preenchido automaticamente)"
+                    style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }}
+                  />
+                  {playlistMsg && (
+                    <div style={{ padding: '8px 12px', borderRadius: 8, background: playlistMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${playlistMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: playlistMsgType === 'success' ? '#166534' : '#991b1b', fontSize: '0.82rem', fontWeight: 600 }}>
+                      {playlistMsg}
+                    </div>
+                  )}
+                  <button onClick={handleAddPlaylist} disabled={playlistAdding || !playlistAddUrl.trim()}
+                    style={{ background: playlistAdding || !playlistAddUrl.trim() ? '#9ca3af' : `linear-gradient(135deg,${nucleoColor},${nucleoColor}cc)`, color: '#fff', border: 'none', borderRadius: 10, padding: '11px', fontWeight: 700, fontSize: '0.88rem', cursor: playlistAdding || !playlistAddUrl.trim() ? 'not-allowed' : 'pointer' }}>
+                    {playlistAdding ? '⏳ Adicionando...' : '➕ Adicionar à Playlist'}
+                  </button>
+                </div>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
+                  {Object.entries(platformMeta).map(([key, meta]) => (
+                    <span key={key} style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: `${meta.color}15`, color: meta.color, borderRadius: 20, padding: '3px 10px', fontSize: '0.7rem', fontWeight: 700 }}>
+                      {meta.icon} {meta.label}
+                    </span>
+                  ))}
+                </div>
+              </div>
+
+              {/* Lista de itens */}
               {playlistLoading ? (
                 <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando playlist...</div>
               ) : playlistItems.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '60px 20px', background: '#f5f3ff', borderRadius: 16, border: '2px dashed #a78bfa' }}>
                   <div style={{ fontSize: '3rem', marginBottom: 12 }}>🎵</div>
                   <div style={{ fontWeight: 700, color: '#7c3aed', fontSize: '0.95rem' }}>Playlist vazia</div>
-                  <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>O administrador ainda não adicionou músicas à playlist.</div>
+                  <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Adicione links acima para criar sua playlist personalizada.</div>
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {playlistItems.map(item => {
                     const embed = getPlatformEmbed(item);
-                    const meta = platformMeta[item.platform] || platformMeta.outro;
+                    const meta = platformMeta[item.platform] || platformMeta.link;
                     const embedH = item.platform === 'spotify' ? 80 : item.platform === 'deezer' ? 100 : 157;
+                    const isEditing = playlistEditId === item.id;
                     return (
                       <div key={item.id} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, overflow: 'hidden', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: embed ? '1px solid #f3f4f6' : 'none' }}>
-                          <span style={{ background: meta.color, color: '#fff', borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', flexShrink: 0, fontWeight: 800 }}>{meta.icon}</span>
-                          <div style={{ flex: 1, minWidth: 0 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
-                            <div style={{ fontSize: '0.72rem', color: meta.color, fontWeight: 600, marginTop: 1 }}>{meta.label}</div>
+                        {isEditing ? (
+                          <div style={{ padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+                            <input type="text" value={playlistEditTitle} onChange={e => setPlaylistEditTitle(e.target.value)}
+                              placeholder="Título" style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', width: '100%' }} />
+                            <input type="url" value={playlistEditUrl} onChange={e => setPlaylistEditUrl(e.target.value)}
+                              placeholder="URL" style={{ border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', width: '100%' }} />
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <button onClick={() => handleEditPlaylist(item.id)} style={{ flex: 1, background: nucleoColor, color: '#fff', border: 'none', borderRadius: 8, padding: '8px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>Salvar</button>
+                              <button onClick={() => setPlaylistEditId(null)} style={{ flex: 1, background: '#f3f4f6', color: '#374151', border: 'none', borderRadius: 8, padding: '8px', fontWeight: 600, fontSize: '0.82rem', cursor: 'pointer' }}>Cancelar</button>
+                            </div>
                           </div>
-                          <a href={item.url} target="_blank" rel="noopener noreferrer"
-                            style={{ padding: '5px 10px', borderRadius: 7, background: '#f8fafc', border: '1px solid #e5e7eb', color: '#374151', fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
-                            Abrir
-                          </a>
-                        </div>
-                        {embed && embed.type === 'iframe' && (
-                          <iframe src={embed.src} height={embedH} width="100%" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style={{ display: 'block', border: 'none' }} />
-                        )}
-                        {!embed && (
-                          <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 14px', textDecoration: 'none', color: meta.color, fontSize: '0.85rem', fontWeight: 600 }}>
-                            🔗 Abrir no {meta.label}
-                          </a>
+                        ) : (
+                          <>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', borderBottom: embed ? '1px solid #f3f4f6' : 'none' }}>
+                              <span style={{ background: meta.color, color: '#fff', borderRadius: 8, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.8rem', flexShrink: 0, fontWeight: 800 }}>{meta.icon}</span>
+                              <div style={{ flex: 1, minWidth: 0 }}>
+                                <div style={{ fontWeight: 700, fontSize: '0.88rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.title}</div>
+                                <div style={{ fontSize: '0.7rem', color: meta.color, fontWeight: 600, marginTop: 1 }}>{meta.label}</div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                <a href={item.url} target="_blank" rel="noopener noreferrer"
+                                  style={{ padding: '5px 10px', borderRadius: 7, background: '#f8fafc', border: '1px solid #e5e7eb', color: '#374151', fontSize: '0.7rem', fontWeight: 700, textDecoration: 'none' }}>
+                                  Abrir
+                                </a>
+                                <button onClick={() => { setPlaylistEditId(item.id); setPlaylistEditTitle(item.title); setPlaylistEditUrl(item.url); }}
+                                  style={{ padding: '5px 8px', borderRadius: 7, background: '#eff6ff', border: 'none', color: '#1d4ed8', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}>✏️</button>
+                                <button onClick={() => handleDeletePlaylist(item.id)}
+                                  style={{ padding: '5px 8px', borderRadius: 7, background: '#fef2f2', border: 'none', color: '#dc2626', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}>🗑</button>
+                              </div>
+                            </div>
+                            {embed && embed.type === 'iframe' && (
+                              <iframe src={embed.src} height={embedH} width="100%" frameBorder="0" allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" loading="lazy" style={{ display: 'block', border: 'none' }} />
+                            )}
+                            {!embed && (
+                              <a href={item.url} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 14px', textDecoration: 'none', color: meta.color, fontSize: '0.83rem', fontWeight: 600 }}>
+                                🔗 Abrir no {meta.label}
+                              </a>
+                            )}
+                          </>
                         )}
                       </div>
                     );
                   })}
                 </div>
               )}
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
+                Plataformas suportadas: Spotify · Deezer · YouTube · TikTok · Kwai · outros links
+              </div>
             </div>
           );
         })()}

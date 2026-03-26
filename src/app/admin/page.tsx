@@ -109,7 +109,7 @@ type EditForm = Partial<Student>;
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude' | 'geral';
-interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; }
+interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; email?: string; }
 
 const PROFILES_KEY = 'accbm_admin_profiles';
 const DEFAULT_PROFILES: Profile[] = [
@@ -299,6 +299,9 @@ export default function AdminPage() {
   const [showNewPass, setShowNewPass] = useState(false);
   const [changeError, setChangeError] = useState('');
   const [changeDone, setChangeDone] = useState(false);
+  const [profileEmail, setProfileEmail] = useState('');
+  const [changeEmailMsg, setChangeEmailMsg] = useState('');
+  const [changeSending, setChangeSending] = useState(false);
 
   const SUPER_ADMIN_CPF = '09856925703';
 
@@ -493,19 +496,40 @@ export default function AdminPage() {
     }
   };
 
-  const handleChangeCreds = (e: React.FormEvent) => {
+  const handleChangeCreds = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newUser.trim()) { setChangeError('Informe o novo usuário.'); return; }
     if (newPass.length < 6) { setChangeError('Senha deve ter ao menos 6 caracteres.'); return; }
     if (newPass !== newPassConfirm) { setChangeError('As senhas não coincidem.'); return; }
+    setChangeSending(true); setChangeEmailMsg('');
     const profiles = getProfiles();
-    const updated = profiles.map(p => p.nucleo === editingProfile ? { ...p, user: newUser.trim(), pass: newPass } : p);
+    const targetProfile = profiles.find(p => p.nucleo === editingProfile);
+    const emailAddr = profileEmail.trim() || targetProfile?.email || '';
+    const updated = profiles.map(p => p.nucleo === editingProfile ? { ...p, user: newUser.trim(), pass: newPass, email: emailAddr || p.email } : p);
     saveProfiles(updated);
+    // Send email notification if email is set
+    if (emailAddr) {
+      try {
+        const res = await fetch('/api/admin/send-creds-email', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            to: emailAddr,
+            label: targetProfile?.label || editingProfile,
+            username: newUser.trim(),
+            password: newPass,
+          }),
+        });
+        const d = await res.json();
+        setChangeEmailMsg(d.sent ? '✉️ Credenciais enviadas por e-mail!' : '⚠️ Salvo, mas e-mail não enviado (verifique configuração).');
+      } catch { setChangeEmailMsg('⚠️ Salvo, mas falha ao enviar e-mail.'); }
+    }
+    setChangeSending(false);
     setChangeDone(true);
     setTimeout(() => {
       setChangeDone(false); setShowChangeCreds(false);
-      setNewUser(''); setNewPass(''); setNewPassConfirm(''); setChangeError('');
-    }, 2000);
+      setNewUser(''); setNewPass(''); setNewPassConfirm(''); setChangeError(''); setChangeEmailMsg(''); setProfileEmail('');
+    }, 2500);
   };
 
   const currentProfile = getProfiles().find(p => p.nucleo === activeNucleo);
@@ -525,6 +549,7 @@ export default function AdminPage() {
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins'>('alunos');
+  const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Responsáveis de núcleo
   const [respUsers, setRespUsers] = useState<Array<{ username: string; label: string; nucleo: string; color: string; email: string }>>([]);
   const [respLoading, setRespLoading] = useState(false);
@@ -1265,56 +1290,99 @@ export default function AdminPage() {
   };
 
   // ── Change-creds modal (shared between login screen and panel) ──────────────
-  const ChangeCrendsModal = () => (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
-      <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 380, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
-        <h3 style={{ margin: '0 0 16px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>Alterar Login e Senha</h3>
-        {changeDone ? (
-          <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center', color: '#16a34a', fontWeight: 700 }}>✅ Credenciais salvas!</div>
-        ) : (
-          <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* Profile selector */}
-            <div>
-              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>Perfil a alterar</label>
-              <div style={{ display: 'flex', gap: 6 }}>
-                {getProfiles().map(p => (
-                  <button key={p.nucleo} type="button" onClick={() => setEditingProfile(p.nucleo)}
-                    style={{ flex: 1, padding: '7px 4px', borderRadius: 8, border: `2px solid ${editingProfile === p.nucleo ? p.color : '#e2e8f0'}`, background: editingProfile === p.nucleo ? p.color : '#f8fafc', color: editingProfile === p.nucleo ? '#fff' : '#64748b', fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer', transition: 'all .15s' }}>
-                    {p.label}
-                  </button>
-                ))}
+  const ChangeCrendsModal = () => {
+    const allProfiles = getProfiles();
+    const currentEditProfile = allProfiles.find(p => p.nucleo === editingProfile);
+    const generateTempPass = () => {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+      let pass = '';
+      for (let i = 0; i < 10; i++) pass += chars[Math.floor(Math.random() * chars.length)];
+      setNewPass(pass); setNewPassConfirm(pass); setShowNewPass(true);
+    };
+    return (
+      <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+        <div style={{ background: '#fff', borderRadius: 16, padding: '28px 24px', width: '100%', maxWidth: 420, boxShadow: '0 8px 40px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+          <h3 style={{ margin: '0 0 4px', color: '#1e3a8a', fontWeight: 800, fontSize: '1rem' }}>🔐 Gerenciar Credenciais</h3>
+          <p style={{ margin: '0 0 16px', fontSize: '0.75rem', color: '#6b7280' }}>Criar ou redefinir login e senha do painel</p>
+          {changeDone ? (
+            <div style={{ background: '#f0fdf4', border: '1px solid #86efac', borderRadius: 10, padding: '14px', textAlign: 'center' }}>
+              <div style={{ color: '#16a34a', fontWeight: 700, fontSize: '0.95rem' }}>✅ Credenciais salvas com sucesso!</div>
+              {changeEmailMsg && <div style={{ marginTop: 8, fontSize: '0.82rem', color: changeEmailMsg.startsWith('✉️') ? '#16a34a' : '#b45309', fontWeight: 600 }}>{changeEmailMsg}</div>}
+            </div>
+          ) : (
+            <form onSubmit={handleChangeCreds} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              {/* Profile selector */}
+              <div>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 6 }}>Perfil a alterar</label>
+                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                  {allProfiles.map(p => (
+                    <button key={p.nucleo} type="button"
+                      onClick={() => { setEditingProfile(p.nucleo); setProfileEmail(p.email || ''); setNewUser(p.user); }}
+                      style={{ padding: '6px 10px', borderRadius: 8, border: `2px solid ${editingProfile === p.nucleo ? p.color : '#e2e8f0'}`, background: editingProfile === p.nucleo ? p.color : '#f8fafc', color: editingProfile === p.nucleo ? '#fff' : '#64748b', fontWeight: 700, fontSize: '0.7rem', cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap' }}>
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
               </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
-              <input value={newUser} onChange={e => setNewUser(e.target.value)} placeholder={`ex: ${editingProfile}`} autoFocus
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            <div>
-              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Nova senha (mín. 6 caracteres)</label>
-              <div style={{ position: 'relative' }}>
-                <input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••"
-                  style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-                <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
-                  {showNewPass ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+
+              {/* Current profile info */}
+              {currentEditProfile && (
+                <div style={{ background: `${currentEditProfile.color}10`, border: `1px solid ${currentEditProfile.color}30`, borderRadius: 8, padding: '8px 12px', fontSize: '0.78rem', color: '#374151' }}>
+                  <span style={{ fontWeight: 700 }}>Perfil selecionado:</span> {currentEditProfile.label} •  usuário atual: <code style={{ background: '#f3f4f6', borderRadius: 4, padding: '1px 5px' }}>{currentEditProfile.user}</code>
+                </div>
+              )}
+
+              <div>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Novo usuário</label>
+                <input value={newUser} onChange={e => setNewUser(e.target.value)} placeholder={`ex: ${editingProfile}`}
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+              <div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ color: '#374151', fontSize: '0.8rem', fontWeight: 600 }}>Nova senha (mín. 6 caracteres)</label>
+                  <button type="button" onClick={generateTempPass}
+                    style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 6, padding: '3px 9px', color: '#1d4ed8', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer' }}>
+                    🎲 Gerar senha
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <input type={showNewPass ? 'text' : 'password'} value={newPass} onChange={e => setNewPass(e.target.value)} placeholder="••••••••"
+                    style={{ width: '100%', padding: '10px 38px 10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+                  <button type="button" onClick={() => setShowNewPass(p => !p)} style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0 }}>
+                    {showNewPass ? <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg> : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>}
+                  </button>
+                </div>
+              </div>
+              <div>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
+                <input type="password" value={newPassConfirm} onChange={e => setNewPassConfirm(e.target.value)} placeholder="••••••••"
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
+              </div>
+
+              {/* Email para envio */}
+              <div style={{ borderTop: '1px solid #f3f4f6', paddingTop: 12 }}>
+                <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>
+                  📧 E-mail para enviar as credenciais <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span>
+                </label>
+                <input type="email" value={profileEmail} onChange={e => setProfileEmail(e.target.value)}
+                  placeholder="email@responsavel.com"
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box' }} />
+                {profileEmail && <div style={{ fontSize: '0.72rem', color: '#16a34a', marginTop: 3 }}>✅ As novas credenciais serão enviadas para este e-mail ao salvar.</div>}
+              </div>
+
+              {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
+              <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+                <button type="button" onClick={() => { setShowChangeCreds(false); setChangeError(''); setProfileEmail(''); }} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>{t('admin_cancel')}</button>
+                <button type="submit" disabled={changeSending} style={{ flex: 2, padding: '10px', background: changeSending ? '#9ca3af' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: changeSending ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>
+                  {changeSending ? '⏳ Salvando...' : (profileEmail ? '💾 Salvar e Enviar por E-mail' : '💾 Salvar Credenciais')}
                 </button>
               </div>
-            </div>
-            <div>
-              <label style={{ display: 'block', color: '#374151', fontSize: '0.8rem', fontWeight: 600, marginBottom: 4 }}>Confirmar nova senha</label>
-              <input type="password" value={newPassConfirm} onChange={e => setNewPassConfirm(e.target.value)} placeholder="••••••••"
-                style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #e2e8f0', borderRadius: 8, fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} />
-            </div>
-            {changeError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '8px 12px', color: '#dc2626', fontSize: '0.8rem', fontWeight: 600 }}>⚠ {changeError}</div>}
-            <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
-              <button type="button" onClick={() => setShowChangeCreds(false)} style={{ flex: 1, padding: '10px', background: '#f1f5f9', border: '1px solid #e2e8f0', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.88rem', color: '#64748b' }}>{t('admin_cancel')}</button>
-              <button type="submit" style={{ flex: 2, padding: '10px', background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', border: 'none', borderRadius: 8, cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem', color: '#fff' }}>Salvar</button>
-            </div>
-          </form>
-        )}
+            </form>
+          )}
+        </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   if (!authed) {
     const profiles = getProfiles();
@@ -1359,9 +1427,14 @@ export default function AdminPage() {
             <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', marginTop: 4 }}>Entrar</button>
           </form>
           <div style={{ textAlign: 'center', marginTop: 16 }}>
-            <button type="button" onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile('edson-alves'); }}
+            <button type="button" onClick={() => {
+                const prof = getProfiles().find(p => p.nucleo === 'edson-alves');
+                setShowChangeCreds(true); setChangeError(''); setChangeDone(false);
+                setEditingProfile('edson-alves'); setNewUser(prof?.user || ''); setNewPass(''); setNewPassConfirm('');
+                setProfileEmail(prof?.email || ''); setChangeEmailMsg('');
+              }}
               style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.4)', fontSize: '0.75rem', cursor: 'pointer', textDecoration: 'underline' }}>
-              Alterar login / senha
+              Criar / Redefinir Senha
             </button>
           </div>
         </div>
@@ -1413,7 +1486,13 @@ export default function AdminPage() {
               </div>
             )}
             <button
-              onClick={() => { setShowChangeCreds(true); setChangeError(''); setChangeDone(false); setEditingProfile(activeNucleo || 'edson-alves'); setNewUser(''); setNewPass(''); setNewPassConfirm(''); }}
+              onClick={() => {
+                const nk = activeNucleo || 'edson-alves';
+                const prof = getProfiles().find(p => p.nucleo === nk);
+                setShowChangeCreds(true); setChangeError(''); setChangeDone(false);
+                setEditingProfile(nk); setNewUser(prof?.user || ''); setNewPass(''); setNewPassConfirm('');
+                setProfileEmail(prof?.email || ''); setChangeEmailMsg('');
+              }}
               style={{ background: 'rgba(29,78,216,0.1)', border: '1px solid rgba(29,78,216,0.3)', color: '#1d4ed8', padding: '6px 14px', borderRadius: 8, cursor: 'pointer', fontWeight: 600, fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 6 }}
             >
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
@@ -1450,115 +1529,6 @@ export default function AdminPage() {
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
-            <Link href="/presenca" style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', padding: '8px 16px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: '0.85rem' }}>
-              ✓ Registrar Presença
-            </Link>
-            {activeNucleo === 'geral' && (
-              <button
-                onClick={() => {
-                  setActiveTab('lixeira');
-                  setLoadingLixeira(true);
-                  fetch('/api/lixeira').then(r => r.json()).then(d => { setLixeira(Array.isArray(d) ? d : []); setLoadingLixeira(false); }).catch(() => setLoadingLixeira(false));
-                }}
-                style={{
-                  background: activeTab === 'lixeira' ? 'linear-gradient(135deg,#374151,#1f2937)' : 'linear-gradient(135deg,#4b5563,#374151)',
-                  color: '#d1d5db',
-                  padding: '8px 16px',
-                  borderRadius: 8,
-                  border: activeTab === 'lixeira' ? '1px solid #6b7280' : '1px solid transparent',
-                  fontWeight: 700,
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: 6,
-                }}
-              >
-                🗑️ Cadastros Excluídos
-                {lixeira.length > 0 && (
-                  <span style={{ background: '#6b7280', color: '#fff', borderRadius: 99, padding: '1px 7px', fontSize: '0.75rem', fontWeight: 700 }}>
-                    {lixeira.length}
-                  </span>
-                )}
-              </button>
-            )}
-            {activeTab === 'alunos' && <>
-              <input
-                className="search-input"
-                placeholder="Buscar por nome, CPF ou graduação..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-              <select
-                className="search-input"
-                style={{ width: 210 }}
-                value={filterNucleo}
-                onChange={(e) => setFilterNucleo(e.target.value)}
-              >
-                <option value="">Todos os núcleos</option>
-                <option value="Saracuruna">Núcleo Saracuruna</option>
-                <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
-                <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
-                <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                <option value="Academia Mais Saúde">Academia Mais Saúde</option>
-              </select>
-              <select
-                className="search-input"
-                style={{ width: 190 }}
-                value={filterGraduacao}
-                onChange={(e) => setFilterGraduacao(e.target.value)}
-              >
-                <option value="">Todas as graduações</option>
-                <optgroup label="── Adulto ──">
-                  {graduacoes.filter(g => !g.includes('ponta') && !['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
-                    <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
-                  ))}
-                </optgroup>
-                <optgroup label="── Infantil ──">
-                  {graduacoes.filter(g => g.includes('ponta') || ['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
-                    <option key={g} value={g}>{g}</option>
-                  ))}
-                </optgroup>
-              </select>
-              <select
-                className="search-input"
-                style={{ width: 195 }}
-                value={sortOrder}
-                onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
-              >
-                <option value="nome-asc">Nome A → Z</option>
-                <option value="nome-desc">Nome Z → A</option>
-                <option value="grad-asc">Graduação ↑ menor → maior</option>
-                <option value="grad-desc">Graduação ↓ maior → menor</option>
-                <option value="data-asc">Cadastro mais antigo</option>
-                <option value="data-desc">Cadastro mais recente</option>
-              </select>
-              <select
-                className="search-input"
-                style={{ width: 230, borderColor: filterCondicao ? 'rgba(139,92,246,0.6)' : undefined, background: filterCondicao ? 'rgba(139,92,246,0.05)' : undefined }}
-                value={filterCondicao}
-                onChange={e => setFilterCondicao(e.target.value)}
-              >
-                <option value="">🧩 Todas as condições</option>
-                <option value="TEA">Transtorno do Espectro Autista (TEA)</option>
-                <option value="TDAH">Déficit de Atenção e Hiperatividade (TDAH)</option>
-                <option value="Deficiência Intelectual">Deficiência Intelectual</option>
-                <option value="Síndrome de Down">Síndrome de Down</option>
-                <option value="Dislexia">Dislexia</option>
-                <option value="Discalculia">Discalculia</option>
-                <option value="Transtorno de Ansiedade">Transtorno de Ansiedade</option>
-                <option value="Transtornos de Aprendizagem">Transtornos de Aprendizagem</option>
-                <option value="Atraso no Desenvolvimento">Atraso no Desenvolvimento</option>
-                <option value="Deficiência Visual">Deficiência Visual</option>
-                <option value="Deficiência Auditiva">Deficiência Auditiva</option>
-                <option value="Deficiência Física">Deficiência Física / Motora</option>
-                <option value="TOD">Transtorno Opositivo-Desafiador (TOD)</option>
-                <option value="Altas Habilidades">Altas Habilidades / Superdotação</option>
-                <option value="Epilepsia">Epilepsia</option>
-                <option value="Outro">Outro</option>
-              </select>
-            </>}
           </div>
         </div>
 
@@ -1639,6 +1609,7 @@ export default function AdminPage() {
                 { key: 'certificado', icon: '🏅', label: 'Certificado' },
                 { key: 'manual',      icon: '📖', label: 'Manual Ginga Gestão' },
                 { key: 'admins',      icon: '🔐', label: 'Administradores', geralOnly: true },
+                { key: 'lixeira',     icon: '🗑️', label: 'Cadastros Excluídos', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
               ],
             },
             {
@@ -1678,17 +1649,16 @@ export default function AdminPage() {
                 { key: 'dados-faltantes', icon: '⚠️', label: 'Dados Faltantes', badge: dadosFaltandoCount > 0 ? dadosFaltandoCount : undefined },
               ],
             },
-            {
-              title: 'Institucional', color: '#ea580c', bg: 'rgba(234,88,12,0.08)',
-              buttons: [
-                { key: 'bibliografia', icon: '📚', label: 'Bibliografia dos Mestres' },
-                { key: 'estatuto',     icon: '📄', label: 'Estatuto Social' },
-                { key: 'regimento',    icon: '📝', label: 'Regimento Interno' },
-                { key: 'informacoes',  icon: 'ℹ️',  label: 'Informações Gerais' },
-                { key: 'lixeira',      icon: '🗑️', label: 'Lixeira', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
-              ],
-            },
           ];
+
+          const institucionalSubItems: ColBtn[] = [
+            { key: 'bibliografia', icon: '📚', label: 'Bibliografia dos Mestres' },
+            { key: 'estatuto',     icon: '📄', label: 'Estatuto Social' },
+            { key: 'regimento',    icon: '📝', label: 'Regimento Interno' },
+            { key: 'informacoes',  icon: 'ℹ️',  label: 'Informações Gerais' },
+          ];
+          const institucionalColor = '#ea580c';
+          const institucionalIsActive = institucionalSubItems.some(b => b.key === activeTab);
 
           return (
             <div style={{ marginBottom: 0 }}>
@@ -1723,7 +1693,138 @@ export default function AdminPage() {
                     </div>
                   </div>
                 ))}
+
+                {/* Institucional — card com submenu expansível */}
+                <div style={{ background: `rgba(234,88,12,0.08)`, border: `1px solid ${institucionalColor}25`, borderRadius: 12, padding: '10px 10px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 800, color: institucionalColor, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>Institucional</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                    {/* Botão principal Institucional */}
+                    <button
+                      onClick={() => setInstitucionalExpanded(v => !v)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 7,
+                        padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
+                        background: institucionalIsActive || institucionalExpanded ? institucionalColor : 'rgba(255,255,255,0.06)',
+                        color: institucionalIsActive || institucionalExpanded ? '#fff' : 'var(--text-primary)',
+                        fontWeight: institucionalIsActive || institucionalExpanded ? 700 : 500,
+                        fontSize: '0.78rem', textAlign: 'left', transition: 'all 0.15s',
+                        boxShadow: institucionalIsActive || institucionalExpanded ? `0 2px 8px ${institucionalColor}50` : 'none',
+                      }}
+                    >
+                      <span style={{ fontSize: '0.9rem', lineHeight: 1, flexShrink: 0 }}>🏛️</span>
+                      <span style={{ flex: 1, lineHeight: 1.3 }}>Institucional</span>
+                      <span style={{ fontSize: '0.75rem', transition: 'transform 0.2s', display: 'inline-block', transform: institucionalExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
+                    </button>
+                    {/* Submenus expandíveis */}
+                    {institucionalExpanded && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 8, borderLeft: `2px solid ${institucionalColor}40`, marginLeft: 8 }}>
+                        {institucionalSubItems.map((btn, bi) => (
+                          <button key={`inst-sub-${bi}`}
+                            onClick={() => { goTab(btn.key); }}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 6,
+                              padding: '6px 8px', borderRadius: 7, border: 'none', cursor: 'pointer',
+                              background: activeTab === btn.key ? `${institucionalColor}22` : 'transparent',
+                              color: activeTab === btn.key ? institucionalColor : 'var(--text-primary)',
+                              fontWeight: activeTab === btn.key ? 700 : 500,
+                              fontSize: '0.75rem', textAlign: 'left', transition: 'all 0.15s',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.85rem', lineHeight: 1, flexShrink: 0 }}>{btn.icon}</span>
+                            <span style={{ lineHeight: 1.3 }}>{btn.label}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
+
+              {/* Filtros e Buscas — só visíveis na aba Alunos */}
+              {activeTab === 'alunos' && (
+                <div style={{ marginTop: 10, background: 'rgba(29,78,216,0.05)', border: '1px solid rgba(29,78,216,0.15)', borderRadius: 12, padding: '12px 14px' }}>
+                  <div style={{ fontSize: '0.6rem', fontWeight: 800, color: '#1d4ed8', textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 10 }}>🔍 Filtros e Buscas</div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 8 }}>
+                    <input
+                      className="search-input"
+                      placeholder="🔍 Buscar por nome ou CPF..."
+                      value={search}
+                      onChange={(e) => setSearch(e.target.value)}
+                      style={{ fontSize: '0.82rem' }}
+                    />
+                    <select
+                      className="search-input"
+                      value={filterNucleo}
+                      onChange={(e) => setFilterNucleo(e.target.value)}
+                      style={{ fontSize: '0.82rem' }}
+                    >
+                      <option value="">🏛️ Todos os núcleos</option>
+                      <option value="Saracuruna">Núcleo Saracuruna</option>
+                      <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
+                      <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
+                      <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
+                      <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+                      <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                    </select>
+                    <select
+                      className="search-input"
+                      value={filterGraduacao}
+                      onChange={(e) => setFilterGraduacao(e.target.value)}
+                      style={{ fontSize: '0.82rem' }}
+                    >
+                      <option value="">🎖️ Todas as graduações</option>
+                      <optgroup label="── Adulto ──">
+                        {graduacoes.filter(g => !g.includes('ponta') && !['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                          <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
+                        ))}
+                      </optgroup>
+                      <optgroup label="── Infantil ──">
+                        {graduacoes.filter(g => g.includes('ponta') || ['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                          <option key={g} value={g}>{g}</option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <select
+                      className="search-input"
+                      value={sortOrder}
+                      onChange={(e) => setSortOrder(e.target.value as typeof sortOrder)}
+                      style={{ fontSize: '0.82rem' }}
+                    >
+                      <option value="nome-asc">↑ Nome A → Z</option>
+                      <option value="nome-desc">↓ Nome Z → A</option>
+                      <option value="grad-asc">🎖 Graduação ↑</option>
+                      <option value="grad-desc">🎖 Graduação ↓</option>
+                      <option value="data-asc">📅 Mais antigo</option>
+                      <option value="data-desc">📅 Mais recente</option>
+                    </select>
+                    <select
+                      className="search-input"
+                      style={{ fontSize: '0.82rem', borderColor: filterCondicao ? 'rgba(139,92,246,0.6)' : undefined, background: filterCondicao ? 'rgba(139,92,246,0.05)' : undefined }}
+                      value={filterCondicao}
+                      onChange={e => setFilterCondicao(e.target.value)}
+                    >
+                      <option value="">🧩 Todas as condições</option>
+                      <option value="TEA">TEA — Espectro Autista</option>
+                      <option value="TDAH">TDAH — Déficit de Atenção</option>
+                      <option value="Deficiência Intelectual">Deficiência Intelectual</option>
+                      <option value="Síndrome de Down">Síndrome de Down</option>
+                      <option value="Dislexia">Dislexia</option>
+                      <option value="Discalculia">Discalculia</option>
+                      <option value="Transtorno de Ansiedade">Transtorno de Ansiedade</option>
+                      <option value="Transtornos de Aprendizagem">Transtornos de Aprendizagem</option>
+                      <option value="Atraso no Desenvolvimento">Atraso no Desenvolvimento</option>
+                      <option value="Deficiência Visual">Deficiência Visual</option>
+                      <option value="Deficiência Auditiva">Deficiência Auditiva</option>
+                      <option value="Deficiência Física">Deficiência Física / Motora</option>
+                      <option value="TOD">TOD — Opositivo-Desafiador</option>
+                      <option value="Altas Habilidades">Altas Habilidades</option>
+                      <option value="Epilepsia">Epilepsia</option>
+                      <option value="Outro">Outro</option>
+                    </select>
+                  </div>
+                </div>
+              )}
+
               {/* Linha divisória */}
               <div style={{ borderBottom: '2px solid var(--border)', marginTop: 12 }} />
             </div>

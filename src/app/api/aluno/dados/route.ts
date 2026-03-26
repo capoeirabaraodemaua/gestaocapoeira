@@ -10,6 +10,7 @@ const supabaseAdmin = createClient(
 
 const BUCKET = 'photos';
 const EXTRAS_KEY = 'extras/student-extras.json';
+const AUTH_KEY = 'config/aluno-auth.json';
 
 async function loadExtras(): Promise<Record<string, { apelido?: string; nome_social?: string; sexo?: string }>> {
   try {
@@ -19,6 +20,17 @@ async function loadExtras(): Promise<Record<string, { apelido?: string; nome_soc
     if (!res.ok) return {};
     return await res.json();
   } catch { return {}; }
+}
+
+async function loadAuthEmail(student_id: string): Promise<string | null> {
+  try {
+    const { data } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(AUTH_KEY, 30);
+    if (!data?.signedUrl) return null;
+    const res = await fetch(data.signedUrl, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const map = await res.json();
+    return map[student_id]?.email || null;
+  } catch { return null; }
 }
 
 // GET /api/aluno/dados?student_id=xxx
@@ -42,13 +54,16 @@ export async function GET(req: NextRequest) {
   }
 
   // Merge student-extras (apelido, nome_social, sexo) — Storage is source of truth
-  const extrasMap = await loadExtras();
+  // Also merge auth map email — auth map is the authoritative source for login email
+  const [extrasMap, authEmail] = await Promise.all([loadExtras(), loadAuthEmail(student_id)]);
   const ext = extrasMap[student_id];
   const safeStudent = {
     ...student,
     apelido:     ext?.apelido     || student.apelido     || null,
     nome_social: ext?.nome_social || student.nome_social || null,
     sexo:        ext?.sexo        || student.sexo        || null,
+    // Auth map email takes priority as it's what the user set in their account
+    email:       authEmail ?? student.email ?? null,
   };
 
   return NextResponse.json({ student: safeStudent });

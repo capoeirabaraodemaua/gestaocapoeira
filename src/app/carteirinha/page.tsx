@@ -134,6 +134,19 @@ function CarteirinhaContent() {
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #1a1a2e 0%, #0f3460 100%)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '32px 16px' }}>
+      {/* Botão Voltar */}
+      <div style={{ position: 'fixed', top: 16, left: 16, zIndex: 100 }}>
+        <button
+          onClick={() => window.history.length > 1 ? window.history.back() : window.location.href = '/'}
+          style={{ display: 'flex', alignItems: 'center', gap: 7, background: 'rgba(255,255,255,0.12)', border: '1px solid rgba(255,255,255,0.22)', color: '#fff', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', transition: 'background 0.15s' }}
+          onMouseOver={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.2)')}
+          onMouseOut={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.12)')}
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M19 12H5"/><path d="M12 19l-7-7 7-7"/></svg>
+          Voltar
+        </button>
+      </div>
+
       {/* Logo + título */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
         <img src="/logo-maua.png" alt="ACCBM" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
