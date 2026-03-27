@@ -4,7 +4,6 @@ import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { registerCheckin, getCheckins } from '@/lib/checkins';
 import { capturarGPS, iniciarWatchGPS, detectarLocal, LocalDetectado, LOCAIS } from '@/lib/locais';
-import Link from 'next/link';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Student {
@@ -447,10 +446,12 @@ Axé!`
 
       {/* Hero */}
       <div style={{ background: 'linear-gradient(135deg, #dc2626 0%, #7c3aed 100%)', padding: '28px 20px', textAlign: 'center', position: 'relative' }}>
-        <Link href="/" style={{ position: 'absolute', left: 16, top: 18, color: 'rgba(255,255,255,0.85)', textDecoration: 'none', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <button
+          onClick={() => window.history.length > 1 ? window.history.back() : (window.location.href = '/admin')}
+          style={{ position: 'absolute', left: 16, top: 18, color: 'rgba(255,255,255,0.85)', background: 'none', border: 'none', padding: 0, cursor: 'pointer', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 5 }}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
           {t('common_back')}
-        </Link>
+        </button>
         <img src="/logo-barao-maua.png" alt="Logo Barão de Mauá" style={{ width: 80, height: 80, objectFit: 'contain', marginBottom: 10, display: 'block', margin: '0 auto 10px' }} />
         <h1 style={{ color: '#fff', fontSize: '1.5rem', fontWeight: 800, margin: 0 }}>{t('attendance_title')}</h1>
         <p style={{ color: 'rgba(255,255,255,0.8)', fontSize: '0.85rem', marginTop: 6 }}>{hoje}</p>
