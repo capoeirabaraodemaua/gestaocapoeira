@@ -6737,10 +6737,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             )}
             <input ref={manualFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={async e => {
               const file = e.target.files?.[0]; if (!file) return;
-              if (file.size > 50 * 1024 * 1024) {
-                setManualMsg('Erro: arquivo muito grande. O limite é 50 MB.');
-                e.target.value = ''; return;
-              }
               setUploadingManual(true);
               setManualMsg(`⏳ Preparando upload de ${(file.size / 1024 / 1024).toFixed(1)} MB...`);
               try {
