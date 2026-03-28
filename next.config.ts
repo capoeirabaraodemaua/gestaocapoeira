@@ -8,6 +8,7 @@ const nextConfig: NextConfig = {
   // Disable Next.js fetch cache globally — prevents stale reads from Supabase Storage
   experimental: {
     fetchCache: 'force-no-store',
+    serverBodySizeLimit: '50mb',
   } as any,
   images: {
     remotePatterns: [

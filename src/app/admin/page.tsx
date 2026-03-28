@@ -6737,11 +6737,23 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             )}
             <input ref={manualFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={async e => {
               const file = e.target.files?.[0]; if (!file) return;
-              setUploadingManual(true); setManualMsg('');
+              // Warn if file is very large (>40MB)
+              if (file.size > 40 * 1024 * 1024) {
+                setManualMsg('Erro: arquivo muito grande. O limite é 40 MB.');
+                e.target.value = '';
+                return;
+              }
+              setUploadingManual(true); setManualMsg(`⏳ Enviando ${(file.size / 1024 / 1024).toFixed(1)} MB...`);
               try {
                 const fd = new FormData(); fd.append('file', file);
                 const res = await fetch('/api/admin/manual', { method: 'POST', body: fd });
-                const json = await res.json();
+                // Always read as text first to avoid "Unexpected token" on non-JSON responses
+                const raw = await res.text();
+                let json: any = {};
+                try { json = JSON.parse(raw); } catch {
+                  setManualMsg(`Erro ${res.status}: ${raw.slice(0, 120)}`);
+                  setUploadingManual(false); e.target.value = ''; return;
+                }
                 if (res.ok && json.ok) {
                   setManualMsg('✓ Manual enviado! Traduzindo para todos os idiomas...');
                   // Reload list
@@ -6755,22 +6767,23 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ name: newName }),
                   }).then(async r => {
-                    const tj = await r.json();
+                    const tjRaw = await r.text();
+                    let tj: any = {};
+                    try { tj = JSON.parse(tjRaw); } catch {}
                     if (tj.ok) {
                       setManualMsg('✓ Manual enviado e traduzido para todos os idiomas!');
-                      // Load translations
                       const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(newName)}`).then(r => r.json());
                       if (tr.translations) {
                         setManualTranslations(prev => ({ ...prev, [newName]: tr.translations }));
                         setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
                       }
                     } else {
-                      setManualMsg('✓ Manual enviado. Tradução parcial: ' + (tj.error || ''));
+                      setManualMsg('✓ Manual enviado. ' + (tj.error ? 'Tradução: ' + tj.error : 'Tradução automática indisponível.'));
                     }
                     setTranslatingManual(null);
-                  }).catch(() => { setTranslatingManual(null); });
+                  }).catch(() => { setTranslatingManual(null); setManualMsg('✓ Manual enviado. Tradução automática falhou.'); });
                 } else {
-                  setManualMsg('Erro: ' + (json.error || 'falha'));
+                  setManualMsg('Erro: ' + (json.error || `HTTP ${res.status}`));
                 }
               } catch (err: any) { setManualMsg('Erro: ' + err.message); }
               setUploadingManual(false);
