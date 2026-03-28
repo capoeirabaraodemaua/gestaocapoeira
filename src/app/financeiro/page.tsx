@@ -120,6 +120,9 @@ export default function FinanceiroPage() {
 
   // Parcelamento selection state
   const [numParcelas, setNumParcelas] = useState(1);
+  // Edit mode for active batizado plan (student can change number of parcelas)
+  const [editandoParcelas, setEditandoParcelas] = useState(false);
+  const [numParcelasEdit, setNumParcelasEdit] = useState(1);
 
   // Upload state
   const [uploadingComp, setUploadingComp] = useState<string | null>(null);
@@ -548,11 +551,55 @@ export default function FinanceiroPage() {
                           {ficha.batizado.parcelas.filter(p => p.status === 'pago').length}/{ficha.batizado.parcelas.length} pagas
                         </span>
                       )}
-                      <button onClick={() => { const u = { ...ficha, batizado: { ...ficha.batizado, modalidade: 'nao_definido' as const, parcelas: [] } }; setFicha(u); }}
-                        style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>
-                        Alterar plano
+                      <button onClick={() => {
+                        setEditandoParcelas(!editandoParcelas);
+                        setNumParcelasEdit(ficha.batizado.parcelas.length || 1);
+                      }}
+                        style={{ marginLeft: 'auto', background: editandoParcelas ? 'rgba(124,58,237,0.2)' : 'none', border: `1px solid ${editandoParcelas ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.1)'}`, color: editandoParcelas ? '#c4b5fd' : 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>
+                        ✏️ Alterar parcelamento
                       </button>
                     </div>
+
+                    {/* Inline edit panel — change number of parcelas */}
+                    {editandoParcelas && (
+                      <div style={{ background: 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 10, padding: '14px 16px', marginBottom: 14 }}>
+                        <div style={{ fontWeight: 700, color: '#a78bfa', fontSize: '0.85rem', marginBottom: 10 }}>✏️ Alterar quantidade de parcelas</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                          <button onClick={() => setNumParcelasEdit(1)}
+                            style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: numParcelasEdit === 1 ? 'rgba(124,58,237,0.35)' : 'rgba(255,255,255,0.06)', border: `1.5px solid ${numParcelasEdit === 1 ? 'rgba(124,58,237,0.8)' : 'rgba(255,255,255,0.1)'}`, color: numParcelasEdit === 1 ? '#c4b5fd' : 'rgba(255,255,255,0.6)' }}>
+                            1× <span style={{ fontWeight: 400, fontSize: '0.72rem' }}>{formatMoeda(valorTotal)}</span>
+                          </button>
+                          {Array.from({ length: maxParcelas - 1 }, (_, i) => i + 2).map(n => {
+                            const vp = Math.round((valorTotal / n) * 100) / 100;
+                            const isSelected = numParcelasEdit === n;
+                            return (
+                              <button key={n} onClick={() => setNumParcelasEdit(n)}
+                                style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: isSelected ? 'rgba(124,58,237,0.35)' : 'rgba(255,255,255,0.06)', border: `1.5px solid ${isSelected ? 'rgba(124,58,237,0.8)' : 'rgba(255,255,255,0.1)'}`, color: isSelected ? '#c4b5fd' : 'rgba(255,255,255,0.6)' }}>
+                                {n}× <span style={{ fontWeight: 400, fontSize: '0.72rem' }}>{formatMoeda(vp)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{ background: 'rgba(124,58,237,0.1)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
+                          Novo plano: <strong style={{ color: '#c4b5fd' }}>{numParcelasEdit}× de {formatMoeda(Math.round((valorTotal / numParcelasEdit) * 100) / 100)}</strong>
+                          {' '}· Total: {formatMoeda(valorTotal)} · Novas datas de vencimento serão geradas.
+                        </div>
+                        <div style={{ display: 'flex', gap: 8 }}>
+                          <button onClick={async () => {
+                            const mod = numParcelasEdit === 1 ? 'integral' : 'parcelado';
+                            await confirmarParcelamento(mod, numParcelasEdit);
+                            setEditandoParcelas(false);
+                          }}
+                            style={{ flex: 1, padding: '10px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 8, color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.85rem' }}>
+                            ✓ Confirmar alteração
+                          </button>
+                          <button onClick={() => setEditandoParcelas(false)}
+                            style={{ padding: '10px 16px', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, color: 'rgba(255,255,255,0.5)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                            Cancelar
+                          </button>
+                        </div>
+                      </div>
+                    )}
 
                     {/* Parcelas */}
                     {ficha.batizado.parcelas.map(p => {

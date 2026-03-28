@@ -3705,8 +3705,28 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </div>
                           </div>
                         </div>
-                      ) : (
+                      ) : (() => {
+                        // helper to build WhatsApp link for this student
+                        const buildWaLink = (msg: string) => {
+                          if (!finStudent?.telefone) return null;
+                          const tel = finStudent.telefone.replace(/\D/g, '');
+                          const phone = tel.startsWith('55') ? tel : `55${tel}`;
+                          return `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(msg)}`;
+                        };
+                        const firstName = finStudent?.nome_completo?.split(' ')[0] || 'Aluno';
+                        const totalLabel = `R$ ${f.batizado.valor_total?.toFixed(2)}`;
+                        const numParc = f.batizado.parcelas.length;
+                        const parcLabel = f.batizado.modalidade === 'integral'
+                          ? `pagamento integral de ${totalLabel}`
+                          : `${numParc}× de R$ ${f.batizado.parcelas[0]?.valor?.toFixed(2)} (total ${totalLabel})`;
+
+                        // Confirmation message for event
+                        const confirmMsg = `Olá ${firstName}! 🥋\n\nSeu batizado foi registrado com sucesso na Associação Cultural de Capoeira Barão de Mauá.\n\n💰 Forma de pagamento: ${parcLabel}\n${f.batizado.parcelas.map((p: any) => `  • Parcela ${p.numero}: R$ ${p.valor.toFixed(2)} — vence ${p.vencimento ? new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : 'a definir'}`).join('\n')}\n\nQualquer dúvida, estamos à disposição. 🤝`;
+                        const waConfirmLink = buildWaLink(confirmMsg);
+
+                        return (
                         <div>
+                          {/* Header with actions */}
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
                               Modalidade: <strong>
@@ -3715,16 +3735,72 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   : `${f.batizado.parcelas.length}× de R$ ${f.batizado.parcelas[0]?.valor?.toFixed(2)}`}
                               </strong>
                             </div>
-                            <button onClick={async () => {
-                              if (!confirm('Excluir agendamento de batizado? Isso vai apagar a modalidade e parcelas.')) return;
-                              const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido' as const, parcelas: [], valor_total: 0 } };
-                              setFinFicha(updated); await adminSaveFicha(updated);
-                            }} style={{ padding: '3px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                              🗑 Excluir agendamento
-                            </button>
+                            <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                              {/* WhatsApp confirmation */}
+                              {waConfirmLink && (
+                                <a href={waConfirmLink} target="_blank" rel="noreferrer"
+                                  style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '4px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, fontSize: '0.72rem', fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}
+                                  title="Enviar confirmação do evento ao aluno">
+                                  <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                  Confirmar Evento
+                                </a>
+                              )}
+                              {/* Edit parcelas */}
+                              <button onClick={() => {
+                                // Toggle inline edit panel
+                                const el = document.getElementById(`edit-parcelas-${finStudent?.id}`);
+                                if (el) el.style.display = el.style.display === 'none' ? 'block' : 'none';
+                              }} style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                ✏️ Editar Parcelas
+                              </button>
+                              <button onClick={async () => {
+                                if (!confirm('Excluir agendamento de batizado? Isso vai apagar a modalidade e parcelas, liberando o aluno para criar novo evento.')) return;
+                                const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido' as const, parcelas: [], valor_total: 0 } };
+                                setFinFicha(updated); await adminSaveFicha(updated);
+                              }} style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                🗑 Excluir
+                              </button>
+                            </div>
                           </div>
+
+                          {/* Inline edit panel */}
+                          <div id={`edit-parcelas-${finStudent?.id}`} style={{ display: 'none', background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#a78bfa', marginBottom: 10 }}>✏️ Alterar quantidade de parcelas:</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              <button onClick={async () => {
+                                const parcelas = gerarParcelasAdmin(totalBat, 1);
+                                const updated = { ...f, batizado: { ...f.batizado, modalidade: 'integral' as const, parcelas, valor_total: totalBat } };
+                                setFinFicha(updated); await adminSaveFicha(updated);
+                                const el = document.getElementById(`edit-parcelas-${finStudent?.id}`); if (el) el.style.display = 'none';
+                              }} style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: f.batizado.modalidade === 'integral' ? 'rgba(124,58,237,0.3)' : 'var(--bg-input)', border: `1.5px solid ${f.batizado.modalidade === 'integral' ? 'rgba(124,58,237,0.7)' : 'var(--border)'}`, color: f.batizado.modalidade === 'integral' ? '#c4b5fd' : 'var(--text-primary)' }}>
+                                1× <span style={{ fontWeight: 400, fontSize: '0.7rem' }}>R$ {totalBat.toFixed(2)}</span>
+                              </button>
+                              {Array.from({ length: maxP - 1 }, (_, i) => i + 2).map(n => {
+                                const vp = (totalBat / n).toFixed(2);
+                                const isActive = f.batizado.parcelas.length === n && f.batizado.modalidade === 'parcelado';
+                                return (
+                                  <button key={n} onClick={async () => {
+                                    const parcelas = gerarParcelasAdmin(totalBat, n);
+                                    const updated = { ...f, batizado: { ...f.batizado, modalidade: 'parcelado' as const, parcelas, valor_total: totalBat } };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                    const el = document.getElementById(`edit-parcelas-${finStudent?.id}`); if (el) el.style.display = 'none';
+                                  }} style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: isActive ? 'rgba(124,58,237,0.3)' : 'var(--bg-input)', border: `1.5px solid ${isActive ? 'rgba(124,58,237,0.7)' : 'var(--border)'}`, color: isActive ? '#c4b5fd' : 'var(--text-primary)' }}>
+                                    {n}× <span style={{ fontWeight: 400, fontSize: '0.7rem' }}>R$ {vp}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: 8 }}>
+                              Valor total: R$ {totalBat.toFixed(2)} — O recálculo preserva parcelas já pagas.
+                            </div>
+                          </div>
+
+                          {/* Parcelas list */}
                           {f.batizado.parcelas.map((p: any) => {
                             const vencendo = isVencendo5(p.vencimento, p.status);
+                            // WhatsApp vencimento alert
+                            const alertMsg = `⏰ Aviso de vencimento — ACCBM\n\nOlá ${firstName}! Sua parcela ${p.numero}/${numParc} do batizado está próxima do vencimento.\n\n💰 Valor: R$ ${p.valor.toFixed(2)}\n📅 Vencimento: ${p.vencimento ? new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}\n\nEvite atrasos e quite em dia. Qualquer dúvida, estamos à disposição. 🙏`;
+                            const waAlertLink = buildWaLink(alertMsg);
                             return (
                             <div key={p.numero} style={{ background: vencendo ? 'rgba(234,179,8,0.05)' : 'var(--bg-input)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.3)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
@@ -3739,7 +3815,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                     <span style={{ marginLeft: 6, background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 12, padding: '1px 7px', fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>
                                   )}
                                 </div>
-                                <div style={{ display: 'flex', gap: 6 }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                  {/* WhatsApp alert per parcela */}
+                                  {waAlertLink && p.status !== 'pago' && (
+                                    <a href={waAlertLink} target="_blank" rel="noreferrer"
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: vencendo ? 'rgba(234,179,8,0.15)' : 'rgba(22,163,74,0.1)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.4)' : 'rgba(22,163,74,0.3)'}`, color: vencendo ? '#fbbf24' : '#4ade80', borderRadius: 8, fontSize: '0.65rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+                                      title={vencendo ? 'Enviar alerta de vencimento' : 'Enviar lembrete de parcela'}>
+                                      <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                                      {vencendo ? '⚠ Alertar' : 'Lembrete'}
+                                    </a>
+                                  )}
                                   {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                     <button key={st} onClick={async () => {
                                       const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, status: st, data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : pp.data_pagamento } : pp) } };
@@ -3787,7 +3872,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </div>
                           )}
                         </div>
-                      )}
+                        );
+                      })()}
                     </div>
                   </div>
                   );
