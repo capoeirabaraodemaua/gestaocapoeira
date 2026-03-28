@@ -15,16 +15,54 @@ function formatDate(d: string) {
   return new Date(d + 'T12:00:00').toLocaleDateString('pt-BR');
 }
 
+/** Returns true if the due date is within 5 days from today (and not yet paid) */
+function isVencendoEm5Dias(vencimento: string, status: string): boolean {
+  if (status === 'pago' || !vencimento) return false;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const venc = new Date(vencimento + 'T12:00:00');
+  const diff = (venc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24);
+  return diff >= 0 && diff <= 5;
+}
+
+function isAtrasado(vencimento: string, status: string): boolean {
+  if (status === 'pago' || !vencimento) return false;
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const venc = new Date(vencimento + 'T12:00:00');
+  return venc < hoje;
+}
+
+/** Generate ISO date string (YYYY-MM-DD) for due dates starting from today+1 month increments */
+function gerarVencimento(index: number): string {
+  const base = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+  base.setMonth(base.getMonth() + index + 1);
+  return base.toISOString().slice(0, 10);
+}
+
+function gerarParcelas(total: number, numParcelas: number): Parcela[] {
+  const valorParcela = Math.round((total / numParcelas) * 100) / 100;
+  // Adjust last parcela for rounding differences
+  const soma = valorParcela * (numParcelas - 1);
+  const ultima = Math.round((total - soma) * 100) / 100;
+  return Array.from({ length: numParcelas }, (_, i) => ({
+    numero: i + 1,
+    valor: i === numParcelas - 1 ? ultima : valorParcela,
+    vencimento: gerarVencimento(i),
+    status: 'pendente' as const,
+  }));
+}
+
 function statusBadge(status: string) {
   const map: Record<string, { label: string; bg: string; color: string }> = {
-    pago:       { label: '✓ Pago',      bg: 'rgba(22,163,74,0.12)',  color: '#16a34a' },
-    pendente:   { label: '⏳ Pendente',  bg: 'rgba(234,179,8,0.12)',  color: '#ca8a04' },
-    atrasado:   { label: '⚠ Atrasado',  bg: 'rgba(220,38,38,0.12)',  color: '#dc2626' },
-    nao_definido: { label: '— N/D',     bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
-    solicitado: { label: '📋 Solicitado', bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
-    confirmado: { label: '✓ Confirmado', bg: 'rgba(124,58,237,0.12)', color: '#7c3aed' },
-    entregue:   { label: '🎁 Entregue',  bg: 'rgba(22,163,74,0.12)',  color: '#16a34a' },
-    cancelado:  { label: '✗ Cancelado',  bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
+    pago:         { label: '✓ Pago',        bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
+    pendente:     { label: '⏳ Pendente',    bg: 'rgba(234,179,8,0.12)',   color: '#ca8a04' },
+    atrasado:     { label: '⚠ Atrasado',    bg: 'rgba(220,38,38,0.12)',   color: '#dc2626' },
+    nao_definido: { label: '— N/D',         bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
+    solicitado:   { label: '📋 Solicitado', bg: 'rgba(59,130,246,0.12)',  color: '#3b82f6' },
+    confirmado:   { label: '✓ Confirmado',  bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed' },
+    entregue:     { label: '🎁 Entregue',   bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
+    cancelado:    { label: '✗ Cancelado',   bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
   };
   const s = map[status] || { label: status, bg: 'rgba(100,116,139,0.12)', color: '#64748b' };
   return (
@@ -57,9 +95,7 @@ const sectionHeader = (color: string, icon: string, title: string, sub?: string)
 const DEFAULT_CONFIG: FinanceiroConfig = {
   mensalidade_valor: 80,
   batizado_integral: 150,
-  batizado_parcela1: 60,
-  batizado_parcela2: 50,
-  batizado_parcela3: 40,
+  batizado_max_parcelas: 12,
   contribuicao_mensal: 30,
   updated_at: '',
 };
@@ -73,7 +109,7 @@ export default function FinanceiroPage() {
   const [config, setConfig] = useState<FinanceiroConfig>(DEFAULT_CONFIG);
 
   useEffect(() => {
-    fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setConfig(d); }).catch(() => {});
+    fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setConfig({ ...DEFAULT_CONFIG, ...d }); }).catch(() => {});
   }, []);
 
   const [student, setStudent] = useState<{ id: string; nome_completo: string; cpf: string; nucleo: string | null; foto_url: string | null; graduacao: string } | null>(null);
@@ -81,6 +117,9 @@ export default function FinanceiroPage() {
   const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [activeSection, setActiveSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
+
+  // Parcelamento selection state
+  const [numParcelas, setNumParcelas] = useState(1);
 
   // Upload state
   const [uploadingComp, setUploadingComp] = useState<string | null>(null);
@@ -100,8 +139,6 @@ export default function FinanceiroPage() {
     setLoadingLogin(true);
     setErro('');
 
-    // Try matching by CPF (digits stored with or without formatting)
-    // Also try matching by identidade (RG / Numeração Única)
     const { data: rows, error } = await supabase
       .from('students')
       .select('id, nome_completo, cpf, identidade, nucleo, foto_url, graduacao, tipo_graduacao, data_nascimento, telefone, cep, endereco, numero, bairro, cidade, estado');
@@ -131,26 +168,13 @@ export default function FinanceiroPage() {
       return;
     }
 
-    // Validar cadastro completo
     const camposObrigatorios: Record<string, string> = {
-      nome_completo: 'Nome Completo',
-      data_nascimento: 'Data de Nascimento',
-      telefone: 'Telefone',
-      cep: 'CEP',
-      endereco: 'Endereço',
-      numero: 'Número',
-      bairro: 'Bairro',
-      cidade: 'Cidade',
-      estado: 'Estado',
-      nucleo: 'Núcleo',
-      graduacao: 'Graduação',
-      tipo_graduacao: 'Tipo de Graduação',
+      nome_completo: 'Nome Completo', data_nascimento: 'Data de Nascimento', telefone: 'Telefone',
+      cep: 'CEP', endereco: 'Endereço', numero: 'Número', bairro: 'Bairro', cidade: 'Cidade',
+      estado: 'Estado', nucleo: 'Núcleo', graduacao: 'Graduação', tipo_graduacao: 'Tipo de Graduação',
     };
     const pendentes = Object.entries(camposObrigatorios)
-      .filter(([field]) => {
-        const val = (data as Record<string, unknown>)[field];
-        return !val || (typeof val === 'string' && !val.trim());
-      })
+      .filter(([field]) => { const val = (data as Record<string, unknown>)[field]; return !val || (typeof val === 'string' && !val.trim()); })
       .map(([, label]) => label);
 
     if (pendentes.length > 0) {
@@ -160,30 +184,19 @@ export default function FinanceiroPage() {
     }
 
     setStudent(data);
-    // Load financial sheet
     const res = await fetch(`/api/financeiro?student_id=${data.id}`);
     const fichaData: FichaFinanceira | null = await res.json();
     if (fichaData) {
       setFicha(fichaData);
     } else {
-      // Create default empty ficha
       const now = new Date().toISOString().slice(0, 10);
       const defaultFicha: FichaFinanceira = {
         student_id: data.id,
         nome_completo: data.nome_completo,
         cpf: digits,
         nucleo: data.nucleo || '',
-        batizado: {
-          modalidade: 'nao_definido',
-          valor_total: config.batizado_integral,
-          parcelas: [],
-          status_geral: 'nao_definido',
-        },
-        contribuicao: {
-          ativa: false,
-          valor_mensal: config.contribuicao_mensal,
-          historico: [],
-        },
+        batizado: { modalidade: 'nao_definido', valor_total: config.batizado_integral, parcelas: [], status_geral: 'nao_definido' },
+        contribuicao: { ativa: false, valor_mensal: config.contribuicao_mensal, historico: [] },
         mensalidades: [],
         uniformes: [],
         alertas: { comprovante_pendente: false, uniforme_solicitado: false, mensalidade_atrasada: false, batizado_modalidade_escolhida: false, mensalidade_registrada: false, contribuicao_registrada: false, pagamento_registrado: false, ultimas_acoes: [] },
@@ -222,10 +235,7 @@ export default function FinanceiroPage() {
     fd.append('ref', ref);
     const res = await fetch('/api/financeiro/comprovante', { method: 'POST', body: fd });
     setUploadingComp(null);
-    if (res.ok) {
-      const { url } = await res.json();
-      return url;
-    }
+    if (res.ok) { const { url } = await res.json(); return url; }
     return null;
   };
 
@@ -260,16 +270,15 @@ export default function FinanceiroPage() {
     fileInputRef.current?.click();
   };
 
-  const setBatizadoModalidade = async (modalidade: 'integral' | 'parcelado') => {
+  const maxParcelas = config.batizado_max_parcelas || 12;
+  const valorTotal = config.batizado_integral;
+  const valorParcela = Math.round((valorTotal / numParcelas) * 100) / 100;
+
+  const confirmarParcelamento = async (modalidade: 'integral' | 'parcelado', qtd: number) => {
     if (!ficha) return;
-    const parcelas: Parcela[] = modalidade === 'integral'
-      ? [{ numero: 1, valor: config.batizado_integral, vencimento: '', status: 'pendente' }]
-      : [
-          { numero: 1, valor: config.batizado_parcela1, vencimento: '', status: 'pendente' as const },
-          { numero: 2, valor: config.batizado_parcela2, vencimento: '', status: 'pendente' as const },
-          { numero: 3, valor: config.batizado_parcela3, vencimento: '', status: 'pendente' as const },
-        ];
-    const updated = { ...ficha, batizado: { ...ficha.batizado, modalidade, parcelas, valor_total: config.batizado_integral } };
+    const n = modalidade === 'integral' ? 1 : qtd;
+    const parcelas = gerarParcelas(valorTotal, n);
+    const updated = { ...ficha, batizado: { ...ficha.batizado, modalidade, parcelas, valor_total: valorTotal } };
     setFicha(updated);
     await saveFicha(updated);
   };
@@ -309,6 +318,13 @@ export default function FinanceiroPage() {
     setUnifDesc(''); setUnifTam(''); setUnifQtd(1); setUnifValor(50);
   };
 
+  // Count near-due parcelas for alert banner
+  const parcelasVencendo = ficha?.batizado.parcelas.filter(p => isVencendoEm5Dias(p.vencimento, p.status)) ?? [];
+  const mensalidadesVencendo = ficha?.mensalidades.filter(m => {
+    // For mensalidades we don't have explicit due date, skip
+    return m.status === 'atrasado';
+  }) ?? [];
+
   // ─── RENDER ───────────────────────────────────────────────────────────────
 
   return (
@@ -318,7 +334,6 @@ export default function FinanceiroPage() {
       {/* Header */}
       <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.15),rgba(30,58,138,0.2))', borderBottom: '1px solid rgba(255,255,255,0.08)', padding: '18px 20px', display: 'flex', alignItems: 'center', gap: 16 }}>
         <button onClick={() => {
-          // Se veio com student_id na URL (área do aluno), volta para /aluno; senão usa history.back()
           const hasStudentId = typeof window !== 'undefined' && new URLSearchParams(window.location.search).has('student_id');
           if (hasStudentId) { window.location.href = '/aluno'; } else { history.back(); }
         }} style={{ width: 34, height: 34, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, cursor: 'pointer', color: 'rgba(255,255,255,0.6)' }} title="Voltar">
@@ -389,7 +404,7 @@ export default function FinanceiroPage() {
         {step === 'sheet' && student && ficha && (
           <div>
             {/* Student card */}
-            <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.1),rgba(29,78,216,0.1))', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '16px 18px', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.1),rgba(29,78,216,0.1))', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 16, padding: '16px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
               {student.foto_url
                 ? <img src={student.foto_url} alt="" style={{ width: 52, height: 52, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.2)', flexShrink: 0 }} />
                 : <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,255,255,0.07)', border: '2px solid rgba(255,255,255,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.5rem', flexShrink: 0 }}>👤</div>
@@ -404,6 +419,23 @@ export default function FinanceiroPage() {
                 </div>
               )}
             </div>
+
+            {/* ── Alerta de vencimento próximo (5 dias) ── */}
+            {parcelasVencendo.length > 0 && (
+              <div style={{ background: 'rgba(234,179,8,0.1)', border: '2px solid rgba(234,179,8,0.4)', borderRadius: 12, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>⚠️</span>
+                <div>
+                  <div style={{ fontWeight: 800, color: '#fbbf24', fontSize: '0.9rem', marginBottom: 4 }}>
+                    Parcela{parcelasVencendo.length > 1 ? 's' : ''} a vencer em até 5 dias!
+                  </div>
+                  {parcelasVencendo.map(p => (
+                    <div key={p.numero} style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.75)' }}>
+                      • Parcela {p.numero} — {formatMoeda(p.valor)} — vence em {formatDate(p.vencimento)}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Section tabs */}
             <div style={{ display: 'flex', gap: 4, marginBottom: 20, overflowX: 'auto', paddingBottom: 4 }}>
@@ -423,70 +455,168 @@ export default function FinanceiroPage() {
             {/* ── BATIZADO ── */}
             {activeSection === 'batizado' && (
               <div style={cardStyle}>
-                {sectionHeader('#7c3aed', '🥋', 'Pagamento do Batizado', `Valor: ${formatMoeda(config.batizado_integral)}`)}
+                {sectionHeader('#7c3aed', '🥋', 'Pagamento do Batizado', `Valor total: ${formatMoeda(valorTotal)} · até ${maxParcelas}× sem juros`)}
+
                 {ficha.batizado.modalidade === 'nao_definido' ? (
                   <div>
-                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', marginBottom: 16, textAlign: 'center' }}>Escolha a modalidade de pagamento do batizado:</div>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                      <button onClick={() => setBatizadoModalidade('integral')}
-                        style={{ padding: '18px', background: 'rgba(124,58,237,0.12)', border: '2px solid rgba(124,58,237,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>💳</div>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Pagamento Integral</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>{formatMoeda(config.batizado_integral)} à vista</div>
-                      </button>
-                      <button onClick={() => setBatizadoModalidade('parcelado')}
-                        style={{ padding: '18px', background: 'rgba(59,130,246,0.12)', border: '2px solid rgba(59,130,246,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'center' }}>
-                        <div style={{ fontSize: '1.5rem', marginBottom: 6 }}>📆</div>
-                        <div style={{ fontWeight: 700, fontSize: '0.9rem' }}>Parcelado (3×)</div>
-                        <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 4 }}>{formatMoeda(config.batizado_parcela1)} + {formatMoeda(config.batizado_parcela2)} + {formatMoeda(config.batizado_parcela3)}</div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.85rem', marginBottom: 18, textAlign: 'center' }}>
+                      Escolha a forma de pagamento do batizado:
+                    </div>
+
+                    {/* Integral */}
+                    <button onClick={() => confirmarParcelamento('integral', 1)}
+                      style={{ width: '100%', padding: '16px 18px', background: 'rgba(124,58,237,0.12)', border: '2px solid rgba(124,58,237,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'left', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ fontSize: '1.5rem' }}>💳</span>
+                        <div>
+                          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Pagamento Integral</div>
+                          <div style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.78rem', marginTop: 2 }}>
+                            {formatMoeda(valorTotal)} à vista — parcela única
+                          </div>
+                        </div>
+                      </div>
+                    </button>
+
+                    {/* Parcelado: selector */}
+                    <div style={{ background: 'rgba(59,130,246,0.08)', border: '2px solid rgba(59,130,246,0.3)', borderRadius: 12, padding: '16px 18px' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                        <span style={{ fontSize: '1.5rem' }}>📆</span>
+                        <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Parcelado — sem juros</div>
+                      </div>
+
+                      {/* Parcelas grid 1–maxParcelas */}
+                      <div style={{ marginBottom: 12 }}>
+                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Escolha a quantidade de parcelas:</div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                          {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => {
+                            const vp = Math.round((valorTotal / n) * 100) / 100;
+                            const isSelected = numParcelas === n;
+                            return (
+                              <button key={n} onClick={() => setNumParcelas(n)}
+                                style={{ padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
+                                  background: isSelected ? 'rgba(59,130,246,0.35)' : 'rgba(255,255,255,0.06)',
+                                  border: `1.5px solid ${isSelected ? 'rgba(59,130,246,0.8)' : 'rgba(255,255,255,0.1)'}`,
+                                  color: isSelected ? '#93c5fd' : 'rgba(255,255,255,0.6)',
+                                }}>
+                                {n}× <span style={{ fontWeight: 400, fontSize: '0.72rem' }}>{formatMoeda(vp)}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Preview do plano */}
+                      <div style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                        <div style={{ fontWeight: 700, color: '#93c5fd', fontSize: '0.85rem', marginBottom: 6 }}>
+                          Resumo do plano: {numParcelas}× de {formatMoeda(valorParcela)}
+                        </div>
+                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                          Valor total: {formatMoeda(valorTotal)} · Sem juros · Vencimentos mensais a partir do próximo mês
+                        </div>
+                        {numParcelas > 1 && (
+                          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                            {gerarParcelas(valorTotal, numParcelas).map(p => (
+                              <span key={p.numero} style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.07)', borderRadius: 6, padding: '3px 8px', color: 'rgba(255,255,255,0.5)' }}>
+                                {p.numero}ª {formatMoeda(p.valor)} · {formatDate(p.vencimento)}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      <button onClick={() => confirmarParcelamento('parcelado', numParcelas)}
+                        style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,#1d4ed8,#3b82f6)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem' }}>
+                        ✓ Confirmar {numParcelas}× de {formatMoeda(valorParcela)}
                       </button>
                     </div>
                   </div>
                 ) : (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
-                      <span style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '4px 12px', color: '#a78bfa', fontWeight: 700, fontSize: '0.82rem' }}>
-                        {ficha.batizado.modalidade === 'integral' ? '💳 Integral' : '📆 Parcelado 3×'}
+                    {/* Plano ativo */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
+                      <span style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '5px 13px', color: '#a78bfa', fontWeight: 700, fontSize: '0.85rem' }}>
+                        {ficha.batizado.modalidade === 'integral'
+                          ? `💳 Integral — ${formatMoeda(ficha.batizado.valor_total)}`
+                          : `📆 ${ficha.batizado.parcelas.length}× de ${formatMoeda(ficha.batizado.parcelas[0]?.valor ?? 0)}`}
                       </span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>Valor total: {formatMoeda(ficha.batizado.valor_total || config.batizado_integral)}</span>
+                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
+                        Total: {formatMoeda(ficha.batizado.valor_total || valorTotal)}
+                      </span>
+                      {/* Progress */}
+                      {ficha.batizado.parcelas.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>
+                          {ficha.batizado.parcelas.filter(p => p.status === 'pago').length}/{ficha.batizado.parcelas.length} pagas
+                        </span>
+                      )}
                       <button onClick={() => { const u = { ...ficha, batizado: { ...ficha.batizado, modalidade: 'nao_definido' as const, parcelas: [] } }; setFicha(u); }}
                         style={{ marginLeft: 'auto', background: 'none', border: '1px solid rgba(255,255,255,0.1)', color: 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>
-                        Alterar
+                        Alterar plano
                       </button>
                     </div>
-                    {ficha.batizado.parcelas.map(p => (
-                      <div key={p.numero} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                          <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero} — {formatMoeda(p.valor)}</span>
-                          {statusBadge(p.status)}
-                        </div>
-                        {/* Method select */}
-                        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                          {METODOS.map(m => (
-                            <button key={m} onClick={async () => {
-                              const updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: ficha.batizado.parcelas.map(pp => pp.numero === p.numero ? { ...pp, metodo: m } : pp) } };
-                              setFicha(updated); await saveFicha(updated);
-                            }}
-                              style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: p.metodo === m ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.metodo === m ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.08)'}`, color: p.metodo === m ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
-                              {m}
+
+                    {/* Parcelas */}
+                    {ficha.batizado.parcelas.map(p => {
+                      const vencendo = isVencendoEm5Dias(p.vencimento, p.status);
+                      const atrasada = isAtrasado(p.vencimento, p.status);
+                      const statusFinal = atrasada && p.status !== 'pago' ? 'atrasado' : p.status;
+                      return (
+                        <div key={p.numero} style={{ background: vencendo ? 'rgba(234,179,8,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.35)' : atrasada ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                            <div>
+                              <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>
+                                Parcela {p.numero}/{ficha.batizado.parcelas.length} — {formatMoeda(p.valor)}
+                              </span>
+                              {p.vencimento && (
+                                <span style={{ marginLeft: 8, fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
+                                  vence {formatDate(p.vencimento)}
+                                </span>
+                              )}
+                            </div>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              {statusBadge(statusFinal)}
+                              {vencendo && <span style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '2px 8px', fontSize: '0.68rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>}
+                            </div>
+                          </div>
+                          {/* Method select */}
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                            {METODOS.map(m => (
+                              <button key={m} onClick={async () => {
+                                const updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: ficha.batizado.parcelas.map(pp => pp.numero === p.numero ? { ...pp, metodo: m } : pp) } };
+                                setFicha(updated); await saveFicha(updated);
+                              }}
+                                style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: p.metodo === m ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.metodo === m ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.08)'}`, color: p.metodo === m ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
+                                {m}
+                              </button>
+                            ))}
+                          </div>
+                          {/* Comprovante */}
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {p.comprovante_url
+                              ? <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#a78bfa', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
+                              : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
+                            }
+                            <button onClick={() => triggerUpload('batizado', String(p.numero))}
+                              disabled={uploadingComp === `batizado_${p.numero}`}
+                              style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                              {uploadingComp === `batizado_${p.numero}` ? '⏳' : '📤'} Enviar comprovante
                             </button>
-                          ))}
+                          </div>
+                          {(p as any).comprovante_enviado && <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#fbbf24' }}>⏳ Comprovante enviado — aguardando confirmação do admin</div>}
                         </div>
-                        {/* Comprovante */}
-                        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                          {p.comprovante_url
-                            ? <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#a78bfa', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
-                            : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
-                          }
-                          <button onClick={() => triggerUpload('batizado', String(p.numero))}
-                            disabled={uploadingComp === `batizado_${p.numero}`}
-                            style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                            {uploadingComp === `batizado_${p.numero}` ? '⏳' : '📤'} Enviar comprovante
-                          </button>
-                        </div>
-                        {(p as any).comprovante_enviado && <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#fbbf24' }}>⏳ Comprovante enviado — aguardando confirmação do admin</div>}
+                      );
+                    })}
+
+                    {/* Resumo total pago */}
+                    {ficha.batizado.parcelas.length > 0 && (
+                      <div style={{ marginTop: 12, padding: '10px 14px', background: 'rgba(124,58,237,0.08)', borderRadius: 10, display: 'flex', justifyContent: 'space-between', fontSize: '0.82rem', flexWrap: 'wrap', gap: 6 }}>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                          Total pago: {formatMoeda(ficha.batizado.parcelas.filter(p => p.status === 'pago').reduce((s, p) => s + p.valor, 0))}
+                        </span>
+                        <span style={{ color: 'rgba(255,255,255,0.5)' }}>
+                          Saldo restante: {formatMoeda(ficha.batizado.parcelas.filter(p => p.status !== 'pago').reduce((s, p) => s + p.valor, 0))}
+                        </span>
                       </div>
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
@@ -508,7 +638,7 @@ export default function FinanceiroPage() {
                   const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
                   const label = `${names[parseInt(mo)-1]}/${y}`;
                   return (
-                    <div key={m.mes} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                    <div key={m.mes} style={{ background: m.status === 'atrasado' ? 'rgba(220,38,38,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${m.status === 'atrasado' ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                         <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{label} — {formatMoeda(m.valor)}</span>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -635,7 +765,6 @@ export default function FinanceiroPage() {
             {activeSection === 'uniformes' && (
               <div style={cardStyle}>
                 {sectionHeader('#d97706', '👕', 'Solicitação de Uniformes')}
-                {/* Request form */}
                 <div style={{ background: 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, padding: '14px', marginBottom: 16 }}>
                   <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#fbbf24', marginBottom: 10 }}>Nova solicitação</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, marginBottom: 8 }}>

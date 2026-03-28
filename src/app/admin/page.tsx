@@ -701,7 +701,7 @@ export default function AdminPage() {
   const [showEditalForm, setShowEditalForm] = useState(false);
 
   // ── Config financeiro ────────────────────────────────────────────────────
-  const [finConfig, setFinConfig] = useState<{ mensalidade_valor: number; batizado_integral: number; batizado_parcela1: number; batizado_parcela2: number; batizado_parcela3: number; contribuicao_mensal: number }>({ mensalidade_valor: 80, batizado_integral: 150, batizado_parcela1: 60, batizado_parcela2: 50, batizado_parcela3: 40, contribuicao_mensal: 30 });
+  const [finConfig, setFinConfig] = useState<{ mensalidade_valor: number; batizado_integral: number; batizado_max_parcelas: number; contribuicao_mensal: number }>({ mensalidade_valor: 80, batizado_integral: 150, batizado_max_parcelas: 12, contribuicao_mensal: 30 });
   const [finConfigSaving, setFinConfigSaving] = useState(false);
   const [finConfigMsg, setFinConfigMsg] = useState('');
   const [showFinConfig, setShowFinConfig] = useState(false);
@@ -3463,20 +3463,23 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ fontWeight: 800, color: '#4ade80', marginBottom: 14, fontSize: '0.9rem' }}>⚙ Valores Vigentes — atualize e salve para refletir em todas as fichas</div>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 12 }}>
                   {([
-                    { key: 'mensalidade_valor', label: '📅 Mensalidade (R$)' },
-                    { key: 'batizado_integral', label: '🥋 Batizado Integral (R$)' },
-                    { key: 'batizado_parcela1', label: '🥋 Batizado Parcela 1 (R$)' },
-                    { key: 'batizado_parcela2', label: '🥋 Batizado Parcela 2 (R$)' },
-                    { key: 'batizado_parcela3', label: '🥋 Batizado Parcela 3 (R$)' },
-                    { key: 'contribuicao_mensal', label: '🤝 Contribuição Mensal (R$)' },
-                  ] as const).map(({ key, label }) => (
+                    { key: 'mensalidade_valor',    label: '📅 Mensalidade (R$)',              type: 'decimal' },
+                    { key: 'batizado_integral',    label: '🥋 Valor Total Batizado (R$)',       type: 'decimal' },
+                    { key: 'batizado_max_parcelas',label: '🔢 Máximo de Parcelas (1–12)',        type: 'integer' },
+                    { key: 'contribuicao_mensal',  label: '🤝 Contribuição Mensal (R$)',         type: 'decimal' },
+                  ] as const).map(({ key, label, type }) => (
                     <div key={key}>
                       <label style={{ display: 'block', fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{label}</label>
-                      <input type="number" min="0" step="0.01"
+                      <input type="number" min={type === 'integer' ? 1 : 0} max={type === 'integer' ? 12 : undefined} step={type === 'decimal' ? '0.01' : '1'}
                         value={finConfig[key]}
-                        onChange={e => setFinConfig(prev => ({ ...prev, [key]: parseFloat(e.target.value) || 0 }))}
+                        onChange={e => setFinConfig(prev => ({ ...prev, [key]: type === 'decimal' ? (parseFloat(e.target.value) || 0) : (parseInt(e.target.value) || 1) }))}
                         style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', color: 'var(--text-primary)', fontSize: '0.9rem', outline: 'none' }}
                       />
+                      {key === 'batizado_integral' && (
+                        <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: 3 }}>
+                          Ex: {finConfig.batizado_max_parcelas}× = R$ {(finConfig.batizado_integral / finConfig.batizado_max_parcelas).toFixed(2)}/parcela
+                        </div>
+                      )}
                     </div>
                   ))}
                 </div>
@@ -3638,48 +3641,104 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
 
                 {/* BATIZADO */}
-                {finSection === 'batizado' && (
+                {finSection === 'batizado' && (() => {
+                  const maxP = finConfig.batizado_max_parcelas || 12;
+                  const totalBat = finConfig.batizado_integral;
+
+                  function gerarParcelasAdmin(total: number, n: number) {
+                    const vp = Math.round((total / n) * 100) / 100;
+                    const soma = vp * (n - 1);
+                    const ultima = Math.round((total - soma) * 100) / 100;
+                    return Array.from({ length: n }, (_, i) => {
+                      const base = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
+                      base.setMonth(base.getMonth() + i + 1);
+                      return { numero: i + 1, valor: i === n - 1 ? ultima : vp, vencimento: base.toISOString().slice(0, 10), status: 'pendente' as const };
+                    });
+                  }
+
+                  function isVencendo5(venc: string, status: string) {
+                    if (status === 'pago' || !venc) return false;
+                    const hoje = new Date(); hoje.setHours(0,0,0,0);
+                    const v = new Date(venc + 'T12:00:00');
+                    const diff = (v.getTime() - hoje.getTime()) / 86400000;
+                    return diff >= 0 && diff <= 5;
+                  }
+
+                  return (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
-                    <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', padding: '10px 16px' }}>
-                      <div style={{ color: '#fff', fontWeight: 800 }}>🥋 Batizado — Valor: R$ {finConfig.batizado_integral.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</div>
+                    <div style={{ background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🥋 Batizado — R$ {totalBat.toLocaleString('pt-BR', { minimumFractionDigits: 2 })} · até {maxP}× sem juros</div>
+                      {f.batizado.modalidade !== 'nao_definido' && f.batizado.parcelas.length > 0 && (
+                        <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.75)' }}>
+                          {f.batizado.parcelas.filter((p: any) => p.status === 'pago').length}/{f.batizado.parcelas.length} pagas
+                        </span>
+                      )}
                     </div>
                     <div style={{ padding: '16px' }}>
                       {f.batizado.modalidade === 'nao_definido' ? (
                         <div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', marginBottom: 12 }}>Definir modalidade:</div>
-                          <div style={{ display: 'flex', gap: 10 }}>
-                            {(['integral', 'parcelado'] as const).map(mod => (
-                              <button key={mod} onClick={async () => {
-                                const parcelas = mod === 'integral'
-                                  ? [{ numero: 1, valor: 150, vencimento: '', status: 'pendente' }]
-                                  : [1,2,3].map(n => ({ numero: n, valor: 50, vencimento: '', status: 'pendente' }));
-                                const updated = { ...f, batizado: { ...f.batizado, modalidade: mod, parcelas, valor_total: 150 } };
-                                setFinFicha(updated); await adminSaveFicha(updated);
-                              }}
-                                style={{ flex: 1, padding: '12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem' }}>
-                                {mod === 'integral' ? `💳 Integral (R$ ${finConfig.batizado_integral.toLocaleString('pt-BR', {minimumFractionDigits:2})})` : `📆 Parcelado 3× (${finConfig.batizado_parcela1}+${finConfig.batizado_parcela2}+${finConfig.batizado_parcela3})`}
-                              </button>
-                            ))}
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginBottom: 12 }}>Definir modalidade de pagamento para o aluno:</div>
+                          {/* Integral */}
+                          <button onClick={async () => {
+                            const parcelas = gerarParcelasAdmin(totalBat, 1);
+                            const updated = { ...f, batizado: { ...f.batizado, modalidade: 'integral' as const, parcelas, valor_total: totalBat } };
+                            setFinFicha(updated); await adminSaveFicha(updated);
+                          }} style={{ width: '100%', padding: '11px 14px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, cursor: 'pointer', color: 'var(--text-primary)', fontWeight: 700, fontSize: '0.85rem', marginBottom: 10, textAlign: 'left' }}>
+                            💳 Integral — R$ {totalBat.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+                          </button>
+                          {/* Parcelado selector */}
+                          <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 10, padding: '12px 14px' }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#a78bfa', marginBottom: 10 }}>📆 Parcelado — Escolha a quantidade:</div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {Array.from({ length: maxP }, (_, i) => i + 2).map(n => {
+                                const vp = (totalBat / n).toFixed(2);
+                                return (
+                                  <button key={n} onClick={async () => {
+                                    const parcelas = gerarParcelasAdmin(totalBat, n);
+                                    const updated = { ...f, batizado: { ...f.batizado, modalidade: 'parcelado' as const, parcelas, valor_total: totalBat } };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                  }} style={{ padding: '6px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700, background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)' }}>
+                                    {n}× <span style={{ fontWeight: 400, fontSize: '0.7rem' }}>R$ {vp}</span>
+                                  </button>
+                                );
+                              })}
+                            </div>
                           </div>
                         </div>
                       ) : (
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
                             <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                              Modalidade: <strong>{f.batizado.modalidade === 'integral' ? 'Integral' : 'Parcelado 3×'}</strong>
+                              Modalidade: <strong>
+                                {f.batizado.modalidade === 'integral'
+                                  ? `Integral — R$ ${f.batizado.valor_total?.toFixed(2)}`
+                                  : `${f.batizado.parcelas.length}× de R$ ${f.batizado.parcelas[0]?.valor?.toFixed(2)}`}
+                              </strong>
                             </div>
                             <button onClick={async () => {
                               if (!confirm('Excluir agendamento de batizado? Isso vai apagar a modalidade e parcelas.')) return;
-                              const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido', parcelas: [], valor_total: 0 } };
+                              const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido' as const, parcelas: [], valor_total: 0 } };
                               setFinFicha(updated); await adminSaveFicha(updated);
                             }} style={{ padding: '3px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
                               🗑 Excluir agendamento
                             </button>
                           </div>
-                          {f.batizado.parcelas.map((p: any) => (
-                            <div key={p.numero} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                          {f.batizado.parcelas.map((p: any) => {
+                            const vencendo = isVencendo5(p.vencimento, p.status);
+                            return (
+                            <div key={p.numero} style={{ background: vencendo ? 'rgba(234,179,8,0.05)' : 'var(--bg-input)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.3)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-                                <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero} — R$ {p.valor.toFixed(2)}</span>
+                                <div>
+                                  <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero}/{f.batizado.parcelas.length} — R$ {p.valor.toFixed(2)}</span>
+                                  {p.vencimento && (
+                                    <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                                      vence {new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                    </span>
+                                  )}
+                                  {vencendo && (
+                                    <span style={{ marginLeft: 6, background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 12, padding: '1px 7px', fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>
+                                  )}
+                                </div>
                                 <div style={{ display: 'flex', gap: 6 }}>
                                   {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                     <button key={st} onClick={async () => {
@@ -3692,7 +3751,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   ))}
                                 </div>
                               </div>
-                              {/* Metodo */}
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                                 {METODOS.map(m => (
                                   <button key={m} onClick={async () => {
@@ -3719,12 +3777,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 </div>
                               )}
                             </div>
-                          ))}
+                            );
+                          })}
+                          {/* Resumo */}
+                          {f.batizado.parcelas.length > 0 && (
+                            <div style={{ marginTop: 8, padding: '8px 12px', background: 'rgba(124,58,237,0.06)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', fontSize: '0.78rem', color: 'var(--text-secondary)', flexWrap: 'wrap', gap: 4 }}>
+                              <span>Pago: R$ {f.batizado.parcelas.filter((p: any) => p.status === 'pago').reduce((s: number, p: any) => s + p.valor, 0).toFixed(2)}</span>
+                              <span>Restante: R$ {f.batizado.parcelas.filter((p: any) => p.status !== 'pago').reduce((s: number, p: any) => s + p.valor, 0).toFixed(2)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
                     </div>
                   </div>
-                )}
+                  );
+                })()}
 
                 {/* MENSALIDADES */}
                 {finSection === 'mensalidades' && (

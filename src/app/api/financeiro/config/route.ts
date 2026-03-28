@@ -12,9 +12,13 @@ const KEY = 'financeiro/config.json';
 export interface FinanceiroConfig {
   mensalidade_valor: number;
   batizado_integral: number;
-  batizado_parcela1: number;
-  batizado_parcela2: number;
-  batizado_parcela3: number;
+  /** @deprecated use batizado_integral / num_parcelas instead */
+  batizado_parcela1?: number;
+  /** @deprecated use batizado_integral / num_parcelas instead */
+  batizado_parcela2?: number;
+  /** @deprecated use batizado_integral / num_parcelas instead */
+  batizado_parcela3?: number;
+  batizado_max_parcelas: number; // 1–12
   contribuicao_mensal: number;
   updated_at: string;
 }
@@ -22,9 +26,7 @@ export interface FinanceiroConfig {
 const DEFAULT_CONFIG: FinanceiroConfig = {
   mensalidade_valor: 80,
   batizado_integral: 150,
-  batizado_parcela1: 60,
-  batizado_parcela2: 50,
-  batizado_parcela3: 40,
+  batizado_max_parcelas: 12,
   contribuicao_mensal: 30,
   updated_at: new Date().toISOString(),
 };
