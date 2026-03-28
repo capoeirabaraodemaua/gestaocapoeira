@@ -6737,55 +6737,65 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             )}
             <input ref={manualFileRef} type="file" accept=".pdf" style={{ display: 'none' }} onChange={async e => {
               const file = e.target.files?.[0]; if (!file) return;
-              // Warn if file is very large (>40MB)
-              if (file.size > 40 * 1024 * 1024) {
-                setManualMsg('Erro: arquivo muito grande. O limite é 40 MB.');
-                e.target.value = '';
-                return;
+              if (file.size > 50 * 1024 * 1024) {
+                setManualMsg('Erro: arquivo muito grande. O limite é 50 MB.');
+                e.target.value = ''; return;
               }
-              setUploadingManual(true); setManualMsg(`⏳ Enviando ${(file.size / 1024 / 1024).toFixed(1)} MB...`);
+              setUploadingManual(true);
+              setManualMsg(`⏳ Preparando upload de ${(file.size / 1024 / 1024).toFixed(1)} MB...`);
               try {
-                const fd = new FormData(); fd.append('file', file);
-                const res = await fetch('/api/admin/manual', { method: 'POST', body: fd });
-                // Always read as text first to avoid "Unexpected token" on non-JSON responses
-                const raw = await res.text();
-                let json: any = {};
-                try { json = JSON.parse(raw); } catch {
-                  setManualMsg(`Erro ${res.status}: ${raw.slice(0, 120)}`);
+                // Step 1 — get a signed upload URL from the server (tiny JSON request, no file body)
+                const urlRes = await fetch('/api/admin/manual/upload-url', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ filename: file.name }),
+                });
+                const urlJson = await urlRes.json();
+                if (!urlRes.ok) {
+                  setManualMsg('Erro: ' + (urlJson.error || `HTTP ${urlRes.status}`));
                   setUploadingManual(false); e.target.value = ''; return;
                 }
-                if (res.ok && json.ok) {
-                  setManualMsg('✓ Manual enviado! Traduzindo para todos os idiomas...');
-                  // Reload list
-                  const d = await fetch('/api/admin/manual').then(r => r.json());
-                  setManuais(d.files || []);
-                  // Trigger translation in background
-                  const newName = json.name;
-                  setTranslatingManual(newName);
-                  fetch('/api/admin/manual/translate', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: newName }),
-                  }).then(async r => {
-                    const tjRaw = await r.text();
-                    let tj: any = {};
-                    try { tj = JSON.parse(tjRaw); } catch {}
-                    if (tj.ok) {
-                      setManualMsg('✓ Manual enviado e traduzido para todos os idiomas!');
-                      const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(newName)}`).then(r => r.json());
-                      if (tr.translations) {
-                        setManualTranslations(prev => ({ ...prev, [newName]: tr.translations }));
-                        setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
-                      }
-                    } else {
-                      setManualMsg('✓ Manual enviado. ' + (tj.error ? 'Tradução: ' + tj.error : 'Tradução automática indisponível.'));
-                    }
-                    setTranslatingManual(null);
-                  }).catch(() => { setTranslatingManual(null); setManualMsg('✓ Manual enviado. Tradução automática falhou.'); });
-                } else {
-                  setManualMsg('Erro: ' + (json.error || `HTTP ${res.status}`));
+
+                // Step 2 — upload the file DIRECTLY to Supabase (bypasses the proxy limit)
+                setManualMsg(`⏳ Enviando ${(file.size / 1024 / 1024).toFixed(1)} MB diretamente ao storage...`);
+                const uploadRes = await fetch(urlJson.uploadUrl, {
+                  method: 'PUT',
+                  headers: { 'Content-Type': 'application/pdf' },
+                  body: file,
+                });
+                if (!uploadRes.ok) {
+                  const errText = await uploadRes.text().catch(() => `HTTP ${uploadRes.status}`);
+                  setManualMsg('Erro no upload: ' + errText.slice(0, 120));
+                  setUploadingManual(false); e.target.value = ''; return;
                 }
-              } catch (err: any) { setManualMsg('Erro: ' + err.message); }
+
+                // Step 3 — reload list and trigger translation
+                setManualMsg('✓ Manual enviado! Traduzindo para todos os idiomas...');
+                const d = await fetch('/api/admin/manual').then(r => r.json());
+                setManuais(d.files || []);
+                const newName = urlJson.name;
+                setTranslatingManual(newName);
+                fetch('/api/admin/manual/translate', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ name: newName }),
+                }).then(async r => {
+                  const tj = await r.json().catch(() => ({}));
+                  if (tj.ok) {
+                    setManualMsg('✓ Manual enviado e traduzido para todos os idiomas!');
+                    const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(newName)}`).then(r => r.json()).catch(() => ({}));
+                    if (tr.translations) {
+                      setManualTranslations(prev => ({ ...prev, [newName]: tr.translations }));
+                      setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
+                    }
+                  } else {
+                    setManualMsg('✓ Manual enviado. ' + (tj.error ? 'Tradução: ' + tj.error : 'Tradução automática indisponível.'));
+                  }
+                  setTranslatingManual(null);
+                }).catch(() => { setTranslatingManual(null); setManualMsg('✓ Manual enviado. Tradução automática falhou.'); });
+              } catch (err: any) {
+                setManualMsg('Erro: ' + err.message);
+              }
               setUploadingManual(false);
               e.target.value = '';
             }} />
