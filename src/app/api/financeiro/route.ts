@@ -164,16 +164,20 @@ export async function POST(req: NextRequest) {
     acoes.unshift(`[${br}] ${resumo.join(' · ')}`);
   }
 
+  // When admin saves: clear all action-notification flags and log (admin has reviewed)
+  // Also force batizado_modalidade_escolhida=false whenever modalidade is nao_definido
+  const batizadoDeleted = body.batizado.modalidade === 'nao_definido';
+
   body.alertas = {
     comprovante_pendente,
     uniforme_solicitado,
     mensalidade_atrasada,
-    // When admin saves, clear action-notification flags (they've been seen)
-    batizado_modalidade_escolhida: isAdminSave ? false : batizado_modalidade_escolhida,
+    batizado_modalidade_escolhida: (isAdminSave || batizadoDeleted) ? false : batizado_modalidade_escolhida,
     mensalidade_registrada: isAdminSave ? false : mensalidade_registrada,
     contribuicao_registrada: isAdminSave ? false : contribuicao_registrada,
     pagamento_registrado: isAdminSave ? false : pagamento_registrado,
-    ultimas_acoes: acoes.slice(0, 20), // keep last 20 entries
+    // Clear log when admin saves — they've reviewed all pending actions
+    ultimas_acoes: isAdminSave ? [] : acoes.slice(0, 20),
   };
 
   const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });
