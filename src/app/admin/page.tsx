@@ -3590,8 +3590,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               fetch('/api/financeiro/alertas').then(r => r.json()).then(d => setFinAlerts(d)).catch(() => {});
             };
 
-            const statusColor: Record<string, string> = { pago: '#16a34a', pendente: '#ca8a04', atrasado: '#dc2626', nao_definido: '#64748b' };
-            const statusLabel: Record<string, string> = { pago: `✓ ${t('financial_paid')}`, pendente: `⏳ ${t('financial_pending')}`, atrasado: `⚠ ${t('financial_delayed')}`, nao_definido: '— N/D' };
+            const statusColor: Record<string, string> = {
+              pago: '#4ade80', pago_integral: '#fbbf24', aguardando_confirmacao: '#fbbf24',
+              pendente: '#ca8a04', atrasado: '#f87171', nao_definido: '#64748b',
+              solicitado: '#60a5fa', confirmado: '#a78bfa', entregue: '#4ade80', cancelado: '#64748b',
+            };
+            const statusLabel: Record<string, string> = {
+              pago: `✓ ${t('financial_paid')}`, pago_integral: '🏆 Pago Integral',
+              aguardando_confirmacao: '⏳ Aguardando confirm.',
+              pendente: `⏳ ${t('financial_pending')}`, atrasado: `⚠ Em atraso`, nao_definido: '— N/D',
+              solicitado: '📋 Solicitado', confirmado: '✓ Confirmado', entregue: '🎁 Entregue', cancelado: '✗ Cancelado',
+            };
 
             return (
               <div>
@@ -3662,6 +3671,19 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const v = new Date(venc + 'T12:00:00');
                     const diff = (v.getTime() - hoje.getTime()) / 86400000;
                     return diff >= 0 && diff <= 5;
+                  }
+
+                  function isAtrasadoAdmin(venc: string, status: string) {
+                    if (status === 'pago' || !venc) return false;
+                    const hoje = new Date(); hoje.setHours(0,0,0,0);
+                    return new Date(venc + 'T12:00:00') < hoje;
+                  }
+
+                  function resolveParcelaStatusAdmin(p: any): string {
+                    if (p.status === 'pago') return 'pago';
+                    if (p.comprovante_enviado && p.status !== 'pago') return 'aguardando_confirmacao';
+                    if (isAtrasadoAdmin(p.vencimento, p.status)) return 'atrasado';
+                    return p.status;
                   }
 
                   return (
@@ -3806,45 +3828,63 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                           {/* Parcelas list */}
                           {f.batizado.parcelas.map((p: any) => {
+                            const displayStatus = resolveParcelaStatusAdmin(p);
                             const vencendo = isVencendo5(p.vencimento, p.status);
+                            const atrasado = displayStatus === 'atrasado';
+                            const aguardando = displayStatus === 'aguardando_confirmacao';
                             // WhatsApp vencimento alert
                             const alertMsg = `⏰ Aviso de vencimento — ACCBM\n\nOlá ${firstName}! Sua parcela ${p.numero}/${numParc} do batizado está próxima do vencimento.\n\n💰 Valor: R$ ${p.valor.toFixed(2)}\n📅 Vencimento: ${p.vencimento ? new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}\n\nEvite atrasos e quite em dia. Qualquer dúvida, estamos à disposição. 🙏`;
                             const waAlertLink = buildWaLink(alertMsg);
+                            const cardBg = atrasado ? 'rgba(220,38,38,0.05)' : vencendo ? 'rgba(234,179,8,0.05)' : p.status === 'pago' ? 'rgba(22,163,74,0.04)' : 'var(--bg-input)';
+                            const cardBorder = atrasado ? 'rgba(220,38,38,0.3)' : vencendo ? 'rgba(234,179,8,0.3)' : aguardando ? 'rgba(234,179,8,0.25)' : p.status === 'pago' ? 'rgba(22,163,74,0.2)' : 'var(--border)';
                             return (
-                            <div key={p.numero} style={{ background: vencendo ? 'rgba(234,179,8,0.05)' : 'var(--bg-input)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.3)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                            <div key={p.numero} style={{ background: cardBg, border: `1.5px solid ${cardBorder}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
                                 <div>
                                   <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero}/{f.batizado.parcelas.length} — R$ {p.valor.toFixed(2)}</span>
                                   {p.vencimento && (
-                                    <span style={{ marginLeft: 8, fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
-                                      vence {new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
+                                    <span style={{ marginLeft: 8, fontSize: '0.72rem', color: atrasado ? '#f87171' : 'var(--text-secondary)' }}>
+                                      {atrasado ? 'Venceu em' : 'Vence em'} {new Date(p.vencimento + 'T12:00:00').toLocaleDateString('pt-BR')}
                                     </span>
                                   )}
-                                  {vencendo && (
+                                  {p.status === 'pago' && p.data_pagamento && (
+                                    <span style={{ marginLeft: 8, fontSize: '0.68rem', color: '#4ade80' }}>· pago em {new Date(p.data_pagamento + 'T12:00:00').toLocaleDateString('pt-BR')}</span>
+                                  )}
+                                  {vencendo && !atrasado && (
                                     <span style={{ marginLeft: 6, background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 12, padding: '1px 7px', fontSize: '0.65rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>
                                   )}
                                 </div>
-                                <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                                <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                                  {/* Display resolved status badge */}
+                                  <span style={{ padding: '2px 9px', borderRadius: 12, background: `${statusColor[displayStatus]}22`, border: `1px solid ${statusColor[displayStatus]}55`, color: statusColor[displayStatus], fontSize: '0.68rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                                    {statusLabel[displayStatus] || displayStatus}
+                                  </span>
                                   {/* WhatsApp alert per parcela */}
                                   {waAlertLink && p.status !== 'pago' && (
                                     <a href={waAlertLink} target="_blank" rel="noreferrer"
-                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: vencendo ? 'rgba(234,179,8,0.15)' : 'rgba(22,163,74,0.1)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.4)' : 'rgba(22,163,74,0.3)'}`, color: vencendo ? '#fbbf24' : '#4ade80', borderRadius: 8, fontSize: '0.65rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
-                                      title={vencendo ? 'Enviar alerta de vencimento' : 'Enviar lembrete de parcela'}>
+                                      style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '3px 8px', background: (vencendo||atrasado) ? 'rgba(234,179,8,0.15)' : 'rgba(22,163,74,0.1)', border: `1px solid ${(vencendo||atrasado) ? 'rgba(234,179,8,0.4)' : 'rgba(22,163,74,0.3)'}`, color: (vencendo||atrasado) ? '#fbbf24' : '#4ade80', borderRadius: 8, fontSize: '0.65rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}
+                                      title={(vencendo||atrasado) ? 'Enviar alerta de vencimento' : 'Enviar lembrete de parcela'}>
                                       <svg width="11" height="11" viewBox="0 0 24 24" fill="currentColor"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                                      {vencendo ? '⚠ Alertar' : 'Lembrete'}
+                                      {(vencendo||atrasado) ? '⚠ Alertar' : 'Lembrete'}
                                     </a>
                                   )}
                                   {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                     <button key={st} onClick={async () => {
-                                      const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, status: st, data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : pp.data_pagamento } : pp) } };
+                                      const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, status: st, comprovante_enviado: st === 'pago' ? false : pp.comprovante_enviado, data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : pp.data_pagamento } : pp) } };
                                       setFinFicha(updated); await adminSaveFicha(updated);
                                     }}
-                                      style={{ padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, border: 'none', background: p.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: p.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                      style={{ padding: '3px 10px', borderRadius: 16, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700, border: 'none', background: p.status === st ? statusColor[st] : 'var(--bg-card)', color: p.status === st ? '#fff' : 'var(--text-secondary)' }}>
                                       {statusLabel[st]}
                                     </button>
                                   ))}
                                 </div>
                               </div>
+                              {/* Aguardando confirmação notice for admin */}
+                              {aguardando && (
+                                <div style={{ marginBottom: 8, padding: '5px 10px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 7, fontSize: '0.72rem', color: '#fbbf24' }}>
+                                  ⏳ Aluno enviou comprovante — aguardando confirmação
+                                </div>
+                              )}
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
                                 {METODOS.map(m => (
                                   <button key={m} onClick={async () => {

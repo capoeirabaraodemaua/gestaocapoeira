@@ -53,23 +53,54 @@ function gerarParcelas(total: number, numParcelas: number): Parcela[] {
   }));
 }
 
-function statusBadge(status: string) {
-  const map: Record<string, { label: string; bg: string; color: string }> = {
-    pago:         { label: '✓ Pago',        bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
-    pendente:     { label: '⏳ Pendente',    bg: 'rgba(234,179,8,0.12)',   color: '#ca8a04' },
-    atrasado:     { label: '⚠ Atrasado',    bg: 'rgba(220,38,38,0.12)',   color: '#dc2626' },
-    nao_definido: { label: '— N/D',         bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
-    solicitado:   { label: '📋 Solicitado', bg: 'rgba(59,130,246,0.12)',  color: '#3b82f6' },
-    confirmado:   { label: '✓ Confirmado',  bg: 'rgba(124,58,237,0.12)',  color: '#7c3aed' },
-    entregue:     { label: '🎁 Entregue',   bg: 'rgba(22,163,74,0.12)',   color: '#16a34a' },
-    cancelado:    { label: '✗ Cancelado',   bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
-  };
-  const s = map[status] || { label: status, bg: 'rgba(100,116,139,0.12)', color: '#64748b' };
+const STATUS_MAP: Record<string, { label: string; bg: string; color: string; border?: string }> = {
+  pago:                    { label: '✓ Pago',                       bg: 'rgba(22,163,74,0.15)',    color: '#4ade80',  border: 'rgba(22,163,74,0.4)' },
+  pago_integral:           { label: '🏆 Pago Integral',             bg: 'rgba(234,179,8,0.18)',    color: '#fbbf24',  border: 'rgba(234,179,8,0.5)' },
+  aguardando_confirmacao:  { label: '⏳ Aguardando confirmação',     bg: 'rgba(234,179,8,0.1)',     color: '#fbbf24',  border: 'rgba(234,179,8,0.3)' },
+  pendente:                { label: '⏳ Pendente',                   bg: 'rgba(234,179,8,0.10)',    color: '#ca8a04',  border: 'rgba(234,179,8,0.25)' },
+  atrasado:                { label: '⚠ Em atraso',                  bg: 'rgba(220,38,38,0.13)',    color: '#f87171',  border: 'rgba(220,38,38,0.35)' },
+  nao_definido:            { label: '— Não definido',               bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
+  solicitado:              { label: '📋 Solicitado',                bg: 'rgba(59,130,246,0.12)',   color: '#60a5fa',  border: 'rgba(59,130,246,0.3)' },
+  confirmado:              { label: '✓ Confirmado',                 bg: 'rgba(124,58,237,0.12)',   color: '#a78bfa',  border: 'rgba(124,58,237,0.3)' },
+  entregue:                { label: '🎁 Entregue',                  bg: 'rgba(22,163,74,0.12)',    color: '#4ade80',  border: 'rgba(22,163,74,0.3)' },
+  cancelado:               { label: '✗ Cancelado',                  bg: 'rgba(100,116,139,0.12)', color: '#64748b' },
+};
+
+function statusBadge(status: string, large?: boolean) {
+  const s = STATUS_MAP[status] || { label: status, bg: 'rgba(100,116,139,0.12)', color: '#64748b' };
+  const isSpecial = status === 'pago_integral';
   return (
-    <span style={{ padding: '3px 10px', borderRadius: 20, background: s.bg, color: s.color, fontWeight: 700, fontSize: '0.78rem', whiteSpace: 'nowrap' }}>
+    <span style={{
+      padding: large ? '5px 14px' : '3px 10px',
+      borderRadius: 20,
+      background: s.bg,
+      color: s.color,
+      fontWeight: 700,
+      fontSize: large ? '0.85rem' : '0.78rem',
+      whiteSpace: 'nowrap',
+      border: s.border ? `1px solid ${s.border}` : 'none',
+      boxShadow: isSpecial ? `0 0 12px rgba(234,179,8,0.3)` : undefined,
+      letterSpacing: isSpecial ? '0.01em' : undefined,
+    }}>
       {s.label}
     </span>
   );
+}
+
+/** Derives the display status for a parcela, considering overdue and awaiting-confirmation states */
+function resolveParcelaStatus(p: Parcela): string {
+  if (p.status === 'pago') return 'pago';
+  if ((p as any).comprovante_enviado && p.status !== 'pago') return 'aguardando_confirmacao';
+  if (isAtrasado(p.vencimento, p.status)) return 'atrasado';
+  return p.status;
+}
+
+/** Derives the display status for a mensalidade/contribuição entry */
+function resolveMensalidadeStatus(m: Mensalidade): string {
+  if (m.status === 'pago') return 'pago';
+  if ((m as any).comprovante_pendente && !(m as any).admin_confirmado) return 'aguardando_confirmacao';
+  if ((m as any).admin_confirmado) return 'pago';
+  return m.status;
 }
 
 const METODOS = ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro'];
@@ -561,27 +592,56 @@ export default function FinanceiroPage() {
                   </div>
                 ) : (
                   <div>
-                    {/* Plano ativo */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16, flexWrap: 'wrap' }}>
-                      <span style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 8, padding: '5px 13px', color: '#a78bfa', fontWeight: 700, fontSize: '0.85rem' }}>
-                        {ficha.batizado.modalidade === 'integral'
-                          ? `💳 Integral — ${formatMoeda(ficha.batizado.valor_total)}`
-                          : `📆 ${ficha.batizado.parcelas.length}× de ${formatMoeda(ficha.batizado.parcelas[0]?.valor ?? 0)}`}
-                      </span>
-                      <span style={{ color: 'rgba(255,255,255,0.4)', fontSize: '0.78rem' }}>
-                        Total: {formatMoeda(ficha.batizado.valor_total || valorTotal)}
-                      </span>
-                      {/* Progress */}
-                      {ficha.batizado.parcelas.length > 0 && (
-                        <span style={{ fontSize: '0.75rem', color: '#4ade80' }}>
-                          {ficha.batizado.parcelas.filter(p => p.status === 'pago').length}/{ficha.batizado.parcelas.length} pagas
-                        </span>
-                      )}
+                    {/* Plano ativo — header + progress */}
+                    {(() => {
+                      const totalParcelas = ficha.batizado.parcelas.length;
+                      const pagas = ficha.batizado.parcelas.filter(p => p.status === 'pago').length;
+                      const atrasadas = ficha.batizado.parcelas.filter(p => resolveParcelaStatus(p) === 'atrasado').length;
+                      const aguardando = ficha.batizado.parcelas.filter(p => resolveParcelaStatus(p) === 'aguardando_confirmacao').length;
+                      const valorPago = ficha.batizado.parcelas.filter(p => p.status === 'pago').reduce((s, p) => s + p.valor, 0);
+                      const pct = totalParcelas > 0 ? Math.round((pagas / totalParcelas) * 100) : 0;
+                      const allPaid = totalParcelas > 0 && pagas === totalParcelas;
+                      return (
+                        <div style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 10 }}>
+                            <div>
+                              <span style={{ background: 'rgba(124,58,237,0.2)', border: '1px solid rgba(124,58,237,0.4)', borderRadius: 8, padding: '4px 12px', color: '#c4b5fd', fontWeight: 700, fontSize: '0.82rem', marginRight: 8 }}>
+                                {ficha.batizado.modalidade === 'integral' ? '💳 Integral' : `📆 ${ficha.batizado.parcelas.length}×`}
+                              </span>
+                              <span style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem' }}>
+                                Total: {formatMoeda(ficha.batizado.valor_total || valorTotal)}
+                              </span>
+                            </div>
+                            {allPaid
+                              ? statusBadge('pago_integral')
+                              : <span style={{ fontSize: '0.78rem', color: pagas > 0 ? '#4ade80' : 'rgba(255,255,255,0.4)' }}>{pagas}/{totalParcelas} pagas</span>
+                            }
+                          </div>
+                          {/* Progress bar */}
+                          {totalParcelas > 0 && (
+                            <div>
+                              <div style={{ height: 6, background: 'rgba(255,255,255,0.08)', borderRadius: 6, overflow: 'hidden', marginBottom: 6 }}>
+                                <div style={{ height: '100%', width: `${pct}%`, background: allPaid ? 'linear-gradient(90deg,#fbbf24,#16a34a)' : 'linear-gradient(90deg,#7c3aed,#a78bfa)', borderRadius: 6, transition: 'width 0.5s ease' }} />
+                              </div>
+                              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', fontSize: '0.72rem' }}>
+                                <span style={{ color: '#4ade80' }}>✓ Pago: {formatMoeda(valorPago)}</span>
+                                <span style={{ color: 'rgba(255,255,255,0.35)' }}>·</span>
+                                <span style={{ color: 'rgba(255,255,255,0.5)' }}>Restante: {formatMoeda((ficha.batizado.valor_total || valorTotal) - valorPago)}</span>
+                                {atrasadas > 0 && <><span style={{ color: 'rgba(255,255,255,0.35)' }}>·</span><span style={{ color: '#f87171' }}>⚠ {atrasadas} em atraso</span></>}
+                                {aguardando > 0 && <><span style={{ color: 'rgba(255,255,255,0.35)' }}>·</span><span style={{ color: '#fbbf24' }}>⏳ {aguardando} aguardando</span></>}
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })()}
+                    {/* Edit parcelamento button */}
+                    <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
                       <button onClick={() => {
                         setEditandoParcelas(!editandoParcelas);
                         setNumParcelasEdit(ficha.batizado.parcelas.length || 1);
                       }}
-                        style={{ marginLeft: 'auto', background: editandoParcelas ? 'rgba(124,58,237,0.2)' : 'none', border: `1px solid ${editandoParcelas ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.1)'}`, color: editandoParcelas ? '#c4b5fd' : 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '3px 8px', cursor: 'pointer', fontSize: '0.72rem' }}>
+                        style={{ background: editandoParcelas ? 'rgba(124,58,237,0.2)' : 'none', border: `1px solid ${editandoParcelas ? 'rgba(124,58,237,0.5)' : 'rgba(255,255,255,0.1)'}`, color: editandoParcelas ? '#c4b5fd' : 'rgba(255,255,255,0.4)', borderRadius: 6, padding: '4px 10px', cursor: 'pointer', fontSize: '0.72rem' }}>
                         ✏️ Alterar parcelamento
                       </button>
                     </div>
@@ -627,54 +687,101 @@ export default function FinanceiroPage() {
                       </div>
                     )}
 
+                    {/* Pago Integral banner — all parcelas paid */}
+                    {ficha.batizado.parcelas.length > 0 && ficha.batizado.parcelas.every(p => p.status === 'pago') && (
+                      <div style={{ background: 'linear-gradient(135deg,rgba(234,179,8,0.15),rgba(22,163,74,0.1))', border: '2px solid rgba(234,179,8,0.5)', borderRadius: 12, padding: '14px 18px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: '2rem', flexShrink: 0 }}>🏆</span>
+                        <div>
+                          <div style={{ fontWeight: 900, color: '#fbbf24', fontSize: '1rem', marginBottom: 2 }}>Batizado — Pago Integral!</div>
+                          <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
+                            {ficha.batizado.parcelas.length === 1
+                              ? `Pagamento único de ${formatMoeda(ficha.batizado.valor_total)} confirmado pelo administrador.`
+                              : `Todas as ${ficha.batizado.parcelas.length} parcelas foram confirmadas. Total: ${formatMoeda(ficha.batizado.valor_total)}.`}
+                          </div>
+                        </div>
+                        {statusBadge('pago_integral', true)}
+                      </div>
+                    )}
+
                     {/* Parcelas */}
                     {ficha.batizado.parcelas.map(p => {
+                      const statusFinal = resolveParcelaStatus(p);
                       const vencendo = isVencendoEm5Dias(p.vencimento, p.status);
-                      const atrasada = isAtrasado(p.vencimento, p.status);
-                      const statusFinal = atrasada && p.status !== 'pago' ? 'atrasado' : p.status;
+                      const atrasada = statusFinal === 'atrasado';
+                      const aguardando = statusFinal === 'aguardando_confirmacao';
+                      const borderColor = atrasada ? 'rgba(220,38,38,0.3)' : vencendo ? 'rgba(234,179,8,0.4)' : aguardando ? 'rgba(234,179,8,0.25)' : p.status === 'pago' ? 'rgba(22,163,74,0.25)' : 'rgba(255,255,255,0.08)';
+                      const bgColor = atrasada ? 'rgba(220,38,38,0.05)' : vencendo ? 'rgba(234,179,8,0.06)' : p.status === 'pago' ? 'rgba(22,163,74,0.04)' : 'rgba(255,255,255,0.03)';
                       return (
-                        <div key={p.numero} style={{ background: vencendo ? 'rgba(234,179,8,0.06)' : 'rgba(255,255,255,0.03)', border: `1px solid ${vencendo ? 'rgba(234,179,8,0.35)' : atrasada ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
+                        <div key={p.numero} style={{ background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, opacity: p.status === 'pago' ? 0.85 : 1 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
                             <div>
                               <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>
                                 Parcela {p.numero}/{ficha.batizado.parcelas.length} — {formatMoeda(p.valor)}
                               </span>
                               {p.vencimento && (
-                                <span style={{ marginLeft: 8, fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)' }}>
-                                  vence {formatDate(p.vencimento)}
+                                <span style={{ marginLeft: 8, fontSize: '0.75rem', color: atrasada ? '#f87171' : 'rgba(255,255,255,0.45)' }}>
+                                  {atrasada ? 'Venceu em' : 'Vence em'} {formatDate(p.vencimento)}
+                                </span>
+                              )}
+                              {p.status === 'pago' && (p as any).data_pagamento && (
+                                <span style={{ marginLeft: 8, fontSize: '0.72rem', color: '#4ade80' }}>
+                                  · pago em {formatDate((p as any).data_pagamento)}
                                 </span>
                               )}
                             </div>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                               {statusBadge(statusFinal)}
-                              {vencendo && <span style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '2px 8px', fontSize: '0.68rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>}
+                              {vencendo && statusFinal !== 'pago' && (
+                                <span style={{ background: 'rgba(234,179,8,0.15)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '2px 8px', fontSize: '0.68rem', color: '#fbbf24', fontWeight: 700 }}>⏰ A vencer</span>
+                              )}
                             </div>
                           </div>
-                          {/* Method select */}
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                            {METODOS.map(m => (
-                              <button key={m} onClick={async () => {
-                                const updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: ficha.batizado.parcelas.map(pp => pp.numero === p.numero ? { ...pp, metodo: m } : pp) } };
-                                setFicha(updated); await saveFicha(updated);
-                              }}
-                                style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: p.metodo === m ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.metodo === m ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.08)'}`, color: p.metodo === m ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
-                                {m}
-                              </button>
-                            ))}
-                          </div>
-                          {/* Comprovante */}
-                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                            {p.comprovante_url
-                              ? <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#a78bfa', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
-                              : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
-                            }
-                            <button onClick={() => triggerUpload('batizado', String(p.numero))}
-                              disabled={uploadingComp === `batizado_${p.numero}`}
-                              style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                              {uploadingComp === `batizado_${p.numero}` ? '⏳' : '📤'} Enviar comprovante
-                            </button>
-                          </div>
-                          {(p as any).comprovante_enviado && <div style={{ marginTop: 6, fontSize: '0.72rem', color: '#fbbf24' }}>⏳ Comprovante enviado — aguardando confirmação do admin</div>}
+
+                          {/* Only show method/comprovante if not paid */}
+                          {p.status !== 'pago' && (
+                            <>
+                              {/* Method select */}
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                                {METODOS.map(m => (
+                                  <button key={m} onClick={async () => {
+                                    const updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: ficha.batizado.parcelas.map(pp => pp.numero === p.numero ? { ...pp, metodo: m } : pp) } };
+                                    setFicha(updated); await saveFicha(updated);
+                                  }}
+                                    style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: p.metodo === m ? 'rgba(124,58,237,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${p.metodo === m ? 'rgba(124,58,237,0.6)' : 'rgba(255,255,255,0.08)'}`, color: p.metodo === m ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
+                                    {m}
+                                  </button>
+                                ))}
+                              </div>
+                              {/* Comprovante */}
+                              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                {p.comprovante_url
+                                  ? <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#a78bfa', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
+                                  : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
+                                }
+                                {!aguardando && (
+                                  <button onClick={() => triggerUpload('batizado', String(p.numero))}
+                                    disabled={uploadingComp === `batizado_${p.numero}`}
+                                    style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#c4b5fd', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                    {uploadingComp === `batizado_${p.numero}` ? '⏳ Enviando...' : '📤 Enviar comprovante'}
+                                  </button>
+                                )}
+                              </div>
+                              {aguardando && (
+                                <div style={{ marginTop: 8, padding: '7px 12px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+                                  ⏳ Comprovante enviado — aguardando confirmação do administrador
+                                </div>
+                              )}
+                            </>
+                          )}
+
+                          {/* Paid: show method and comprovante link only */}
+                          {p.status === 'pago' && (
+                            <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+                              {p.metodo && <span style={{ fontSize: '0.72rem', background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 6, padding: '2px 8px', color: '#4ade80' }}>{p.metodo}</span>}
+                              {p.comprovante_url && <a href={p.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#4ade80', fontSize: '0.75rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>}
+                              <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>✓ Confirmado pelo administrador</span>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -710,13 +817,24 @@ export default function FinanceiroPage() {
                   const [y, mo] = m.mes.split('-');
                   const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
                   const label = `${names[parseInt(mo)-1]}/${y}`;
+                  const statusFinal = resolveMensalidadeStatus(m);
+                  const aguardando = statusFinal === 'aguardando_confirmacao';
+                  const isPago = statusFinal === 'pago';
+                  const isAtras = statusFinal === 'atrasado';
+                  const borderColor = isAtras ? 'rgba(220,38,38,0.3)' : isPago ? 'rgba(22,163,74,0.25)' : aguardando ? 'rgba(234,179,8,0.3)' : 'rgba(255,255,255,0.08)';
+                  const bgColor = isAtras ? 'rgba(220,38,38,0.05)' : isPago ? 'rgba(22,163,74,0.04)' : 'rgba(255,255,255,0.03)';
                   return (
-                    <div key={m.mes} style={{ background: m.status === 'atrasado' ? 'rgba(220,38,38,0.05)' : 'rgba(255,255,255,0.03)', border: `1px solid ${m.status === 'atrasado' ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
-                        <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{label} — {formatMoeda(m.valor)}</span>
+                    <div key={m.mes} style={{ background: bgColor, border: `1.5px solid ${borderColor}`, borderRadius: 10, padding: '12px 14px', marginBottom: 8, opacity: isPago ? 0.85 : 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isPago ? 0 : 8, flexWrap: 'wrap', gap: 6 }}>
+                        <div>
+                          <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{label} — {formatMoeda(m.valor)}</span>
+                          {isPago && (m as any).data_pagamento && (
+                            <span style={{ marginLeft: 8, fontSize: '0.72rem', color: '#4ade80' }}>· pago em {formatDate((m as any).data_pagamento)}</span>
+                          )}
+                        </div>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          {statusBadge(m.status)}
-                          {m.status !== 'pago' && !m.admin_confirmado && (
+                          {statusBadge(statusFinal)}
+                          {!isPago && !(m as any).admin_confirmado && (
                             <button onClick={async () => {
                               if (!confirm(`Excluir mensalidade de ${label}?`)) return;
                               const updated = { ...ficha, mensalidades: ficha.mensalidades.filter(x => x.mes !== m.mes) };
@@ -727,27 +845,45 @@ export default function FinanceiroPage() {
                           )}
                         </div>
                       </div>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
-                        {METODOS.map(mt => (
-                          <button key={mt} onClick={() => setMensalidadeMetodo(m.mes, mt)}
-                            style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(8,145,178,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${m.metodo === mt ? 'rgba(8,145,178,0.6)' : 'rgba(255,255,255,0.08)'}`, color: m.metodo === mt ? '#67e8f9' : 'rgba(255,255,255,0.5)' }}>
-                            {mt}
-                          </button>
-                        ))}
-                      </div>
-                      <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                        {m.comprovante_url
-                          ? <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
-                          : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
-                        }
-                        <button onClick={() => triggerUpload('mensalidade', m.mes)}
-                          disabled={uploadingComp === `mensalidade_${m.mes}`}
-                          style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(8,145,178,0.12)', border: '1px solid rgba(8,145,178,0.3)', color: '#67e8f9', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                          {uploadingComp === `mensalidade_${m.mes}` ? '⏳' : '📤'} Enviar comprovante
-                        </button>
-                        {m.comprovante_pendente && !m.admin_confirmado && <span style={{ fontSize: '0.72rem', color: '#fbbf24' }}>⏳ Aguardando confirmação</span>}
-                        {m.admin_confirmado && <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>✅ Confirmado pelo admin</span>}
-                      </div>
+                      {/* Paid: show minimal info */}
+                      {isPago && (
+                        <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                          {m.metodo && <span style={{ fontSize: '0.72rem', background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 6, padding: '2px 8px', color: '#4ade80' }}>{m.metodo}</span>}
+                          {m.comprovante_url && <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#4ade80', fontSize: '0.75rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>}
+                          <span style={{ fontSize: '0.72rem', color: '#4ade80' }}>✓ Confirmado pelo administrador</span>
+                        </div>
+                      )}
+                      {/* Not paid: show method + comprovante controls */}
+                      {!isPago && (
+                        <>
+                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 8 }}>
+                            {METODOS.map(mt => (
+                              <button key={mt} onClick={() => setMensalidadeMetodo(m.mes, mt)}
+                                style={{ padding: '4px 10px', borderRadius: 6, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(8,145,178,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${m.metodo === mt ? 'rgba(8,145,178,0.6)' : 'rgba(255,255,255,0.08)'}`, color: m.metodo === mt ? '#67e8f9' : 'rgba(255,255,255,0.5)' }}>
+                                {mt}
+                              </button>
+                            ))}
+                          </div>
+                          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                            {m.comprovante_url
+                              ? <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#67e8f9', fontSize: '0.78rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
+                              : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
+                            }
+                            {!aguardando && (
+                              <button onClick={() => triggerUpload('mensalidade', m.mes)}
+                                disabled={uploadingComp === `mensalidade_${m.mes}`}
+                                style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(8,145,178,0.12)', border: '1px solid rgba(8,145,178,0.3)', color: '#67e8f9', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                {uploadingComp === `mensalidade_${m.mes}` ? '⏳ Enviando...' : '📤 Enviar comprovante'}
+                              </button>
+                            )}
+                          </div>
+                          {aguardando && (
+                            <div style={{ marginTop: 8, padding: '7px 12px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              ⏳ Comprovante enviado — aguardando confirmação do administrador
+                            </div>
+                          )}
+                        </>
+                      )}
                     </div>
                   );
                 })}
@@ -787,13 +923,21 @@ export default function FinanceiroPage() {
                       {ficha.contribuicao.historico.map(m => {
                         const [y, mo] = m.mes.split('-');
                         const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        const statusFinal = resolveMensalidadeStatus(m);
+                        const aguardando = statusFinal === 'aguardando_confirmacao';
+                        const isPago = statusFinal === 'pago';
                         return (
-                          <div key={m.mes} style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, padding: '10px 14px', marginBottom: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-                              <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y} — {formatMoeda(m.valor)}</span>
+                          <div key={m.mes} style={{ background: isPago ? 'rgba(22,163,74,0.04)' : 'rgba(255,255,255,0.03)', border: `1.5px solid ${isPago ? 'rgba(22,163,74,0.25)' : aguardando ? 'rgba(234,179,8,0.3)' : 'rgba(255,255,255,0.08)'}`, borderRadius: 10, padding: '10px 14px', marginBottom: 8, opacity: isPago ? 0.85 : 1 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isPago ? 0 : 8 }}>
+                              <div>
+                                <span style={{ fontWeight: 700, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y} — {formatMoeda(m.valor)}</span>
+                                {isPago && (m as any).data_pagamento && (
+                                  <span style={{ marginLeft: 8, fontSize: '0.7rem', color: '#4ade80' }}>· pago em {formatDate((m as any).data_pagamento)}</span>
+                                )}
+                              </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                                {statusBadge(m.status)}
-                                {m.status !== 'pago' && !m.admin_confirmado && (
+                                {statusBadge(statusFinal)}
+                                {!isPago && !(m as any).admin_confirmado && (
                                   <button onClick={async () => {
                                     if (!confirm(`Excluir contribuição de ${names[parseInt(mo)-1]}/${y}?`)) return;
                                     const updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.filter(x => x.mes !== m.mes) } };
@@ -804,27 +948,45 @@ export default function FinanceiroPage() {
                                 )}
                               </div>
                             </div>
-                            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
-                              {METODOS.map(mt => (
-                                <button key={mt} onClick={async () => {
-                                  const updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.map(c => c.mes === m.mes ? { ...c, metodo: mt } : c) } };
-                                  setFicha(updated); await saveFicha(updated);
-                                }}
-                                  style={{ padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(22,163,74,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${m.metodo === mt ? 'rgba(22,163,74,0.5)' : 'rgba(255,255,255,0.08)'}`, color: m.metodo === mt ? '#4ade80' : 'rgba(255,255,255,0.5)' }}>
-                                  {mt}
-                                </button>
-                              ))}
-                            </div>
-                            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                              {m.comprovante_url
-                                ? <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#4ade80', fontSize: '0.75rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
-                                : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
-                              }
-                              <button onClick={() => triggerUpload('contribuicao', m.mes)}
-                                style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
-                                {uploadingComp === `contribuicao_${m.mes}` ? '⏳' : '📤'} Enviar comprovante
-                              </button>
-                            </div>
+                            {isPago && (
+                              <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap', marginTop: 4 }}>
+                                {m.metodo && <span style={{ fontSize: '0.7rem', background: 'rgba(22,163,74,0.1)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 6, padding: '2px 8px', color: '#4ade80' }}>{m.metodo}</span>}
+                                {m.comprovante_url && <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#4ade80', fontSize: '0.72rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>}
+                                <span style={{ fontSize: '0.7rem', color: '#4ade80' }}>✓ Confirmado pelo administrador</span>
+                              </div>
+                            )}
+                            {!isPago && (
+                              <>
+                                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+                                  {METODOS.map(mt => (
+                                    <button key={mt} onClick={async () => {
+                                      const updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.map(c => c.mes === m.mes ? { ...c, metodo: mt } : c) } };
+                                      setFicha(updated); await saveFicha(updated);
+                                    }}
+                                      style={{ padding: '3px 9px', borderRadius: 6, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(22,163,74,0.3)' : 'rgba(255,255,255,0.05)', border: `1px solid ${m.metodo === mt ? 'rgba(22,163,74,0.5)' : 'rgba(255,255,255,0.08)'}`, color: m.metodo === mt ? '#4ade80' : 'rgba(255,255,255,0.5)' }}>
+                                      {mt}
+                                    </button>
+                                  ))}
+                                </div>
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                  {m.comprovante_url
+                                    ? <a href={m.comprovante_url} target="_blank" rel="noreferrer" style={{ color: '#4ade80', fontSize: '0.75rem', textDecoration: 'underline' }}>📎 Ver comprovante</a>
+                                    : <span style={{ color: 'rgba(255,255,255,0.35)', fontSize: '0.75rem' }}>Sem comprovante</span>
+                                  }
+                                  {!aguardando && (
+                                    <button onClick={() => triggerUpload('contribuicao', m.mes)}
+                                      style={{ padding: '4px 10px', borderRadius: 6, background: 'rgba(22,163,74,0.12)', border: '1px solid rgba(22,163,74,0.3)', color: '#4ade80', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                      {uploadingComp === `contribuicao_${m.mes}` ? '⏳ Enviando...' : '📤 Enviar comprovante'}
+                                    </button>
+                                  )}
+                                </div>
+                                {aguardando && (
+                                  <div style={{ marginTop: 8, padding: '7px 12px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24' }}>
+                                    ⏳ Comprovante enviado — aguardando confirmação do administrador
+                                  </div>
+                                )}
+                              </>
+                            )}
                           </div>
                         );
                       })}
