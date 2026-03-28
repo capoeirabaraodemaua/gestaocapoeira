@@ -6870,25 +6870,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             🌐 Traduzir
                           </button>
                         )}
-                        {/* View translations button */}
-                        {hasTranslations && (
-                          <button onClick={() => setManualViewOpen(isOpen ? null : m.name)}
-                            style={{ background: isOpen ? 'rgba(139,92,246,0.25)' : 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.4)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
-                            🌐 {isOpen ? 'Fechar' : 'Ver Traduções'}
+                        {!hasTranslations && m.url && (
+                          <button
+                            onClick={() => setManualPdfOpen(manualPdfOpen === m.name ? null : m.name)}
+                            style={{ background: manualPdfOpen === m.name ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                            {manualPdfOpen === m.name ? '✕ Fechar PDF' : '👁 Visualizar'}
                           </button>
                         )}
                         {m.url && (
-                          <>
-                            <button
-                              onClick={() => setManualPdfOpen(manualPdfOpen === m.name ? null : m.name)}
-                              style={{ background: manualPdfOpen === m.name ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
-                              {manualPdfOpen === m.name ? '✕ Fechar' : '👁 Visualizar'}
-                            </button>
-                            <a href={m.url} target="_blank" rel="noopener noreferrer" download
-                              style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                              ⬇ PDF
-                            </a>
-                          </>
+                          <a href={m.url} target="_blank" rel="noopener noreferrer" download
+                            style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                            ⬇ PDF
+                          </a>
                         )}
                         {activeNucleo === 'geral' && (
                           <button onClick={async () => {
@@ -6909,40 +6902,89 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       </div>
                     </div>
 
-                    {/* PDF inline viewer — expandable */}
-                    {manualPdfOpen === m.name && m.url && (
+                    {/* Integrated viewer: language tabs + content + PDF toggle */}
+                    {(hasTranslations || manualPdfOpen === m.name) && (
                       <div style={{ borderTop: '1px solid var(--border)' }}>
-                        <div style={{ padding: '8px 14px', background: 'rgba(124,58,237,0.06)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                          <span style={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: 700 }}>📄 Visualizador de PDF</span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Link válido por 1h • <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>Abrir em nova aba ↗</a></span>
-                        </div>
-                        <iframe
-                          src={m.url}
-                          style={{ width: '100%', height: 600, border: 'none', display: 'block', background: '#f1f5f9' }}
-                          title={m.name}
-                        />
-                      </div>
-                    )}
 
-                    {/* Translation viewer — expandable */}
-                    {isOpen && hasTranslations && (
-                      <div style={{ borderTop: '1px solid var(--border)' }}>
-                        {/* Language tabs */}
-                        <div style={{ display: 'flex', gap: 0, overflowX: 'auto', borderBottom: '1px solid var(--border)', background: 'rgba(124,58,237,0.04)' }}>
-                          {MANUAL_LANGS.filter(l => manualTranslations[m.name]?.[l.code]).map(l => (
-                            <button key={l.code} onClick={() => setManualViewLang(prev => ({ ...prev, [m.name]: l.code }))}
-                              style={{ padding: '8px 13px', background: 'none', border: 'none', borderBottom: currentLang === l.code ? '2px solid #a78bfa' : '2px solid transparent', marginBottom: -1, color: currentLang === l.code ? '#a78bfa' : 'var(--text-secondary)', fontWeight: currentLang === l.code ? 700 : 400, cursor: 'pointer', fontSize: '0.75rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5, flexShrink: 0 }}>
-                              <span>{l.flag}</span>
-                              <span>{l.label}</span>
-                            </button>
-                          ))}
-                        </div>
-                        {/* Content */}
-                        <div style={{ padding: '16px 20px', maxHeight: 380, overflowY: 'auto' }}>
-                          <pre style={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '0.82rem', lineHeight: 1.7, color: 'var(--text-primary)', fontFamily: 'Inter, sans-serif', margin: 0 }}>
-                            {translatedText}
-                          </pre>
-                        </div>
+                        {/* Language selector bar — always shown when translations exist */}
+                        {hasTranslations && (
+                          <div style={{ borderBottom: '1px solid var(--border)', background: 'rgba(124,58,237,0.04)' }}>
+                            {/* Mode toggle: PDF original vs translated text */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 0, padding: '0 0 0 0', borderBottom: '1px solid rgba(124,58,237,0.1)' }}>
+                              <button
+                                onClick={() => setManualViewOpen(manualViewOpen === m.name ? null : m.name)}
+                                style={{ flex: 1, padding: '8px 14px', background: 'none', border: 'none', borderBottom: manualViewOpen === m.name ? '2px solid #a78bfa' : '2px solid transparent', marginBottom: -1, cursor: 'pointer', fontSize: '0.75rem', fontWeight: manualViewOpen === m.name ? 700 : 400, color: manualViewOpen === m.name ? '#a78bfa' : 'var(--text-secondary)' }}>
+                                🌐 Documento Traduzido
+                              </button>
+                              {m.url && (
+                                <button
+                                  onClick={() => setManualPdfOpen(manualPdfOpen === m.name ? null : m.name)}
+                                  style={{ flex: 1, padding: '8px 14px', background: 'none', border: 'none', borderBottom: manualPdfOpen === m.name ? '2px solid #a78bfa' : '2px solid transparent', marginBottom: -1, cursor: 'pointer', fontSize: '0.75rem', fontWeight: manualPdfOpen === m.name ? 700 : 400, color: manualPdfOpen === m.name ? '#a78bfa' : 'var(--text-secondary)' }}>
+                                  📄 PDF Original
+                                </button>
+                              )}
+                            </div>
+                            {/* Language tabs — only when translated doc is active */}
+                            {manualViewOpen === m.name && (
+                              <div style={{ display: 'flex', gap: 0, overflowX: 'auto' }}>
+                                {MANUAL_LANGS.filter(l => manualTranslations[m.name]?.[l.code]).map(l => (
+                                  <button key={l.code}
+                                    onClick={() => setManualViewLang(prev => ({ ...prev, [m.name]: l.code }))}
+                                    style={{ padding: '7px 12px', background: currentLang === l.code ? 'rgba(124,58,237,0.15)' : 'none', border: 'none', borderBottom: currentLang === l.code ? '2px solid #a78bfa' : '2px solid transparent', marginBottom: -1, color: currentLang === l.code ? '#a78bfa' : 'var(--text-secondary)', fontWeight: currentLang === l.code ? 700 : 400, cursor: 'pointer', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                                    <span>{l.flag}</span>
+                                    <span>{l.label}</span>
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* Translated document content */}
+                        {hasTranslations && manualViewOpen === m.name && (
+                          <div style={{ maxHeight: 520, overflowY: 'auto', padding: '20px 24px', background: 'var(--bg)' }}>
+                            {translatedText ? (
+                              <div style={{ maxWidth: 680, margin: '0 auto' }}>
+                                {/* Header */}
+                                <div style={{ marginBottom: 16, paddingBottom: 12, borderBottom: '2px solid rgba(124,58,237,0.2)', display: 'flex', alignItems: 'center', gap: 10 }}>
+                                  <span style={{ fontSize: '1.5rem' }}>📖</span>
+                                  <div>
+                                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: 'var(--text-primary)' }}>{m.name.replace(/^\d+_/, '')}</div>
+                                    <div style={{ fontSize: '0.72rem', color: '#a78bfa', fontWeight: 600 }}>
+                                      {MANUAL_LANGS.find(l => l.code === currentLang)?.flag} {MANUAL_LANGS.find(l => l.code === currentLang)?.label}
+                                    </div>
+                                  </div>
+                                </div>
+                                {/* Content rendered as formatted paragraphs */}
+                                <div style={{ fontSize: '0.85rem', lineHeight: 1.8, color: 'var(--text-primary)' }}>
+                                  {translatedText.split('\n').map((line, i) => {
+                                    if (!line.trim()) return <div key={i} style={{ height: 8 }} />;
+                                    const isTitleLine = /^#+\s/.test(line) || (line.trim() === line.trim().toUpperCase() && line.trim().length > 3 && line.trim().length < 80);
+                                    const isListItem = /^[-•*]\s/.test(line.trim()) || /^\d+\.\s/.test(line.trim());
+                                    if (isTitleLine) return <div key={i} style={{ fontWeight: 800, fontSize: '0.9rem', marginTop: 18, marginBottom: 6, color: '#a78bfa', borderLeft: '3px solid #a78bfa', paddingLeft: 10 }}>{line.replace(/^#+\s*/, '')}</div>;
+                                    if (isListItem) return <div key={i} style={{ paddingLeft: 16, marginBottom: 4, display: 'flex', gap: 8 }}><span style={{ color: '#a78bfa', flexShrink: 0 }}>▸</span><span>{line.replace(/^[-•*]\s*/, '').replace(/^\d+\.\s*/, '')}</span></div>;
+                                    return <p key={i} style={{ margin: '0 0 10px 0' }}>{line}</p>;
+                                  })}
+                                </div>
+                              </div>
+                            ) : (
+                              <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                                Tradução para este idioma não disponível.
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* PDF original viewer */}
+                        {manualPdfOpen === m.name && m.url && (
+                          <div>
+                            <div style={{ padding: '8px 14px', background: 'rgba(124,58,237,0.04)', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end' }}>
+                              <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ fontSize: '0.7rem', color: '#a78bfa' }}>Abrir em nova aba ↗</a>
+                            </div>
+                            <iframe src={m.url} style={{ width: '100%', height: 600, border: 'none', display: 'block', background: '#f1f5f9' }} title={m.name} />
+                          </div>
+                        )}
+
                       </div>
                     )}
                   </div>
@@ -6959,7 +7001,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 const h = u.hostname.replace('www.', '');
                 if (h.includes('youtube.com') || h.includes('youtu.be')) {
                   const vid = u.searchParams.get('v') || (h === 'youtu.be' ? u.pathname.slice(1) : u.pathname.split('/').filter(Boolean).pop());
-                  if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}`, height: 0 }; // 0 = 16:9 ratio
+                  if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}?hl=pt-BR&cc_lang_pref=pt&cc_load_policy=1&rel=0`, height: 0 }; // 0 = 16:9 ratio
                 }
                 if (h.includes('spotify.com')) {
                   const path = u.pathname.replace(/^\//, '');
