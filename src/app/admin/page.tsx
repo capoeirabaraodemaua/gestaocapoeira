@@ -747,6 +747,7 @@ export default function AdminPage() {
   const [manualTranslations, setManualTranslations] = useState<Record<string, Record<string, string>>>({});
   const [manualViewLang, setManualViewLang] = useState<Record<string, string>>({});
   const [manualViewOpen, setManualViewOpen] = useState<string | null>(null);
+  const [manualPdfOpen, setManualPdfOpen] = useState<string | null>(null);
   const MANUAL_LANGS: { code: string; flag: string; label: string }[] = [
     { code: 'pt',    flag: '🇧🇷', label: 'Português (BR)' },
     { code: 'pt-PT', flag: '🇵🇹', label: 'Português (PT)' },
@@ -6858,10 +6859,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           </button>
                         )}
                         {m.url && (
-                          <a href={m.url} target="_blank" rel="noopener noreferrer" download
-                            style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
-                            ⬇ PDF
-                          </a>
+                          <>
+                            <button
+                              onClick={() => setManualPdfOpen(manualPdfOpen === m.name ? null : m.name)}
+                              style={{ background: manualPdfOpen === m.name ? 'rgba(124,58,237,0.25)' : 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                              {manualPdfOpen === m.name ? '✕ Fechar' : '👁 Visualizar'}
+                            </button>
+                            <a href={m.url} target="_blank" rel="noopener noreferrer" download
+                              style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 14px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+                              ⬇ PDF
+                            </a>
+                          </>
                         )}
                         {activeNucleo === 'geral' && (
                           <button onClick={async () => {
@@ -6881,6 +6889,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         )}
                       </div>
                     </div>
+
+                    {/* PDF inline viewer — expandable */}
+                    {manualPdfOpen === m.name && m.url && (
+                      <div style={{ borderTop: '1px solid var(--border)' }}>
+                        <div style={{ padding: '8px 14px', background: 'rgba(124,58,237,0.06)', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                          <span style={{ fontSize: '0.75rem', color: '#a78bfa', fontWeight: 700 }}>📄 Visualizador de PDF</span>
+                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Link válido por 1h • <a href={m.url} target="_blank" rel="noopener noreferrer" style={{ color: '#a78bfa' }}>Abrir em nova aba ↗</a></span>
+                        </div>
+                        <iframe
+                          src={m.url}
+                          style={{ width: '100%', height: 600, border: 'none', display: 'block', background: '#f1f5f9' }}
+                          title={m.name}
+                        />
+                      </div>
+                    )}
 
                     {/* Translation viewer — expandable */}
                     {isOpen && hasTranslations && (
@@ -6910,91 +6933,152 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
 
           {/* ── Vídeos do Manual ── */}
-          <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 22 }}>
-            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#a78bfa', marginBottom: 14 }}>🎬 Vídeos do Manual</div>
+          {(() => {
+            function getManualVideoEmbed(url: string): { type: 'iframe'; src: string; height: number } | null {
+              try {
+                const u = new URL(url);
+                const h = u.hostname.replace('www.', '');
+                if (h.includes('youtube.com') || h.includes('youtu.be')) {
+                  const vid = u.searchParams.get('v') || (h === 'youtu.be' ? u.pathname.slice(1) : u.pathname.split('/').filter(Boolean).pop());
+                  if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}`, height: 0 }; // 0 = 16:9 ratio
+                }
+                if (h.includes('spotify.com')) {
+                  const path = u.pathname.replace(/^\//, '');
+                  return { type: 'iframe', src: `https://open.spotify.com/embed/${path}?utm_source=generator&theme=0`, height: 80 };
+                }
+                if (h.includes('deezer.com')) {
+                  const m = u.pathname.match(/\/(track|album|playlist)\/(\d+)/);
+                  if (m) return { type: 'iframe', src: `https://widget.deezer.com/widget/dark/${m[1]}/${m[2]}`, height: 100 };
+                }
+              } catch {}
+              return null;
+            }
+            function detectManualPlatform(url: string) {
+              try {
+                const h = new URL(url).hostname.replace('www.', '');
+                if (h.includes('youtu')) return { icon: '▶️', label: 'YouTube', color: '#ef4444' };
+                if (h.includes('spotify')) return { icon: '🎵', label: 'Spotify', color: '#22c55e' };
+                if (h.includes('deezer')) return { icon: '🎶', label: 'Deezer', color: '#a855f7' };
+                if (h.includes('tiktok')) return { icon: '📱', label: 'TikTok', color: '#ec4899' };
+                if (h.includes('kwai')) return { icon: '📱', label: 'Kwai', color: '#ea580c' };
+              } catch {}
+              return { icon: '🔗', label: 'Link', color: '#6b7280' };
+            }
+            function isValidUrl(s: string) { try { new URL(s); return true; } catch { return false; } }
+            const urlValid = !manualVideoForm.url.trim() || isValidUrl(manualVideoForm.url.trim());
+            const detectedPlatform = manualVideoForm.url.trim() ? detectManualPlatform(manualVideoForm.url.trim()) : null;
 
-            {/* Add video form — geral only */}
-            {activeNucleo === 'geral' && (
-              <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
-                <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#a78bfa', marginBottom: 10 }}>➕ Adicionar link de vídeo</div>
-                {manualVideoMsg && (
-                  <div style={{ marginBottom: 10, padding: '7px 12px', background: manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, fontSize: '0.78rem', color: manualVideoMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{manualVideoMsg}</div>
-                )}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  <input type="text" placeholder="Título do vídeo" value={manualVideoForm.title}
-                    onChange={e => setManualVideoForm(p => ({ ...p, title: e.target.value }))}
-                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
-                  <input type="url" placeholder="URL do vídeo (YouTube, Drive, etc.)" value={manualVideoForm.url}
-                    onChange={e => setManualVideoForm(p => ({ ...p, url: e.target.value }))}
-                    style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
-                  <button disabled={savingManualVideo || !manualVideoForm.title.trim() || !manualVideoForm.url.trim()}
-                    onClick={async () => {
-                      setSavingManualVideo(true); setManualVideoMsg('');
-                      try {
-                        const res = await fetch('/api/admin/manual-videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: manualVideoForm.title.trim(), url: manualVideoForm.url.trim() }) });
-                        const j = await res.json();
-                        if (res.ok) { setManualVideoMsg('✓ Vídeo adicionado!'); setManualVideoForm({ title: '', url: '' }); const d = await fetch('/api/admin/manual-videos').then(r => r.json()); setManualVideos(d.videos || []); }
-                        else { setManualVideoMsg('Erro: ' + (j.error || 'falha')); }
-                      } catch { setManualVideoMsg('Erro de conexão.'); }
-                      setSavingManualVideo(false);
-                    }}
-                    style={{ background: savingManualVideo ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: (!manualVideoForm.title.trim() || !manualVideoForm.url.trim()) ? 0.5 : 1 }}>
-                    {savingManualVideo ? '⏳ Salvando...' : '✓ Adicionar Vídeo'}
-                  </button>
-                </div>
-              </div>
-            )}
+            return (
+              <div style={{ marginTop: 28, borderTop: '1px solid var(--border)', paddingTop: 22 }}>
+                <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#a78bfa', marginBottom: 14 }}>🎬 Vídeos do Manual</div>
 
-            {manualVideos.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-                Nenhum vídeo adicionado ainda.{activeNucleo === 'geral' ? ' Use o formulário acima para adicionar.' : ''}
-              </div>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {manualVideos.map(v => {
-                  // Detect YouTube embed
-                  const ytMatch = v.url.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([a-zA-Z0-9_-]{11})/);
-                  const ytId = ytMatch?.[1];
-                  return (
-                    <div key={v.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px' }}>
-                        <span style={{ fontSize: '1.5rem', flexShrink: 0 }}>🎬</span>
-                        <div style={{ flex: 1, minWidth: 0 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.88rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
-                          <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', marginTop: 2 }}>{v.url}</div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                          <a href={v.url} target="_blank" rel="noreferrer"
-                            style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none' }}>
-                            ▶ Abrir
-                          </a>
-                          {activeNucleo === 'geral' && (
-                            <button onClick={async () => {
-                              if (!confirm('Remover este vídeo?')) return;
-                              await fetch('/api/admin/manual-videos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: v.id }) });
-                              setManualVideos(prev => prev.filter(x => x.id !== v.id));
-                            }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🗑</button>
-                          )}
-                        </div>
+                {/* Add video form — geral only */}
+                {activeNucleo === 'geral' && (
+                  <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 12, padding: '14px 16px', marginBottom: 16 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#a78bfa', marginBottom: 10 }}>➕ Adicionar link de vídeo</div>
+                    {manualVideoMsg && (
+                      <div style={{ marginBottom: 10, padding: '7px 12px', background: manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${manualVideoMsg.startsWith('✓') ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}`, borderRadius: 8, fontSize: '0.78rem', color: manualVideoMsg.startsWith('✓') ? '#4ade80' : '#f87171', fontWeight: 600 }}>
+                        {manualVideoMsg}
                       </div>
-                      {/* Embedded YouTube player */}
-                      {ytId && (
-                        <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
-                          <iframe
-                            src={`https://www.youtube.com/embed/${ytId}`}
-                            title={v.title}
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }}
-                          />
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      <input type="text" placeholder="Título do vídeo" value={manualVideoForm.title}
+                        onChange={e => setManualVideoForm(p => ({ ...p, title: e.target.value }))}
+                        style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                      <div style={{ position: 'relative' }}>
+                        <input type="url" placeholder="URL do vídeo (YouTube, Spotify, Deezer, etc.)" value={manualVideoForm.url}
+                          onChange={e => setManualVideoForm(p => ({ ...p, url: e.target.value }))}
+                          style={{ background: 'var(--bg)', border: `1px solid ${!urlValid ? '#ef4444' : detectedPlatform ? detectedPlatform.color + '66' : 'var(--border)'}`, borderRadius: 8, padding: '8px 12px', paddingLeft: detectedPlatform ? 34 : 12, fontSize: '0.85rem', color: 'var(--text-primary)', outline: 'none', width: '100%', boxSizing: 'border-box' }} />
+                        {detectedPlatform && (
+                          <span style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', fontSize: '1rem' }}>{detectedPlatform.icon}</span>
+                        )}
+                      </div>
+                      {!urlValid && (
+                        <div style={{ fontSize: '0.75rem', color: '#f87171', fontWeight: 600 }}>⚠ URL inválida. Insira um link completo começando com https://</div>
+                      )}
+                      {detectedPlatform && urlValid && manualVideoForm.url.trim() && (
+                        <div style={{ padding: '5px 10px', background: `${detectedPlatform.color}15`, border: `1px solid ${detectedPlatform.color}33`, borderRadius: 7, fontSize: '0.75rem', color: detectedPlatform.color, fontWeight: 600 }}>
+                          {detectedPlatform.icon} Plataforma detectada: <strong>{detectedPlatform.label}</strong>
+                          {detectedPlatform.label === 'YouTube' || detectedPlatform.label === 'Spotify' || detectedPlatform.label === 'Deezer' ? ' — será exibido embutido' : ' — abrirá em nova aba'}
                         </div>
                       )}
+                      <button disabled={savingManualVideo || !manualVideoForm.title.trim() || !manualVideoForm.url.trim() || !urlValid}
+                        onClick={async () => {
+                          setSavingManualVideo(true); setManualVideoMsg('');
+                          try {
+                            const res = await fetch('/api/admin/manual-videos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ title: manualVideoForm.title.trim(), url: manualVideoForm.url.trim() }) });
+                            const j = await res.json();
+                            if (res.ok) { setManualVideoMsg('✓ Vídeo adicionado com sucesso!'); setManualVideoForm({ title: '', url: '' }); const d = await fetch('/api/admin/manual-videos').then(r => r.json()); setManualVideos(d.videos || []); }
+                            else { setManualVideoMsg('Erro: ' + (j.error || 'falha ao salvar')); }
+                          } catch { setManualVideoMsg('Erro de conexão. Tente novamente.'); }
+                          setSavingManualVideo(false);
+                        }}
+                        style={{ background: savingManualVideo ? '#6b7280' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, padding: '9px 18px', cursor: (!manualVideoForm.title.trim() || !manualVideoForm.url.trim() || !urlValid) ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.82rem', opacity: (!manualVideoForm.title.trim() || !manualVideoForm.url.trim() || !urlValid) ? 0.5 : 1 }}>
+                        {savingManualVideo ? '⏳ Salvando...' : '✓ Adicionar Vídeo'}
+                      </button>
                     </div>
-                  );
-                })}
+                  </div>
+                )}
+
+                {manualVideos.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '30px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                    <div style={{ fontSize: '2rem', marginBottom: 8 }}>🎬</div>
+                    Nenhum vídeo adicionado ainda.{activeNucleo === 'geral' ? ' Use o formulário acima para adicionar.' : ''}
+                  </div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    {(manualVideos as Array<{ id: string; title: string; url: string; platform?: string; created_at: string }>).map(v => {
+                      const embed = getManualVideoEmbed(v.url);
+                      const platform = detectManualPlatform(v.url);
+                      return (
+                        <div key={v.id} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                          {/* Embed */}
+                          {embed && (
+                            embed.height === 0 ? (
+                              <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
+                                <iframe src={embed.src} title={v.title}
+                                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                                  allowFullScreen
+                                  style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />
+                              </div>
+                            ) : (
+                              <iframe src={embed.src} title={v.title}
+                                width="100%" height={embed.height}
+                                style={{ border: 'none', display: 'block' }}
+                                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
+                            )
+                          )}
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px' }}>
+                            <span style={{ fontSize: '1.2rem', flexShrink: 0 }}>{platform.icon}</span>
+                            <div style={{ flex: 1, minWidth: 0 }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.85rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{v.title}</div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                                <span style={{ padding: '1px 7px', borderRadius: 20, background: `${platform.color}22`, border: `1px solid ${platform.color}44`, fontSize: '0.65rem', fontWeight: 700, color: platform.color }}>{platform.label}</span>
+                                <a href={v.url} target="_blank" rel="noreferrer" style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{v.url}</a>
+                              </div>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                              <a href={v.url} target="_blank" rel="noreferrer"
+                                style={{ background: 'rgba(124,58,237,0.12)', border: '1px solid rgba(124,58,237,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 12px', fontSize: '0.75rem', fontWeight: 700, textDecoration: 'none', display: 'inline-flex', alignItems: 'center' }}>
+                                ↗ Abrir
+                              </a>
+                              {activeNucleo === 'geral' && (
+                                <button onClick={async () => {
+                                  if (!confirm('Remover este vídeo?')) return;
+                                  await fetch('/api/admin/manual-videos', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: v.id }) });
+                                  setManualVideos(prev => prev.filter(x => x.id !== v.id));
+                                }} style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 10px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🗑</button>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
               </div>
-            )}
-          </div>
+            );
+          })()}
 
           <div style={{ marginTop: 24, padding: '14px 16px', background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 12, fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
             <strong style={{ color: 'var(--text-primary)' }}>ℹ Como usar:</strong><br/>
@@ -7002,7 +7086,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             • Somente o Admin Geral pode subir ou excluir manuais e vídeos.<br/>
             • Apenas arquivos PDF são aceitos para upload.<br/>
             • Os links de download são válidos por 1 hora; recarregue a página para renovar.<br/>
-            • Vídeos do YouTube são exibidos embutidos; outros links abrem em nova aba.
+            • Vídeos do YouTube, Spotify e Deezer são exibidos embutidos; outros links abrem em nova aba.
           </div>
         </div>
       )}

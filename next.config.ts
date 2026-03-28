@@ -53,7 +53,7 @@ const nextConfig: NextConfig = {
               "img-src 'self' data: blob: https: http:",
               "font-src 'self' data:",
               "connect-src 'self' https://*.supabase.co https://*.supabase.io wss://*.supabase.co",
-              "frame-src https://www.google.com https://recaptcha.google.com",
+              "frame-src https://www.google.com https://recaptcha.google.com https://www.youtube.com https://youtube.com https://open.spotify.com https://widget.deezer.com https://www.tiktok.com https://www.kwai.com https://*.supabase.co https://*.supabase.io",
               "worker-src 'self' blob:",
               "media-src 'self' blob: https:",
             ].join('; '),
