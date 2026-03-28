@@ -58,11 +58,30 @@ export async function POST(req: NextRequest) {
   const pdfBytes = await pdfData.arrayBuffer();
   const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
-  if (!process.env.ANTHROPIC_API_KEY) {
-    return NextResponse.json({ error: 'ANTHROPIC_API_KEY não configurada. Configure a variável de ambiente para habilitar tradução automática.' }, { status: 503 });
+  // Build Anthropic client — supports both direct API key and Orchids proxy (auth token + custom base URL)
+  const apiKey = process.env.ANTHROPIC_API_KEY || undefined;
+  const authToken = process.env.ANTHROPIC_AUTH_TOKEN || undefined;
+  const baseURL = process.env.ANTHROPIC_BASE_URL || undefined;
+
+  if (!apiKey && !authToken) {
+    return NextResponse.json({ error: 'Chave da API Anthropic não configurada.' }, { status: 503 });
   }
 
-  const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+  const customHeaders: Record<string, string> = {};
+  if (process.env.ANTHROPIC_CUSTOM_HEADERS) {
+    // Parse "key: value" pairs separated by commas or newlines
+    for (const line of process.env.ANTHROPIC_CUSTOM_HEADERS.split(/[,\n]/)) {
+      const idx = line.indexOf(':');
+      if (idx > 0) customHeaders[line.slice(0, idx).trim()] = line.slice(idx + 1).trim();
+    }
+  }
+
+  const anthropic = new Anthropic({
+    ...(apiKey ? { apiKey } : { apiKey: 'placeholder' }),
+    ...(authToken ? { authToken } : {}),
+    ...(baseURL ? { baseURL } : {}),
+    defaultHeaders: Object.keys(customHeaders).length ? customHeaders : undefined,
+  });
 
   // 2. First, extract the full text content from the PDF
   let extractedText = '';
