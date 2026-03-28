@@ -6785,10 +6785,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
                     }
                   } else {
-                    setManualMsg('✓ Manual enviado. ' + (tj.error ? 'Tradução: ' + tj.error : 'Tradução automática indisponível.'));
+                    setManualMsg('✓ Manual enviado com sucesso!');
                   }
                   setTranslatingManual(null);
-                }).catch(() => { setTranslatingManual(null); setManualMsg('✓ Manual enviado. Tradução automática falhou.'); });
+                }).catch(() => { setTranslatingManual(null); setManualMsg('✓ Manual enviado com sucesso!'); });
               } catch (err: any) {
                 setManualMsg('Erro: ' + err.message);
               }

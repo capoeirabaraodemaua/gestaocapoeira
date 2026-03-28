@@ -58,6 +58,10 @@ export async function POST(req: NextRequest) {
   const pdfBytes = await pdfData.arrayBuffer();
   const pdfBase64 = Buffer.from(pdfBytes).toString('base64');
 
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ error: 'ANTHROPIC_API_KEY não configurada. Configure a variável de ambiente para habilitar tradução automática.' }, { status: 503 });
+  }
+
   const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
   // 2. First, extract the full text content from the PDF
