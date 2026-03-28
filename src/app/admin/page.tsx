@@ -283,7 +283,7 @@ const GRAD_OPCOES_INFANTIL = [
 ];
 
 export default function AdminPage() {
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
@@ -763,6 +763,25 @@ export default function AdminPage() {
     { code: 'zh',    flag: '🇨🇳', label: '中文' },
     { code: 'de',    flag: '🇩🇪', label: 'Deutsch' },
   ];
+
+  // Sync manual view language with global language selector
+  // When the user changes the global lang, update all manual view langs
+  useEffect(() => {
+    if (!lang) return;
+    // Update language for all loaded manuals that have translations
+    setManualViewLang(prev => {
+      const updated: Record<string, string> = { ...prev };
+      Object.keys(manualTranslations).forEach(name => {
+        const available = manualTranslations[name];
+        if (available && Object.keys(available).length > 0) {
+          // Use selected lang if available, otherwise fall back to 'pt'
+          updated[name] = available[lang] ? lang : (available['pt'] ? 'pt' : Object.keys(available)[0]);
+        }
+      });
+      return updated;
+    });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lang]);
 
   // ── Extra Admins state ────────────────────────────────────────────────────
   const [extraAdmins, setExtraAdmins] = useState<Array<{ id: string; username: string; nome: string; email?: string; created_at: string }>>([]);
@@ -1569,7 +1588,7 @@ export default function AdminPage() {
               fetch('/api/admin/manual').then(r => r.json()).then(async d => {
                 const files = d.files || []; setManuais(files);
                 await Promise.all(files.map(async (f: { name: string }) => {
-                  try { const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(f.name)}`).then(r => r.json()); if (tr.translations) { setManualTranslations(prev => ({ ...prev, [f.name]: tr.translations })); setManualViewLang(prev => ({ ...prev, [f.name]: prev[f.name] || 'pt' })); } } catch {}
+                  try { const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(f.name)}`).then(r => r.json()); if (tr.translations) { setManualTranslations(prev => ({ ...prev, [f.name]: tr.translations })); setManualViewLang(prev => ({ ...prev, [f.name]: prev[f.name] || (tr.translations[lang] ? lang : 'pt') })); } } catch {}
                 }));
                 setLoadingManuais(false);
               }).catch(() => setLoadingManuais(false));
@@ -6782,7 +6801,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(newName)}`).then(r => r.json()).catch(() => ({}));
                     if (tr.translations) {
                       setManualTranslations(prev => ({ ...prev, [newName]: tr.translations }));
-                      setManualViewLang(prev => ({ ...prev, [newName]: 'pt' }));
+                      setManualViewLang(prev => ({ ...prev, [newName]: tr.translations[lang] ? lang : 'pt' }));
                     }
                   } else {
                     setManualMsg('✓ Manual enviado com sucesso!');
@@ -6858,7 +6877,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 const tr = await fetch(`/api/admin/manual/translate?name=${encodeURIComponent(m.name)}`).then(r => r.json());
                                 if (tr.translations) {
                                   setManualTranslations(prev => ({ ...prev, [m.name]: tr.translations }));
-                                  setManualViewLang(prev => ({ ...prev, [m.name]: 'pt' }));
+                                  setManualViewLang(prev => ({ ...prev, [m.name]: tr.translations[lang] ? lang : 'pt' }));
                                 }
                               } else {
                                 setManualMsg('✓ Manual disponível. Tradução automática indisponível.');
@@ -6995,13 +7014,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* ── Vídeos do Manual ── */}
           {(() => {
+            // Map platform lang codes to YouTube/BCP-47 compatible lang codes
+            const ytLangMap: Record<string, string> = {
+              'pt': 'pt-BR', 'pt-PT': 'pt-PT', 'en': 'en', 'es': 'es',
+              'fr': 'fr', 'it': 'it', 'sv': 'sv', 'af': 'af',
+              'nl': 'nl', 'ja': 'ja', 'ko': 'ko', 'zh': 'zh-Hans', 'de': 'de',
+            };
+            const ytLang = ytLangMap[lang] || 'pt-BR';
+
             function getManualVideoEmbed(url: string): { type: 'iframe'; src: string; height: number } | null {
               try {
                 const u = new URL(url);
                 const h = u.hostname.replace('www.', '');
                 if (h.includes('youtube.com') || h.includes('youtu.be')) {
                   const vid = u.searchParams.get('v') || (h === 'youtu.be' ? u.pathname.slice(1) : u.pathname.split('/').filter(Boolean).pop());
-                  if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}?hl=pt-BR&cc_lang_pref=pt&cc_load_policy=1&rel=0`, height: 0 }; // 0 = 16:9 ratio
+                  if (vid) return { type: 'iframe', src: `https://www.youtube.com/embed/${vid}?hl=${ytLang}&cc_lang_pref=${ytLang}&cc_load_policy=1&rel=0`, height: 0 }; // 0 = 16:9 ratio
                 }
                 if (h.includes('spotify.com')) {
                   const path = u.pathname.replace(/^\//, '');
@@ -7097,13 +7124,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           {embed && (
                             embed.height === 0 ? (
                               <div style={{ position: 'relative', paddingBottom: '56.25%', background: '#000' }}>
-                                <iframe src={embed.src} title={v.title}
+                                <iframe key={embed.src} src={embed.src} title={v.title}
                                   allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                                   allowFullScreen
                                   style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', border: 'none' }} />
                               </div>
                             ) : (
-                              <iframe src={embed.src} title={v.title}
+                              <iframe key={embed.src} src={embed.src} title={v.title}
                                 width="100%" height={embed.height}
                                 style={{ border: 'none', display: 'block' }}
                                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" />
