@@ -118,8 +118,12 @@ export default function FinanceiroPage() {
   const [saveMsg, setSaveMsg] = useState('');
   const [activeSection, setActiveSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
 
-  // Parcelamento selection state
+  // Parcelamento selection state (new plan — not yet finalised)
   const [numParcelas, setNumParcelas] = useState(1);
+  // Which modalidade the student pre-selected before clicking Finalizar
+  // 'none' = nothing chosen yet; 'integral' or 'parcelado' = chosen but not saved
+  const [planoSelecionado, setPlanoSelecionado] = useState<'none' | 'integral' | 'parcelado'>('none');
+  const [finalizando, setFinalizando] = useState(false);
   // Edit mode for active batizado plan (student can change number of parcelas)
   const [editandoParcelas, setEditandoParcelas] = useState(false);
   const [numParcelasEdit, setNumParcelasEdit] = useState(1);
@@ -466,9 +470,10 @@ export default function FinanceiroPage() {
                       Escolha a forma de pagamento do batizado:
                     </div>
 
-                    {/* Integral */}
-                    <button onClick={() => confirmarParcelamento('integral', 1)}
-                      style={{ width: '100%', padding: '16px 18px', background: 'rgba(124,58,237,0.12)', border: '2px solid rgba(124,58,237,0.4)', borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'left', marginBottom: 14 }}>
+                    {/* Step 1 — Integral option */}
+                    <button
+                      onClick={() => { setPlanoSelecionado('integral'); setNumParcelas(1); }}
+                      style={{ width: '100%', padding: '16px 18px', background: planoSelecionado === 'integral' ? 'rgba(124,58,237,0.22)' : 'rgba(124,58,237,0.08)', border: `2px solid ${planoSelecionado === 'integral' ? 'rgba(124,58,237,0.8)' : 'rgba(124,58,237,0.3)'}`, borderRadius: 12, color: '#fff', cursor: 'pointer', textAlign: 'left', marginBottom: 10 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                         <span style={{ fontSize: '1.5rem' }}>💳</span>
                         <div>
@@ -477,61 +482,82 @@ export default function FinanceiroPage() {
                             {formatMoeda(valorTotal)} à vista — parcela única
                           </div>
                         </div>
+                        {planoSelecionado === 'integral' && <span style={{ marginLeft: 'auto', fontSize: '1.1rem' }}>✅</span>}
                       </div>
                     </button>
 
-                    {/* Parcelado: selector */}
-                    <div style={{ background: 'rgba(59,130,246,0.08)', border: '2px solid rgba(59,130,246,0.3)', borderRadius: 12, padding: '16px 18px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 14 }}>
+                    {/* Step 1 — Parcelado option */}
+                    <div
+                      onClick={() => { if (planoSelecionado !== 'parcelado') setPlanoSelecionado('parcelado'); }}
+                      style={{ background: planoSelecionado === 'parcelado' ? 'rgba(59,130,246,0.12)' : 'rgba(59,130,246,0.05)', border: `2px solid ${planoSelecionado === 'parcelado' ? 'rgba(59,130,246,0.7)' : 'rgba(59,130,246,0.25)'}`, borderRadius: 12, padding: '16px 18px', cursor: 'pointer', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: planoSelecionado === 'parcelado' ? 14 : 0 }}>
                         <span style={{ fontSize: '1.5rem' }}>📆</span>
                         <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>Parcelado — sem juros</div>
+                        {planoSelecionado === 'parcelado' && <span style={{ marginLeft: 'auto', fontSize: '1.1rem' }}>✅</span>}
                       </div>
 
-                      {/* Parcelas grid 1–maxParcelas */}
-                      <div style={{ marginBottom: 12 }}>
-                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Escolha a quantidade de parcelas:</div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => {
-                            const vp = Math.round((valorTotal / n) * 100) / 100;
-                            const isSelected = numParcelas === n;
-                            return (
-                              <button key={n} onClick={() => setNumParcelas(n)}
-                                style={{ padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
-                                  background: isSelected ? 'rgba(59,130,246,0.35)' : 'rgba(255,255,255,0.06)',
-                                  border: `1.5px solid ${isSelected ? 'rgba(59,130,246,0.8)' : 'rgba(255,255,255,0.1)'}`,
-                                  color: isSelected ? '#93c5fd' : 'rgba(255,255,255,0.6)',
-                                }}>
-                                {n}× <span style={{ fontWeight: 400, fontSize: '0.72rem' }}>{formatMoeda(vp)}</span>
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-
-                      {/* Preview do plano */}
-                      <div style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
-                        <div style={{ fontWeight: 700, color: '#93c5fd', fontSize: '0.85rem', marginBottom: 6 }}>
-                          Resumo do plano: {numParcelas}× de {formatMoeda(valorParcela)}
-                        </div>
-                        <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.6)' }}>
-                          Valor total: {formatMoeda(valorTotal)} · Sem juros · Vencimentos mensais a partir do próximo mês
-                        </div>
-                        {numParcelas > 1 && (
-                          <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                            {gerarParcelas(valorTotal, numParcelas).map(p => (
-                              <span key={p.numero} style={{ fontSize: '0.7rem', background: 'rgba(255,255,255,0.07)', borderRadius: 6, padding: '3px 8px', color: 'rgba(255,255,255,0.5)' }}>
-                                {p.numero}ª {formatMoeda(p.valor)} · {formatDate(p.vencimento)}
-                              </span>
-                            ))}
+                      {/* Parcelas grid — only shown after user selects "Parcelado" */}
+                      {planoSelecionado === 'parcelado' && (
+                        <div onClick={e => e.stopPropagation()}>
+                          <div style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)', marginBottom: 8 }}>Escolha a quantidade de parcelas:</div>
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 12 }}>
+                            {Array.from({ length: maxParcelas }, (_, i) => i + 1).map(n => {
+                              const vp = Math.round((valorTotal / n) * 100) / 100;
+                              const isSelected = numParcelas === n;
+                              return (
+                                <button key={n} onClick={() => setNumParcelas(n)}
+                                  style={{ padding: '7px 12px', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700,
+                                    background: isSelected ? 'rgba(59,130,246,0.4)' : 'rgba(255,255,255,0.06)',
+                                    border: `1.5px solid ${isSelected ? 'rgba(59,130,246,0.9)' : 'rgba(255,255,255,0.1)'}`,
+                                    color: isSelected ? '#93c5fd' : 'rgba(255,255,255,0.6)',
+                                  }}>
+                                  {n}× <span style={{ fontWeight: 400, fontSize: '0.72rem' }}>{formatMoeda(vp)}</span>
+                                </button>
+                              );
+                            })}
                           </div>
-                        )}
-                      </div>
-
-                      <button onClick={() => confirmarParcelamento('parcelado', numParcelas)}
-                        style={{ width: '100%', padding: '11px', background: 'linear-gradient(135deg,#1d4ed8,#3b82f6)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 800, cursor: 'pointer', fontSize: '0.9rem' }}>
-                        ✓ Confirmar {numParcelas}× de {formatMoeda(valorParcela)}
-                      </button>
+                          {/* Preview */}
+                          <div style={{ background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.2)', borderRadius: 8, padding: '10px 12px', marginBottom: 2 }}>
+                            <div style={{ fontWeight: 700, color: '#93c5fd', fontSize: '0.82rem', marginBottom: 4 }}>
+                              Plano selecionado: {numParcelas}× de {formatMoeda(valorParcela)}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 6 }}>
+                              {gerarParcelas(valorTotal, numParcelas).map(p => (
+                                <span key={p.numero} style={{ fontSize: '0.68rem', background: 'rgba(255,255,255,0.07)', borderRadius: 5, padding: '2px 7px', color: 'rgba(255,255,255,0.5)' }}>
+                                  {p.numero}ª {formatMoeda(p.valor)} · {formatDate(p.vencimento)}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                      )}
                     </div>
+
+                    {/* Step 2 — Finalizar button (only active when a plan is selected) */}
+                    {planoSelecionado !== 'none' && (
+                      <div style={{ background: 'rgba(22,163,74,0.08)', border: '2px solid rgba(22,163,74,0.35)', borderRadius: 12, padding: '16px 18px' }}>
+                        <div style={{ fontSize: '0.82rem', color: 'rgba(255,255,255,0.65)', marginBottom: 12 }}>
+                          {planoSelecionado === 'integral'
+                            ? `💳 Integral — ${formatMoeda(valorTotal)} à vista`
+                            : `📆 ${numParcelas}× de ${formatMoeda(valorParcela)} (total ${formatMoeda(valorTotal)})`}
+                          <br/>
+                          <span style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.4)' }}>
+                            Revise antes de finalizar. Após clicar em Finalizar, o evento será criado e enviado ao painel administrativo.
+                          </span>
+                        </div>
+                        <button
+                          disabled={finalizando}
+                          onClick={async () => {
+                            setFinalizando(true);
+                            await confirmarParcelamento(planoSelecionado, planoSelecionado === 'integral' ? 1 : numParcelas);
+                            setPlanoSelecionado('none');
+                            setFinalizando(false);
+                          }}
+                          style={{ width: '100%', padding: '13px', background: finalizando ? '#374151' : 'linear-gradient(135deg,#16a34a,#15803d)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 900, cursor: finalizando ? 'wait' : 'pointer', fontSize: '1rem', letterSpacing: '0.02em' }}>
+                          {finalizando ? '⏳ Criando evento...' : '✅ Finalizar e Criar Evento'}
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ) : (
                   <div>

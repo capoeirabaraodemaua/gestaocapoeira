@@ -3754,8 +3754,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 ✏️ Editar Parcelas
                               </button>
                               <button onClick={async () => {
-                                if (!confirm('Excluir agendamento de batizado? Isso vai apagar a modalidade e parcelas, liberando o aluno para criar novo evento.')) return;
-                                const updated = { ...f, batizado: { ...f.batizado, modalidade: 'nao_definido' as const, parcelas: [], valor_total: 0 } };
+                                if (!confirm('Excluir evento de batizado? Isso vai remover completamente o evento e a ficha financeira vinculada, liberando o aluno para criar um novo evento.')) return;
+                                const updated = {
+                                  ...f,
+                                  batizado: { modalidade: 'nao_definido' as const, valor_total: 0, parcelas: [], status_geral: 'nao_definido' as const },
+                                  alertas: {
+                                    ...(f.alertas || {}),
+                                    batizado_modalidade_escolhida: false,
+                                    comprovante_pendente: false,
+                                    pagamento_registrado: false,
+                                  },
+                                };
                                 setFinFicha(updated); await adminSaveFicha(updated);
                               }} style={{ padding: '4px 10px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
                                 🗑 Excluir
