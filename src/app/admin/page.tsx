@@ -913,20 +913,11 @@ export default function AdminPage() {
 
   const fetchStudents = async (nucleoKey?: string | null) => {
     setLoading(true);
-    // Build query — filter by tenant_id at DB level for nucleo-specific admins
-    // Falls back gracefully if tenant_id column doesn't exist yet (error caught below)
-    const tenantId = nucleoKey ? getTenantIdByKey(nucleoKey) : null;
-    let query = supabase.from('students').select('*').order('created_at', { ascending: false });
-    if (tenantId) {
-      query = query.eq('tenant_id', tenantId);
-    }
-    let { data, error } = await query;
-    // Fallback: if tenant_id column doesn't exist yet, retry without the filter
-    if (error && tenantId && (error.message || '').includes('tenant_id')) {
-      const fallback = await supabase.from('students').select('*').order('created_at', { ascending: false });
-      data = fallback.data;
-      error = fallback.error;
-    }
+    void nucleoKey; // tenant_id filtering done in-memory via nucleoFilter (column may not exist yet)
+    const { data, error } = await supabase
+      .from('students')
+      .select('*')
+      .order('created_at', { ascending: false });
     if (!error && data) {
       const list = data as Student[];
       // Compute virtual ordem_inscricao for students missing it (sort by created_at asc → index+1)
