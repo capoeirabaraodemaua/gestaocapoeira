@@ -3,7 +3,7 @@
   "createdAt": 1771284591797,
   "version": "1.0",
   "startupCommands": [
-    "bun install; bun run build; bun run start"
+    "bun install; bun run dev"
   ],
   "templateId": "nextjs"
 }

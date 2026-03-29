@@ -550,7 +550,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
@@ -1066,12 +1066,16 @@ export default function AdminPage() {
     : activeNucleo === 'academia-mais-saude' ? 'Academia Mais Saúde'
     : null;
   const filtered = students.filter(s => {
-    const matchSearch =
-      s.nome_completo.toLowerCase().includes(search.toLowerCase()) ||
-      s.cpf.includes(search) ||
-      (s.graduacao || '').toLowerCase().includes(search.toLowerCase());
+    const q = search.toLowerCase();
+    const matchSearch = !q ||
+      (s.nome_completo || '').toLowerCase().includes(q) ||
+      (s.cpf || '').includes(q) ||
+      (s.graduacao || '').toLowerCase().includes(q) ||
+      (s.nucleo || '').toLowerCase().includes(q);
     const matchNucleo = !filterNucleo || s.nucleo === filterNucleo;
-    const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter;
+    // When nucleo data is missing (null), non-geral admins still see all students
+    // so they can help fill in the missing data
+    const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter || !s.nucleo;
     const matchGraduacao = !filterGraduacao || s.graduacao === filterGraduacao;
     const matchCondicao = !filterCondicao || (() => {
       try {
@@ -1091,7 +1095,7 @@ export default function AdminPage() {
   });
 
   // For stats, only count students visible to this profile
-  const visibleStudents = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students;
+  const visibleStudents = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter || !s.nucleo) : students;
   const menores = visibleStudents.filter(s => s.menor_de_idade).length;
 
   const openEdit = (student: Student) => {
@@ -1661,6 +1665,7 @@ export default function AdminPage() {
                 { key: 'certificado', icon: '🏅', label: 'Certificado' },
                 { key: 'manual',      icon: '📖', label: 'Manual Ginga Gestão' },
                 { key: 'admins',      icon: '🔐', label: 'Administradores', geralOnly: true },
+                { key: 'restauracao', icon: '🔧', label: 'Restaurar Dados', geralOnly: true },
                 { key: 'lixeira',     icon: '🗑️', label: 'Cadastros Excluídos', geralOnly: true, badge: lixeira.length > 0 ? lixeira.length : undefined },
               ],
             },
@@ -2700,7 +2705,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       setCertSearch(q);
                       if (!q.trim()) { setCertFilteredStudents([]); return; }
                       const lower = q.toLowerCase();
-                      setCertFilteredStudents(students.filter(s => s.nome_completo.toLowerCase().includes(lower) || s.cpf.includes(q)).slice(0, 6));
+                      setCertFilteredStudents(students.filter(s => s.nome_completo.toLowerCase().includes(lower) || (s.cpf || '').includes(q)).slice(0, 6));
                     }}
                     style={{ width: '100%', padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: '0.9rem', outline: 'none', background: 'var(--bg-input)', color: 'var(--text-primary)', boxSizing: 'border-box' }}
                   />
@@ -7028,6 +7033,215 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           })()}
         </div>
       )}
+
+      {/* ===== ABA RESTAURAÇÃO DE DADOS ===== */}
+      {activeTab === 'restauracao' && activeNucleo === 'geral' && (() => {
+        const NUCLEOS_LIST = ['Poliesportivo Edson Alves','Poliesportivo do Ipiranga','Saracuruna','Vila Urussaí','Jayme Fichman','Academia Mais Saúde'];
+        const GRADUACOES_LIST = ['Crua','Crua-Amarela','Amarela','Amarela-Laranja','Laranja','Laranja-Azul','Azul','Azul-Verde','Verde','Verde-Roxa','Roxa','Roxa-Marrom','Marrom','Marrom-Vermelha','Vermelha','Vermelha-Preta','Preta'];
+        return (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#f87171' }}>🔧 Restauração de Dados</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', marginTop: 4, lineHeight: 1.5 }}>
+                Ferramenta para restaurar núcleo, graduação, CPF e demais dados dos alunos cadastrados. Use a importação via CSV ou o preenchimento em lote abaixo.
+              </div>
+            </div>
+
+            {/* STATUS */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(180px,1fr))', gap: 12, marginBottom: 24 }}>
+              {[
+                { label: 'Total de alunos', value: students.length, color: '#60a5fa' },
+                { label: 'Com núcleo', value: students.filter(s => s.nucleo).length, color: '#34d399' },
+                { label: 'Sem núcleo', value: students.filter(s => !s.nucleo).length, color: '#f87171' },
+                { label: 'Com graduação', value: students.filter(s => s.graduacao).length, color: '#34d399' },
+                { label: 'Sem graduação', value: students.filter(s => !s.graduacao).length, color: '#f87171' },
+                { label: 'Com CPF', value: students.filter(s => s.cpf).length, color: '#34d399' },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{stat.label}</div>
+                  <div style={{ fontSize: '1.6rem', fontWeight: 900, color: stat.color }}>{stat.value}</div>
+                </div>
+              ))}
+            </div>
+
+            {/* IMPORT CSV */}
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.3)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
+                📥 Importar CSV com dados completos
+              </div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 12, lineHeight: 1.5 }}>
+                Carregue um arquivo CSV com os dados do banco antigo. O sistema identifica cada aluno pelo nome ou CPF e preenche os campos faltantes.
+                <br/>Colunas aceitas: <code style={{ background: 'rgba(255,255,255,0.06)', padding: '1px 5px', borderRadius: 4 }}>nome_completo, cpf, nucleo, graduacao, tipo_graduacao, identidade, email, telefone, data_nascimento, cep, endereco, numero, complemento, bairro, cidade, estado, nome_pai, nome_mae, nome_responsavel, cpf_responsavel, apelido, nome_social, sexo, menor_de_idade</code>
+              </div>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem' }}>
+                📂 Selecionar arquivo CSV
+                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const text = await file.text();
+                  const lines = text.split(/\r?\n/).filter(l => l.trim());
+                  if (lines.length < 2) { alert('CSV vazio ou sem dados.'); return; }
+                  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+                  const rows = lines.slice(1).map(line => {
+                    const vals: string[] = [];
+                    let cur = ''; let inQ = false;
+                    for (const ch of line) {
+                      if (ch === '"') { inQ = !inQ; }
+                      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+                      else { cur += ch; }
+                    }
+                    vals.push(cur.trim());
+                    const obj: Record<string,string> = {};
+                    headers.forEach((h, i) => { if (h) obj[h] = (vals[i] || '').replace(/^"|"$/g, ''); });
+                    return obj;
+                  }).filter(r => r.nome_completo || r.nome);
+                  if (!rows.length) { alert('Nenhum aluno encontrado no CSV.'); return; }
+                  if (!confirm(`Importar ${rows.length} registros do CSV?\n\nSomente campos preenchidos no CSV serão atualizados.`)) return;
+                  try {
+                    const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert(`✅ Importação concluída!\n\n• Atualizados: ${d.updated}\n• Não encontrados: ${d.notFound}\n• Com erro: ${d.skipped}\n• Total no CSV: ${d.total}${d.errors?.length ? '\n\nErros:\n' + d.errors.join('\n') : ''}`);
+                      fetchStudents(activeNucleo);
+                    } else { alert('Erro: ' + (d.error || JSON.stringify(d))); }
+                  } catch (err) { alert('Erro na importação: ' + err); }
+                  e.target.value = '';
+                }} />
+              </label>
+            </div>
+
+            {/* LOTE POR NUCLEO */}
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(99,102,241,0.3)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, color: '#818cf8', marginBottom: 12 }}>🏷️ Atribuir núcleo em lote</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 14 }}>
+                Selecione alunos sem núcleo e atribua um núcleo a todos de uma vez.
+              </div>
+              {(() => {
+                const semNucleo = students.filter(s => !s.nucleo);
+                const [selNucleo, setSelNucleo] = React.useState('');
+                const [selIds, setSelIds] = React.useState<Set<string>>(new Set());
+                const toggleId = (id: string) => setSelIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                return (
+                  <div>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select value={selNucleo} onChange={e => setSelNucleo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 200 }}>
+                        <option value="">— Selecione o núcleo —</option>
+                        {NUCLEOS_LIST.map(n => <option key={n} value={n}>{n}</option>)}
+                      </select>
+                      <button onClick={() => setSelIds(new Set(semNucleo.map(s => s.id)))} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Selec. todos ({semNucleo.length})</button>
+                      <button onClick={() => setSelIds(new Set())} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem' }}>Limpar</button>
+                      <button onClick={async () => {
+                        if (!selNucleo) { alert('Selecione um núcleo.'); return; }
+                        if (!selIds.size) { alert('Selecione pelo menos um aluno.'); return; }
+                        const rows = Array.from(selIds).map(id => {
+                          const s = students.find(x => x.id === id);
+                          return { nome_completo: s?.nome_completo || '', nucleo: selNucleo };
+                        });
+                        const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
+                        const d = await res.json();
+                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com núcleo "${selNucleo}"`); fetchStudents(activeNucleo); setSelIds(new Set()); }
+                        else alert('Erro: ' + d.error);
+                      }} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', color: '#818cf8', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                        Aplicar núcleo ({selIds.size} sel.)
+                      </button>
+                    </div>
+                    {semNucleo.length === 0 ? (
+                      <div style={{ color: '#34d399', fontSize: '0.85rem' }}>✅ Todos os alunos já têm núcleo!</div>
+                    ) : (
+                      <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+                        {semNucleo.map(s => (
+                          <div key={s.id} onClick={() => toggleId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: selIds.has(s.id) ? 'rgba(99,102,241,0.08)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
+                            <input type="checkbox" checked={selIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.nome_completo}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.data_nascimento ? new Date(s.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR') : '—'} · {s.menor_de_idade ? 'Menor' : 'Adulto'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* LOTE GRADUAÇÃO */}
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '20px', marginBottom: 20 }}>
+              <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 12 }}>🥋 Atribuir graduação em lote</div>
+              {(() => {
+                const semGrad = students.filter(s => !s.graduacao);
+                const [selGrad, setSelGrad] = React.useState('');
+                const [selTipo, setSelTipo] = React.useState('');
+                const [selGradIds, setSelGradIds] = React.useState<Set<string>>(new Set());
+                const toggleGId = (id: string) => setSelGradIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                return (
+                  <div>
+                    <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+                      <select value={selGrad} onChange={e => setSelGrad(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 160 }}>
+                        <option value="">— Graduação —</option>
+                        {GRADUACOES_LIST.map(g => <option key={g} value={g}>{g}</option>)}
+                      </select>
+                      <select value={selTipo} onChange={e => setSelTipo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem' }}>
+                        <option value="">— Tipo —</option>
+                        <option value="adulta">Adulta</option>
+                        <option value="infantil">Infantil</option>
+                      </select>
+                      <button onClick={() => setSelGradIds(new Set(semGrad.map(s => s.id)))} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Todos sem grad ({semGrad.length})</button>
+                      <button onClick={async () => {
+                        if (!selGrad) { alert('Selecione uma graduação.'); return; }
+                        if (!selGradIds.size) { alert('Selecione pelo menos um aluno.'); return; }
+                        const rows = Array.from(selGradIds).map(id => {
+                          const s = students.find(x => x.id === id);
+                          return { nome_completo: s?.nome_completo || '', graduacao: selGrad, ...(selTipo ? { tipo_graduacao: selTipo } : {}) };
+                        });
+                        const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
+                        const d = await res.json();
+                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com graduação "${selGrad}"`); fetchStudents(activeNucleo); setSelGradIds(new Set()); }
+                        else alert('Erro: ' + d.error);
+                      }} style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
+                        Aplicar graduação ({selGradIds.size} sel.)
+                      </button>
+                    </div>
+                    {semGrad.length === 0 ? (
+                      <div style={{ color: '#34d399', fontSize: '0.85rem' }}>✅ Todos os alunos já têm graduação!</div>
+                    ) : (
+                      <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
+                        {semGrad.map(s => (
+                          <div key={s.id} onClick={() => toggleGId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: selGradIds.has(s.id) ? 'rgba(251,191,36,0.06)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
+                            <input type="checkbox" checked={selGradIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.nome_completo}</div>
+                              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.nucleo || '(sem núcleo)'} · {s.menor_de_idade ? 'Menor' : 'Adulto'}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+
+            {/* GENERATE IDs */}
+            <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(16,185,129,0.3)', borderRadius: 14, padding: '20px' }}>
+              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 8 }}>🪪 IDs ACCBM</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 14 }}>
+                Gera automaticamente IDs ACCBM únicos para todos os alunos que ainda não possuem. O ID é vinculado à conta do aluno no sistema.
+              </div>
+              <button onClick={async () => {
+                const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-assign' }) });
+                const d = await res.json();
+                if (d.assigned !== undefined) {
+                  alert(`✅ IDs gerados!\n• Novos IDs: ${d.assigned}\n• Já tinham: ${d.already}\n• Total: ${d.total}`);
+                  fetch('/api/aluno/gerar-id').then(r => r.json()).then(d2 => { if (d2 && typeof d2 === 'object') setStudentDisplayIds(d2 as Record<string, string>); }).catch(() => {});
+                } else alert('Erro: ' + JSON.stringify(d));
+              }} style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', borderRadius: 10, padding: '10px 20px', cursor: 'pointer', fontWeight: 700, fontSize: '0.88rem' }}>
+                🪪 Gerar IDs para todos os alunos
+              </button>
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== ABA MANUAL DO ADMINISTRADOR ===== */}
       {activeTab === 'manual' && (
