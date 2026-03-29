@@ -1126,6 +1126,30 @@ export default function AdminPage() {
         }
       }
 
+      // Auto-compute menor_de_idade from data_nascimento
+      let menorDeIdadeComputed = editForm.menor_de_idade ?? false;
+      if (editForm.data_nascimento) {
+        try {
+          const dob = new Date(editForm.data_nascimento + 'T12:00:00');
+          const today = new Date();
+          const age = today.getFullYear() - dob.getFullYear() -
+            (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate()) ? 1 : 0);
+          menorDeIdadeComputed = age < 18;
+        } catch { /* keep existing */ }
+      }
+
+      // Auto-compute tenant_id from nucleo
+      const tenantIdComputed = getTenantIdByKey(
+        Object.entries({
+          'Poliesportivo Edson Alves': 'edson-alves',
+          'Poliesportivo do Ipiranga': 'ipiranga',
+          'Saracuruna': 'saracuruna',
+          'Vila Urussaí': 'vila-urussai',
+          'Jayme Fichman': 'jayme-fichman',
+          'Academia Mais Saúde': 'academia-mais-saude',
+        }).find(([k]) => k === editForm.nucleo)?.[1] ?? 'geral'
+      ) ?? undefined;
+
       // Core fields — always present in DB
       const corePayload: Record<string, any> = {
         nome_completo: editForm.nome_completo,
@@ -1141,13 +1165,15 @@ export default function AdminPage() {
         cidade: editForm.cidade,
         estado: editForm.estado,
         graduacao: editForm.graduacao,
-        tipo_graduacao: editForm.tipo_graduacao,
+        tipo_graduacao: editForm.tipo_graduacao || (menorDeIdadeComputed ? 'infantil' : 'adulta'),
         nucleo: editForm.nucleo,
         nome_pai: editForm.nome_pai,
         nome_mae: editForm.nome_mae,
         nome_responsavel: editForm.nome_responsavel,
         cpf_responsavel: editForm.cpf_responsavel,
+        menor_de_idade: menorDeIdadeComputed,
         foto_url,
+        ...(tenantIdComputed ? { tenant_id: tenantIdComputed } : {}),
         // email included in core so it's saved even if optional columns (apelido/sexo) are missing
         email: (editForm as any).email !== undefined ? ((editForm as any).email || null) : undefined,
       };
@@ -2032,12 +2058,49 @@ export default function AdminPage() {
             🏷️ Preencher tenant_id (Multi-tenant)
           </button>
           {activeNucleo === 'geral' && (
-            <a
-              href="/api/admin/export-alunos?auth=geral"
-              download
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.35)', color: '#60a5fa', borderRadius: 8, padding: '7px 14px', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
-              ⬇️ Exportar CSV para Ginga Gestão ({students.length} alunos)
-            </a>
+            <>
+              <a
+                href="/api/admin/export-alunos?auth=geral"
+                download
+                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.35)', color: '#60a5fa', borderRadius: 8, padding: '7px 14px', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
+                ⬇️ Exportar CSV Completo ({students.length} alunos)
+              </a>
+              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.35)', color: '#fbbf24', borderRadius: 8, padding: '7px 14px', fontSize: '0.8rem', fontWeight: 700, cursor: 'pointer' }}>
+                📥 Importar CSV (restaurar dados)
+                <input type="file" accept=".csv" style={{ display: 'none' }} onChange={async (e) => {
+                  const file = e.target.files?.[0];
+                  if (!file) return;
+                  const text = await file.text();
+                  const lines = text.split(/\r?\n/).filter(l => l.trim());
+                  if (lines.length < 2) { alert('CSV vazio ou sem dados.'); return; }
+                  const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, '').toLowerCase());
+                  const rows = lines.slice(1).map(line => {
+                    const vals: string[] = [];
+                    let cur = ''; let inQ = false;
+                    for (const ch of line) {
+                      if (ch === '"') { inQ = !inQ; }
+                      else if (ch === ',' && !inQ) { vals.push(cur.trim()); cur = ''; }
+                      else { cur += ch; }
+                    }
+                    vals.push(cur.trim());
+                    const obj: Record<string,string> = {};
+                    headers.forEach((h, i) => { if (h) obj[h] = (vals[i] || '').replace(/^"|"$/g, ''); });
+                    return obj;
+                  }).filter(r => r.nome_completo || r.nome);
+                  if (!rows.length) { alert('Nenhum aluno encontrado no CSV.'); return; }
+                  if (!confirm(`Importar ${rows.length} registros do CSV?\n\nSomente campos preenchidos no CSV serão atualizados (não apaga dados existentes).`)) return;
+                  try {
+                    const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
+                    const d = await res.json();
+                    if (d.success) {
+                      alert(`✅ Importação concluída!\n\n• Atualizados: ${d.updated}\n• Não encontrados: ${d.notFound}\n• Com erro: ${d.skipped}\n• Total no CSV: ${d.total}${d.errors?.length ? '\n\nErros:\n' + d.errors.join('\n') : ''}`);
+                      fetchStudents(activeNucleo);
+                    } else { alert('Erro: ' + (d.error || JSON.stringify(d))); }
+                  } catch (err) { alert('Erro na importação: ' + err); }
+                  e.target.value = '';
+                }} />
+              </label>
+            </>
           )}
         </div>
 
