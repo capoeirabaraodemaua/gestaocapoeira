@@ -47,7 +47,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados' | 'termo';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -181,6 +181,12 @@ export default function AlunoPage() {
   const [dadosMsg, setDadosMsg] = useState('');
   const [dadosMsgType, setDadosMsgType] = useState<'success' | 'error'>('success');
   const [dadosInitialized, setDadosInitialized] = useState(false);
+
+  // ── Termo de Responsabilidade ─────────────────────────────────────────────
+  const [termoForm, setTermoForm] = useState({ nome_responsavel: '', cpf_responsavel: '' });
+  const [termoSaving, setTermoSaving] = useState(false);
+  const [termoSaved, setTermoSaved] = useState(false);
+  const [termoMsg, setTermoMsg] = useState('');
 
   // ── Admin preview mode flag ────────────────────────────────────────────────
   const [isAdminPreview, setIsAdminPreview] = useState(false);
@@ -474,6 +480,17 @@ export default function AlunoPage() {
     } catch { setJustMsg('Erro de conexão.'); setJustMsgType('error'); }
     finally { setJustLoading(false); }
   };
+
+  // Populate termo form when student data is loaded
+  useEffect(() => {
+    if (student) {
+      setTermoForm({
+        nome_responsavel: student.nome_responsavel as string || '',
+        cpf_responsavel: student.cpf_responsavel as string || '',
+      });
+      if (student.assinatura_responsavel) setTermoSaved(true);
+    }
+  }, [student]);
 
   // Populate dados form when student data is loaded or tab activated
   useEffect(() => {
@@ -799,6 +816,7 @@ export default function AlunoPage() {
   const tabs: { id: Tab; icon: string; label: string; badge?: boolean }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
     { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || !student.cpf)) },
+    { id: 'termo',          icon: '📄', label: 'Termo', badge: !!(student && student.menor_de_idade && !student.assinatura_responsavel) },
     { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
     { id: 'presenca',       icon: '📍', label: 'Presença' },
@@ -870,20 +888,33 @@ export default function AlunoPage() {
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Incomplete data banner */}
+            {/* Incomplete data / termo pending banners */}
             {student && (!student.nucleo || !student.graduacao || !student.cpf) && (
               <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>📋</div>
                 <div style={{ flex: 1 }}>
                   <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e', marginBottom: 3 }}>Complete seu cadastro</div>
                   <div style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: 1.5, marginBottom: 10 }}>
-                    Alguns dados do seu perfil estão incompletos. Preencha para que sua carteirinha e presença funcionem corretamente.
-                    <br />
-                    <span style={{ opacity: 0.7 }}>Faltando: {[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</span>
+                    Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>
                   </div>
                   <button onClick={() => setActiveTab('dados')}
                     style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
                     ✏️ Completar Cadastro
+                  </button>
+                </div>
+              </div>
+            )}
+            {student && (student.menor_de_idade as boolean) && !student.assinatura_responsavel && (
+              <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>📄</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#991b1b', marginBottom: 3 }}>Termo de Responsabilidade pendente</div>
+                  <div style={{ fontSize: '0.8rem', color: '#7f1d1d', lineHeight: 1.5, marginBottom: 10 }}>
+                    Como aluno menor de idade, o termo de autorização ainda não foi assinado.
+                  </div>
+                  <button onClick={() => setActiveTab('termo')}
+                    style={{ background: '#dc2626', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                    ✍️ Assinar Termo
                   </button>
                 </div>
               </div>
@@ -1781,13 +1812,94 @@ export default function AlunoPage() {
 
         {/* ── MEUS DADOS ── */}
         {activeTab === 'dados' && session && student && (() => {
+          // ── graduation lists ───────────────────────────────────────────────
+          const GRADS_INFANTIL = [
+            'Crua', 'Crua ponta cinza', 'Crua ponta amarela', 'Crua ponta laranja',
+            'Crua ponta verde', 'Crua ponta azul', 'Crua ponta roxa',
+            'Crua e cinza', 'Crua e laranja', 'Crua e verde', 'Crua e azul', 'Crua e roxa',
+            'Cinza', 'Cinza e amarela', 'Amarela e verde', 'Amarela e azul',
+          ];
+          const GRADS_ADULTO = [
+            'Crua', 'Crua e amarela', 'Amarela', 'Amarela e laranja', 'Laranja',
+            'Laranja e azul',
+            'Azul — Primeiro grau de aluno graduado',
+            'Azul e verde — Segundo grau de aluno graduado',
+            'Verde — Monitor',
+            'Verde e roxa — Primeiro grau de instrutor',
+            'Roxa — Segundo grau de instrutor',
+            'Roxa e marrom — Primeiro grau de professor',
+            'Marrom — Segundo grau de professor',
+            'Marrom e vermelha — Mestrando',
+            'Vermelha — Primeiro grau de mestre',
+            'Branco e vermelha — Segundo grau de mestre',
+            'Branco mor — Mestre Fundador',
+          ];
+
+          // Auto-detect tipo from birth date
+          let autoTipo: 'Infantil' | 'Adulto' | '' = '';
+          const dob = dadosForm.data_nascimento || (student.data_nascimento as string) || '';
+          if (dob) {
+            const birthDate = new Date(dob + 'T12:00:00');
+            const today = new Date();
+            let age = today.getFullYear() - birthDate.getFullYear();
+            const m = today.getMonth() - birthDate.getMonth();
+            if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) age--;
+            autoTipo = age < 14 ? 'Infantil' : 'Adulto';
+          }
+          const tipoEfetivo = (dadosForm.tipo_graduacao || autoTipo) as 'Infantil' | 'Adulto' | '';
+          const gradOpts = tipoEfetivo === 'Infantil' ? GRADS_INFANTIL : tipoEfetivo === 'Adulto' ? GRADS_ADULTO : [...GRADS_INFANTIL, ...GRADS_ADULTO];
+
+          // ── masks ──────────────────────────────────────────────────────────
+          const maskCPF = (v: string) => {
+            const d = v.replace(/\D/g, '').slice(0, 11);
+            if (d.length <= 3) return d;
+            if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+            if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+            return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+          };
+          const maskPhone = (v: string) => {
+            const d = v.replace(/\D/g, '').slice(0, 11);
+            if (d.length <= 2) return d.length ? `(${d}` : '';
+            if (d.length <= 6) return `(${d.slice(0,2)}) ${d.slice(2)}`;
+            if (d.length <= 10) return `(${d.slice(0,2)}) ${d.slice(2,6)}-${d.slice(6)}`;
+            return `(${d.slice(0,2)}) ${d.slice(2,7)}-${d.slice(7)}`;
+          };
+          const maskCEP = (v: string) => {
+            const d = v.replace(/\D/g, '').slice(0, 8);
+            return d.length > 5 ? `${d.slice(0,5)}-${d.slice(5)}` : d;
+          };
+
+          // ── CEP auto-fill ──────────────────────────────────────────────────
+          const handleCepBlur = async (cep: string) => {
+            const digits = cep.replace(/\D/g, '');
+            if (digits.length !== 8) return;
+            try {
+              const r = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+              if (!r.ok) return;
+              const d = await r.json();
+              if (d.erro) return;
+              setDadosForm(p => ({
+                ...p,
+                endereco: d.logradouro || p.endereco,
+                bairro: d.bairro || p.bairro,
+                cidade: d.localidade || p.cidade,
+                estado: d.uf || p.estado,
+              }));
+            } catch { /* silently ignore */ }
+          };
+
+          // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
             setDadosLoading(true); setDadosMsg('');
             try {
+              const payload = {
+                ...dadosForm,
+                tipo_graduacao: dadosForm.tipo_graduacao || autoTipo || dadosForm.tipo_graduacao,
+              };
               const res = await fetch('/api/aluno/dados', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ student_id: session.student_id, ...dadosForm }),
+                body: JSON.stringify({ student_id: session.student_id, ...payload }),
               });
               const data = await res.json();
               if (res.ok) {
@@ -1803,16 +1915,12 @@ export default function AlunoPage() {
           };
 
           const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
-          const grad_opts = ['Cru', 'Amarela', 'Laranja', 'Azul', 'Vermelha', 'Verde', 'Roxa', 'Marrom', 'Preta'];
-          const tipo_grad_opts = ['Adulto', 'Infantil', 'Mirim'];
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-
           const isMissing = !student.nucleo || !student.graduacao || !student.cpf;
-
-          const fieldStyle: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' };
-          const labelStyle: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
-          const sectionTitleStyle: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
+          const fs: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' };
+          const ls: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
+          const sec: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
 
           return (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1823,7 +1931,7 @@ export default function AlunoPage() {
 
               {isMissing && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: '0.8rem', color: '#92400e' }}>
-                  ⚠️ Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>. Preencha abaixo para que a plataforma funcione corretamente.
+                  ⚠️ Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>. Preencha abaixo.
                 </div>
               )}
 
@@ -1833,107 +1941,134 @@ export default function AlunoPage() {
                 </div>
               )}
 
-              {/* Identificação */}
+              {/* ── Identificação na Associação ── */}
               <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-                <div style={sectionTitleStyle}>Identificação na Associação</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <div style={{ gridColumn: '1/-1' }}>
-                    <label style={labelStyle}>Núcleo <span style={{ color: '#ef4444' }}>*</span></label>
-                    <select value={dadosForm.nucleo} onChange={e => setDadosForm(p => ({ ...p, nucleo: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                <div style={sec}>Identificação na Associação</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                  <div>
+                    <label style={ls}>Núcleo <span style={{ color: '#ef4444' }}>*</span></label>
+                    <select value={dadosForm.nucleo} onChange={e => setDadosForm(p => ({ ...p, nucleo: e.target.value }))} style={fs}>
                       <option value="">— Selecione seu núcleo —</option>
                       {nucleo_opts.map(n => <option key={n} value={n}>{n}</option>)}
                     </select>
                   </div>
+
+                  {/* Tipo de graduação — determinado pela data de nascimento ou seleção manual */}
                   <div>
-                    <label style={labelStyle}>Graduação <span style={{ color: '#ef4444' }}>*</span></label>
-                    <select value={dadosForm.graduacao} onChange={e => setDadosForm(p => ({ ...p, graduacao: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
-                      <option value="">— Selecione —</option>
-                      {grad_opts.map(g => <option key={g} value={g}>{g}</option>)}
-                    </select>
+                    <label style={ls}>Tipo de Graduação</label>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      {(['Infantil', 'Adulto'] as const).map(t => (
+                        <button key={t} type="button" onClick={() => setDadosForm(p => ({ ...p, tipo_graduacao: t, graduacao: '' }))}
+                          style={{ flex: 1, padding: '9px 0', borderRadius: 8, border: `2px solid ${tipoEfetivo === t ? nucleoColor : '#e5e7eb'}`, background: tipoEfetivo === t ? `${nucleoColor}18` : '#fff', color: tipoEfetivo === t ? nucleoColor : '#374151', fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', transition: 'all 0.15s' }}>
+                          {t === 'Infantil' ? '👦 Infantil' : '🧑 Adulto'}
+                        </button>
+                      ))}
+                    </div>
+                    {autoTipo && !dadosForm.tipo_graduacao && (
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
+                        Detectado automaticamente como <strong>{autoTipo}</strong> com base na data de nascimento
+                      </div>
+                    )}
                   </div>
+
                   <div>
-                    <label style={labelStyle}>Tipo de Graduação</label>
-                    <select value={dadosForm.tipo_graduacao} onChange={e => setDadosForm(p => ({ ...p, tipo_graduacao: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
-                      <option value="">— Selecione —</option>
-                      {tipo_grad_opts.map(t => <option key={t} value={t}>{t}</option>)}
+                    <label style={ls}>Graduação <span style={{ color: '#ef4444' }}>*</span></label>
+                    <select value={dadosForm.graduacao} onChange={e => setDadosForm(p => ({ ...p, graduacao: e.target.value }))} style={fs}>
+                      <option value="">— Selecione sua graduação —</option>
+                      {tipoEfetivo && <optgroup label={`Graduação ${tipoEfetivo}`}>
+                        {gradOpts.map(g => <option key={g} value={g}>{g}</option>)}
+                      </optgroup>}
+                      {!tipoEfetivo && <>
+                        <optgroup label="Graduação Infantil">{GRADS_INFANTIL.map(g => <option key={g} value={g}>{g}</option>)}</optgroup>
+                        <optgroup label="Graduação Adulta">{GRADS_ADULTO.map(g => <option key={g} value={g}>{g}</option>)}</optgroup>
+                      </>}
                     </select>
+                    {tipoEfetivo && (
+                      <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
+                        Exibindo graduações para: <strong>{tipoEfetivo}</strong>
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
 
-              {/* Dados pessoais */}
+              {/* ── Dados Pessoais ── */}
               <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-                <div style={sectionTitleStyle}>Dados Pessoais</div>
+                <div style={sec}>Dados Pessoais</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>Apelido</label>
-                    <input value={dadosForm.apelido} onChange={e => setDadosForm(p => ({ ...p, apelido: e.target.value }))} style={fieldStyle} placeholder="Como te chamam" />
+                    <label style={ls}>Apelido / Apelido na Capoeira</label>
+                    <input value={dadosForm.apelido} onChange={e => setDadosForm(p => ({ ...p, apelido: e.target.value }))} style={fs} placeholder="Como te chamam" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Nome Social</label>
-                    <input value={dadosForm.nome_social} onChange={e => setDadosForm(p => ({ ...p, nome_social: e.target.value }))} style={fieldStyle} placeholder="Nome social (opcional)" />
+                    <label style={ls}>Nome Social</label>
+                    <input value={dadosForm.nome_social} onChange={e => setDadosForm(p => ({ ...p, nome_social: e.target.value }))} style={fs} placeholder="Nome social (opcional)" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Sexo</label>
-                    <select value={dadosForm.sexo} onChange={e => setDadosForm(p => ({ ...p, sexo: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                    <label style={ls}>Sexo</label>
+                    <select value={dadosForm.sexo} onChange={e => setDadosForm(p => ({ ...p, sexo: e.target.value }))} style={fs}>
                       <option value="">— Selecione —</option>
                       {sexo_opts.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                     </select>
                   </div>
                   <div>
-                    <label style={labelStyle}>Data de Nascimento</label>
-                    <input type="date" value={dadosForm.data_nascimento} onChange={e => setDadosForm(p => ({ ...p, data_nascimento: e.target.value }))} style={fieldStyle} />
+                    <label style={ls}>Data de Nascimento</label>
+                    <input type="date" value={dadosForm.data_nascimento} onChange={e => setDadosForm(p => ({ ...p, data_nascimento: e.target.value, tipo_graduacao: p.tipo_graduacao }))} style={fs} />
                   </div>
                   <div>
-                    <label style={labelStyle}>CPF</label>
-                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: e.target.value }))} style={fieldStyle} placeholder="000.000.000-00" inputMode="numeric" />
+                    <label style={ls}>CPF <span style={{ color: '#ef4444' }}>*</span></label>
+                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))} style={fs} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
                   </div>
                   <div>
-                    <label style={labelStyle}>Identidade (RG)</label>
-                    <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fieldStyle} placeholder="Número do RG" />
+                    <label style={ls}>Identidade (RG)</label>
+                    <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fs} placeholder="Número do RG" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Telefone / WhatsApp</label>
-                    <input value={dadosForm.telefone} onChange={e => setDadosForm(p => ({ ...p, telefone: e.target.value }))} style={fieldStyle} placeholder="(21) 99999-0000" inputMode="numeric" />
+                    <label style={ls}>Telefone / WhatsApp</label>
+                    <input value={dadosForm.telefone} onChange={e => setDadosForm(p => ({ ...p, telefone: maskPhone(e.target.value) }))} style={fs} placeholder="(21) 99999-0000" inputMode="numeric" maxLength={16} />
                   </div>
                   <div>
-                    <label style={labelStyle}>E-mail</label>
-                    <input type="email" value={dadosForm.email} onChange={e => setDadosForm(p => ({ ...p, email: e.target.value }))} style={fieldStyle} placeholder="seu@email.com" />
+                    <label style={ls}>E-mail</label>
+                    <input type="email" value={dadosForm.email} onChange={e => setDadosForm(p => ({ ...p, email: e.target.value }))} style={fs} placeholder="seu@email.com" />
                   </div>
                 </div>
               </div>
 
-              {/* Endereço */}
+              {/* ── Endereço ── */}
               <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-                <div style={sectionTitleStyle}>Endereço</div>
+                <div style={sec}>Endereço</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>CEP</label>
-                    <input value={dadosForm.cep} onChange={e => setDadosForm(p => ({ ...p, cep: e.target.value }))} style={fieldStyle} placeholder="00000-000" inputMode="numeric" />
+                    <label style={ls}>CEP</label>
+                    <input value={dadosForm.cep}
+                      onChange={e => setDadosForm(p => ({ ...p, cep: maskCEP(e.target.value) }))}
+                      onBlur={e => handleCepBlur(e.target.value)}
+                      style={fs} placeholder="00000-000" inputMode="numeric" maxLength={9} />
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Endereço preenchido automaticamente ao sair do campo</div>
                   </div>
                   <div style={{ gridColumn: '1/-1' }}>
-                    <label style={labelStyle}>Endereço (rua/avenida)</label>
-                    <input value={dadosForm.endereco} onChange={e => setDadosForm(p => ({ ...p, endereco: e.target.value }))} style={fieldStyle} placeholder="Rua, Avenida..." />
+                    <label style={ls}>Logradouro (Rua / Avenida)</label>
+                    <input value={dadosForm.endereco} onChange={e => setDadosForm(p => ({ ...p, endereco: e.target.value }))} style={fs} placeholder="Rua, Avenida..." />
                   </div>
                   <div>
-                    <label style={labelStyle}>Número</label>
-                    <input value={dadosForm.numero} onChange={e => setDadosForm(p => ({ ...p, numero: e.target.value }))} style={fieldStyle} placeholder="Nº" />
+                    <label style={ls}>Número</label>
+                    <input value={dadosForm.numero} onChange={e => setDadosForm(p => ({ ...p, numero: e.target.value }))} style={fs} placeholder="Nº" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Complemento</label>
-                    <input value={dadosForm.complemento} onChange={e => setDadosForm(p => ({ ...p, complemento: e.target.value }))} style={fieldStyle} placeholder="Apto, Bloco..." />
+                    <label style={ls}>Complemento</label>
+                    <input value={dadosForm.complemento} onChange={e => setDadosForm(p => ({ ...p, complemento: e.target.value }))} style={fs} placeholder="Apto, Bloco..." />
                   </div>
                   <div>
-                    <label style={labelStyle}>Bairro</label>
-                    <input value={dadosForm.bairro} onChange={e => setDadosForm(p => ({ ...p, bairro: e.target.value }))} style={fieldStyle} placeholder="Bairro" />
+                    <label style={ls}>Bairro</label>
+                    <input value={dadosForm.bairro} onChange={e => setDadosForm(p => ({ ...p, bairro: e.target.value }))} style={fs} placeholder="Bairro" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Cidade</label>
-                    <input value={dadosForm.cidade} onChange={e => setDadosForm(p => ({ ...p, cidade: e.target.value }))} style={fieldStyle} placeholder="Cidade" />
+                    <label style={ls}>Cidade</label>
+                    <input value={dadosForm.cidade} onChange={e => setDadosForm(p => ({ ...p, cidade: e.target.value }))} style={fs} placeholder="Cidade" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Estado</label>
-                    <select value={dadosForm.estado} onChange={e => setDadosForm(p => ({ ...p, estado: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                    <label style={ls}>Estado (UF)</label>
+                    <select value={dadosForm.estado} onChange={e => setDadosForm(p => ({ ...p, estado: e.target.value }))} style={fs}>
                       <option value="">— UF —</option>
                       {estados.map(uf => <option key={uf} value={uf}>{uf}</option>)}
                     </select>
@@ -1941,36 +2076,218 @@ export default function AlunoPage() {
                 </div>
               </div>
 
-              {/* Filiação */}
+              {/* ── Filiação ── */}
               <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
-                <div style={sectionTitleStyle}>Filiação</div>
+                <div style={sec}>Filiação</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
                   <div>
-                    <label style={labelStyle}>Nome do Pai</label>
-                    <input value={dadosForm.nome_pai} onChange={e => setDadosForm(p => ({ ...p, nome_pai: e.target.value }))} style={fieldStyle} placeholder="Nome completo" />
+                    <label style={ls}>Nome do Pai</label>
+                    <input value={dadosForm.nome_pai} onChange={e => setDadosForm(p => ({ ...p, nome_pai: e.target.value }))} style={fs} placeholder="Nome completo" />
                   </div>
                   <div>
-                    <label style={labelStyle}>Nome da Mãe</label>
-                    <input value={dadosForm.nome_mae} onChange={e => setDadosForm(p => ({ ...p, nome_mae: e.target.value }))} style={fieldStyle} placeholder="Nome completo" />
+                    <label style={ls}>Nome da Mãe</label>
+                    <input value={dadosForm.nome_mae} onChange={e => setDadosForm(p => ({ ...p, nome_mae: e.target.value }))} style={fs} placeholder="Nome completo" />
                   </div>
-                  <div>
-                    <label style={labelStyle}>Nome do Responsável</label>
-                    <input value={dadosForm.nome_responsavel} onChange={e => setDadosForm(p => ({ ...p, nome_responsavel: e.target.value }))} style={fieldStyle} placeholder="Para menores de idade" />
-                  </div>
-                  <div>
-                    <label style={labelStyle}>CPF do Responsável</label>
-                    <input value={dadosForm.cpf_responsavel} onChange={e => setDadosForm(p => ({ ...p, cpf_responsavel: e.target.value }))} style={fieldStyle} placeholder="000.000.000-00" inputMode="numeric" />
-                  </div>
+                  {(autoTipo === 'Infantil' || (student.menor_de_idade as boolean)) && (
+                    <>
+                      <div>
+                        <label style={ls}>Nome do Responsável Legal</label>
+                        <input value={dadosForm.nome_responsavel} onChange={e => setDadosForm(p => ({ ...p, nome_responsavel: e.target.value }))} style={fs} placeholder="Nome completo do responsável" />
+                      </div>
+                      <div>
+                        <label style={ls}>CPF do Responsável</label>
+                        <input value={dadosForm.cpf_responsavel} onChange={e => setDadosForm(p => ({ ...p, cpf_responsavel: maskCPF(e.target.value) }))} style={fs} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
+                      </div>
+                    </>
+                  )}
                 </div>
+                {(autoTipo === 'Infantil' || (student.menor_de_idade as boolean)) && (
+                  <div style={{ marginTop: 10, background: '#eff6ff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', color: '#1e40af' }}>
+                    ℹ️ Como aluno(a) menor de idade, o Termo de Responsabilidade também deve ser assinado. Acesse a aba <strong>📄 Termo</strong>.
+                    <button onClick={() => setActiveTab('termo')} style={{ marginLeft: 8, background: '#1e40af', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Ver Termo</button>
+                  </div>
+                )}
               </div>
 
               <button onClick={handleSaveDados} disabled={dadosLoading}
-                style={{ background: dadosLoading ? '#9ca3af' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, color: '#fff', border: 'none', borderRadius: 12, padding: '14px', fontWeight: 800, fontSize: '0.95rem', cursor: dadosLoading ? 'not-allowed' : 'pointer', boxShadow: dadosLoading ? 'none' : `0 4px 14px ${nucleoColor}40` }}>
+                style={{ background: dadosLoading ? '#9ca3af' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}bb)`, color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontWeight: 800, fontSize: '0.95rem', cursor: dadosLoading ? 'not-allowed' : 'pointer', boxShadow: dadosLoading ? 'none' : `0 4px 14px ${nucleoColor}40` }}>
                 {dadosLoading ? '⏳ Salvando...' : '💾 Salvar Meus Dados'}
               </button>
 
               <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
-                Os dados são salvos diretamente no banco e ficam visíveis no painel administrativo imediatamente.
+                Os dados são salvos diretamente no banco e aparecem no painel administrativo imediatamente.
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── TERMO DE RESPONSABILIDADE ── */}
+        {activeTab === 'termo' && session && student && (() => {
+          const hoje = new Date().toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric' });
+          const isMenor = (student.menor_de_idade as boolean) === true;
+          const maskCPFt = (v: string) => {
+            const d = v.replace(/\D/g, '').slice(0, 11);
+            if (d.length <= 3) return d;
+            if (d.length <= 6) return `${d.slice(0,3)}.${d.slice(3)}`;
+            if (d.length <= 9) return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6)}`;
+            return `${d.slice(0,3)}.${d.slice(3,6)}.${d.slice(6,9)}-${d.slice(9)}`;
+          };
+          const handleSaveTermo = async () => {
+            if (!termoForm.nome_responsavel.trim()) { setTermoMsg('Preencha o nome do responsável antes de confirmar.'); return; }
+            setTermoSaving(true); setTermoMsg('');
+            try {
+              const res = await fetch('/api/aluno/dados', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  student_id: session.student_id,
+                  nome_responsavel: termoForm.nome_responsavel,
+                  cpf_responsavel: termoForm.cpf_responsavel,
+                }),
+              });
+              if (!res.ok) throw new Error('api');
+              // Also set assinatura_responsavel via the termo API
+              await fetch(`/api/termo?id=${session.student_id}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ nome_responsavel: termoForm.nome_responsavel, cpf_responsavel: termoForm.cpf_responsavel }),
+              });
+              setTermoSaved(true);
+              setStudent(prev => prev ? { ...prev, nome_responsavel: termoForm.nome_responsavel, cpf_responsavel: termoForm.cpf_responsavel, assinatura_responsavel: true } : prev);
+              setTermoMsg('✅ Termo assinado e salvo com sucesso!');
+            } catch { setTermoMsg('Erro ao salvar. Tente novamente.'); }
+            setTermoSaving(false);
+          };
+          const handlePrint = () => {
+            const w = window.open('', '_blank', 'width=720,height=900');
+            if (!w) return;
+            w.document.write(`<!DOCTYPE html><html><head><title>Termo — ${student.nome_completo}</title><style>body{font-family:Georgia,serif;max-width:680px;margin:40px auto;padding:20px;color:#111}h1{text-align:center;font-size:1.3rem}p{line-height:1.9;text-align:justify}.box{background:#f9f9f9;border:1px solid #ccc;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-family:sans-serif}.label{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:#666}.value{font-weight:700;font-size:0.95rem}.sig{margin-top:40px;display:flex;justify-content:space-between}.line{border-top:1px solid #333;width:260px;text-align:center;padding-top:6px;font-size:0.8rem;font-family:sans-serif}</style></head><body>
+              <h1>Termo de Autorização para Prática de Capoeira</h1>
+              <p style="text-align:center;font-size:0.9rem;margin-bottom:24px">Associação Cultural de Capoeira Barão de Mauá</p>
+              <div class="box">
+                <div class="label">Aluno</div><div class="value">${student.nome_completo}</div>
+                <div class="label" style="margin-top:8px">Núcleo</div><div class="value">${student.nucleo || '—'}</div>
+                <div class="label" style="margin-top:8px">Data de Nascimento</div><div class="value">${student.data_nascimento ? new Date((student.data_nascimento as string)+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
+                <div class="label" style="margin-top:8px">Data</div><div class="value">${hoje}</div>
+              </div>
+              <p>Eu, <strong>${termoForm.nome_responsavel || '________________________'}</strong>, portador(a) do CPF <strong>${termoForm.cpf_responsavel || '___.___.___-__'}</strong>, responsável legal pelo menor <strong>${student.nome_completo}</strong>, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.</p>
+              <div class="sig">
+                <div class="line">Assinatura do Responsável</div>
+                <div class="line">Local e Data</div>
+              </div>
+            </body></html>`);
+            w.document.close();
+            w.focus();
+            setTimeout(() => w.print(), 400);
+          };
+
+          if (!isMenor) return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📄 Termo de Responsabilidade</h2>
+              <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 16, padding: '32px 20px', textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 12 }}>✅</div>
+                <div style={{ fontWeight: 700, fontSize: '1rem', color: '#166534', marginBottom: 6 }}>Não aplicável</div>
+                <div style={{ fontSize: '0.82rem', color: '#15803d', lineHeight: 1.5 }}>
+                  Este aluno é maior de idade e não necessita de Termo de Responsabilidade.<br />
+                  O termo é obrigatório apenas para alunos menores de 18 anos.
+                </div>
+              </div>
+            </div>
+          );
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📄 Termo de Responsabilidade</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Autorização para prática de capoeira — menor de idade</p>
+              </div>
+
+              {/* Status badge */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: termoSaved ? '#f0fdf4' : '#fffbeb', border: `1px solid ${termoSaved ? '#bbf7d0' : '#fde68a'}`, borderRadius: 12, padding: '12px 16px' }}>
+                <span style={{ fontSize: '1.4rem' }}>{termoSaved ? '✅' : '⏳'}</span>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '0.88rem', color: termoSaved ? '#166534' : '#92400e' }}>
+                    {termoSaved ? 'Termo assinado' : 'Assinatura pendente'}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: termoSaved ? '#15803d' : '#78350f' }}>
+                    {termoSaved ? `Responsável: ${termoForm.nome_responsavel}` : 'O responsável precisa assinar o termo abaixo'}
+                  </div>
+                </div>
+                {termoSaved && (
+                  <button onClick={handlePrint} style={{ marginLeft: 'auto', background: '#1e40af', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 14px', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>
+                    🖨️ Imprimir / PDF
+                  </button>
+                )}
+              </div>
+
+              {termoMsg && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: termoMsg.startsWith('✅') ? '#f0fdf4' : '#fef2f2', border: `1px solid ${termoMsg.startsWith('✅') ? '#bbf7d0' : '#fecaca'}`, color: termoMsg.startsWith('✅') ? '#166534' : '#991b1b', fontSize: '0.83rem', fontWeight: 600 }}>
+                  {termoMsg}
+                </div>
+              )}
+
+              {/* Documento */}
+              <div style={{ background: '#fff', border: `2px solid ${nucleoColor}`, borderRadius: 16, overflow: 'hidden' }}>
+                <div style={{ background: nucleoColor, padding: '14px 20px', textAlign: 'center' }}>
+                  <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.88rem', letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+                    ⚠️ Autorização de Participação — Menor de Idade
+                  </div>
+                </div>
+                <div style={{ padding: '24px 22px', fontFamily: 'Georgia, serif' }}>
+                  {/* Dados do aluno */}
+                  <div style={{ background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 10, padding: '14px 18px', marginBottom: 22, fontFamily: 'sans-serif', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '6px 16px', fontSize: '0.83rem' }}>
+                    <div><span style={{ color: '#6b7280' }}>Aluno: </span><strong>{student.nome_completo}</strong></div>
+                    <div><span style={{ color: '#6b7280' }}>Núcleo: </span><strong>{student.nucleo || '—'}</strong></div>
+                    <div><span style={{ color: '#6b7280' }}>Nascimento: </span><strong>{student.data_nascimento ? new Date((student.data_nascimento as string)+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</strong></div>
+                    <div><span style={{ color: '#6b7280' }}>Data: </span><strong>{hoje}</strong></div>
+                  </div>
+                  <p style={{ textAlign: 'justify', lineHeight: 1.9, marginBottom: 22, fontSize: '0.9rem' }}>
+                    Eu, responsável legal pelo menor acima identificado, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.
+                  </p>
+                  <hr style={{ border: 'none', borderTop: '1px dashed rgba(0,0,0,0.15)', marginBottom: 20 }} />
+                  {/* Campos do responsável */}
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontFamily: 'sans-serif' }}>
+                    <div style={{ gridColumn: '1/-1' }}>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+                        Nome do Responsável Legal <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input value={termoForm.nome_responsavel} onChange={e => setTermoForm(p => ({ ...p, nome_responsavel: e.target.value }))}
+                        disabled={termoSaved} placeholder="Nome completo do responsável (pai, mãe ou tutor legal)"
+                        style={{ width: '100%', border: '1.5px solid #d1d5db', borderRadius: 8, padding: '10px 12px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box', opacity: termoSaved ? 0.7 : 1, fontFamily: 'Georgia, serif' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 700, color: '#374151', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 6 }}>
+                        CPF do Responsável <span style={{ color: '#dc2626' }}>*</span>
+                      </label>
+                      <input value={termoForm.cpf_responsavel}
+                        onChange={e => setTermoForm(p => ({ ...p, cpf_responsavel: maskCPFt(e.target.value) }))}
+                        disabled={termoSaved} placeholder="000.000.000-00" inputMode="numeric" maxLength={14}
+                        style={{ width: '100%', border: '1.5px solid #d1d5db', borderRadius: 8, padding: '10px 12px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box', opacity: termoSaved ? 0.7 : 1 }} />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+                      <div style={{ fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.5 }}>
+                        Assinatura digital via sistema ACCBM<br />
+                        <span style={{ fontSize: '0.7rem' }}>{hoje}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {!termoSaved ? (
+                <button onClick={handleSaveTermo} disabled={termoSaving || !termoForm.nome_responsavel.trim()}
+                  style={{ background: termoForm.nome_responsavel.trim() ? `linear-gradient(135deg, #dc2626, #b91c1c)` : '#e5e7eb', color: termoForm.nome_responsavel.trim() ? '#fff' : '#9ca3af', border: 'none', borderRadius: 12, padding: '15px', fontWeight: 800, fontSize: '0.95rem', cursor: termoForm.nome_responsavel.trim() ? 'pointer' : 'not-allowed', boxShadow: termoForm.nome_responsavel.trim() ? '0 4px 14px rgba(220,38,38,0.35)' : 'none' }}>
+                  {termoSaving ? '⏳ Salvando...' : '✍️ Confirmar e Assinar Termo'}
+                </button>
+              ) : (
+                <button onClick={handlePrint}
+                  style={{ background: 'linear-gradient(135deg, #1e40af, #1d4ed8)', color: '#fff', border: 'none', borderRadius: 12, padding: '15px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', boxShadow: '0 4px 14px rgba(30,64,175,0.3)' }}>
+                  🖨️ Imprimir / Baixar PDF do Termo
+                </button>
+              )}
+
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+                Este termo é vinculado ao cadastro do aluno e fica visível para o administrador do núcleo.
               </div>
             </div>
           );
