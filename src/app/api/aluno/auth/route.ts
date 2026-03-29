@@ -257,8 +257,7 @@ export async function POST(req: NextRequest) {
       let otpSent = false;
       if (phone_to_use) {
         try {
-          await sendWhatsAppOTP(phone_to_use, otp, student.nome_completo);
-          otpSent = true;
+          otpSent = await sendWhatsAppOTP(phone_to_use, otp, student.nome_completo);
         } catch { /* silent fail — OTP still stored */ }
       }
 
@@ -734,7 +733,7 @@ async function sendWhatsAppMessage(phone: string, message: string): Promise<void
   }
 }
 
-async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset = false): Promise<void> {
+async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset = false): Promise<boolean> {
   // Clean phone number
   const digits = phone.replace(/\D/g, '');
   const fullPhone = digits.startsWith('55') ? digits : `55${digits}`;
@@ -758,7 +757,7 @@ async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset
         },
         body: JSON.stringify({ phone: fullPhone, message }),
       });
-      return;
+      return true;
     } catch { /* fallthrough */ }
   }
 
@@ -782,6 +781,10 @@ async function sendWhatsAppOTP(phone: string, otp: string, name: string, isReset
         },
         body: params,
       });
+      return true;
     } catch { /* silent fail */ }
   }
+
+  // No credentials configured — nothing was sent
+  return false;
 }
