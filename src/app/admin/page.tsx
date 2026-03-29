@@ -2031,6 +2031,14 @@ export default function AdminPage() {
           }} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
             🏷️ Preencher tenant_id (Multi-tenant)
           </button>
+          {activeNucleo === 'geral' && (
+            <a
+              href="/api/admin/export-alunos?auth=geral"
+              download
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.35)', color: '#60a5fa', borderRadius: 8, padding: '7px 14px', fontSize: '0.8rem', fontWeight: 700, textDecoration: 'none', cursor: 'pointer' }}>
+              ⬇️ Exportar CSV para Ginga Gestão ({students.length} alunos)
+            </a>
+          )}
         </div>
 
         {loading ? (
