@@ -168,6 +168,10 @@ export default function AlunoPage() {
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   // ── Meus Dados ────────────────────────────────────────────────────────────
+  const [fotoUploading, setFotoUploading] = useState(false);
+  const [fotoMsg, setFotoMsg] = useState('');
+  const fotoInputRef = useRef<HTMLInputElement>(null);
+
   const [dadosForm, setDadosForm] = useState({
     nucleo: '', graduacao: '', tipo_graduacao: '',
     cpf: '', identidade: '', data_nascimento: '',
@@ -392,11 +396,11 @@ export default function AlunoPage() {
           if (data.pending_otp) {
             setOtpStudentId(data.student_id || '');
             setOtpPhone(data.phone || '');
-            setRegisterSuccess('✅ Conta criada! Verifique o código de verificação.');
-            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1500);
+            setRegisterSuccess('✅ Cadastro realizado com sucesso! Verifique o código de verificação.');
+            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1800);
           } else {
-            setRegisterSuccess('✅ Conta criada com sucesso! Faça login.');
-            setTimeout(() => { setShowRegister(false); }, 1500);
+            setRegisterSuccess('✅ Cadastro realizado com sucesso! Bem-vindo(a) à ACCBM!');
+            setTimeout(() => { setShowRegister(false); }, 1800);
           }
           return;
         }
@@ -427,9 +431,13 @@ export default function AlunoPage() {
         // Auto-login after name-based register
         const sess = { student_id: data2.student_id, username: data2.username };
         sessionStorage.setItem('aluno_session', JSON.stringify(sess));
-        setSession(sess);
-        if (data2.student) setStudent(data2.student);
-        setShowRegister(false);
+        setRegisterSuccess('✅ Cadastro realizado com sucesso! Bem-vindo(a) à ACCBM!');
+        setTimeout(() => {
+          setSession(sess);
+          if (data2.student) setStudent(data2.student);
+          setShowRegister(false);
+          setActiveTab('dados'); // Take them straight to complete their data
+        }, 1800);
       }
     } catch { setRegisterError('Erro de conexão. Tente novamente.'); }
     finally { setRegisterLoading(false); }
@@ -523,7 +531,9 @@ export default function AlunoPage() {
     }
   }, [student, activeTab, dadosInitialized]);
 
-  const nucleoColor = student ? getNucleoColor(student.nucleo || '') : '#1d4ed8';
+  // Gender-based theme: M=green, F=red, otherwise nucleo color
+  const genderColor = student?.sexo === 'M' ? '#16a34a' : student?.sexo === 'F' ? '#dc2626' : null;
+  const nucleoColor = genderColor || (student ? getNucleoColor(student.nucleo || '') : '#1d4ed8');
 
   const cartData = student ? {
     nome: student.nome_completo,
@@ -642,7 +652,7 @@ export default function AlunoPage() {
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
           <div style={{ textAlign: 'center', marginBottom: 18 }}>
-            <div style={{ fontSize: 36, marginBottom: 4 }}>🥋</div>
+            <div style={{ fontSize: 36, marginBottom: 4, lineHeight: 1 }}>🤸</div>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>Criar Minha Conta</h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
               Informe seu nome completo (como cadastrado na associação), e-mail e crie uma senha.
@@ -660,7 +670,8 @@ export default function AlunoPage() {
             </div>
           )}
           {registerSuccess && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem' }}>
+            <div style={{ background: '#f0fdf4', border: '2px solid #86efac', color: '#166534', borderRadius: 14, padding: '16px 18px', marginBottom: 12, fontSize: '0.9rem', fontWeight: 700, textAlign: 'center' }}>
+              <div style={{ fontSize: '2rem', marginBottom: 6 }}>🎉</div>
               {registerSuccess}
             </div>
           )}
@@ -830,6 +841,11 @@ export default function AlunoPage() {
 
   // ── DASHBOARD (LOGGED IN) ─────────────────────────────────────────────────
   const displayName = student?.apelido || student?.nome_social || student?.nome_completo?.split(' ')[0] || 'Aluno';
+  const welcomeGreeting = student?.sexo === 'M'
+    ? `Seja bem-vindo, ${displayName}! 👋`
+    : student?.sexo === 'F'
+    ? `Seja bem-vinda, ${displayName}! 👋`
+    : `Seja bem-vindo(a), ${displayName}! 👋`;
 
   return (
     <div style={{ minHeight: '100vh', background: '#f8fafc', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
@@ -849,7 +865,15 @@ export default function AlunoPage() {
             {student?.foto_url ? (
               <img src={student.foto_url} alt={displayName} style={{ width: 42, height: 42, borderRadius: '50%', objectFit: 'cover', border: '2px solid rgba(255,255,255,0.4)' }} />
             ) : (
-              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>🥋</div>
+              <div style={{ width: 42, height: 42, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="26" height="26" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <circle cx="32" cy="10" r="7" fill="rgba(255,255,255,0.9)"/>
+                  <path d="M32 17 C26 20 22 28 24 36 L20 54" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                  <path d="M32 17 C38 20 42 28 40 36 L44 54" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                  <path d="M24 36 L14 44" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                  <path d="M40 36 L50 32" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                </svg>
+              </div>
             )}
             <div>
               <div style={{ fontWeight: 800, fontSize: '1rem', lineHeight: 1.2 }}>{displayName}</div>
@@ -926,13 +950,21 @@ export default function AlunoPage() {
                 {student?.foto_url ? (
                   <img src={student.foto_url} alt={displayName} style={{ width: 60, height: 60, borderRadius: '50%', objectFit: 'cover', border: '3px solid rgba(255,255,255,0.5)', flexShrink: 0 }} />
                 ) : (
-                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 28, flexShrink: 0 }}>🥋</div>
+                  <div style={{ width: 60, height: 60, borderRadius: '50%', background: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <svg width="38" height="38" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <circle cx="32" cy="10" r="7" fill="rgba(255,255,255,0.9)"/>
+                      <path d="M32 17 C26 20 22 28 24 36 L20 54" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                      <path d="M32 17 C38 20 42 28 40 36 L44 54" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                      <path d="M24 36 L14 44" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                      <path d="M40 36 L50 32" stroke="rgba(255,255,255,0.9)" strokeWidth="3.5" strokeLinecap="round"/>
+                    </svg>
+                  </div>
                 )}
                 <div>
-                  <div style={{ fontSize: '0.72rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Bem-vindo(a)</div>
-                  <div style={{ fontSize: '1.35rem', fontWeight: 800, lineHeight: 1.2 }}>{displayName}! 👋</div>
-                  {student?.apelido && student.apelido !== student.nome_completo?.split(' ')[0] && (
-                    <div style={{ fontSize: '0.78rem', opacity: 0.7, fontStyle: 'italic' }}>{student.nome_completo}</div>
+                  <div style={{ fontSize: '0.72rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Área do Aluno — ACCBM</div>
+                  <div style={{ fontSize: '1.2rem', fontWeight: 800, lineHeight: 1.3 }}>{welcomeGreeting}</div>
+                  {student?.apelido && student.nome_completo && student.apelido !== student.nome_completo.split(' ')[0] && (
+                    <div style={{ fontSize: '0.78rem', opacity: 0.75, marginTop: 2 }}>{student.nome_completo}</div>
                   )}
                 </div>
               </div>
@@ -1812,6 +1844,20 @@ export default function AlunoPage() {
 
         {/* ── MEUS DADOS ── */}
         {activeTab === 'dados' && session && student && (() => {
+          // ── CPF validator ──────────────────────────────────────────────────
+          const validarCPF = (cpf: string): boolean => {
+            const d = cpf.replace(/\D/g, '');
+            if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+            let s = 0;
+            for (let i = 0; i < 9; i++) s += parseInt(d[i]) * (10 - i);
+            let r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
+            if (r !== parseInt(d[9])) return false;
+            s = 0;
+            for (let i = 0; i < 10; i++) s += parseInt(d[i]) * (11 - i);
+            r = (s * 10) % 11; if (r === 10 || r === 11) r = 0;
+            return r === parseInt(d[10]);
+          };
+
           // ── graduation lists ───────────────────────────────────────────────
           const GRADS_INFANTIL = [
             'Crua', 'Crua ponta cinza', 'Crua ponta amarela', 'Crua ponta laranja',
@@ -1890,6 +1936,15 @@ export default function AlunoPage() {
 
           // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
+            // CPF validation before save
+            if (dadosForm.cpf) {
+              const cpfDigits = dadosForm.cpf.replace(/\D/g, '');
+              if (cpfDigits.length > 0 && !validarCPF(dadosForm.cpf)) {
+                setDadosMsg('CPF inválido. Verifique os dígitos e tente novamente.');
+                setDadosMsgType('error');
+                return;
+              }
+            }
             setDadosLoading(true); setDadosMsg('');
             try {
               const payload = {
@@ -1914,6 +1969,24 @@ export default function AlunoPage() {
             setDadosLoading(false);
           };
 
+          const handleFotoUpload = async (file: File) => {
+            setFotoUploading(true); setFotoMsg('');
+            try {
+              const fd = new FormData();
+              fd.append('student_id', session.student_id);
+              fd.append('foto', file);
+              const res = await fetch('/api/aluno/dados', { method: 'POST', body: fd });
+              const data = await res.json();
+              if (res.ok && data.foto_url) {
+                setStudent(prev => prev ? { ...prev, foto_url: data.foto_url } : prev);
+                setFotoMsg('✅ Foto atualizada com sucesso!');
+              } else {
+                setFotoMsg(data.error || 'Erro ao enviar foto.');
+              }
+            } catch { setFotoMsg('Erro de conexão.'); }
+            setFotoUploading(false);
+          };
+
           const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
@@ -1928,6 +2001,49 @@ export default function AlunoPage() {
                 <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>✏️ Meus Dados</h2>
                 <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Complete ou atualize suas informações de cadastro</p>
               </div>
+
+              {/* ── Foto de Perfil ── */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)', display: 'flex', alignItems: 'center', gap: 16 }}>
+                <div style={{ flexShrink: 0, position: 'relative' }}>
+                  {student.foto_url ? (
+                    <img src={student.foto_url as string} alt={student.nome_completo} style={{ width: 72, height: 72, borderRadius: '50%', objectFit: 'cover', border: `3px solid ${nucleoColor}40` }} />
+                  ) : (
+                    <div style={{ width: 72, height: 72, borderRadius: '50%', background: `${nucleoColor}18`, border: `3px solid ${nucleoColor}30`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg width="42" height="42" viewBox="0 0 64 64" fill="none">
+                        <circle cx="32" cy="14" r="9" fill={nucleoColor} opacity="0.7"/>
+                        <path d="M32 23 C24 27 20 37 22 46 L18 62" stroke={nucleoColor} strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+                        <path d="M32 23 C40 27 44 37 42 46 L46 62" stroke={nucleoColor} strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+                        <path d="M22 46 L10 54" stroke={nucleoColor} strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+                        <path d="M42 46 L54 40" stroke={nucleoColor} strokeWidth="4" strokeLinecap="round" opacity="0.7"/>
+                      </svg>
+                    </div>
+                  )}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', marginBottom: 2 }}>Foto de Perfil</div>
+                  <div style={{ fontSize: '0.72rem', color: '#6b7280', marginBottom: 8 }}>JPG, PNG — máx. 5 MB. Aparece na carteirinha e no painel.</div>
+                  {fotoMsg && <div style={{ fontSize: '0.75rem', color: fotoMsg.startsWith('✅') ? '#16a34a' : '#dc2626', marginBottom: 6, fontWeight: 600 }}>{fotoMsg}</div>}
+                  <input ref={fotoInputRef} type="file" accept="image/*" style={{ display: 'none' }} onChange={e => { const f = e.target.files?.[0]; if (f) handleFotoUpload(f); e.target.value = ''; }} />
+                  <button onClick={() => fotoInputRef.current?.click()} disabled={fotoUploading}
+                    style={{ background: fotoUploading ? '#e5e7eb' : `${nucleoColor}18`, color: fotoUploading ? '#9ca3af' : nucleoColor, border: `1.5px solid ${fotoUploading ? '#e5e7eb' : nucleoColor}40`, borderRadius: 8, padding: '7px 16px', fontWeight: 700, fontSize: '0.8rem', cursor: fotoUploading ? 'not-allowed' : 'pointer' }}>
+                    {fotoUploading ? '⏳ Enviando...' : student.foto_url ? '🔄 Trocar Foto' : '📷 Adicionar Foto'}
+                  </button>
+                </div>
+              </div>
+
+              {/* ── Numeração Única ── */}
+              {(student.ordem_inscricao || alunoInscricaoNum) && (
+                <div style={{ background: `${nucleoColor}08`, border: `1px solid ${nucleoColor}30`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${nucleoColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>🪪</div>
+                  <div>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 1 }}>Numeração Única do Aluno</div>
+                    <div style={{ fontWeight: 800, fontSize: '1.1rem', color: nucleoColor, fontFamily: 'monospace' }}>
+                      #{String(student.ordem_inscricao as number || alunoInscricaoNum || 0).padStart(4, '0')}
+                    </div>
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Identificador exclusivo e permanente</div>
+                  </div>
+                </div>
+              )}
 
               {isMissing && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: '0.8rem', color: '#92400e' }}>
@@ -2017,7 +2133,14 @@ export default function AlunoPage() {
                   </div>
                   <div>
                     <label style={ls}>CPF <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))} style={fs} placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
+                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))}
+                      style={{ ...fs, borderColor: dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 ? (validarCPF(dadosForm.cpf) ? '#86efac' : '#fca5a5') : '#e5e7eb' }}
+                      placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
+                    {dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 && (
+                      <div style={{ fontSize: '0.7rem', marginTop: 3, fontWeight: 600, color: validarCPF(dadosForm.cpf) ? '#16a34a' : '#dc2626' }}>
+                        {validarCPF(dadosForm.cpf) ? '✓ CPF válido' : '✗ CPF inválido — verifique os dígitos'}
+                      </div>
+                    )}
                   </div>
                   <div>
                     <label style={ls}>Identidade (RG)</label>

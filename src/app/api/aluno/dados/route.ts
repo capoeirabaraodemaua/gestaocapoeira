@@ -69,6 +69,50 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ student: safeStudent });
 }
 
+// POST /api/aluno/dados — upload profile photo
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const student_id = formData.get('student_id') as string;
+    const file = formData.get('foto') as File | null;
+
+    if (!student_id || !file) {
+      return NextResponse.json({ error: 'student_id e foto são obrigatórios.' }, { status: 400 });
+    }
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      return NextResponse.json({ error: 'Apenas imagens são aceitas.' }, { status: 400 });
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      return NextResponse.json({ error: 'Imagem deve ter no máximo 5 MB.' }, { status: 400 });
+    }
+
+    const ext = file.type.split('/')[1]?.replace('jpeg', 'jpg') || 'jpg';
+    const path = `fotos/${student_id}/perfil.${ext}`;
+    const buf = await file.arrayBuffer();
+
+    const { error: uploadError } = await supabaseAdmin.storage
+      .from(BUCKET)
+      .upload(path, buf, { contentType: file.type, upsert: true });
+
+    if (uploadError) {
+      return NextResponse.json({ error: 'Erro ao fazer upload.' }, { status: 500 });
+    }
+
+    const { data: signedData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365);
+    const foto_url = signedData?.signedUrl || '';
+
+    // Update students table
+    await supabaseAdmin.from('students').update({ foto_url }).eq('id', student_id);
+
+    return NextResponse.json({ success: true, foto_url });
+  } catch (err) {
+    console.error('foto upload error:', err);
+    return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
+  }
+}
+
 // PATCH /api/aluno/dados
 // Allows authenticated student to update their own profile fields
 export async function PATCH(req: NextRequest) {
@@ -98,7 +142,7 @@ export async function PATCH(req: NextRequest) {
       'telefone', 'email',
       'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
       'nome_pai', 'nome_mae', 'apelido', 'nome_social', 'sexo',
-      'nome_responsavel', 'cpf_responsavel',
+      'nome_responsavel', 'cpf_responsavel', 'foto_url',
     ];
 
     const payload: Record<string, unknown> = {};
@@ -110,6 +154,22 @@ export async function PATCH(req: NextRequest) {
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: 'Nenhum campo válido para atualizar.' }, { status: 400 });
+    }
+
+    // CPF duplicate check — ensure no other student has the same CPF
+    if (payload.cpf && typeof payload.cpf === 'string') {
+      const cpfDigits = (payload.cpf as string).replace(/\D/g, '');
+      if (cpfDigits.length === 11) {
+        const { data: cpfConflict } = await supabaseAdmin
+          .from('students')
+          .select('id')
+          .eq('cpf', payload.cpf as string)
+          .neq('id', student_id)
+          .maybeSingle();
+        if (cpfConflict) {
+          return NextResponse.json({ error: 'Este CPF já está cadastrado para outro aluno.' }, { status: 409 });
+        }
+      }
     }
 
     // Auto-compute menor_de_idade from data_nascimento if provided
