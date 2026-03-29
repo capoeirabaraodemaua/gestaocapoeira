@@ -112,20 +112,53 @@ export async function POST(req: NextRequest) {
     }
 
     if (action === 'register') {
-      const { student_id, username, email, password, phone } = body;
-      if (!student_id || !username || !password) {
+      // Support both student_id (legacy) and cpf/documento (self-registration)
+      let { student_id, username, email, password, phone, cpf_or_doc } = body;
+      if (!username || !password) {
         return NextResponse.json({ error: 'Dados incompletos.' }, { status: 400 });
       }
       if (password.length < 6) {
         return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
       }
 
-      // Check student exists
-      const { data: student } = await supabaseAdmin
-        .from('students')
-        .select('id, nome_completo, telefone, email')
-        .eq('id', student_id)
-        .maybeSingle();
+      // Look up student — by cpf_or_doc if provided, else by student_id
+      let student: { id: string; nome_completo: string; telefone?: string | null; email?: string | null } | null = null;
+
+      if (cpf_or_doc) {
+        // Fetch all students and find by CPF or identity number
+        const { data: allStudents } = await supabaseAdmin
+          .from('students')
+          .select('id, nome_completo, telefone, email, cpf, identidade');
+        const input = (cpf_or_doc as string).replace(/\D/g, '').toLowerCase();
+        const inputRaw = (cpf_or_doc as string).replace(/\s/g, '').toLowerCase();
+        const found = (allStudents || []).find(s => {
+          const storedCpf = (s.cpf || '').replace(/\D/g, '');
+          const storedId = (s.identidade || '').replace(/\D/g, '').toLowerCase();
+          const storedIdRaw = (s.identidade || '').replace(/\s/g, '').toLowerCase();
+          if (input.length >= 11 && storedCpf === input) return true;
+          if (inputRaw && (storedIdRaw === inputRaw || (storedId && storedId === input))) return true;
+          return false;
+        });
+        if (!found) {
+          return NextResponse.json({ error: 'Nenhum aluno encontrado com esse CPF/documento. Verifique se seu cadastro foi realizado pela associação.' }, { status: 404 });
+        }
+        student = found;
+        student_id = found.id;
+      } else {
+        if (!student_id) {
+          return NextResponse.json({ error: 'Informe seu CPF, documento ou o ID fornecido pelo administrador.' }, { status: 400 });
+        }
+        const { data: s } = await supabaseAdmin
+          .from('students')
+          .select('id, nome_completo, telefone, email')
+          .eq('id', student_id)
+          .maybeSingle();
+        if (!s) {
+          return NextResponse.json({ error: 'Aluno não encontrado.' }, { status: 404 });
+        }
+        student = s;
+      }
+
       if (!student) {
         return NextResponse.json({ error: 'Aluno não encontrado.' }, { status: 404 });
       }
