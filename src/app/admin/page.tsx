@@ -9,6 +9,7 @@ import Carteirinha from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
 import AlunoViewer from '@/components/AlunoViewer';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { getTenantIdByKey } from '@/lib/tenants';
 
 interface PresencaCount {
   student_id: string;
@@ -875,7 +876,7 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    fetchStudents();
+    fetchStudents(activeNucleo);
     fetchPresencas();
     // Load offline queue for admin validation
     try {
@@ -910,12 +911,22 @@ export default function AdminPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showGpsMap]);
 
-  const fetchStudents = async () => {
+  const fetchStudents = async (nucleoKey?: string | null) => {
     setLoading(true);
-    const { data, error } = await supabase
-      .from('students')
-      .select('*')
-      .order('created_at', { ascending: false });
+    // Build query — filter by tenant_id at DB level for nucleo-specific admins
+    // Falls back gracefully if tenant_id column doesn't exist yet (error caught below)
+    const tenantId = nucleoKey ? getTenantIdByKey(nucleoKey) : null;
+    let query = supabase.from('students').select('*').order('created_at', { ascending: false });
+    if (tenantId) {
+      query = query.eq('tenant_id', tenantId);
+    }
+    let { data, error } = await query;
+    // Fallback: if tenant_id column doesn't exist yet, retry without the filter
+    if (error && tenantId && (error.message || '').includes('tenant_id')) {
+      const fallback = await supabase.from('students').select('*').order('created_at', { ascending: false });
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (!error && data) {
       const list = data as Student[];
       // Compute virtual ordem_inscricao for students missing it (sort by created_at asc → index+1)
@@ -1206,7 +1217,7 @@ export default function AdminPage() {
         setEditFotoFile(null);
         // Optimistic update of selected so detail panel reflects changes immediately
         setSelected(prev => prev?.id === editing.id ? { ...prev, ...editForm } as typeof prev : prev);
-        await fetchStudents();
+        await fetchStudents(activeNucleo);
       }
     } finally {
       setSaving(false);
@@ -1242,7 +1253,7 @@ export default function AdminPage() {
       logAdminAction('delete_student', `id:${deleteConfirm.id} nome:${deleteConfirm.nome_completo}`);
       setDeleteConfirm(null);
       setSelected(null);
-      fetchStudents();
+      fetchStudents(activeNucleo);
     }
   };
 
@@ -4923,6 +4934,22 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   🔢 Fixar Matrículas
                 </button>
               )}
+              {activeNucleo === 'geral' && (
+                <button onClick={async () => {
+                  if (!confirm('Preencher tenant_id de todos os alunos com base no núcleo? Alunos já com tenant_id não serão alterados.')) return;
+                  const res = await fetch('/api/admin/backfill-tenants', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                    body: JSON.stringify({ admin_auth: 'geral' }),
+                  });
+                  const d = await res.json();
+                  if (d.success) alert(`✅ tenant_id preenchido!\n• Atualizados: ${d.updated}\n• Já tinham: ${d.already_had_tenant_id}\n• Erros: ${d.skipped}`);
+                  else alert('Erro: ' + (d.error || JSON.stringify(d)));
+                }}
+                  style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>
+                  🏷️ Preencher tenant_id
+                </button>
+              )}
             </div>
           </div>
 
@@ -5417,7 +5444,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   await fetch('/api/rascunhos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _delete: r.id }) });
                                   setRascunhos((prev: any[]) => prev.filter((x: any) => x.id !== r.id));
                                   setRascunhosCount(c => Math.max(0, c - 1));
-                                  await fetchStudents();
+                                  await fetchStudents(activeNucleo);
                                   alert(`✅ ${r.nome_completo || 'Aluno'} cadastrado com sucesso! O número de matrícula foi atribuído automaticamente.`);
                                 } catch (e: any) { alert('Erro: ' + e.message); }
                                 setRascunhoSaving(false);
@@ -7744,7 +7771,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 if (res.ok) {
                                   setLixeiraMsg(`✅ Cadastro de "${s.nome_completo}" restaurado com sucesso!`);
                                   setLixeira(prev => prev.filter(e => e.id !== entry.id));
-                                  fetchStudents();
+                                  fetchStudents(activeNucleo);
                                 } else {
                                   setLixeiraMsg(`❌ Erro ao restaurar: ${d.error || 'Tente novamente.'}`);
                                 }

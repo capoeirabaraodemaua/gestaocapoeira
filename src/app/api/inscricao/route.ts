@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantId } from '@/lib/tenants';
 
 export const dynamic = 'force-dynamic';
 
@@ -42,7 +43,7 @@ async function ensureNullableColumns() {
     ALTER TABLE students ALTER COLUMN tipo_graduacao DROP NOT NULL;
     ALTER TABLE students ALTER COLUMN nucleo DROP NOT NULL;
   `);
-  // Garante colunas novas (apelido, nome_social, sexo, email, etc.)
+  // Garante colunas novas (apelido, nome_social, sexo, email, tenant_id, etc.)
   const newCols = [
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS email TEXT`,
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS apelido TEXT`,
@@ -50,6 +51,7 @@ async function ensureNullableColumns() {
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS sexo TEXT`,
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_pai BOOLEAN NOT NULL DEFAULT FALSE`,
     `ALTER TABLE students ADD COLUMN IF NOT EXISTS assinatura_mae BOOLEAN NOT NULL DEFAULT FALSE`,
+    `ALTER TABLE students ADD COLUMN IF NOT EXISTS tenant_id TEXT`,
   ];
   for (const sql of newCols) {
     await tryExecSQL(sql);
@@ -61,7 +63,7 @@ const KNOWN_COLUMNS = [
   'nome_completo', 'apelido', 'nome_social', 'sexo', 'cpf', 'identidade',
   'data_nascimento', 'telefone', 'email', 'cep', 'endereco', 'numero',
   'complemento', 'bairro', 'cidade', 'estado', 'graduacao', 'tipo_graduacao',
-  'nucleo', 'foto_url', 'nome_pai', 'nome_mae', 'autoriza_imagem',
+  'nucleo', 'tenant_id', 'foto_url', 'nome_pai', 'nome_mae', 'autoriza_imagem',
   'menor_de_idade', 'nome_responsavel', 'cpf_responsavel',
   'assinatura_responsavel', 'assinatura_pai', 'assinatura_mae',
 ];
@@ -203,6 +205,11 @@ export async function POST(req: NextRequest) {
     safePayload.autoriza_imagem = payload.autoriza_imagem ?? false;
     safePayload.menor_de_idade = payload.menor_de_idade ?? false;
     safePayload.assinatura_responsavel = payload.assinatura_responsavel ?? false;
+
+    // Injeta tenant_id automaticamente com base no nucleo (nunca vem do usuário)
+    // Sobrescreve qualquer valor que o cliente possa ter enviado por segurança
+    const nucleoStr = (safePayload.nucleo as string) || '';
+    safePayload.tenant_id = getTenantId(nucleoStr);
 
     let insertError: { message?: string; details?: string; hint?: string; code?: string } | null = null;
 
