@@ -2025,24 +2025,22 @@ export default function AdminPage() {
           )}
         </div>
 
-        {/* ── Botões de manutenção — somente Admin Geral ── */}
-        {activeNucleo === 'geral' && (
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
-            <button onClick={async () => {
-              if (!confirm('Preencher tenant_id de todos os alunos com base no núcleo?\nAlunos que já possuem tenant_id não serão alterados.')) return;
-              const res = await fetch('/api/admin/backfill-tenants', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
-                body: JSON.stringify({ admin_auth: 'geral' }),
-              });
-              const d = await res.json();
-              if (d.success) alert(`✅ tenant_id atualizado!\n\n• Atualizados agora: ${d.updated}\n• Já tinham tenant_id: ${d.already_had_tenant_id}\n• Com erro: ${d.skipped}\n• Total: ${d.total}`);
-              else alert('Erro: ' + (d.error || JSON.stringify(d)));
-            }} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
-              🏷️ Preencher tenant_id (Multi-tenant)
-            </button>
-          </div>
-        )}
+        {/* ── Botões de manutenção ── */}
+        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
+          <button onClick={async () => {
+            if (!confirm('Preencher tenant_id de todos os alunos com base no núcleo?\nAlunos que já possuem tenant_id não serão alterados.')) return;
+            const res = await fetch('/api/admin/backfill-tenants', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+              body: JSON.stringify({ admin_auth: 'geral' }),
+            });
+            const d = await res.json();
+            if (d.success) alert(`✅ tenant_id atualizado!\n\n• Atualizados agora: ${d.updated}\n• Já tinham tenant_id: ${d.already_had_tenant_id}\n• Com erro: ${d.skipped}\n• Total: ${d.total}`);
+            else alert('Erro: ' + (d.error || JSON.stringify(d)));
+          }} style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.35)', color: '#34d399', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+            🏷️ Preencher tenant_id (Multi-tenant)
+          </button>
+        </div>
 
         {loading ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>
