@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
         if (!found) {
           return NextResponse.json({
             error: 'Nenhum aluno encontrado com esse CPF/documento. Verifique se seu cadastro foi realizado pela associação.',
+            hint: 'nome', // hint to frontend to try name-based search
           }, { status: 404 });
         }
         student = found;
@@ -271,6 +272,76 @@ export async function POST(req: NextRequest) {
         // Return OTP in dev mode only
         ...(process.env.NODE_ENV === 'development' ? { otp } : {}),
       });
+    }
+
+    // ── REGISTER BY NAME (fallback when CPF not in DB) ────────────────────────
+    if (action === 'register-by-name') {
+      const { nome_completo, email, password } = body;
+      if (!nome_completo || !email || !password) {
+        return NextResponse.json({ error: 'Nome, e-mail e senha são obrigatórios.' }, { status: 400 });
+      }
+      if (password.length < 6) {
+        return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
+      }
+      const emailNorm = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailNorm)) {
+        return NextResponse.json({ error: 'E-mail inválido.' }, { status: 400 });
+      }
+
+      // Normalize name for matching
+      const normalizeName = (s: string) =>
+        s.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const normInput = normalizeName(nome_completo);
+
+      const { data: allStudents } = await supabaseAdmin
+        .from('students')
+        .select('id, nome_completo, telefone, email, cpf');
+
+      const found = (allStudents || []).find(s =>
+        normalizeName(s.nome_completo || '') === normInput
+      );
+      if (!found) {
+        return NextResponse.json({
+          error: 'Nome não encontrado no banco da associação. Verifique se seu nome está exatamente como foi cadastrado.',
+          candidates: (allStudents || [])
+            .filter(s => normalizeName(s.nome_completo || '').includes(normInput.split(' ')[0]))
+            .slice(0, 5)
+            .map(s => s.nome_completo),
+        }, { status: 404 });
+      }
+
+      const authMap = await loadAuthMap();
+      if (authMap[found.id]) {
+        return NextResponse.json({ error: 'Este aluno já possui uma conta. Use recuperar senha.' }, { status: 409 });
+      }
+      const emailTaken = Object.values(authMap).find(a => a.email && a.email.toLowerCase() === emailNorm);
+      if (emailTaken) {
+        return NextResponse.json({ error: 'Este e-mail já está vinculado a outra conta.' }, { status: 409 });
+      }
+
+      const salt = generateSalt();
+      const password_hash = hashPassword(password, salt);
+      const account: AlunoAccount = {
+        student_id: found.id,
+        username: emailNorm,
+        email: emailNorm,
+        password_hash,
+        salt,
+        active: true, // auto-activate — no WhatsApp required
+        created_at: new Date().toISOString(),
+      };
+      authMap[found.id] = account;
+      await saveAuthMap(authMap);
+
+      // Sync email to students table
+      try { await supabaseAdmin.from('students').update({ email: emailNorm }).eq('id', found.id); } catch { /* silent */ }
+
+      const { data: student } = await supabaseAdmin
+        .from('students').select('id, nome_completo, nucleo, graduacao, tipo_graduacao, foto_url, apelido, nome_social')
+        .eq('id', found.id).maybeSingle();
+
+      return NextResponse.json({ success: true, student_id: found.id, username: emailNorm, student, student_name: found.nome_completo.split(' ')[0] });
     }
 
     if (action === 'verify-otp') {

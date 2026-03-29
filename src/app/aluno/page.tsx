@@ -47,7 +47,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -166,6 +166,21 @@ export default function AlunoPage() {
   const [contaMsgType, setContaMsgType] = useState<'success' | 'error'>('success');
   const [contaLoading, setContaLoading] = useState(false);
   const [deleteConfirmText, setDeleteConfirmText] = useState('');
+
+  // ── Meus Dados ────────────────────────────────────────────────────────────
+  const [dadosForm, setDadosForm] = useState({
+    nucleo: '', graduacao: '', tipo_graduacao: '',
+    cpf: '', identidade: '', data_nascimento: '',
+    telefone: '', email: '',
+    cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
+    nome_pai: '', nome_mae: '',
+    nome_responsavel: '', cpf_responsavel: '',
+    apelido: '', nome_social: '', sexo: '',
+  });
+  const [dadosLoading, setDadosLoading] = useState(false);
+  const [dadosMsg, setDadosMsg] = useState('');
+  const [dadosMsgType, setDadosMsgType] = useState<'success' | 'error'>('success');
+  const [dadosInitialized, setDadosInitialized] = useState(false);
 
   // ── Admin preview mode flag ────────────────────────────────────────────────
   const [isAdminPreview, setIsAdminPreview] = useState(false);
@@ -344,41 +359,72 @@ export default function AlunoPage() {
     e.preventDefault();
     setRegisterError(''); setRegisterSuccess('');
 
-    // Frontend validations
-    if (!registerForm.cpf_or_doc.trim()) { setRegisterError('Informe seu CPF ou número do documento.'); return; }
-    if (!registerForm.username.trim()) { setRegisterError('Informe um nome de usuário.'); return; }
-    if (!registerForm.email.trim()) { setRegisterError('E-mail é obrigatório.'); return; }
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!registerForm.email.trim()) { setRegisterError('E-mail é obrigatório.'); return; }
     if (!emailRegex.test(registerForm.email.trim())) { setRegisterError('Informe um e-mail válido.'); return; }
-    if (!registerForm.phone.trim()) { setRegisterError('WhatsApp é obrigatório para receber o código de verificação.'); return; }
     if (registerForm.password.length < 6) { setRegisterError('Senha deve ter pelo menos 6 caracteres.'); return; }
     if (registerForm.password !== registerForm.confirmPassword) { setRegisterError('As senhas não coincidem.'); return; }
 
     setRegisterLoading(true);
     try {
-      const res = await fetch('/api/aluno/auth', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'register',
-          cpf_or_doc: registerForm.cpf_or_doc.trim(),
-          username: registerForm.username.trim().toLowerCase(),
-          email: registerForm.email.trim().toLowerCase(),
-          password: registerForm.password,
-          phone: registerForm.phone.trim(),
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setRegisterError(data.error || 'Erro ao criar conta.'); return; }
-      setOtpStudentId(data.student_id || '');
-      setOtpPhone(data.phone || registerForm.phone || '');
-      setRegisterSuccess(
-        data.phone_sent
-          ? `✅ Código enviado via WhatsApp para o número com final ${data.phone || ''}. Verifique o WhatsApp de ${data.student_name || 'você'}.`
-          : `✅ Conta criada! Insira o código de verificação (verifique também se o WhatsApp está correto).`
-      );
-      // Short delay so user sees the success message before modal switches
-      setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1800);
+      // Step 1: try by CPF/doc if provided
+      if (registerForm.cpf_or_doc.trim()) {
+        const res = await fetch('/api/aluno/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'register',
+            cpf_or_doc: registerForm.cpf_or_doc.trim(),
+            username: registerForm.email.trim().toLowerCase(),
+            email: registerForm.email.trim().toLowerCase(),
+            password: registerForm.password,
+            phone: registerForm.phone.trim(),
+          }),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          // Success — may need OTP or direct login
+          if (data.pending_otp) {
+            setOtpStudentId(data.student_id || '');
+            setOtpPhone(data.phone || '');
+            setRegisterSuccess('✅ Conta criada! Verifique o código de verificação.');
+            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1500);
+          } else {
+            setRegisterSuccess('✅ Conta criada com sucesso! Faça login.');
+            setTimeout(() => { setShowRegister(false); }, 1500);
+          }
+          return;
+        }
+        // If CPF not found, fall through to name-based
+        if (!data.hint || data.hint !== 'nome') {
+          setRegisterError(data.error || 'Erro ao criar conta.'); return;
+        }
+      }
+
+      // Step 2: name-based registration (when no CPF or CPF not found)
+      if (!registerForm.cpf_or_doc.trim() || true) {
+        if (!registerForm.username.trim()) { setRegisterError('Informe seu nome completo exatamente como está cadastrado.'); return; }
+        const res2 = await fetch('/api/aluno/auth', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'register-by-name',
+            nome_completo: registerForm.username.trim(),
+            email: registerForm.email.trim().toLowerCase(),
+            password: registerForm.password,
+          }),
+        });
+        const data2 = await res2.json();
+        if (!res2.ok) {
+          let msg = data2.error || 'Erro ao criar conta.';
+          if (data2.candidates?.length) msg += `\n\nNomes similares encontrados:\n• ${data2.candidates.join('\n• ')}`;
+          setRegisterError(msg); return;
+        }
+        // Auto-login after name-based register
+        const sess = { student_id: data2.student_id, username: data2.username };
+        sessionStorage.setItem('aluno_session', JSON.stringify(sess));
+        setSession(sess);
+        if (data2.student) setStudent(data2.student);
+        setShowRegister(false);
+      }
     } catch { setRegisterError('Erro de conexão. Tente novamente.'); }
     finally { setRegisterLoading(false); }
   };
@@ -428,6 +474,37 @@ export default function AlunoPage() {
     } catch { setJustMsg('Erro de conexão.'); setJustMsgType('error'); }
     finally { setJustLoading(false); }
   };
+
+  // Populate dados form when student data is loaded or tab activated
+  useEffect(() => {
+    if (student && (activeTab === 'dados' || !dadosInitialized)) {
+      setDadosForm({
+        nucleo:           student.nucleo           as string || '',
+        graduacao:        student.graduacao         as string || '',
+        tipo_graduacao:   student.tipo_graduacao    as string || '',
+        cpf:              student.cpf               as string || '',
+        identidade:       student.identidade        as string || '',
+        data_nascimento:  student.data_nascimento   as string || '',
+        telefone:         student.telefone          as string || '',
+        email:            student.email             as string || '',
+        cep:              (student.cep              as string) || '',
+        endereco:         (student.endereco         as string) || '',
+        numero:           (student.numero           as string) || '',
+        complemento:      (student.complemento      as string) || '',
+        bairro:           (student.bairro           as string) || '',
+        cidade:           (student.cidade           as string) || '',
+        estado:           (student.estado           as string) || '',
+        nome_pai:         student.nome_pai          as string || '',
+        nome_mae:         student.nome_mae          as string || '',
+        nome_responsavel: student.nome_responsavel  as string || '',
+        cpf_responsavel:  student.cpf_responsavel   as string || '',
+        apelido:          student.apelido           as string || '',
+        nome_social:      student.nome_social       as string || '',
+        sexo:             student.sexo              as string || '',
+      });
+      setDadosInitialized(true);
+    }
+  }, [student, activeTab, dadosInitialized]);
 
   const nucleoColor = student ? getNucleoColor(student.nucleo || '') : '#1d4ed8';
 
@@ -543,95 +620,66 @@ export default function AlunoPage() {
   if (showRegister) {
     const emailValid = !registerForm.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email.trim());
     const passwordsMatch = !registerForm.confirmPassword || registerForm.confirmPassword === registerForm.password;
-    const cpfDigits = registerForm.cpf_or_doc.replace(/\D/g, '');
-    const looksLikeCPF = cpfDigits.length === 11;
 
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
-
-          {/* Header */}
           <div style={{ textAlign: 'center', marginBottom: 18 }}>
             <div style={{ fontSize: 36, marginBottom: 4 }}>🥋</div>
             <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>Criar Minha Conta</h2>
             <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
-              Você precisa ter uma ficha de inscrição cadastrada pela associação.
+              Informe seu nome completo (como cadastrado na associação), e-mail e crie uma senha.
             </p>
           </div>
 
-          {/* Info */}
-          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '9px 13px', marginBottom: 14, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.5 }}>
-            ℹ️ Use o <strong>CPF</strong> ou <strong>número do documento</strong> informado na sua ficha de inscrição para que o sistema encontre seu cadastro automaticamente.
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '9px 13px', marginBottom: 14, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.6 }}>
+            ℹ️ Após criar sua conta, você poderá completar seus dados (núcleo, graduação, CPF, endereço) diretamente na área do aluno.<br/>
+            Opcionalmente, informe seu <strong>CPF</strong> para localizar seu cadastro mais rapidamente.
           </div>
 
-          {/* Error */}
           {registerError && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem', lineHeight: 1.4 }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem', lineHeight: 1.5, whiteSpace: 'pre-line' }}>
               ⚠️ {registerError}
             </div>
           )}
-          {/* Success */}
           {registerSuccess && (
-            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem', lineHeight: 1.4 }}>
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem' }}>
               {registerSuccess}
             </div>
           )}
 
           <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
-
-            {/* CPF / Documento */}
+            {/* Nome completo (used as username for name-based lookup) */}
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
-                CPF ou Número do Documento <span style={{ color: '#ef4444' }}>*</span>
+                Nome completo <span style={{ color: '#ef4444' }}>*</span>
+              </label>
+              <input
+                type="text"
+                value={registerForm.username}
+                onChange={e => setRegisterForm(p => ({ ...p, username: e.target.value }))}
+                placeholder="Ex: João da Silva Santos"
+                required autoFocus
+                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+              />
+              <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#9ca3af' }}>Exatamente como consta no seu cadastro na associação</p>
+            </div>
+
+            {/* CPF (optional — faster lookup) */}
+            <div>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                CPF <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional — para localização mais rápida)</span>
               </label>
               <input
                 type="text" inputMode="numeric"
                 value={registerForm.cpf_or_doc}
                 onChange={e => setRegisterForm(p => ({ ...p, cpf_or_doc: e.target.value }))}
-                placeholder="Ex: 000.000.000-00 ou nº do RG"
-                required autoFocus
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-              />
-              <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: looksLikeCPF ? '#16a34a' : '#9ca3af' }}>
-                {looksLikeCPF ? '✓ Formato de CPF detectado' : 'CPF (11 dígitos) ou numeração do documento de identidade'}
-              </p>
-            </div>
-
-            {/* Username */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
-                Nome de usuário <span style={{ color: '#ef4444' }}>*</span>
-              </label>
-              <input
-                type="text"
-                value={registerForm.username}
-                onChange={e => setRegisterForm(p => ({ ...p, username: e.target.value.replace(/\s/g, '').toLowerCase() }))}
-                placeholder="ex: joaosilva"
-                required
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
-              />
-              {registerForm.username && (
-                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#16a34a' }}>Usuário: <strong>{registerForm.username}</strong></p>
-              )}
-            </div>
-
-            {/* WhatsApp */}
-            <div>
-              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
-                WhatsApp <span style={{ color: '#ef4444' }}>*</span>
-                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 4 }}>(para receber o código de verificação)</span>
-              </label>
-              <input
-                type="tel"
-                value={registerForm.phone}
-                onChange={e => setRegisterForm(p => ({ ...p, phone: e.target.value }))}
-                placeholder="(21) 99999-9999"
-                required
+                placeholder="000.000.000-00"
                 style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Email — now required */}
+            {/* Email */}
             <div>
               <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
                 E-mail <span style={{ color: '#ef4444' }}>*</span>
@@ -644,10 +692,7 @@ export default function AlunoPage() {
                 required
                 style={{ width: '100%', border: `1.5px solid ${registerForm.email && !emailValid ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
-              {registerForm.email && !emailValid && (
-                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>E-mail inválido</p>
-              )}
-              <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#9ca3af' }}>Será sincronizado com seu cadastro na associação</p>
+              {registerForm.email && !emailValid && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>E-mail inválido</p>}
             </div>
 
             {/* Password */}
@@ -663,9 +708,7 @@ export default function AlunoPage() {
                 required minLength={6}
                 style={{ width: '100%', border: `1.5px solid ${registerForm.password && registerForm.password.length < 6 ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
-              {registerForm.password && registerForm.password.length < 6 && (
-                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>Mínimo 6 caracteres</p>
-              )}
+              {registerForm.password && registerForm.password.length < 6 && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>Mínimo 6 caracteres</p>}
             </div>
 
             {/* Confirm Password */}
@@ -689,7 +732,7 @@ export default function AlunoPage() {
               type="submit"
               disabled={registerLoading || !!registerSuccess}
               style={{ background: registerLoading ? '#9ca3af' : registerSuccess ? '#16a34a' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: registerLoading || registerSuccess ? 'not-allowed' : 'pointer', marginTop: 4 }}>
-              {registerLoading ? '⏳ Verificando e criando conta...' : registerSuccess ? '✅ Redirecionando...' : '✅ Criar Conta e Receber Código'}
+              {registerLoading ? '⏳ Criando conta...' : registerSuccess ? '✅ Redirecionando...' : '✅ Criar Conta'}
             </button>
           </form>
 
@@ -753,8 +796,9 @@ export default function AlunoPage() {
   }
 
   // ── TABS NAVIGATION ───────────────────────────────────────────────────────
-  const tabs: { id: Tab; icon: string; label: string }[] = [
+  const tabs: { id: Tab; icon: string; label: string; badge?: boolean }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
+    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || !student.cpf)) },
     { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
     { id: 'presenca',       icon: '📍', label: 'Presença' },
@@ -810,9 +854,10 @@ export default function AlunoPage() {
         <div style={{ maxWidth: 720, margin: '0 auto', padding: '0 8px', display: 'flex', overflowX: 'auto', gap: 2 }}>
           {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 10px', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === tab.id ? `2.5px solid ${nucleoColor}` : '2.5px solid transparent', color: activeTab === tab.id ? nucleoColor : '#6b7280', fontWeight: activeTab === tab.id ? 700 : 500, fontSize: '0.7rem', whiteSpace: 'nowrap', transition: 'all 0.15s', minWidth: 60 }}>
+              style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2, padding: '8px 10px', border: 'none', background: 'none', cursor: 'pointer', borderBottom: activeTab === tab.id ? `2.5px solid ${nucleoColor}` : '2.5px solid transparent', color: activeTab === tab.id ? nucleoColor : '#6b7280', fontWeight: activeTab === tab.id ? 700 : 500, fontSize: '0.7rem', whiteSpace: 'nowrap', transition: 'all 0.15s', minWidth: 60 }}>
               <span style={{ fontSize: '1.15rem', lineHeight: 1 }}>{tab.icon}</span>
               {tab.label}
+              {tab.badge && <span style={{ position: 'absolute', top: 4, right: 6, width: 7, height: 7, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #fff' }} />}
             </button>
           ))}
         </div>
@@ -824,6 +869,26 @@ export default function AlunoPage() {
         {/* ── DASHBOARD ── */}
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+            {/* Incomplete data banner */}
+            {student && (!student.nucleo || !student.graduacao || !student.cpf) && (
+              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
+                <div style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>📋</div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e', marginBottom: 3 }}>Complete seu cadastro</div>
+                  <div style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: 1.5, marginBottom: 10 }}>
+                    Alguns dados do seu perfil estão incompletos. Preencha para que sua carteirinha e presença funcionem corretamente.
+                    <br />
+                    <span style={{ opacity: 0.7 }}>Faltando: {[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</span>
+                  </div>
+                  <button onClick={() => setActiveTab('dados')}
+                    style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                    ✏️ Completar Cadastro
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Welcome card */}
             <div style={{ background: `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, borderRadius: 18, padding: '22px 22px', color: '#fff', boxShadow: `0 8px 24px ${nucleoColor}40` }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 14 }}>
@@ -1709,6 +1774,203 @@ export default function AlunoPage() {
               )}
               <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
                 Plataformas suportadas: Spotify · Deezer · YouTube · TikTok · Kwai · outros links
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* ── MEUS DADOS ── */}
+        {activeTab === 'dados' && session && student && (() => {
+          const handleSaveDados = async () => {
+            setDadosLoading(true); setDadosMsg('');
+            try {
+              const res = await fetch('/api/aluno/dados', {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ student_id: session.student_id, ...dadosForm }),
+              });
+              const data = await res.json();
+              if (res.ok) {
+                setDadosMsg('✅ Dados salvos com sucesso!');
+                setDadosMsgType('success');
+                if (data.student) setStudent(data.student);
+              } else {
+                setDadosMsg(data.error || 'Erro ao salvar.');
+                setDadosMsgType('error');
+              }
+            } catch { setDadosMsg('Erro de conexão.'); setDadosMsgType('error'); }
+            setDadosLoading(false);
+          };
+
+          const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
+          const grad_opts = ['Cru', 'Amarela', 'Laranja', 'Azul', 'Vermelha', 'Verde', 'Roxa', 'Marrom', 'Preta'];
+          const tipo_grad_opts = ['Adulto', 'Infantil', 'Mirim'];
+          const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
+          const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
+
+          const isMissing = !student.nucleo || !student.graduacao || !student.cpf;
+
+          const fieldStyle: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' };
+          const labelStyle: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
+          const sectionTitleStyle: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
+
+          return (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>✏️ Meus Dados</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Complete ou atualize suas informações de cadastro</p>
+              </div>
+
+              {isMissing && (
+                <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: '0.8rem', color: '#92400e' }}>
+                  ⚠️ Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>. Preencha abaixo para que a plataforma funcione corretamente.
+                </div>
+              )}
+
+              {dadosMsg && (
+                <div style={{ padding: '10px 14px', borderRadius: 10, background: dadosMsgType === 'success' ? '#f0fdf4' : '#fef2f2', border: `1px solid ${dadosMsgType === 'success' ? '#bbf7d0' : '#fecaca'}`, color: dadosMsgType === 'success' ? '#166534' : '#991b1b', fontSize: '0.83rem', fontWeight: 600 }}>
+                  {dadosMsg}
+                </div>
+              )}
+
+              {/* Identificação */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                <div style={sectionTitleStyle}>Identificação na Associação</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>Núcleo <span style={{ color: '#ef4444' }}>*</span></label>
+                    <select value={dadosForm.nucleo} onChange={e => setDadosForm(p => ({ ...p, nucleo: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                      <option value="">— Selecione seu núcleo —</option>
+                      {nucleo_opts.map(n => <option key={n} value={n}>{n}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Graduação <span style={{ color: '#ef4444' }}>*</span></label>
+                    <select value={dadosForm.graduacao} onChange={e => setDadosForm(p => ({ ...p, graduacao: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                      <option value="">— Selecione —</option>
+                      {grad_opts.map(g => <option key={g} value={g}>{g}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Tipo de Graduação</label>
+                    <select value={dadosForm.tipo_graduacao} onChange={e => setDadosForm(p => ({ ...p, tipo_graduacao: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                      <option value="">— Selecione —</option>
+                      {tipo_grad_opts.map(t => <option key={t} value={t}>{t}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Dados pessoais */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                <div style={sectionTitleStyle}>Dados Pessoais</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Apelido</label>
+                    <input value={dadosForm.apelido} onChange={e => setDadosForm(p => ({ ...p, apelido: e.target.value }))} style={fieldStyle} placeholder="Como te chamam" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nome Social</label>
+                    <input value={dadosForm.nome_social} onChange={e => setDadosForm(p => ({ ...p, nome_social: e.target.value }))} style={fieldStyle} placeholder="Nome social (opcional)" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Sexo</label>
+                    <select value={dadosForm.sexo} onChange={e => setDadosForm(p => ({ ...p, sexo: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                      <option value="">— Selecione —</option>
+                      {sexo_opts.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
+                    </select>
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Data de Nascimento</label>
+                    <input type="date" value={dadosForm.data_nascimento} onChange={e => setDadosForm(p => ({ ...p, data_nascimento: e.target.value }))} style={fieldStyle} />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>CPF</label>
+                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: e.target.value }))} style={fieldStyle} placeholder="000.000.000-00" inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Identidade (RG)</label>
+                    <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fieldStyle} placeholder="Número do RG" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Telefone / WhatsApp</label>
+                    <input value={dadosForm.telefone} onChange={e => setDadosForm(p => ({ ...p, telefone: e.target.value }))} style={fieldStyle} placeholder="(21) 99999-0000" inputMode="numeric" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>E-mail</label>
+                    <input type="email" value={dadosForm.email} onChange={e => setDadosForm(p => ({ ...p, email: e.target.value }))} style={fieldStyle} placeholder="seu@email.com" />
+                  </div>
+                </div>
+              </div>
+
+              {/* Endereço */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                <div style={sectionTitleStyle}>Endereço</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>CEP</label>
+                    <input value={dadosForm.cep} onChange={e => setDadosForm(p => ({ ...p, cep: e.target.value }))} style={fieldStyle} placeholder="00000-000" inputMode="numeric" />
+                  </div>
+                  <div style={{ gridColumn: '1/-1' }}>
+                    <label style={labelStyle}>Endereço (rua/avenida)</label>
+                    <input value={dadosForm.endereco} onChange={e => setDadosForm(p => ({ ...p, endereco: e.target.value }))} style={fieldStyle} placeholder="Rua, Avenida..." />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Número</label>
+                    <input value={dadosForm.numero} onChange={e => setDadosForm(p => ({ ...p, numero: e.target.value }))} style={fieldStyle} placeholder="Nº" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Complemento</label>
+                    <input value={dadosForm.complemento} onChange={e => setDadosForm(p => ({ ...p, complemento: e.target.value }))} style={fieldStyle} placeholder="Apto, Bloco..." />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Bairro</label>
+                    <input value={dadosForm.bairro} onChange={e => setDadosForm(p => ({ ...p, bairro: e.target.value }))} style={fieldStyle} placeholder="Bairro" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Cidade</label>
+                    <input value={dadosForm.cidade} onChange={e => setDadosForm(p => ({ ...p, cidade: e.target.value }))} style={fieldStyle} placeholder="Cidade" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Estado</label>
+                    <select value={dadosForm.estado} onChange={e => setDadosForm(p => ({ ...p, estado: e.target.value }))} style={{ ...fieldStyle, background: '#fff' }}>
+                      <option value="">— UF —</option>
+                      {estados.map(uf => <option key={uf} value={uf}>{uf}</option>)}
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              {/* Filiação */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                <div style={sectionTitleStyle}>Filiação</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <label style={labelStyle}>Nome do Pai</label>
+                    <input value={dadosForm.nome_pai} onChange={e => setDadosForm(p => ({ ...p, nome_pai: e.target.value }))} style={fieldStyle} placeholder="Nome completo" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nome da Mãe</label>
+                    <input value={dadosForm.nome_mae} onChange={e => setDadosForm(p => ({ ...p, nome_mae: e.target.value }))} style={fieldStyle} placeholder="Nome completo" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>Nome do Responsável</label>
+                    <input value={dadosForm.nome_responsavel} onChange={e => setDadosForm(p => ({ ...p, nome_responsavel: e.target.value }))} style={fieldStyle} placeholder="Para menores de idade" />
+                  </div>
+                  <div>
+                    <label style={labelStyle}>CPF do Responsável</label>
+                    <input value={dadosForm.cpf_responsavel} onChange={e => setDadosForm(p => ({ ...p, cpf_responsavel: e.target.value }))} style={fieldStyle} placeholder="000.000.000-00" inputMode="numeric" />
+                  </div>
+                </div>
+              </div>
+
+              <button onClick={handleSaveDados} disabled={dadosLoading}
+                style={{ background: dadosLoading ? '#9ca3af' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, color: '#fff', border: 'none', borderRadius: 12, padding: '14px', fontWeight: 800, fontSize: '0.95rem', cursor: dadosLoading ? 'not-allowed' : 'pointer', boxShadow: dadosLoading ? 'none' : `0 4px 14px ${nucleoColor}40` }}>
+                {dadosLoading ? '⏳ Salvando...' : '💾 Salvar Meus Dados'}
+              </button>
+
+              <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center', lineHeight: 1.5 }}>
+                Os dados são salvos diretamente no banco e ficam visíveis no painel administrativo imediatamente.
               </div>
             </div>
           );

@@ -68,3 +68,106 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({ student: safeStudent });
 }
+
+// PATCH /api/aluno/dados
+// Allows authenticated student to update their own profile fields
+export async function PATCH(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const { student_id, ...updates } = body;
+
+    if (!student_id) {
+      return NextResponse.json({ error: 'student_id obrigatório.' }, { status: 400 });
+    }
+
+    // Verify student exists
+    const { data: existing, error: fetchError } = await supabaseAdmin
+      .from('students')
+      .select('id')
+      .eq('id', student_id)
+      .maybeSingle();
+
+    if (fetchError || !existing) {
+      return NextResponse.json({ error: 'Aluno não encontrado.' }, { status: 404 });
+    }
+
+    // Allowed fields — students can only update their own profile data, not system fields
+    const ALLOWED = [
+      'nucleo', 'graduacao', 'tipo_graduacao',
+      'cpf', 'identidade', 'data_nascimento',
+      'telefone', 'email',
+      'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
+      'nome_pai', 'nome_mae', 'apelido', 'nome_social', 'sexo',
+      'nome_responsavel', 'cpf_responsavel',
+    ];
+
+    const payload: Record<string, unknown> = {};
+    for (const key of ALLOWED) {
+      if (key in updates) {
+        payload[key] = updates[key] === '' ? null : updates[key];
+      }
+    }
+
+    if (Object.keys(payload).length === 0) {
+      return NextResponse.json({ error: 'Nenhum campo válido para atualizar.' }, { status: 400 });
+    }
+
+    // Auto-compute menor_de_idade from data_nascimento if provided
+    if (payload.data_nascimento) {
+      const dob = new Date((payload.data_nascimento as string) + 'T12:00:00');
+      const today = new Date();
+      let age = today.getFullYear() - dob.getFullYear();
+      const m = today.getMonth() - dob.getMonth();
+      if (m < 0 || (m === 0 && today.getDate() < dob.getDate())) age--;
+      payload.menor_de_idade = age < 18;
+    }
+
+    // Auto-compute tenant_id from nucleo if provided
+    const NUCLEO_TENANTS: Record<string, string> = {
+      'Poliesportivo Edson Alves': 'a1000001-0000-4000-8000-000000000001',
+      'Poliesportivo do Ipiranga':  'a1000001-0000-4000-8000-000000000002',
+      'Saracuruna':                 'a1000001-0000-4000-8000-000000000003',
+      'Vila Urussaí':               'a1000001-0000-4000-8000-000000000004',
+      'Jayme Fichman':              'a1000001-0000-4000-8000-000000000005',
+      'Academia Mais Saúde':        'a1000001-0000-4000-8000-000000000006',
+    };
+    if (payload.nucleo && typeof payload.nucleo === 'string') {
+      const tid = NUCLEO_TENANTS[payload.nucleo];
+      if (tid) payload.tenant_id = tid;
+    }
+
+    const { error: updateError } = await supabaseAdmin
+      .from('students')
+      .update(payload)
+      .eq('id', student_id);
+
+    if (updateError) {
+      console.error('aluno dados PATCH error:', updateError);
+      return NextResponse.json({ error: 'Erro ao salvar dados.' }, { status: 500 });
+    }
+
+    // Also update extras (apelido, nome_social, sexo) in Storage if present
+    const extrasFields = ['apelido', 'nome_social', 'sexo'];
+    const extrasUpdate: Record<string, unknown> = {};
+    for (const f of extrasFields) {
+      if (f in payload) extrasUpdate[f] = payload[f];
+    }
+    if (Object.keys(extrasUpdate).length > 0) {
+      try {
+        const extrasMap = await loadExtras();
+        extrasMap[student_id] = { ...extrasMap[student_id], ...extrasUpdate };
+        const blob = new Blob([JSON.stringify(extrasMap, null, 2)], { type: 'application/json' });
+        await supabaseAdmin.storage.from(BUCKET).upload(EXTRAS_KEY, blob, { upsert: true });
+      } catch { /* non-critical */ }
+    }
+
+    // Fetch updated record to return
+    const { data: updated } = await supabaseAdmin
+      .from('students').select('*').eq('id', student_id).maybeSingle();
+
+    return NextResponse.json({ success: true, student: updated });
+  } catch (err) {
+    console.error('aluno dados PATCH error:', err);
+    return NextResponse.json({ error: 'Erro interno.' }, { status: 500 });
+  }
+}
