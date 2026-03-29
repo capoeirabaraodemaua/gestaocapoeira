@@ -7463,6 +7463,109 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         );
       })}
 
+      {/* ===== ABA CONFIGURAÇÃO DO BANCO ===== */}
+      {activeTab === 'informacoes' && activeNucleo === 'geral' && (() => {
+        return (
+          <div style={{ marginTop: 24, background: 'rgba(16,185,129,0.04)', border: '1px solid rgba(16,185,129,0.2)', borderRadius: 14, padding: '20px 22px' }}>
+            <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#34d399', marginBottom: 4 }}>🗄️ Configuração do Banco de Dados (Multi-tenant)</div>
+            <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
+              Diagnóstico e setup da coluna <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 4 }}>tenant_id</code> para todos os alunos.
+            </div>
+            {(() => {
+              const [dbStatus, setDbStatus] = (useState as Function)<Record<string, unknown> | null>(null);
+              const [dbLoading, setDbLoading] = (useState as Function)<boolean>(false);
+              const [copied, setCopied] = (useState as Function)<boolean>(false);
+
+              const runDiag = async () => {
+                setDbLoading(true);
+                try {
+                  const res = await fetch('/api/admin/setup-db', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                    body: JSON.stringify({ admin_auth: 'geral', tenant_id: '3a3480c1-e937-4a46-8a27-d5358099e697' }),
+                  });
+                  setDbStatus(await res.json());
+                } catch { setDbStatus({ error: 'Erro de conexão' }); }
+                finally { setDbLoading(false); }
+              };
+
+              return (
+                <>
+                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', marginBottom: 16 }}>
+                    <button onClick={runDiag} disabled={dbLoading}
+                      style={{ background: 'rgba(16,185,129,0.15)', border: '1px solid rgba(16,185,129,0.4)', color: '#34d399', borderRadius: 8, padding: '8px 16px', cursor: dbLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.82rem' }}>
+                      {dbLoading ? '⏳ Verificando...' : '🔍 Verificar e Configurar Banco'}
+                    </button>
+                  </div>
+
+                  {dbStatus && (
+                    <div style={{ fontSize: '0.8rem' }}>
+                      {/* Status geral */}
+                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#60a5fa' }}>{String(dbStatus.student_count ?? 0)}</div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>alunos no Supabase</div>
+                        </div>
+                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
+                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: dbStatus.needs_manual_sql ? '#f87171' : '#4ade80' }}>
+                            {dbStatus.needs_manual_sql ? '⚠ SQL Pendente' : '✅ Configurado'}
+                          </div>
+                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>status das colunas</div>
+                        </div>
+                      </div>
+
+                      {/* Colunas */}
+                      {dbStatus.columns && (
+                        <div style={{ marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.78rem', marginBottom: 6, color: 'var(--text-secondary)' }}>COLUNAS NA TABELA students:</div>
+                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                            {Object.entries(dbStatus.columns as Record<string, boolean>).map(([col, exists]) => (
+                              <span key={col} style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: exists ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', color: exists ? '#4ade80' : '#f87171', border: `1px solid ${exists ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
+                                {exists ? '✓' : '✗'} {col}
+                              </span>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Fill result */}
+                      {dbStatus.fill_result && typeof dbStatus.fill_result === 'object' && (
+                        <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.78rem' }}>
+                          ✅ tenant_id preenchido — <strong>{String((dbStatus.fill_result as Record<string,unknown>).updated ?? 0)}</strong> atualizados,{' '}
+                          <strong>{String((dbStatus.fill_result as Record<string,unknown>).already_set ?? 0)}</strong> já tinham,{' '}
+                          <strong>{String((dbStatus.fill_result as Record<string,unknown>).update_errors ?? 0)}</strong> erros
+                        </div>
+                      )}
+
+                      {/* SQL to run */}
+                      {dbStatus.needs_manual_sql && dbStatus.sql_to_run && (
+                        <div>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                            <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#f87171' }}>
+                              ⚠ Execute este SQL no Supabase Dashboard → SQL Editor:
+                            </div>
+                            <button onClick={() => { navigator.clipboard.writeText(String(dbStatus.sql_to_run)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
+                              style={{ background: copied ? 'rgba(22,163,74,0.2)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: copied ? '#4ade80' : 'var(--text-secondary)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                              {copied ? '✓ Copiado!' : '📋 Copiar SQL'}
+                            </button>
+                          </div>
+                          <pre style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 16px', fontSize: '0.72rem', color: '#94a3b8', overflowX: 'auto', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto' }}>
+                            {String(dbStatus.sql_to_run)}
+                          </pre>
+                          <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24' }}>
+                            💡 Depois de executar o SQL, clique em <strong>"🏷️ Preencher tenant_id"</strong> na aba <strong>Alunos</strong> para preencher os dados de todos os 120 alunos.
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
+          </div>
+        );
+      })()}
+
       {/* ===== ABA ADMINISTRADORES GERAIS ===== */}
       {activeTab === 'admins' && activeNucleo === 'geral' && (
         <div>
