@@ -342,10 +342,19 @@ export default function AlunoPage() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (registerForm.password !== registerForm.confirmPassword) { setRegisterError('As senhas não coincidem.'); return; }
+    setRegisterError(''); setRegisterSuccess('');
+
+    // Frontend validations
     if (!registerForm.cpf_or_doc.trim()) { setRegisterError('Informe seu CPF ou número do documento.'); return; }
     if (!registerForm.username.trim()) { setRegisterError('Informe um nome de usuário.'); return; }
-    setRegisterLoading(true); setRegisterError(''); setRegisterSuccess('');
+    if (!registerForm.email.trim()) { setRegisterError('E-mail é obrigatório.'); return; }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(registerForm.email.trim())) { setRegisterError('Informe um e-mail válido.'); return; }
+    if (!registerForm.phone.trim()) { setRegisterError('WhatsApp é obrigatório para receber o código de verificação.'); return; }
+    if (registerForm.password.length < 6) { setRegisterError('Senha deve ter pelo menos 6 caracteres.'); return; }
+    if (registerForm.password !== registerForm.confirmPassword) { setRegisterError('As senhas não coincidem.'); return; }
+
+    setRegisterLoading(true);
     try {
       const res = await fetch('/api/aluno/auth', {
         method: 'POST',
@@ -353,8 +362,8 @@ export default function AlunoPage() {
         body: JSON.stringify({
           action: 'register',
           cpf_or_doc: registerForm.cpf_or_doc.trim(),
-          username: registerForm.username.trim(),
-          email: registerForm.email.trim(),
+          username: registerForm.username.trim().toLowerCase(),
+          email: registerForm.email.trim().toLowerCase(),
           password: registerForm.password,
           phone: registerForm.phone.trim(),
         }),
@@ -362,9 +371,14 @@ export default function AlunoPage() {
       const data = await res.json();
       if (!res.ok) { setRegisterError(data.error || 'Erro ao criar conta.'); return; }
       setOtpStudentId(data.student_id || '');
-      setOtpPhone(registerForm.phone || '');
-      setShowRegister(false);
-      setShowOtp(true);
+      setOtpPhone(data.phone || registerForm.phone || '');
+      setRegisterSuccess(
+        data.phone_sent
+          ? `✅ Código enviado via WhatsApp para o número com final ${data.phone || ''}. Verifique o WhatsApp de ${data.student_name || 'você'}.`
+          : `✅ Conta criada! Insira o código de verificação (verifique também se o WhatsApp está correto).`
+      );
+      // Short delay so user sees the success message before modal switches
+      setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1800);
     } catch { setRegisterError('Erro de conexão. Tente novamente.'); }
     finally { setRegisterLoading(false); }
   };
@@ -527,64 +541,85 @@ export default function AlunoPage() {
 
   // ── REGISTER ──────────────────────────────────────────────────────────────
   if (showRegister) {
+    const emailValid = !registerForm.email || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(registerForm.email.trim());
+    const passwordsMatch = !registerForm.confirmPassword || registerForm.confirmPassword === registerForm.password;
+    const cpfDigits = registerForm.cpf_or_doc.replace(/\D/g, '');
+    const looksLikeCPF = cpfDigits.length === 11;
+
     return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 20 }}>
-            <div style={{ fontSize: 40, marginBottom: 6 }}>🥋</div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Criar Minha Conta</h2>
-            <p style={{ margin: '6px 0 0', fontSize: '0.78rem', color: '#6b7280', lineHeight: 1.5 }}>
-              Para criar sua conta você precisa já estar cadastrado(a) como aluno(a) da associação.
+      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', overflowY: 'auto' }}>
+        <div style={{ background: '#fff', borderRadius: 20, padding: '28px 24px', width: '100%', maxWidth: 440, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
+
+          {/* Header */}
+          <div style={{ textAlign: 'center', marginBottom: 18 }}>
+            <div style={{ fontSize: 36, marginBottom: 4 }}>🥋</div>
+            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700, color: '#111827' }}>Criar Minha Conta</h2>
+            <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
+              Você precisa ter uma ficha de inscrição cadastrada pela associação.
             </p>
           </div>
 
-          {/* Info box */}
-          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.78rem', color: '#1e40af' }}>
-            ℹ️ Use o mesmo <strong>CPF</strong> ou <strong>número do documento</strong> que você informou na sua ficha de inscrição.
+          {/* Info */}
+          <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 10, padding: '9px 13px', marginBottom: 14, fontSize: '0.75rem', color: '#1e40af', lineHeight: 1.5 }}>
+            ℹ️ Use o <strong>CPF</strong> ou <strong>número do documento</strong> informado na sua ficha de inscrição para que o sistema encontre seu cadastro automaticamente.
           </div>
 
+          {/* Error */}
           {registerError && (
-            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem', lineHeight: 1.4 }}>
               ⚠️ {registerError}
             </div>
           )}
+          {/* Success */}
+          {registerSuccess && (
+            <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 13px', marginBottom: 12, fontSize: '0.82rem', lineHeight: 1.4 }}>
+              {registerSuccess}
+            </div>
+          )}
 
-          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            {/* CPF / Documento — identification */}
+          <form onSubmit={handleRegister} style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+
+            {/* CPF / Documento */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-                CPF ou Número do Documento *
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                CPF ou Número do Documento <span style={{ color: '#ef4444' }}>*</span>
               </label>
               <input
-                type="text"
-                inputMode="text"
+                type="text" inputMode="numeric"
                 value={registerForm.cpf_or_doc}
                 onChange={e => setRegisterForm(p => ({ ...p, cpf_or_doc: e.target.value }))}
-                placeholder="Ex: 000.000.000-00 ou nº do RG/CIN"
-                required
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                placeholder="Ex: 000.000.000-00 ou nº do RG"
+                required autoFocus
+                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
-              <p style={{ margin: '3px 0 0', fontSize: '0.7rem', color: '#9ca3af' }}>Mesmo documento informado na sua ficha de inscrição</p>
+              <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: looksLikeCPF ? '#16a34a' : '#9ca3af' }}>
+                {looksLikeCPF ? '✓ Formato de CPF detectado' : 'CPF (11 dígitos) ou numeração do documento de identidade'}
+              </p>
             </div>
 
             {/* Username */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>Nome de usuário *</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                Nome de usuário <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
                 type="text"
                 value={registerForm.username}
                 onChange={e => setRegisterForm(p => ({ ...p, username: e.target.value.replace(/\s/g, '').toLowerCase() }))}
                 placeholder="ex: joaosilva"
                 required
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
-              <p style={{ margin: '3px 0 0', fontSize: '0.7rem', color: '#9ca3af' }}>Só letras e números, sem espaços</p>
+              {registerForm.username && (
+                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#16a34a' }}>Usuário: <strong>{registerForm.username}</strong></p>
+              )}
             </div>
 
-            {/* WhatsApp — for OTP delivery */}
+            {/* WhatsApp */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>
-                WhatsApp para receber o código *
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                WhatsApp <span style={{ color: '#ef4444' }}>*</span>
+                <span style={{ fontWeight: 400, color: '#6b7280', marginLeft: 4 }}>(para receber o código de verificação)</span>
               </label>
               <input
                 type="tel"
@@ -592,60 +627,73 @@ export default function AlunoPage() {
                 onChange={e => setRegisterForm(p => ({ ...p, phone: e.target.value }))}
                 placeholder="(21) 99999-9999"
                 required
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
             </div>
 
-            {/* Email — optional */}
+            {/* Email — now required */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>E-mail (opcional)</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                E-mail <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
                 type="email"
                 value={registerForm.email}
                 onChange={e => setRegisterForm(p => ({ ...p, email: e.target.value }))}
                 placeholder="seu@email.com"
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                required
+                style={{ width: '100%', border: `1.5px solid ${registerForm.email && !emailValid ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
+              {registerForm.email && !emailValid && (
+                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>E-mail inválido</p>
+              )}
+              <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#9ca3af' }}>Será sincronizado com seu cadastro na associação</p>
             </div>
 
             {/* Password */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>Senha *</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                Senha <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
                 type="password"
                 value={registerForm.password}
                 onChange={e => setRegisterForm(p => ({ ...p, password: e.target.value }))}
                 placeholder="Mínimo 6 caracteres"
-                required
-                minLength={6}
-                style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                required minLength={6}
+                style={{ width: '100%', border: `1.5px solid ${registerForm.password && registerForm.password.length < 6 ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
+              {registerForm.password && registerForm.password.length < 6 && (
+                <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>Mínimo 6 caracteres</p>
+              )}
             </div>
 
             {/* Confirm Password */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: '#374151', marginBottom: 4 }}>Confirmar Senha *</label>
+              <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 3 }}>
+                Confirmar Senha <span style={{ color: '#ef4444' }}>*</span>
+              </label>
               <input
                 type="password"
                 value={registerForm.confirmPassword}
                 onChange={e => setRegisterForm(p => ({ ...p, confirmPassword: e.target.value }))}
                 placeholder="Repita a senha"
-                required
-                minLength={6}
-                style={{ width: '100%', border: `1.5px solid ${registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
+                required minLength={6}
+                style={{ width: '100%', border: `1.5px solid ${!passwordsMatch ? '#fca5a5' : '#e5e7eb'}`, borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}
               />
-              {registerForm.confirmPassword && registerForm.confirmPassword !== registerForm.password && (
-                <p style={{ margin: '3px 0 0', fontSize: '0.7rem', color: '#ef4444' }}>As senhas não coincidem</p>
-              )}
+              {!passwordsMatch && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>As senhas não coincidem</p>}
+              {passwordsMatch && registerForm.confirmPassword && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#16a34a' }}>✓ Senhas coincidem</p>}
             </div>
 
-            <button type="submit" disabled={registerLoading}
-              style={{ background: registerLoading ? '#9ca3af' : 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: registerLoading ? 'not-allowed' : 'pointer', marginTop: 4 }}>
-              {registerLoading ? '⏳ Verificando cadastro...' : '✅ Criar Conta e Receber Código'}
+            <button
+              type="submit"
+              disabled={registerLoading || !!registerSuccess}
+              style={{ background: registerLoading ? '#9ca3af' : registerSuccess ? '#16a34a' : 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px', fontWeight: 700, fontSize: '0.9rem', cursor: registerLoading || registerSuccess ? 'not-allowed' : 'pointer', marginTop: 4 }}>
+              {registerLoading ? '⏳ Verificando e criando conta...' : registerSuccess ? '✅ Redirecionando...' : '✅ Criar Conta e Receber Código'}
             </button>
           </form>
 
-          <button onClick={() => { setShowRegister(false); setRegisterError(''); }} style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem', padding: '6px 0' }}>
+          <button onClick={() => { setShowRegister(false); setRegisterError(''); setRegisterSuccess(''); }} style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem', padding: '6px 0' }}>
             ← Voltar ao login
           </button>
         </div>

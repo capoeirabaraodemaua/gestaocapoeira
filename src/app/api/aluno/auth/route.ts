@@ -114,39 +114,74 @@ export async function POST(req: NextRequest) {
     if (action === 'register') {
       // Support both student_id (legacy) and cpf/documento (self-registration)
       let { student_id, username, email, password, phone, cpf_or_doc } = body;
+
+      // ── Validate required fields ──────────────────────────────────────────
       if (!username || !password) {
-        return NextResponse.json({ error: 'Dados incompletos.' }, { status: 400 });
+        return NextResponse.json({ error: 'Usuário e senha são obrigatórios.' }, { status: 400 });
       }
       if (password.length < 6) {
         return NextResponse.json({ error: 'Senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
       }
+      // Email is required
+      if (!email || !email.trim()) {
+        return NextResponse.json({ error: 'E-mail é obrigatório.' }, { status: 400 });
+      }
+      const emailNorm = email.trim().toLowerCase();
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(emailNorm)) {
+        return NextResponse.json({ error: 'Formato de e-mail inválido.' }, { status: 400 });
+      }
 
-      // Look up student — by cpf_or_doc if provided, else by student_id
+      // ── CPF format validation helper ──────────────────────────────────────
+      function isValidCPF(cpf: string): boolean {
+        const d = cpf.replace(/\D/g, '');
+        if (d.length !== 11 || /^(\d)\1{10}$/.test(d)) return false;
+        let sum = 0;
+        for (let i = 0; i < 9; i++) sum += parseInt(d[i]) * (10 - i);
+        let r = (sum * 10) % 11;
+        if (r === 10 || r === 11) r = 0;
+        if (r !== parseInt(d[9])) return false;
+        sum = 0;
+        for (let i = 0; i < 10; i++) sum += parseInt(d[i]) * (11 - i);
+        r = (sum * 10) % 11;
+        if (r === 10 || r === 11) r = 0;
+        return r === parseInt(d[10]);
+      }
+
+      // ── Look up student — by cpf_or_doc or student_id ────────────────────
       let student: { id: string; nome_completo: string; telefone?: string | null; email?: string | null } | null = null;
 
       if (cpf_or_doc) {
-        // Fetch all students and find by CPF or identity number
+        const inputDigits = (cpf_or_doc as string).replace(/\D/g, '');
+        const inputRaw = (cpf_or_doc as string).replace(/\s/g, '').toLowerCase();
+
+        // If looks like CPF (11 digits), validate checksum
+        if (inputDigits.length === 11 && !isValidCPF(inputDigits)) {
+          return NextResponse.json({ error: 'CPF inválido. Verifique os dígitos informados.' }, { status: 400 });
+        }
+
         const { data: allStudents } = await supabaseAdmin
           .from('students')
           .select('id, nome_completo, telefone, email, cpf, identidade');
-        const input = (cpf_or_doc as string).replace(/\D/g, '').toLowerCase();
-        const inputRaw = (cpf_or_doc as string).replace(/\s/g, '').toLowerCase();
+
         const found = (allStudents || []).find(s => {
           const storedCpf = (s.cpf || '').replace(/\D/g, '');
-          const storedId = (s.identidade || '').replace(/\D/g, '').toLowerCase();
+          const storedIdDigits = (s.identidade || '').replace(/\D/g, '').toLowerCase();
           const storedIdRaw = (s.identidade || '').replace(/\s/g, '').toLowerCase();
-          if (input.length >= 11 && storedCpf === input) return true;
-          if (inputRaw && (storedIdRaw === inputRaw || (storedId && storedId === input))) return true;
+          if (inputDigits.length >= 11 && storedCpf === inputDigits) return true;
+          if (inputRaw && (storedIdRaw === inputRaw || (storedIdDigits && storedIdDigits === inputDigits))) return true;
           return false;
         });
         if (!found) {
-          return NextResponse.json({ error: 'Nenhum aluno encontrado com esse CPF/documento. Verifique se seu cadastro foi realizado pela associação.' }, { status: 404 });
+          return NextResponse.json({
+            error: 'Nenhum aluno encontrado com esse CPF/documento. Verifique se seu cadastro foi realizado pela associação.',
+          }, { status: 404 });
         }
         student = found;
         student_id = found.id;
       } else {
         if (!student_id) {
-          return NextResponse.json({ error: 'Informe seu CPF, documento ou o ID fornecido pelo administrador.' }, { status: 400 });
+          return NextResponse.json({ error: 'Informe seu CPF, número do documento ou o ID fornecido pelo administrador.' }, { status: 400 });
         }
         const { data: s } = await supabaseAdmin
           .from('students')
@@ -165,27 +200,40 @@ export async function POST(req: NextRequest) {
 
       const authMap = await loadAuthMap();
 
-      // Check username/email not taken
-      const taken = Object.values(authMap).find(
-        a => a.username.toLowerCase() === username.toLowerCase() ||
-             (email && a.email && a.email.toLowerCase() === email.toLowerCase())
-      );
-      if (taken) {
-        return NextResponse.json({ error: 'Usuário ou e-mail já em uso.' }, { status: 409 });
-      }
+      // ── Duplicate checks ──────────────────────────────────────────────────
       if (authMap[student_id]) {
-        return NextResponse.json({ error: 'Este aluno já possui uma conta.' }, { status: 409 });
+        return NextResponse.json({ error: 'Este aluno já possui uma conta. Use a opção de recuperar senha caso tenha esquecido o acesso.' }, { status: 409 });
       }
+
+      // Username taken?
+      const usernameTaken = Object.values(authMap).find(
+        a => a.username.toLowerCase() === username.trim().toLowerCase()
+      );
+      if (usernameTaken) {
+        return NextResponse.json({ error: 'Este nome de usuário já está em uso. Escolha outro.' }, { status: 409 });
+      }
+
+      // Email taken?
+      const emailTaken = Object.values(authMap).find(
+        a => a.email && a.email.toLowerCase() === emailNorm
+      );
+      if (emailTaken) {
+        return NextResponse.json({ error: 'Este e-mail já está vinculado a outra conta.' }, { status: 409 });
+      }
+
+      // ── Normalize phone ───────────────────────────────────────────────────
+      const rawPhone = (phone || student.telefone || '').replace(/\D/g, '');
+      const phone_to_use = rawPhone ? (rawPhone.startsWith('55') ? rawPhone : `55${rawPhone}`) : '';
 
       const salt = generateSalt();
       const password_hash = hashPassword(password, salt);
       const otp = generateOTP();
-      const phone_to_use = phone || student.telefone || '';
+      const finalEmail = emailNorm || student.email || '';
 
       const account: AlunoAccount = {
         student_id,
-        username,
-        email: email || student.email || '',
+        username: username.trim().toLowerCase(),
+        email: finalEmail,
         password_hash,
         salt,
         active: false, // pending OTP
@@ -198,16 +246,29 @@ export async function POST(req: NextRequest) {
       authMap[student_id] = account;
       await saveAuthMap(authMap);
 
-      // Send OTP via WhatsApp if phone available
+      // ── Sync email to students table ──────────────────────────────────────
+      if (finalEmail) {
+        try {
+          await supabaseAdmin.from('students').update({ email: finalEmail }).eq('id', student_id);
+        } catch { /* column may not exist yet — silent fail */ }
+      }
+
+      // ── Send OTP via WhatsApp ─────────────────────────────────────────────
+      let otpSent = false;
       if (phone_to_use) {
-        await sendWhatsAppOTP(phone_to_use, otp, student.nome_completo);
+        try {
+          await sendWhatsAppOTP(phone_to_use, otp, student.nome_completo);
+          otpSent = true;
+        } catch { /* silent fail — OTP still stored */ }
       }
 
       return NextResponse.json({
         success: true,
         pending_otp: true,
-        phone: phone_to_use,
+        phone: phone_to_use ? `****${phone_to_use.slice(-4)}` : null,
+        phone_sent: otpSent,
         student_id,
+        student_name: student.nome_completo.split(' ')[0],
         // Return OTP in dev mode only
         ...(process.env.NODE_ENV === 'development' ? { otp } : {}),
       });
