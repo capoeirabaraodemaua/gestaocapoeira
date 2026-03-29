@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { NUCLEO_TO_TENANT_ID, DEFAULT_TENANT_ID } from '@/lib/tenants';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,20 +8,34 @@ const supabaseAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function tryExecSQL(sql: string): Promise<boolean> {
-  const projectRef = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace('https://', '').split('.')[0];
+const PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_URL!.replace('https://', '').split('.')[0];
+
+async function runSQL(sql: string): Promise<{ ok: boolean; error?: string }> {
   try {
-    const res = await fetch(`https://api.supabase.com/v1/projects/${projectRef}/database/query`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}` },
-      body: JSON.stringify({ query: sql }),
-    });
-    return res.ok;
-  } catch { return false; }
+    const res = await fetch(
+      `https://api.supabase.com/v1/projects/${PROJECT_REF}/database/query`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY}`,
+        },
+        body: JSON.stringify({ query: sql }),
+      }
+    );
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      return { ok: false, error: text };
+    }
+    return { ok: true };
+  } catch (e) {
+    return { ok: false, error: String(e) };
+  }
 }
 
 // POST /api/admin/backfill-tenants
-// Creates tenant_id column if missing and fills it for all students based on nucleo
+// 1. Creates tenant_id column if missing
+// 2. Sets tenant_id = provided UUID for all students
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
@@ -31,12 +44,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
     }
 
-    // Step 1: Create column if it doesn't exist
-    const colOk = await tryExecSQL(
+    // tenant_id to apply — caller can override, defaults to the ACCBM canonical ID
+    const tenantId: string = body.tenant_id || '3a3480c1-e937-4a46-8a46-d5358099e697';
+
+    // Step 1: Add column (TEXT, nullable — no FK constraint so it never blocks inserts)
+    const addCol = await runSQL(
       `ALTER TABLE students ADD COLUMN IF NOT EXISTS tenant_id TEXT;`
     );
 
-    // Step 2: Fetch all students (only id + nucleo — no tenant_id to avoid error if column just created)
+    // Step 2: Fill all students that don't have tenant_id yet
     const { data: students, error: fetchErr } = await supabaseAdmin
       .from('students')
       .select('id, nucleo');
@@ -45,27 +61,30 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: fetchErr.message }, { status: 500 });
     }
 
-    // Step 3: Update all students with tenant_id derived from nucleo
+    const all = students || [];
     let updated = 0;
     let skipped = 0;
 
-    for (const student of students || []) {
-      const tenantId = NUCLEO_TO_TENANT_ID[(student as { nucleo?: string }).nucleo || ''] ?? DEFAULT_TENANT_ID;
+    // Batch update in chunks of 20
+    const chunkSize = 20;
+    for (let i = 0; i < all.length; i += chunkSize) {
+      const chunk = all.slice(i, i + chunkSize);
+      const ids = chunk.map((s: { id: string }) => s.id);
       const { error } = await supabaseAdmin
         .from('students')
         .update({ tenant_id: tenantId })
-        .eq('id', (student as { id: string }).id);
-      if (!error) updated++;
-      else skipped++;
+        .in('id', ids);
+      if (!error) updated += ids.length;
+      else skipped += ids.length;
     }
 
     return NextResponse.json({
       success: true,
-      column_created: colOk,
-      total: (students || []).length,
+      column_created: addCol.ok,
+      total: all.length,
       updated,
       skipped,
-      already_had_tenant_id: 0,
+      tenant_id_applied: tenantId,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
