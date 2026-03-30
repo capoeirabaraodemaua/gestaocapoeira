@@ -97,11 +97,34 @@ export async function POST(req: NextRequest) {
     const errors: string[] = [];
     for (const p of ev.participantes) {
       if (!p.nova_graduacao || p.nova_graduacao === p.graduacao_atual) continue;
+
+      // 1. Update DB graduation
       const { error } = await supabaseWrite
         .from('students')
         .update({ graduacao: p.nova_graduacao, tipo_graduacao: p.tipo_graduacao || 'adulta' })
         .eq('id', p.student_id);
-      if (error) errors.push(`${p.nome_completo}: ${error.message}`);
+      if (error) { errors.push(`${p.nome_completo}: ${error.message}`); continue; }
+
+      // 2. Append to historico-graduacoes/{student_id}.json so student area reflects it
+      try {
+        const histKey = `historico-graduacoes/${p.student_id}.json`;
+        let existing: unknown[] = [];
+        try {
+          const { data: dl } = await supabaseWrite.storage.from(BUCKET).download(histKey);
+          if (dl) existing = JSON.parse(await dl.text());
+        } catch { /* file may not exist yet */ }
+        const novoReg = {
+          id: `ev_${Date.now()}_${p.student_id}`,
+          data_graduacao: ev.data || new Date().toISOString().split('T')[0],
+          graduacao_recebida: p.nova_graduacao,
+          evento: ev.nome || (ev.tipo === 'batizado' ? 'Batizado' : 'Troca de Graduação'),
+          professor_responsavel: '',
+          observacoes: `Evento: ${ev.nome}${ev.local ? ` — ${ev.local}` : ''}`,
+          criado_em: new Date().toISOString(),
+        };
+        const blob = new Blob([JSON.stringify([...existing, novoReg])], { type: 'application/json' });
+        await supabaseWrite.storage.from(BUCKET).upload(histKey, blob, { upsert: true, contentType: 'application/json' });
+      } catch { /* non-blocking */ }
     }
 
     await saveAll(

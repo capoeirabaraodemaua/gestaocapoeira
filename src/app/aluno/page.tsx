@@ -198,6 +198,10 @@ export default function AlunoPage() {
   const [termoSaved, setTermoSaved] = useState(false);
   const [termoMsg, setTermoMsg] = useState('');
 
+  // ── Ficha Financeira (inline view) ────────────────────────────────────────
+  const [fichaFin, setFichaFin] = useState<Record<string, unknown> | null>(null);
+  const [fichaFinLoading, setFichaFinLoading] = useState(false);
+
   // ── Admin preview mode flag ────────────────────────────────────────────────
   const [isAdminPreview, setIsAdminPreview] = useState(false);
 
@@ -296,6 +300,13 @@ export default function AlunoPage() {
       if (activeTab === 'justificativas') loadJustificativas(session.student_id);
       if (activeTab === 'graduacao') loadHistorico(session.student_id);
       if (activeTab === 'fotos') loadFotos(session.student_id);
+      if (activeTab === 'financeiro') {
+        setFichaFinLoading(true);
+        fetch(`/api/financeiro?student_id=${session.student_id}`)
+          .then(r => r.json())
+          .then(d => { setFichaFin(d); setFichaFinLoading(false); })
+          .catch(() => setFichaFinLoading(false));
+      }
       if (activeTab === 'playlist') {
         setPlaylistLoading(true);
         fetch(`/api/aluno/playlist?student_id=${session.student_id}`).then(r => r.json()).then(d => { setPlaylistItems(Array.isArray(d) ? d : []); setPlaylistLoading(false); }).catch(() => setPlaylistLoading(false));
@@ -1231,19 +1242,124 @@ export default function AlunoPage() {
         {/* ── FINANCEIRO ── */}
         {activeTab === 'financeiro' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>💰 Ficha Financeira</h2>
-            <div style={{ background: '#fff', borderRadius: 16, padding: '24px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.05)', textAlign: 'center' }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>💰</div>
-              <h3 style={{ margin: '0 0 8px', fontSize: '1rem', fontWeight: 700, color: '#111827' }}>Portal Financeiro</h3>
-              <p style={{ margin: '0 0 20px', fontSize: '0.83rem', color: '#6b7280', lineHeight: 1.5 }}>
-                Visualize suas mensalidades, batizado, uniformes e histórico de pagamentos.
-              </p>
-              <a href={`/financeiro?student_id=${session?.student_id}`}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', borderRadius: 12, padding: '13px 28px', fontWeight: 700, fontSize: '0.95rem', boxShadow: '0 4px 14px rgba(22,163,74,0.35)' }}>
-                💰 Acessar Ficha Financeira
-              </a>
-              <p style={{ margin: '12px 0 0', fontSize: '0.75rem', color: '#9ca3af' }}>Você será redirecionado para o portal financeiro.</p>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>💰 Ficha Financeira</h2>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button onClick={() => { if (!session) return; setFichaFinLoading(true); fetch(`/api/financeiro?student_id=${session.student_id}`).then(r=>r.json()).then(d=>{setFichaFin(d);setFichaFinLoading(false);}).catch(()=>setFichaFinLoading(false)); }}
+                  style={{ background: 'none', border: `1px solid ${nucleoColor}`, color: nucleoColor, borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>🔄 Atualizar</button>
+                <a href={`/financeiro?student_id=${session?.student_id}`} target="_blank" rel="noreferrer"
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', textDecoration: 'none', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600 }}>↗ Portal completo</a>
+              </div>
             </div>
+
+            {fichaFinLoading && <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>Carregando...</div>}
+
+            {!fichaFinLoading && !fichaFin && (
+              <div style={{ background: '#fff', borderRadius: 14, padding: '28px 20px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
+                <div style={{ fontWeight: 700, color: '#374151', marginBottom: 4 }}>Nenhuma informação financeira registrada</div>
+                <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>O administrador ainda não configurou sua ficha financeira.</div>
+              </div>
+            )}
+
+            {!fichaFinLoading && fichaFin && (() => {
+              const fin = fichaFin as any;
+              const statusColor = (s: string) => s === 'pago' ? '#16a34a' : s === 'atrasado' ? '#dc2626' : '#f59e0b';
+              const statusLabel = (s: string) => s === 'pago' ? '✅ Pago' : s === 'atrasado' ? '❌ Atrasado' : '⏳ Pendente';
+              return (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+
+                  {/* ── Batizado ── */}
+                  {fin.batizado && fin.batizado.modalidade !== 'nao_definido' && (
+                    <div style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827', marginBottom: 10 }}>🥋 Batizado / Troca de Graduação</div>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 8 }}>
+                        <span style={{ fontSize: '0.78rem', background: '#f3f4f6', borderRadius: 6, padding: '3px 10px', fontWeight: 600 }}>Modalidade: {fin.batizado.modalidade === 'integral' ? 'À vista' : 'Parcelado'}</span>
+                        <span style={{ fontSize: '0.78rem', background: '#f3f4f6', borderRadius: 6, padding: '3px 10px', fontWeight: 600 }}>Total: R$ {Number(fin.batizado.valor_total || 0).toFixed(2)}</span>
+                        <span style={{ fontSize: '0.78rem', background: statusColor(fin.batizado.status_geral) + '22', color: statusColor(fin.batizado.status_geral), borderRadius: 6, padding: '3px 10px', fontWeight: 700 }}>{statusLabel(fin.batizado.status_geral)}</span>
+                      </div>
+                      {fin.batizado.parcelas?.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {fin.batizado.parcelas.map((p: any, i: number) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', padding: '5px 8px', borderRadius: 6, background: '#f9fafb' }}>
+                              <span>Parcela {p.numero} — R$ {Number(p.valor).toFixed(2)}</span>
+                              <span style={{ color: statusColor(p.status), fontWeight: 700 }}>{statusLabel(p.status)}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Mensalidades ── */}
+                  {fin.mensalidades?.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827', marginBottom: 10 }}>📅 Mensalidades</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {(fin.mensalidades as any[]).slice().reverse().map((m: any, i: number) => {
+                          const [yr, mo] = (m.mes || '').split('-');
+                          const label = yr && mo ? new Date(Number(yr), Number(mo)-1).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' }) : m.mes;
+                          return (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', padding: '6px 8px', borderRadius: 6, background: '#f9fafb' }}>
+                              <span style={{ textTransform: 'capitalize' }}>{label} — R$ {Number(m.valor).toFixed(2)}</span>
+                              <span style={{ color: statusColor(m.status), fontWeight: 700 }}>{statusLabel(m.status)}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* ── Contribuição mensal ── */}
+                  {fin.contribuicao?.ativa && (
+                    <div style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827', marginBottom: 8 }}>🤝 Contribuição Mensal</div>
+                      <div style={{ fontSize: '0.82rem', color: '#374151' }}>Valor mensal: <strong>R$ {Number(fin.contribuicao.valor_mensal || 0).toFixed(2)}</strong></div>
+                      {fin.contribuicao.historico?.length > 0 && (
+                        <div style={{ marginTop: 8, display: 'flex', flexDirection: 'column', gap: 4 }}>
+                          {(fin.contribuicao.historico as any[]).slice().reverse().slice(0, 6).map((h: any, i: number) => {
+                            const [yr, mo] = (h.mes || '').split('-');
+                            const label = yr && mo ? new Date(Number(yr), Number(mo)-1).toLocaleDateString('pt-BR', { month: 'short', year: 'numeric' }) : h.mes;
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.75rem', padding: '4px 8px', borderRadius: 6, background: '#f9fafb' }}>
+                                <span style={{ textTransform: 'capitalize' }}>{label}</span>
+                                <span style={{ color: statusColor(h.status), fontWeight: 700 }}>{statusLabel(h.status)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Uniformes ── */}
+                  {fin.uniformes?.length > 0 && (
+                    <div style={{ background: '#fff', borderRadius: 14, padding: '16px 18px', border: '1px solid #e5e7eb' }}>
+                      <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#111827', marginBottom: 8 }}>👕 Uniformes</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {(fin.uniformes as any[]).map((u: any, i: number) => (
+                          <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.78rem', padding: '6px 8px', borderRadius: 6, background: '#f9fafb' }}>
+                            <span>{u.descricao}{u.tamanho ? ` (${u.tamanho})` : ''} × {u.quantidade}</span>
+                            <span style={{ color: u.status === 'entregue' ? '#16a34a' : u.status === 'cancelado' ? '#dc2626' : '#f59e0b', fontWeight: 700 }}>
+                              {u.status === 'entregue' ? '✅ Entregue' : u.status === 'confirmado' ? '✓ Confirmado' : u.status === 'cancelado' ? '✕ Cancelado' : '⏳ Solicitado'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* empty state */}
+                  {!fin.batizado?.valor_total && !fin.mensalidades?.length && !fin.contribuicao?.ativa && !fin.uniformes?.length && (
+                    <div style={{ background: '#fff', borderRadius: 14, padding: '28px 20px', border: '1px solid #e5e7eb', textAlign: 'center' }}>
+                      <div style={{ fontSize: 36, marginBottom: 8 }}>📋</div>
+                      <div style={{ fontWeight: 700, color: '#374151', marginBottom: 4 }}>Nenhuma informação financeira registrada</div>
+                      <div style={{ fontSize: '0.8rem', color: '#9ca3af' }}>O administrador ainda não configurou sua ficha financeira.</div>
+                    </div>
+                  )}
+                </div>
+              );
+            })()}
           </div>
         )}
 

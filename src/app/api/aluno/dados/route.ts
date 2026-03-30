@@ -57,11 +57,16 @@ export async function GET(req: NextRequest) {
   // Also merge auth map email — auth map is the authoritative source for login email
   const [extrasMap, authEmail] = await Promise.all([loadExtras(), loadAuthEmail(student_id)]);
   const ext = extrasMap[student_id];
+
+  // Use non-empty string check so '' (unset) falls through to DB value
+  const pick = (a: string | null | undefined, b: string | null | undefined) =>
+    (a && a.trim()) ? a.trim() : ((b && (b as string).trim()) ? (b as string).trim() : null);
+
   const safeStudent = {
     ...student,
-    apelido:     ext?.apelido     || student.apelido     || null,
-    nome_social: ext?.nome_social || student.nome_social || null,
-    sexo:        ext?.sexo        || student.sexo        || null,
+    apelido:     pick(ext?.apelido,     student.apelido     as string),
+    nome_social: pick(ext?.nome_social, student.nome_social as string),
+    sexo:        pick(ext?.sexo,        student.sexo        as string),
     // Auth map email takes priority as it's what the user set in their account
     email:       authEmail ?? student.email ?? null,
   };

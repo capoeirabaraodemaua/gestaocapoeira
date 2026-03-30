@@ -1689,6 +1689,10 @@ export default function AdminPage() {
               setLoadingResponsaveis(true);
               fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
             }
+            if (key === 'responsaveis') {
+              setLoadingResponsaveis(true);
+              fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
+            }
             if (key === 'dados-faltantes') { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }
             if (key === 'manual') {
               setLoadingManuais(true); setManualMsg('');
@@ -10269,12 +10273,124 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-              {/* ───── SEÇÃO 1: RESPONSÁVEIS DE NÚCLEO ───── */}
+              {/* ───── SEÇÃO 0: VISÃO GERAL — R1 e R2 por núcleo ───── */}
+              {(() => {
+                const NUCLEOS_RESP = [
+                  { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
+                  { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
+                  { key: 'saracuruna',          label: 'Saracuruna' },
+                  { key: 'vila-urussai',        label: 'Vila Urussaí' },
+                  { key: 'jayme-fichman',       label: 'Jayme Fichman' },
+                  { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
+                ];
+                const updateRespField = (nucleo_key: string, nucleo_label: string, field: string, val: string) => {
+                  setResponsaveis(prev => {
+                    const idx = prev.findIndex(r => r.nucleo_key === nucleo_key);
+                    const existing = (prev[idx] || { nucleo_key, nucleo_label, nome: '', cpf: '' }) as any;
+                    const item = { ...existing, [field]: val };
+                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                    return [...prev, item];
+                  });
+                };
+                const iSt: React.CSSProperties = { padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', width: '100%', boxSizing: 'border-box' };
+                return (
+                  <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.25)', borderRadius: 16, padding: '20px 22px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16, flexWrap: 'wrap', gap: 8 }}>
+                      <div>
+                        <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>📋 Responsáveis por Núcleo</div>
+                        <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', marginTop: 2 }}>Visão geral e edição — até 2 responsáveis por núcleo</div>
+                      </div>
+                      <button onClick={async () => { setLoadingResponsaveis(true); const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] })); setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }}
+                        style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>↻ Recarregar</button>
+                    </div>
+                    {loadingResponsaveis ? (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', textAlign: 'center', padding: '12px 0' }}>Carregando...</div>
+                    ) : (<>
+                      {/* Tabela-resumo */}
+                      <div style={{ overflowX: 'auto', marginBottom: 20 }}>
+                        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem' }}>
+                          <thead>
+                            <tr style={{ background: 'rgba(251,191,36,0.1)', borderBottom: '2px solid rgba(251,191,36,0.3)' }}>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Núcleo</th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Responsável 1</th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#93c5fd', whiteSpace: 'nowrap' }}>CPF 1</th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Responsável 2</th>
+                              <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#93c5fd', whiteSpace: 'nowrap' }}>CPF 2</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {NUCLEOS_RESP.map(n => {
+                              const r = responsaveis.find(x => x.nucleo_key === n.key) as any;
+                              const c1 = r?.cpf ? r.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
+                              const c2 = r?.cpf2 ? r.cpf2.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
+                              return (
+                                <tr key={n.key} style={{ borderBottom: '1px solid var(--border)', background: r?.nome ? 'rgba(74,222,128,0.03)' : 'transparent' }}>
+                                  <td style={{ padding: '7px 10px', fontWeight: 700, color: r?.nome ? '#4ade80' : 'var(--text-secondary)', fontSize: '0.78rem' }}>{n.label}</td>
+                                  <td style={{ padding: '7px 10px', color: r?.nome ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{r?.nome || '—'}</td>
+                                  <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: '0.72rem', color: r?.cpf ? '#93c5fd' : 'var(--text-secondary)' }}>{c1}</td>
+                                  <td style={{ padding: '7px 10px', color: r?.nome2 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{r?.nome2 || '—'}</td>
+                                  <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: '0.72rem', color: r?.cpf2 ? '#93c5fd' : 'var(--text-secondary)' }}>{c2}</td>
+                                </tr>
+                              );
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                      {/* Edição por núcleo */}
+                      <div style={{ display: 'grid', gap: 10 }}>
+                        {NUCLEOS_RESP.map(n => {
+                          const resp = responsaveis.find(r => r.nucleo_key === n.key) as any;
+                          const has1 = !!(resp?.nome?.trim() || resp?.cpf?.trim());
+                          const has2 = !!(resp?.nome2?.trim() || resp?.cpf2?.trim());
+                          const savedMsg = responsaveisSavedMsg[n.key];
+                          return (
+                            <div key={n.key} style={{ background: (has1||has2) ? 'rgba(22,163,74,0.05)' : 'var(--bg-input)', border: `1px solid ${(has1||has2) ? 'rgba(22,163,74,0.2)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 14px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                                <span style={{ fontWeight: 800, fontSize: '0.88rem', color: (has1||has2) ? '#4ade80' : 'var(--text-secondary)' }}>{n.label}</span>
+                                {(has1||has2) && <span style={{ fontSize: '0.68rem', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 99, padding: '2px 8px', color: '#4ade80', fontWeight: 600 }}>✓ {[has1&&'R1',has2&&'R2'].filter(Boolean).join(' + ')}</span>}
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                                <div style={{ border: '1.5px solid rgba(251,191,36,0.3)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#fbbf24', marginBottom: 2 }}>👤 Responsável 1</div>
+                                  <input placeholder="Nome completo" value={resp?.nome||''} onChange={e => updateRespField(n.key,n.label,'nome',e.target.value)} style={iSt} />
+                                  <input placeholder="CPF (só números)" value={resp?.cpf||''} onChange={e => updateRespField(n.key,n.label,'cpf',e.target.value.replace(/\D/g,''))} style={iSt} inputMode="numeric" maxLength={11} />
+                                  <input placeholder="E-mail" type="email" value={resp?.email||''} onChange={e => updateRespField(n.key,n.label,'email',e.target.value)} style={iSt} />
+                                </div>
+                                <div style={{ border: '1.5px solid rgba(59,130,246,0.3)', borderRadius: 8, padding: '10px 12px', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                  <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#93c5fd', marginBottom: 2 }}>👤 Responsável 2 <span style={{ opacity: 0.6, fontWeight: 400 }}>(opcional)</span></div>
+                                  <input placeholder="Nome completo" value={resp?.nome2||''} onChange={e => updateRespField(n.key,n.label,'nome2',e.target.value)} style={iSt} />
+                                  <input placeholder="CPF (só números)" value={resp?.cpf2||''} onChange={e => updateRespField(n.key,n.label,'cpf2',e.target.value.replace(/\D/g,''))} style={iSt} inputMode="numeric" maxLength={11} />
+                                  <input placeholder="E-mail" type="email" value={resp?.email2||''} onChange={e => updateRespField(n.key,n.label,'email2',e.target.value)} style={iSt} />
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10 }}>
+                                <button onClick={async () => {
+                                  const entry = responsaveis.find(r => r.nucleo_key === n.key) as any || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
+                                  const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ nucleo_key: n.key, nucleo_label: n.label, nome: entry.nome||'', cpf: entry.cpf||'', email: entry.email||'', nome2: entry.nome2||'', cpf2: entry.cpf2||'', email2: entry.email2||'' }) });
+                                  const msg = res.ok ? `✅ ${n.label} salvo!` : 'Erro ao salvar.';
+                                  setResponsaveisSavedMsg(prev => ({ ...prev, [n.key]: msg }));
+                                  if (res.ok) { const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] })); setResponsaveis(cfg.responsaveis || []); }
+                                  setTimeout(() => setResponsaveisSavedMsg(prev => ({ ...prev, [n.key]: '' })), 3000);
+                                }} style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', color: '#fff', border: 'none', borderRadius: 8, padding: '7px 18px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
+                                  💾 Salvar
+                                </button>
+                                {savedMsg && <span style={{ fontSize: '0.78rem', color: savedMsg.startsWith('✅') ? '#4ade80' : '#f87171', fontWeight: 600 }}>{savedMsg}</span>}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </>)}
+                  </div>
+                );
+              })()}
+
+              {/* ───── SEÇÃO 1: RESPONSÁVEIS DE NÚCLEO — Credenciais de Acesso ───── */}
               <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 16, padding: '22px 22px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
                   <div style={{ fontSize: '1.3rem' }}>🏫</div>
                   <div>
-                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Responsáveis de Núcleo</div>
+                    <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Responsáveis de Núcleo — Credenciais de Acesso</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Cada responsável acessa o painel usando seu CPF como login</div>
                   </div>
                 </div>
