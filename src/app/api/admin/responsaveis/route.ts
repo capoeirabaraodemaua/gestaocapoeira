@@ -55,15 +55,16 @@ export async function GET() {
   return NextResponse.json(await readConfig());
 }
 
-// Senha padrão única para todos os responsáveis no primeiro acesso
-const DEFAULT_PASSWORD = '123456';
+// Senhas padrão iniciais por núcleo: iniciais do núcleo + 12345
 const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
-  'edson-alves':   DEFAULT_PASSWORD,
-  'ipiranga':      DEFAULT_PASSWORD,
-  'saracuruna':    DEFAULT_PASSWORD,
-  'vila-urussai':  DEFAULT_PASSWORD,
-  'jayme-fichman': DEFAULT_PASSWORD,
+  'edson-alves':         'edsonalves12345',
+  'ipiranga':            'ipiranga12345',
+  'saracuruna':          'saracuruna12345',
+  'vila-urussai':        'urussai12345',
+  'jayme-fichman':       'jaymefichman12345',
+  'academia-mais-saude': 'academiasaude12345',
 };
+const DEFAULT_PASSWORD = '123456'; // fallback
 
 const NUCLEO_PROFILES: Record<string, { label: string; color: string }> = {
   'edson-alves':   { label: 'Poliesportivo Edson Alves',  color: '#dc2626' },

@@ -35,28 +35,28 @@ interface ResetToken {
 }
 type TokensMap = Record<string, ResetToken>; // key = token
 
-// Senha padrão única para todos os responsáveis
-export const DEFAULT_PASSWORD = '123456';
-
-// Senhas padrão iniciais por núcleo (mantidas para compatibilidade — novos CPFs usam DEFAULT_PASSWORD)
+// Senhas padrão iniciais por núcleo: iniciais do núcleo + 12345
 export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
-  'edson-alves':         DEFAULT_PASSWORD,
-  'ipiranga':            DEFAULT_PASSWORD,
-  'saracuruna':          DEFAULT_PASSWORD,
-  'vila-urussai':        DEFAULT_PASSWORD,
-  'jayme-fichman':       DEFAULT_PASSWORD,
-  'academia-mais-saude': DEFAULT_PASSWORD,
+  'edson-alves':         'edsonalves12345',
+  'ipiranga':            'ipiranga12345',
+  'saracuruna':          'saracuruna12345',
+  'vila-urussai':        'urussai12345',
+  'jayme-fichman':       'jaymefichman12345',
+  'academia-mais-saude': 'academiasaude12345',
 };
+
+// Senha padrão única (fallback)
+export const DEFAULT_PASSWORD = '123456';
 
 // Credenciais padrão — admin geral + conta inicial de cada núcleo
 const DEFAULT_CREDS: CredsMap = {
   admin:                   { nucleo: 'geral',                label: 'Admin Geral',                color: '#1d4ed8', password: 'accbm2025' },
-  'edson-alves':           { nucleo: 'edson-alves',          label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: DEFAULT_PASSWORD, first_login: true },
-  'ipiranga':              { nucleo: 'ipiranga',             label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: DEFAULT_PASSWORD, first_login: true },
-  'saracuruna':            { nucleo: 'saracuruna',           label: 'Núcleo Saracuruna',          color: '#16a34a', password: DEFAULT_PASSWORD, first_login: true },
-  'vila-urussai':          { nucleo: 'vila-urussai',         label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: DEFAULT_PASSWORD, first_login: true },
-  'jayme-fichman':         { nucleo: 'jayme-fichman',        label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: DEFAULT_PASSWORD, first_login: true },
-  'academia-mais-saude':   { nucleo: 'academia-mais-saude',  label: 'Academia Mais Saúde',        color: '#059669', password: DEFAULT_PASSWORD, first_login: true },
+  'edson-alves':           { nucleo: 'edson-alves',          label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: NUCLEO_DEFAULT_PASSWORDS['edson-alves'],   first_login: true },
+  'ipiranga':              { nucleo: 'ipiranga',             label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: NUCLEO_DEFAULT_PASSWORDS['ipiranga'],        first_login: true },
+  'saracuruna':            { nucleo: 'saracuruna',           label: 'Núcleo Saracuruna',          color: '#16a34a', password: NUCLEO_DEFAULT_PASSWORDS['saracuruna'],      first_login: true },
+  'vila-urussai':          { nucleo: 'vila-urussai',         label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: NUCLEO_DEFAULT_PASSWORDS['vila-urussai'],    first_login: true },
+  'jayme-fichman':         { nucleo: 'jayme-fichman',        label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: NUCLEO_DEFAULT_PASSWORDS['jayme-fichman'],   first_login: true },
+  'academia-mais-saude':   { nucleo: 'academia-mais-saude',  label: 'Academia Mais Saúde',        color: '#059669', password: NUCLEO_DEFAULT_PASSWORDS['academia-mais-saude'], first_login: true },
 };
 
 export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
@@ -183,7 +183,7 @@ export async function POST(req: NextRequest) {
       if (!entry)
         return NextResponse.json({ error: 'CPF não encontrado como responsável de nenhum núcleo. Solicite o cadastro ao Admin Geral.' }, { status: 403 });
 
-      // Auto-criar credencial na primeira vez com senha padrão 123456
+      // Auto-criar credencial na primeira vez com senha padrão do núcleo
       if (!creds[cpfNorm]) {
         const profile = NUCLEO_PROFILES[entry.nucleo_key];
         if (profile) {
@@ -192,7 +192,7 @@ export async function POST(req: NextRequest) {
             nucleo: entry.nucleo_key as NucleoKey,
             label: profile.label,
             color: profile.color,
-            password: DEFAULT_PASSWORD,
+            password: NUCLEO_DEFAULT_PASSWORDS[entry.nucleo_key] || DEFAULT_PASSWORD,
             nome: isMainCpf ? (entry.nome || '') : (entry.nome2 || entry.nome || ''),
             email: entry.email || '',
             first_login: true,
