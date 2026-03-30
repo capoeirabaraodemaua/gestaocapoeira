@@ -173,6 +173,22 @@ export async function PATCH(req: NextRequest) {
       }
     }
 
+    // Email duplicate check
+    if (payload.email && typeof payload.email === 'string') {
+      const emailTrim = (payload.email as string).trim().toLowerCase();
+      if (emailTrim && emailTrim.includes('@')) {
+        const { data: emailConflict } = await supabaseAdmin
+          .from('students')
+          .select('id, nome_completo')
+          .ilike('email', emailTrim)
+          .neq('id', student_id)
+          .maybeSingle();
+        if (emailConflict) {
+          return NextResponse.json({ error: `Este e-mail já está cadastrado para outro aluno: ${emailConflict.nome_completo}.` }, { status: 409 });
+        }
+      }
+    }
+
     // CPF duplicate check — ensure no other student has the same CPF
     if (payload.cpf && typeof payload.cpf === 'string') {
       const cpfDigits = (payload.cpf as string).replace(/\D/g, '');

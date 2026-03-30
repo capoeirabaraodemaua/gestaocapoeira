@@ -1081,9 +1081,8 @@ export default function AdminPage() {
       (s.graduacao || '').toLowerCase().includes(q) ||
       (s.nucleo || '').toLowerCase().includes(q);
     const matchNucleo = !filterNucleo || s.nucleo === filterNucleo;
-    // When nucleo data is missing (null), non-geral admins still see all students
-    // so they can help fill in the missing data
-    const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter || !s.nucleo;
+    // nucleoFilter is set for non-geral admins; null means admin geral → sees all
+    const matchProfile = !nucleoFilter || s.nucleo === nucleoFilter;
     const matchGraduacao = !filterGraduacao || s.graduacao === filterGraduacao;
     const matchCondicao = !filterCondicao || (() => {
       try {
@@ -1103,7 +1102,7 @@ export default function AdminPage() {
   });
 
   // For stats, only count students visible to this profile
-  const visibleStudents = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter || !s.nucleo) : students;
+  const visibleStudents = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students;
   const menores = visibleStudents.filter(s => s.menor_de_idade).length;
 
   const openEdit = (student: Student) => {
@@ -2230,7 +2229,7 @@ export default function AdminPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           {student.nome_completo}
                           {(student as any).sexo === 'M' && (
-                            <span style={{ fontSize: '0.65rem', background: 'rgba(22,163,74,0.12)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluno</span>
+                            <span style={{ fontSize: '0.65rem', background: 'rgba(29,78,216,0.12)', color: '#1d4ed8', border: '1px solid rgba(29,78,216,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluno</span>
                           )}
                           {(student as any).sexo === 'F' && (
                             <span style={{ fontSize: '0.65rem', background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluna</span>
@@ -5212,162 +5211,126 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {responsaveisUnlocked && <>
                 {loadingResponsaveis ? <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Carregando...</div> : (
                   <div style={{ display: 'grid', gap: 10 }}>
+
+                    {/* ── Tabela-resumo: visão geral de todos os responsáveis ── */}
+                    <div style={{ overflowX: 'auto', marginBottom: 8 }}>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.78rem', color: 'var(--text-primary)' }}>
+                        <thead>
+                          <tr style={{ background: 'rgba(251,191,36,0.12)', borderBottom: '2px solid rgba(251,191,36,0.3)' }}>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Núcleo</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Responsável 1</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>CPF 1</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>Responsável 2</th>
+                            <th style={{ padding: '7px 10px', textAlign: 'left', fontWeight: 800, color: '#fbbf24', whiteSpace: 'nowrap' }}>CPF 2</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {nucleosList.map(n => {
+                            const r = responsaveis.find(x => x.nucleo_key === n.key) as any;
+                            const cpf1Fmt = r?.cpf ? r.cpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
+                            const cpf2Fmt = r?.cpf2 ? r.cpf2.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4') : '—';
+                            const hasData = r?.nome || r?.cpf;
+                            return (
+                              <tr key={n.key} style={{ borderBottom: '1px solid var(--border)', background: hasData ? 'rgba(74,222,128,0.03)' : 'transparent' }}>
+                                <td style={{ padding: '7px 10px', fontWeight: 700, color: hasData ? '#4ade80' : 'var(--text-secondary)' }}>{n.label}</td>
+                                <td style={{ padding: '7px 10px', color: r?.nome ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{r?.nome || '—'}</td>
+                                <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: '0.72rem', color: r?.cpf ? '#93c5fd' : 'var(--text-secondary)' }}>{cpf1Fmt}</td>
+                                <td style={{ padding: '7px 10px', color: r?.nome2 ? 'var(--text-primary)' : 'var(--text-secondary)' }}>{r?.nome2 || '—'}</td>
+                                <td style={{ padding: '7px 10px', fontFamily: 'monospace', fontSize: '0.72rem', color: r?.cpf2 ? '#93c5fd' : 'var(--text-secondary)' }}>{cpf2Fmt}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+
                     {nucleosList.map(n => {
                       const resp = responsaveis.find(r => r.nucleo_key === n.key);
                       const has1 = resp?.nome?.trim() || resp?.cpf?.trim();
                       const has2 = (resp as any)?.nome2?.trim() || (resp as any)?.cpf2?.trim();
                       const hasAny = has1 || has2;
+
+                      // Helper to update a field for this nucleo
+                      const updateField = (field: string, val: string) => {
+                        setResponsaveis(prev => {
+                          const idx = prev.findIndex(r => r.nucleo_key === n.key);
+                          const existing = (prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' }) as any;
+                          const item = { ...existing, [field]: val };
+                          if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
+                          return [...prev, item];
+                        });
+                      };
+
+                      const inputStyle: React.CSSProperties = { padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', width: '100%', boxSizing: 'border-box' };
+
                       return (
                         <div key={n.key} style={{ background: hasAny ? 'rgba(22,163,74,0.05)' : 'var(--bg-input)', border: `1px solid ${hasAny ? 'rgba(22,163,74,0.2)' : 'var(--border)'}`, borderRadius: 10, padding: '12px 14px' }}>
                           {/* Núcleo header */}
-                          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                            <span style={{ fontWeight: 800, fontSize: '0.85rem', flex: 1, color: 'var(--text-primary)' }}>{n.label}</span>
+                          <div style={{ fontWeight: 800, fontSize: '0.88rem', color: hasAny ? '#4ade80' : 'var(--text-secondary)', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <span>{n.label}</span>
+                            {hasAny && <span style={{ fontSize: '0.68rem', background: 'rgba(74,222,128,0.15)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 99, padding: '1px 7px', color: '#4ade80', fontWeight: 600 }}>✓ {[has1 && 'R1', has2 && 'R2'].filter(Boolean).join(' + ')}</span>}
                           </div>
 
-                          {/* Responsável 1 */}
-                          <div style={{ marginBottom: 8 }}>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#fbbf24', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 1</span>
-                              {has1 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
-                              {has1 && (
-                                <button onClick={async () => {
-                                  if (!confirm(`Remover Responsável 1 do ${n.label}?`)) return;
-                                  const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                                  const currentList: typeof responsaveis = cfg.responsaveis || [];
-                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome: '', cpf: '' } : r)
-                                    .filter((r: any) => r.nome?.trim() || r.nome2?.trim());
-                                  setResponsaveis(updated);
-                                  const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                                  if (res.ok) { setResponsaveisMsg('✓ Responsável 1 removido!'); } else { setResponsaveisMsg('Erro ao remover.'); }
-                                  setTimeout(() => setResponsaveisMsg(''), 3000);
-                                }}
-                                  style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
-                                  🗑 Remover
-                                </button>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <input type="text" placeholder="Nome completo"
-                                value={responsaveis.find(r => r.nucleo_key === n.key)?.nome || ''}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setResponsaveis(prev => {
-                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                    const item = { ...existing, nome: val };
-                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                    return [...prev, item];
-                                  });
-                                }}
-                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                              />
-                              <input type="text" placeholder="CPF (login de acesso)"
-                                value={responsaveis.find(r => r.nucleo_key === n.key)?.cpf || ''}
-                                onChange={e => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  setResponsaveis(prev => {
-                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                    const item = { ...existing, cpf: val };
-                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                    return [...prev, item];
-                                  });
-                                }}
-                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                              />
-                            </div>
-                            <input type="email" placeholder="E-mail (para recuperação de senha)"
-                              value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.email || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setResponsaveis(prev => {
-                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                  const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                  const item = { ...existing, email: val };
-                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                  return [...prev, item];
-                                });
-                              }}
-                              style={{ marginTop: 6, width: '100%', boxSizing: 'border-box', padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                            />
-                          </div>
-
-                          {/* Responsável 2 */}
-                          <div>
-                            <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#94a3b8', marginBottom: 5, display: 'flex', alignItems: 'center', gap: 6 }}>
-                              <span style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.2)', borderRadius: 10, padding: '1px 8px' }}>👤 Responsável 2 <span style={{ opacity: 0.6 }}>(opcional)</span></span>
-                              {has2 && <span style={{ color: '#4ade80', fontSize: '0.68rem' }}>✓ cadastrado</span>}
-                              {has2 && (
-                                <button onClick={async () => {
-                                  if (!confirm(`Remover Responsável 2 do ${n.label}?`)) return;
-                                  const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
-                                  const currentList: typeof responsaveis = cfg.responsaveis || [];
-                                  const updated = currentList.map((r: any) => r.nucleo_key === n.key ? { ...r, nome2: undefined, cpf2: undefined, email2: undefined } : r);
-                                  setResponsaveis(updated);
-                                  const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
-                                  if (res.ok) { setResponsaveisMsg('✓ Responsável 2 removido!'); } else { setResponsaveisMsg('Erro ao remover.'); }
-                                  setTimeout(() => setResponsaveisMsg(''), 3000);
-                                }}
-                                  style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 6, padding: '2px 8px', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
-                                  🗑 Remover
-                                </button>
-                              )}
-                            </div>
-                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
-                              <input type="text" placeholder="Nome completo"
-                                value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.nome2 || ''}
-                                onChange={e => {
-                                  const val = e.target.value;
-                                  setResponsaveis(prev => {
-                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                    const item = { ...existing, nome2: val };
-                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                    return [...prev, item];
-                                  });
-                                }}
-                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                              />
-                              <input type="text" placeholder="CPF (login de acesso)"
-                                value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.cpf2 || ''}
-                                onChange={e => {
-                                  const val = e.target.value.replace(/\D/g, '');
-                                  setResponsaveis(prev => {
-                                    const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                    const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                    const item = { ...existing, cpf2: val };
-                                    if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                    return [...prev, item];
-                                  });
-                                }}
-                                style={{ padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                              />
-                            </div>
-                            <input type="email" placeholder="E-mail (para recuperação de senha)"
-                              value={(responsaveis.find(r => r.nucleo_key === n.key) as any)?.email2 || ''}
-                              onChange={e => {
-                                const val = e.target.value;
-                                setResponsaveis(prev => {
-                                  const idx = prev.findIndex(r => r.nucleo_key === n.key);
-                                  const existing = prev[idx] || { nucleo_key: n.key, nucleo_label: n.label, nome: '', cpf: '' };
-                                  const item = { ...existing, email2: val };
-                                  if (idx >= 0) { const c = [...prev]; c[idx] = item; return c; }
-                                  return [...prev, item];
-                                });
-                              }}
-                              style={{ marginTop: 6, width: '100%', boxSizing: 'border-box', padding: '7px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
-                            />
-                            {/* Mensagem de confirmação abaixo do Responsável 2 */}
-                            {responsaveisSavedMsg[n.key] && (
-                              <div style={{ marginTop: 6, padding: '6px 10px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6 }}>
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><polyline points="20 6 9 17 4 12"/></svg>
-                                {responsaveisSavedMsg[n.key]}
+                          {/* Tabs: Responsável 1 | Responsável 2 */}
+                          <div style={{ display: 'flex', gap: 4, marginBottom: 10 }}>
+                            <div style={{ flex: 1, background: has1 ? 'rgba(251,191,36,0.1)' : 'var(--bg-input)', border: `2px solid ${has1 ? 'rgba(251,191,36,0.4)' : 'var(--border)'}`, borderRadius: 8, padding: '10px 12px' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#fbbf24', marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                👤 Responsável 1
+                                {has1 && <span style={{ color: '#4ade80', fontWeight: 600 }}>✓</span>}
+                                {has1 && (
+                                  <button onClick={async () => {
+                                    if (!confirm(`Remover Responsável 1 do ${n.label}?`)) return;
+                                    const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                                    const updated = (cfg.responsaveis || []).map((r: any) => r.nucleo_key === n.key ? { ...r, nome: '', cpf: '', email: undefined } : r).filter((r: any) => r.nome?.trim() || r.nome2?.trim());
+                                    setResponsaveis(updated);
+                                    const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                    setResponsaveisMsg(res.ok ? '✓ Responsável 1 removido!' : 'Erro ao remover.');
+                                    setTimeout(() => setResponsaveisMsg(''), 3000);
+                                  }} style={{ marginLeft: 'auto', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 5, padding: '1px 7px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}>
+                                    🗑
+                                  </button>
+                                )}
                               </div>
-                            )}
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                <input type="text" placeholder="Nome completo" value={(resp as any)?.nome || ''} onChange={e => updateField('nome', e.target.value)} style={inputStyle} />
+                                <input type="text" placeholder="CPF (apenas números)" value={(resp as any)?.cpf || ''} onChange={e => updateField('cpf', e.target.value.replace(/\D/g, ''))} style={inputStyle} inputMode="numeric" maxLength={11} />
+                                <input type="email" placeholder="E-mail (recuperação de senha)" value={(resp as any)?.email || ''} onChange={e => updateField('email', e.target.value)} style={inputStyle} />
+                              </div>
+                            </div>
+                            <div style={{ flex: 1, background: has2 ? 'rgba(96,165,250,0.08)' : 'var(--bg-input)', border: `2px solid ${has2 ? 'rgba(96,165,250,0.3)' : 'var(--border)'}`, borderRadius: 8, padding: '10px 12px' }}>
+                              <div style={{ fontSize: '0.7rem', fontWeight: 800, color: '#94a3b8', marginBottom: 7, display: 'flex', alignItems: 'center', gap: 6 }}>
+                                👤 Responsável 2 <span style={{ opacity: 0.6 }}>(opcional)</span>
+                                {has2 && <span style={{ color: '#4ade80', fontWeight: 600 }}>✓</span>}
+                                {has2 && (
+                                  <button onClick={async () => {
+                                    if (!confirm(`Remover Responsável 2 do ${n.label}?`)) return;
+                                    const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
+                                    const updated = (cfg.responsaveis || []).map((r: any) => r.nucleo_key === n.key ? { ...r, nome2: undefined, cpf2: undefined, email2: undefined } : r);
+                                    setResponsaveis(updated);
+                                    const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
+                                    setResponsaveisMsg(res.ok ? '✓ Responsável 2 removido!' : 'Erro ao remover.');
+                                    setTimeout(() => setResponsaveisMsg(''), 3000);
+                                  }} style={{ marginLeft: 'auto', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 5, padding: '1px 7px', cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700 }}>
+                                    🗑
+                                  </button>
+                                )}
+                              </div>
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                                <input type="text" placeholder="Nome completo" value={(resp as any)?.nome2 || ''} onChange={e => updateField('nome2', e.target.value)} style={inputStyle} />
+                                <input type="text" placeholder="CPF (apenas números)" value={(resp as any)?.cpf2 || ''} onChange={e => updateField('cpf2', e.target.value.replace(/\D/g, ''))} style={inputStyle} inputMode="numeric" maxLength={11} />
+                                <input type="email" placeholder="E-mail (recuperação de senha)" value={(resp as any)?.email2 || ''} onChange={e => updateField('email2', e.target.value)} style={inputStyle} />
+                              </div>
+                            </div>
                           </div>
+
+                          {responsaveisSavedMsg[n.key] && (
+                            <div style={{ padding: '6px 10px', background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', borderRadius: 7, color: '#4ade80', fontSize: '0.75rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: 6, marginBottom: 6 }}>
+                              ✅ {responsaveisSavedMsg[n.key]}
+                            </div>
+                          )}
 
                           {/* Botão salvar individual do núcleo */}
-                          <div style={{ marginTop: 10, display: 'flex', justifyContent: 'flex-end' }}>
+                          <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                             <button onClick={async () => {
                               setResponsaveisMsg('');
                               const cfg = await fetch('/api/admin/responsaveis').then(r => r.json()).catch(() => ({ responsaveis: [] }));
@@ -5377,10 +5340,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 nucleo_key: n.key,
                                 nucleo_label: n.label,
                                 nome: thisEntry?.nome?.trim() || '',
-                                cpf: thisEntry?.cpf?.trim() || '',
+                                cpf: thisEntry?.cpf?.replace(/\D/g,'')?.trim() || '',
                                 email: thisEntry?.email?.trim() || undefined,
                                 nome2: thisEntry?.nome2?.trim() || undefined,
-                                cpf2: thisEntry?.cpf2?.trim() ? thisEntry.cpf2.replace(/\D/g,'') : undefined,
+                                cpf2: thisEntry?.cpf2?.replace(/\D/g,'')?.trim() || undefined,
                                 email2: thisEntry?.email2?.trim() || undefined,
                               };
                               const idx = currentList.findIndex((r: any) => r.nucleo_key === n.key);
@@ -5390,12 +5353,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               const res = await fetch('/api/admin/responsaveis', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ responsaveis: updated }) });
                               if (res.ok) {
                                 setResponsaveis(updated);
-                                const savedNome2 = entry.nome2;
-                                const msg = savedNome2
-                                  ? `✓ ${n.label} salvo! Responsável 2: ${savedNome2}`
-                                  : `✓ ${n.label} salvo com sucesso!`;
+                                const msg = `✅ Cadastro realizado com sucesso — ${n.label}${entry.nome2 ? ` (R2: ${entry.nome2})` : ''}`;
                                 setResponsaveisSavedMsg(prev => ({ ...prev, [n.key]: msg }));
-                                setTimeout(() => setResponsaveisSavedMsg(prev => { const c = {...prev}; delete c[n.key]; return c; }), 4000);
+                                setTimeout(() => setResponsaveisSavedMsg(prev => { const c = {...prev}; delete c[n.key]; return c; }), 5000);
                               } else {
                                 setResponsaveisMsg('Erro ao salvar.');
                                 setTimeout(() => setResponsaveisMsg(''), 3000);

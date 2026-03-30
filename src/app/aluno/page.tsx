@@ -540,7 +540,8 @@ export default function AlunoPage() {
   }, [student, activeTab, dadosInitialized]);
 
   // Gender-based theme: M=green, F=red, otherwise nucleo color
-  const genderColor = student?.sexo === 'M' ? '#16a34a' : student?.sexo === 'F' ? '#dc2626' : null;
+  // M = blue (#1d4ed8), F = red (#dc2626), others fallback to nucleo color
+  const genderColor = student?.sexo === 'M' ? '#1d4ed8' : student?.sexo === 'F' ? '#dc2626' : null;
   const nucleoColor = genderColor || (student ? getNucleoColor(student.nucleo || '') : '#1d4ed8');
 
   const cartData = student ? {
@@ -2280,7 +2281,21 @@ export default function AlunoPage() {
                   </div>
                   <div>
                     <label style={ls}>E-mail</label>
-                    <input type="email" value={dadosForm.email} onChange={e => setDadosForm(p => ({ ...p, email: e.target.value }))} style={fs} placeholder="seu@email.com" />
+                    <input type="email" value={dadosForm.email}
+                      onChange={e => setDadosForm(p => ({ ...p, email: e.target.value }))}
+                      onBlur={async e => {
+                        const val = e.target.value.trim();
+                        if (!val || !val.includes('@')) return;
+                        try {
+                          const r = await fetch(`/api/check-email?email=${encodeURIComponent(val)}&exclude_id=${session.student_id}`);
+                          const d = await r.json();
+                          if (d.exists) {
+                            setDadosMsg(`⚠️ Este e-mail já está cadastrado para outro aluno: ${d.nome}`);
+                            setDadosMsgType('error');
+                          }
+                        } catch { /* silent */ }
+                      }}
+                      style={fs} placeholder="seu@email.com" />
                   </div>
                 </div>
               </div>

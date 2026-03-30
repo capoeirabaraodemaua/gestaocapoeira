@@ -521,16 +521,19 @@ Axé!`
               const isAutoDetected = localDetectado?.local.id === loc.id;
               const isManualSelected = manualLocal?.id === loc.id;
               const isActive = isAutoDetected || isManualSelected;
-              const showSelectBtn = (gpsStatus === 'negado' || gpsStatus === 'erro') && !isAutoDetected;
+              // Always show manual selection button so admin/users can always select venue
+              const showSelectBtn = !isAutoDetected;
               return (
                 <div
                   key={loc.id}
+                  onClick={() => setManualLocal(isManualSelected ? null : loc)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 10,
                     background: isActive ? 'rgba(22,163,74,0.1)' : 'var(--bg-input)',
                     border: `1px solid ${isActive ? 'rgba(22,163,74,0.4)' : 'var(--border)'}`,
                     borderRadius: 10, padding: '10px 14px',
                     transition: 'all 0.15s',
+                    cursor: 'pointer',
                   }}
                 >
                   <span style={{ fontSize: '1.3rem', flexShrink: 0 }}>
