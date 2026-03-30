@@ -625,6 +625,12 @@ export default function AdminPage() {
   const [lixeiraEditForm, setLixeiraEditForm] = useState<Record<string, unknown>>({});
   const [lixeiraEditExtras, setLixeiraEditExtras] = useState<Record<string, string>>({});
   const [lixeiraMsg, setLixeiraMsg] = useState('');
+  // Restauração de dados
+  const [restSelNucleo, setRestSelNucleo] = useState('');
+  const [restSelIds, setRestSelIds] = useState<Set<string>>(new Set());
+  const [restSelGrad, setRestSelGrad] = useState('');
+  const [restSelTipo, setRestSelTipo] = useState('');
+  const [restSelGradIds, setRestSelGradIds] = useState<Set<string>>(new Set());
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
@@ -7168,31 +7174,29 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               {(() => {
                 const semNucleo = students.filter(s => !s.nucleo);
-                const [selNucleo, setSelNucleo] = React.useState('');
-                const [selIds, setSelIds] = React.useState<Set<string>>(new Set());
-                const toggleId = (id: string) => setSelIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                const toggleRestId = (id: string) => setRestSelIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
                 return (
                   <div>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <select value={selNucleo} onChange={e => setSelNucleo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 200 }}>
+                      <select value={restSelNucleo} onChange={e => setRestSelNucleo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 200 }}>
                         <option value="">— Selecione o núcleo —</option>
                         {NUCLEOS_LIST.map(n => <option key={n} value={n}>{n}</option>)}
                       </select>
-                      <button onClick={() => setSelIds(new Set(semNucleo.map(s => s.id)))} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Selec. todos ({semNucleo.length})</button>
-                      <button onClick={() => setSelIds(new Set())} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem' }}>Limpar</button>
+                      <button onClick={() => setRestSelIds(new Set(semNucleo.map(s => s.id)))} style={{ background: 'rgba(99,102,241,0.1)', border: '1px solid rgba(99,102,241,0.3)', color: '#818cf8', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Selec. todos ({semNucleo.length})</button>
+                      <button onClick={() => setRestSelIds(new Set())} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem' }}>Limpar</button>
                       <button onClick={async () => {
-                        if (!selNucleo) { alert('Selecione um núcleo.'); return; }
-                        if (!selIds.size) { alert('Selecione pelo menos um aluno.'); return; }
-                        const rows = Array.from(selIds).map(id => {
+                        if (!restSelNucleo) { alert('Selecione um núcleo.'); return; }
+                        if (!restSelIds.size) { alert('Selecione pelo menos um aluno.'); return; }
+                        const rows = Array.from(restSelIds).map(id => {
                           const s = students.find(x => x.id === id);
-                          return { nome_completo: s?.nome_completo || '', nucleo: selNucleo };
+                          return { nome_completo: s?.nome_completo || '', nucleo: restSelNucleo };
                         });
                         const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
                         const d = await res.json();
-                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com núcleo "${selNucleo}"`); fetchStudents(activeNucleo); setSelIds(new Set()); }
+                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com núcleo "${restSelNucleo}"`); fetchStudents(activeNucleo); setRestSelIds(new Set()); }
                         else alert('Erro: ' + d.error);
                       }} style={{ background: 'rgba(99,102,241,0.15)', border: '1px solid rgba(99,102,241,0.4)', color: '#818cf8', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
-                        Aplicar núcleo ({selIds.size} sel.)
+                        Aplicar núcleo ({restSelIds.size} sel.)
                       </button>
                     </div>
                     {semNucleo.length === 0 ? (
@@ -7200,8 +7204,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     ) : (
                       <div style={{ maxHeight: 320, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
                         {semNucleo.map(s => (
-                          <div key={s.id} onClick={() => toggleId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: selIds.has(s.id) ? 'rgba(99,102,241,0.08)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
-                            <input type="checkbox" checked={selIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                          <div key={s.id} onClick={() => toggleRestId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: restSelIds.has(s.id) ? 'rgba(99,102,241,0.08)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
+                            <input type="checkbox" checked={restSelIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.nome_completo}</div>
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.data_nascimento ? new Date(s.data_nascimento+'T12:00:00').toLocaleDateString('pt-BR') : '—'} · {s.menor_de_idade ? 'Menor' : 'Adulto'}</div>
@@ -7220,36 +7224,33 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 12 }}>🥋 Atribuir graduação em lote</div>
               {(() => {
                 const semGrad = students.filter(s => !s.graduacao);
-                const [selGrad, setSelGrad] = React.useState('');
-                const [selTipo, setSelTipo] = React.useState('');
-                const [selGradIds, setSelGradIds] = React.useState<Set<string>>(new Set());
-                const toggleGId = (id: string) => setSelGradIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+                const toggleRestGId = (id: string) => setRestSelGradIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
                 return (
                   <div>
                     <div style={{ display: 'flex', gap: 10, marginBottom: 12, flexWrap: 'wrap', alignItems: 'center' }}>
-                      <select value={selGrad} onChange={e => setSelGrad(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 160 }}>
+                      <select value={restSelGrad} onChange={e => setRestSelGrad(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem', flex: 1, minWidth: 160 }}>
                         <option value="">— Graduação —</option>
                         {GRADUACOES_LIST.map(g => <option key={g} value={g}>{g}</option>)}
                       </select>
-                      <select value={selTipo} onChange={e => setSelTipo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem' }}>
+                      <select value={restSelTipo} onChange={e => setRestSelTipo(e.target.value)} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-primary)', borderRadius: 8, padding: '8px 12px', fontSize: '0.85rem' }}>
                         <option value="">— Tipo —</option>
                         <option value="adulta">Adulta</option>
                         <option value="infantil">Infantil</option>
                       </select>
-                      <button onClick={() => setSelGradIds(new Set(semGrad.map(s => s.id)))} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Todos sem grad ({semGrad.length})</button>
+                      <button onClick={() => setRestSelGradIds(new Set(semGrad.map(s => s.id)))} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>Todos sem grad ({semGrad.length})</button>
                       <button onClick={async () => {
-                        if (!selGrad) { alert('Selecione uma graduação.'); return; }
-                        if (!selGradIds.size) { alert('Selecione pelo menos um aluno.'); return; }
-                        const rows = Array.from(selGradIds).map(id => {
+                        if (!restSelGrad) { alert('Selecione uma graduação.'); return; }
+                        if (!restSelGradIds.size) { alert('Selecione pelo menos um aluno.'); return; }
+                        const rows = Array.from(restSelGradIds).map(id => {
                           const s = students.find(x => x.id === id);
-                          return { nome_completo: s?.nome_completo || '', graduacao: selGrad, ...(selTipo ? { tipo_graduacao: selTipo } : {}) };
+                          return { nome_completo: s?.nome_completo || '', graduacao: restSelGrad, ...(restSelTipo ? { tipo_graduacao: restSelTipo } : {}) };
                         });
                         const res = await fetch('/api/admin/import-alunos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ auth: 'geral', rows }) });
                         const d = await res.json();
-                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com graduação "${selGrad}"`); fetchStudents(activeNucleo); setSelGradIds(new Set()); }
+                        if (d.success) { alert(`✅ ${d.updated} alunos atualizados com graduação "${restSelGrad}"`); fetchStudents(activeNucleo); setRestSelGradIds(new Set()); }
                         else alert('Erro: ' + d.error);
                       }} style={{ background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.4)', color: '#fbbf24', borderRadius: 8, padding: '8px 16px', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700 }}>
-                        Aplicar graduação ({selGradIds.size} sel.)
+                        Aplicar graduação ({restSelGradIds.size} sel.)
                       </button>
                     </div>
                     {semGrad.length === 0 ? (
@@ -7257,8 +7258,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     ) : (
                       <div style={{ maxHeight: 280, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10 }}>
                         {semGrad.map(s => (
-                          <div key={s.id} onClick={() => toggleGId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: selGradIds.has(s.id) ? 'rgba(251,191,36,0.06)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
-                            <input type="checkbox" checked={selGradIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
+                          <div key={s.id} onClick={() => toggleRestGId(s.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', cursor: 'pointer', background: restSelGradIds.has(s.id) ? 'rgba(251,191,36,0.06)' : 'transparent', borderBottom: '1px solid var(--border)' }}>
+                            <input type="checkbox" checked={restSelGradIds.has(s.id)} readOnly style={{ cursor: 'pointer', width: 16, height: 16 }} />
                             <div style={{ flex: 1 }}>
                               <div style={{ fontWeight: 600, fontSize: '0.88rem' }}>{s.nome_completo}</div>
                               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{s.nucleo || '(sem núcleo)'} · {s.menor_de_idade ? 'Menor' : 'Adulto'}</div>

@@ -413,11 +413,11 @@ export default function AlunoPage() {
           if (data.pending_otp) {
             setOtpStudentId(data.student_id || '');
             setOtpPhone(data.phone || '');
-            setRegisterSuccess('✅ Cadastro realizado com sucesso! Verifique o código de verificação.');
-            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 1800);
+            setRegisterSuccess('Cadastro realizado com sucesso! Verifique o código de verificação.');
+            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 2200);
           } else {
-            setRegisterSuccess('✅ Cadastro realizado com sucesso! Bem-vindo(a) à ACCBM!');
-            setTimeout(() => { setShowRegister(false); }, 1800);
+            setRegisterSuccess('Cadastro realizado com sucesso. Acesse agora sua conta para completar seus dados.');
+            setTimeout(() => { setShowRegister(false); }, 2200);
           }
           return;
         }
@@ -445,16 +445,11 @@ export default function AlunoPage() {
           if (data2.candidates?.length) msg += `\n\nNomes similares encontrados:\n• ${data2.candidates.join('\n• ')}`;
           setRegisterError(msg); return;
         }
-        // Auto-login after name-based register
-        const sess = { student_id: data2.student_id, username: data2.username };
-        sessionStorage.setItem('aluno_session', JSON.stringify(sess));
-        setRegisterSuccess('✅ Cadastro realizado com sucesso! Bem-vindo(a) à ACCBM!');
+        // Show success and redirect to login screen
+        setRegisterSuccess('Cadastro realizado com sucesso. Acesse agora sua conta para completar seus dados.');
         setTimeout(() => {
-          setSession(sess);
-          if (data2.student) setStudent(data2.student);
           setShowRegister(false);
-          setActiveTab('dados'); // Take them straight to complete their data
-        }, 1800);
+        }, 2200);
       }
     } catch { setRegisterError('Erro de conexão. Tente novamente.'); }
     finally { setRegisterLoading(false); }
@@ -690,9 +685,14 @@ export default function AlunoPage() {
             </div>
           )}
           {registerSuccess && (
-            <div style={{ background: '#f0fdf4', border: '2px solid #86efac', color: '#166534', borderRadius: 14, padding: '16px 18px', marginBottom: 12, fontSize: '0.9rem', fontWeight: 700, textAlign: 'center' }}>
-              <div style={{ fontSize: '2rem', marginBottom: 6 }}>🎉</div>
-              {registerSuccess}
+            <div style={{ background: 'linear-gradient(135deg,#052e16,#064e3b)', border: '2px solid #34d399', borderRadius: 16, padding: '22px 20px', marginBottom: 12, textAlign: 'center' }}>
+              <div style={{ fontSize: '2.4rem', marginBottom: 10 }}>✅</div>
+              <div style={{ color: '#34d399', fontWeight: 800, fontSize: '1rem', marginBottom: 6 }}>Cadastro realizado com sucesso!</div>
+              <div style={{ color: '#6ee7b7', fontSize: '0.85rem', lineHeight: 1.5 }}>Acesse agora sua conta para completar seus dados.</div>
+              <div style={{ marginTop: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, color: '#a7f3d0', fontSize: '0.78rem' }}>
+                <span style={{ display: 'inline-block', animation: 'spin 1s linear infinite' }}>⏳</span>
+                Redirecionando para o login...
+              </div>
             </div>
           )}
 
