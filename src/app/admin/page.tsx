@@ -1974,9 +1974,10 @@ export default function AdminPage() {
           );
         })()}
 
-        {/* ── Documentos ACCBM — after tabs (admin always unlocked) ────── */}
+        {/* ── Documentos ACCBM — after tabs (admin always unlocked, somente download aqui) ────── */}
         <DocumentsBar
           adminAlwaysUnlocked
+          readOnly={true}
           students={students.map(s => ({ id: s.id, nome_completo: s.nome_completo, telefone: s.telefone, nucleo: s.nucleo, email: s.email }))}
         />
 

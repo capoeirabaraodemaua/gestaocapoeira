@@ -24,8 +24,10 @@ export async function saveDocFile(key: string, file: File): Promise<void> {
 
   const res = await fetch('/api/docs', { method: 'POST', body: formData });
   if (!res.ok) {
-    const body = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
-    throw new Error(body.error || `Erro ao fazer upload (${res.status})`);
+    const text = await res.text().catch(() => '');
+    let msg = `Erro ao fazer upload (${res.status})`;
+    try { const j = JSON.parse(text); msg = j.error || msg; } catch { if (text) msg = text.slice(0, 200); }
+    throw new Error(msg);
   }
 
   cacheFileName(key, file.name);
