@@ -283,6 +283,118 @@ const GRAD_OPCOES_INFANTIL = [
   'Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul',
 ];
 
+// ── Componente de upload direto para documentos institucionais ──────────────
+function DocUploadCard({ docKey, label, color, icon }: { docKey: string; label: string; color: string; icon: string }) {
+  const [fileName, setFileName] = React.useState<string | null>(null);
+  const [fileSize, setFileSize] = React.useState<number | null>(null);
+  const [uploading, setUploading] = React.useState(false);
+  const [msg, setMsg] = React.useState<{ text: string; ok: boolean } | null>(null);
+  const [downloading, setDownloading] = React.useState(false);
+  const inputRef = React.useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    fetch(`/api/docs?key=${encodeURIComponent(docKey)}`, { cache: 'no-store' })
+      .then(r => r.json()).then(d => {
+        if (d?.name) { setFileName(d.name); setFileSize(d.size ?? null); }
+      }).catch(() => {});
+  }, [docKey]);
+
+  async function handleFile(file: File) {
+    if (file.size > 50 * 1024 * 1024) { setMsg({ text: 'Arquivo excede 50 MB.', ok: false }); return; }
+    setUploading(true); setMsg(null);
+    const fd = new FormData();
+    fd.append('key', docKey);
+    fd.append('file', file);
+    try {
+      const res = await fetch('/api/docs', { method: 'POST', body: fd });
+      const text = await res.text();
+      if (res.ok) {
+        setFileName(file.name); setFileSize(file.size);
+        setMsg({ text: '✓ Arquivo salvo com sucesso!', ok: true });
+        setTimeout(() => setMsg(null), 4000);
+      } else {
+        let err = `Erro ${res.status}`;
+        try { err = JSON.parse(text).error || err; } catch { if (text) err = text.slice(0, 150); }
+        setMsg({ text: err, ok: false });
+      }
+    } catch (e: unknown) { setMsg({ text: String(e), ok: false }); }
+    setUploading(false);
+  }
+
+  async function handleDownload() {
+    setDownloading(true);
+    try {
+      const res = await fetch(`/api/docs?key=${encodeURIComponent(docKey)}`, { cache: 'no-store' });
+      const d = await res.json();
+      if (!d?.signedUrl) { alert('Nenhum arquivo carregado ainda.'); setDownloading(false); return; }
+      const r = await fetch(d.signedUrl);
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a'); a.href = url; a.download = d.name || 'documento';
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch { alert('Erro ao baixar arquivo.'); }
+    setDownloading(false);
+  }
+
+  const fmt = (b: number) => b >= 1048576 ? `${(b/1048576).toFixed(1)} MB` : `${(b/1024).toFixed(0)} KB`;
+
+  return (
+    <div style={{ background: 'var(--bg-card)', border: `1.5px solid ${color}30`, borderRadius: 14, padding: '18px 20px' }}>
+      <div style={{ fontWeight: 700, fontSize: '0.9rem', color, marginBottom: 12 }}>{icon} {label}</div>
+
+      {msg && (
+        <div style={{ marginBottom: 10, padding: '8px 12px', borderRadius: 8, fontSize: '0.82rem', fontWeight: 600,
+          background: msg.ok ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+          border: `1px solid ${msg.ok ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.35)'}`,
+          color: msg.ok ? '#4ade80' : '#f87171' }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+        {/* Botão Upload */}
+        <label style={{
+          flex: 1, minWidth: 160, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7,
+          padding: '11px 16px', borderRadius: 10, cursor: uploading ? 'wait' : 'pointer', fontWeight: 700,
+          fontSize: '0.85rem', border: 'none', color: '#fff', opacity: uploading ? 0.7 : 1,
+          background: uploading ? `${color}88` : `linear-gradient(135deg,${color},${color}cc)`,
+          boxShadow: `0 3px 12px ${color}40`, userSelect: 'none',
+        }}>
+          <input ref={inputRef} type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.webp"
+            style={{ display: 'none' }}
+            onChange={e => { const f = e.target.files?.[0]; if (f) handleFile(f); e.target.value = ''; }}
+          />
+          {uploading
+            ? <><span style={{ display: 'inline-block', animation: 'spin .7s linear infinite' }}>⏳</span> Enviando...</>
+            : <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+              {fileName ? 'Substituir arquivo' : '⬆ Subir arquivo (até 50 MB)'}</>
+          }
+        </label>
+
+        {/* Botão Download — só aparece se há arquivo */}
+        {fileName && (
+          <button onClick={handleDownload} disabled={downloading} style={{
+            display: 'flex', alignItems: 'center', gap: 6, padding: '11px 16px', borderRadius: 10,
+            background: 'var(--bg-input)', border: `1.5px solid ${color}50`, color, fontWeight: 700,
+            fontSize: '0.82rem', cursor: downloading ? 'wait' : 'pointer', opacity: downloading ? 0.7 : 1,
+          }}>
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            {downloading ? 'Baixando...' : 'Baixar'}
+          </button>
+        )}
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: '0.68rem', color: 'var(--text-secondary)' }}>
+        {fileName
+          ? <>📄 <strong style={{ color }}>{fileName}</strong>{fileSize ? ` · ${fmt(fileSize)}` : ''} — visível automaticamente para todos os alunos</>
+          : 'Nenhum arquivo carregado. Clique em "Subir arquivo" para adicionar.'
+        }
+      </div>
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { t, lang } = useLanguage();
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -7789,19 +7901,33 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
-      {/* ===== ABAS ESTATUTO / REGIMENTO / BIBLIOGRAFIA — usam DocumentsBar com /api/docs (service_role) ===== */}
-      {(activeTab === 'estatuto' || activeTab === 'regimento' || activeTab === 'bibliografia') && (
-        <div>
-          {activeTab === 'estatuto' && <div style={{ marginBottom: 12 }}><div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>📄 Estatuto Social</div><div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Estatuto Social da Associação Cultural de Capoeira Barão de Mauá</div></div>}
-          {activeTab === 'regimento' && <div style={{ marginBottom: 12 }}><div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>📝 Regimento Interno</div><div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Regimento Interno da ACCBM</div></div>}
-          {activeTab === 'bibliografia' && <div style={{ marginBottom: 12 }}><div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>📚 Bibliografia dos Mestres</div><div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>Referências bibliográficas e obras dos mestres da ACCBM</div></div>}
-          <DocumentsBar
-            adminAlwaysUnlocked
-            readOnly={activeNucleo !== 'geral'}
-            students={students.map(s => ({ id: s.id, nome_completo: s.nome_completo, telefone: s.telefone, nucleo: s.nucleo, email: s.email }))}
-          />
-        </div>
-      )}
+      {/* ===== ABAS ESTATUTO / REGIMENTO / BIBLIOGRAFIA — uploader direto via /api/docs ===== */}
+      {(activeTab === 'estatuto' || activeTab === 'regimento' || activeTab === 'bibliografia') && (() => {
+        const docConfigs: Record<string, Array<{ key: string; label: string; color: string; icon: string }>> = {
+          estatuto:    [{ key: 'accbm_estatuto',    label: 'Estatuto Social',          color: '#dc2626', icon: '📄' }],
+          regimento:   [{ key: 'accbm_regimento',   label: 'Regimento Interno',        color: '#1d4ed8', icon: '📝' }],
+          bibliografia:[
+            { key: 'accbm_bio_frazao', label: 'Mestre Márcio Frazão — Portfólio', color: '#dc2626', icon: '🥋' },
+            { key: 'accbm_bio_naldo',  label: 'Mestre Naldo Magrinho — Portfólio', color: '#16a34a', icon: '🥋' },
+          ],
+        };
+        const docs = docConfigs[activeTab] || [];
+        const tabTitle = activeTab === 'estatuto' ? '📄 Estatuto Social' : activeTab === 'regimento' ? '📝 Regimento Interno' : '📚 Bibliografia dos Mestres';
+        const tabSub   = activeTab === 'estatuto' ? 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' : activeTab === 'regimento' ? 'Regimento Interno da ACCBM' : 'Portfólios e referências bibliográficas dos mestres da ACCBM';
+        return (
+          <div>
+            <div style={{ marginBottom: 20 }}>
+              <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{tabTitle}</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>{tabSub}</div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {docs.map(doc => (
+                <DocUploadCard key={doc.key} docKey={doc.key} label={doc.label} color={doc.color} icon={doc.icon} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* ===== ABA CONFIGURAÇÃO DO BANCO ===== */}
       {activeTab === 'informacoes' && activeNucleo === 'geral' && (() => {
