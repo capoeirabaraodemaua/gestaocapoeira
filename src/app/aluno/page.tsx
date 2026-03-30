@@ -2126,6 +2126,14 @@ export default function AlunoPage() {
 
           // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
+            // Require at least one of CPF or Numeração Única
+            const cpfFilled = dadosForm.cpf.replace(/\D/g, '').length > 0;
+            const nuFilled = dadosForm.numeracao_unica.trim().length > 0;
+            if (!cpfFilled && !nuFilled) {
+              setDadosMsg('Preencha o CPF ou a Numeração Única. Ao menos um é obrigatório.');
+              setDadosMsgType('error');
+              return;
+            }
             // Numeração Única rule: if filled, CPF and Identidade must be blank
             if (dadosForm.numeracao_unica.trim()) {
               if (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) {
@@ -2249,7 +2257,7 @@ export default function AlunoPage() {
                 <div>
                   <div>Por favor, complete e atualize todos os dados do seu cadastro.</div>
                   <div style={{ fontWeight: 400, fontSize: '0.75rem', marginTop: 3, color: '#3b82f6' }}>
-                    Caso preencha a <strong>Numeração Única</strong>, deixe os campos <strong>CPF</strong> e <strong>Identidade</strong> em branco para evitar conflito de identificação.
+                    Preencha o <strong>CPF</strong> ou a <strong>Numeração Única</strong> (obrigatório ao menos um). Se usar Numeração Única, deixe CPF e Identidade em branco.
                   </div>
                 </div>
               </div>
@@ -2379,7 +2387,7 @@ export default function AlunoPage() {
                     <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fs} placeholder="Número do RG" />
                   </div>
                   <div>
-                    <label style={ls}>Numeração Única</label>
+                    <label style={ls}>Numeração Única <span style={{ color: '#ef4444' }}>*</span></label>
                     <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))}
                       style={{ ...fs, borderColor: dadosForm.numeracao_unica.trim() && (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) ? '#fca5a5' : '#e5e7eb' }}
                       placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
@@ -2388,7 +2396,7 @@ export default function AlunoPage() {
                         ⚠️ Com Numeração Única preenchida, deixe CPF e Identidade em branco
                       </div>
                     ) : (
-                      <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Identificador único do aluno no sistema ACCBM</div>
+                      <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Obrigatório se CPF não informado — identificador único no sistema ACCBM</div>
                     )}
                   </div>
                   <div>

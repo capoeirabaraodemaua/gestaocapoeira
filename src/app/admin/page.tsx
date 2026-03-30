@@ -2206,7 +2206,6 @@ export default function AdminPage() {
                 <tr>
                   <th>{t('admin_th_photo')}</th>
                   <th>{t('common_name')}</th>
-                  <th>{t('admin_th_id')}</th>
                   <th>{t('common_nucleus')}</th>
                   <th>{t('common_graduation')}</th>
                   <th>{t('admin_th_type')}</th>
@@ -2245,9 +2244,6 @@ export default function AdminPage() {
                             } catch { return null; }
                           })()}
                         </div>
-                      </td>
-                      <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#6366f1', fontWeight: 700, whiteSpace: 'nowrap' }}>
-                        {studentDisplayIds[student.id] || <span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>—</span>}
                       </td>
                       <td>
                         <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>

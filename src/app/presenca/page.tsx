@@ -150,7 +150,7 @@ export default function PresencaPage() {
     const qDigits = q.replace(/\D/g, '');
     setFiltered(students.filter(s => {
       const nomeMatch = s.nome_completo.toLowerCase().includes(q);
-      const cpfDigits = s.cpf.replace(/\D/g, '');
+      const cpfDigits = (s.cpf || '').replace(/\D/g, '');
       const cpfMatch = qDigits.length >= 3 && cpfDigits.includes(qDigits);
       return nomeMatch || cpfMatch;
     }).slice(0, 8));
