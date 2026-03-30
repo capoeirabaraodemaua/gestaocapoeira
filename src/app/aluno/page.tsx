@@ -614,9 +614,46 @@ export default function AlunoPage() {
               </button>
             </form>
 
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16, fontSize: '0.82rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, fontSize: '0.82rem' }}>
               <button onClick={() => setShowForgot(true)} style={{ background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Esqueci minha senha</button>
-              <button onClick={() => setShowRegister(true)} style={{ background: 'none', border: 'none', color: '#16a34a', cursor: 'pointer', padding: 0, fontWeight: 500 }}>Criar conta</button>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <style>{`
+                  @keyframes pointRight {
+                    0%, 100% { transform: translateX(0); }
+                    50% { transform: translateX(5px); }
+                  }
+                  .hand-pointer {
+                    display: inline-block;
+                    animation: pointRight 0.9s ease-in-out infinite;
+                    font-size: 1.1rem;
+                    line-height: 1;
+                    filter: drop-shadow(0 0 4px rgba(22,163,74,0.5));
+                  }
+                  .criar-conta-btn {
+                    background: none;
+                    border: none;
+                    color: #16a34a;
+                    cursor: pointer;
+                    padding: 0;
+                    font-weight: 700;
+                    font-size: 0.82rem;
+                    position: relative;
+                  }
+                  .criar-conta-btn::after {
+                    content: '';
+                    position: absolute;
+                    bottom: -2px;
+                    left: 0;
+                    width: 100%;
+                    height: 2px;
+                    background: #16a34a;
+                    border-radius: 2px;
+                    animation: pointRight 0.9s ease-in-out infinite;
+                  }
+                `}</style>
+                <span className="hand-pointer">👉</span>
+                <button onClick={() => setShowRegister(true)} className="criar-conta-btn">Criar conta</button>
+              </div>
             </div>
 
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
