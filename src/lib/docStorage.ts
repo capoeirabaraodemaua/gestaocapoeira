@@ -1,7 +1,8 @@
 /**
  * docStorage.ts
  * Server-backed file storage for shared documents (Estatuto, Regimento, etc.).
- * All Supabase operations go through /api/docs (server-side, uses service_role).
+ * Files are uploaded DIRECTLY to Supabase Storage via signed upload URLs,
+ * bypassing the Next.js server body limit entirely.
  */
 
 export interface StoredFile {
@@ -11,23 +12,42 @@ export interface StoredFile {
   data: ArrayBuffer;
 }
 
-/** Save file to Supabase Storage via server API (overwrites if exists) */
+/**
+ * Save file to Supabase Storage via a two-step signed-URL upload.
+ * Step 1: server generates a signed upload URL (tiny JSON request).
+ * Step 2: browser PUTs the file directly to Supabase (no proxy, no size limit).
+ */
 export async function saveDocFile(key: string, file: File): Promise<void> {
   const MAX = 50 * 1024 * 1024;
   if (file.size > MAX) {
     throw new Error(`O arquivo (${(file.size / 1024 / 1024).toFixed(1)} MB) excede o limite de 50 MB.`);
   }
 
-  const formData = new FormData();
-  formData.append('key', key);
-  formData.append('file', file);
+  // Step 1 — get a signed upload URL from the server (JSON only, no file)
+  const urlRes = await fetch('/api/docs/upload-url', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ key, filename: file.name, type: file.type, size: file.size }),
+  });
 
-  const res = await fetch('/api/docs', { method: 'POST', body: formData });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    let msg = `Erro ao fazer upload (${res.status})`;
-    try { const j = JSON.parse(text); msg = j.error || msg; } catch { if (text) msg = text.slice(0, 200); }
-    throw new Error(msg);
+  if (!urlRes.ok) {
+    const err = await urlRes.json().catch(() => ({}));
+    throw new Error(err.error || `Erro ao obter URL de upload (${urlRes.status})`);
+  }
+
+  const { uploadUrl } = await urlRes.json();
+  if (!uploadUrl) throw new Error('URL de upload não recebida.');
+
+  // Step 2 — PUT the file directly to Supabase Storage (no proxy, no body limit)
+  const uploadRes = await fetch(uploadUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': file.type || 'application/octet-stream' },
+    body: file,
+  });
+
+  if (!uploadRes.ok) {
+    const errText = await uploadRes.text().catch(() => `HTTP ${uploadRes.status}`);
+    throw new Error(`Erro no upload: ${errText.slice(0, 200)}`);
   }
 
   cacheFileName(key, file.name);
@@ -49,7 +69,6 @@ export async function getDocMeta(key: string): Promise<{ name: string; type: str
 export async function downloadDocFile(key: string, fallbackName = 'documento'): Promise<void> {
   const meta = await getDocMeta(key);
   if (!meta) throw new Error('Arquivo não encontrado.');
-
   if (!meta.signedUrl) throw new Error('Não foi possível obter o link de download.');
 
   const res = await fetch(meta.signedUrl);
