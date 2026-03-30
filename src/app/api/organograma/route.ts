@@ -1,10 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
-);
+function getAdmin() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  );
+}
 
 const BUCKET = 'photos';
 const KEY = 'config/organograma.json';
@@ -35,12 +37,14 @@ const DEFAULT: Organograma = {
 };
 
 export async function GET() {
+  const supabaseAdmin = getAdmin();
   const { data, error } = await supabaseAdmin.storage.from(BUCKET).download(KEY);
   if (error || !data) return NextResponse.json(DEFAULT);
   try { return NextResponse.json(JSON.parse(await data.text())); } catch { return NextResponse.json(DEFAULT); }
 }
 
 export async function POST(req: NextRequest) {
+  const supabaseAdmin = getAdmin();
   const body: Organograma = await req.json();
   body.updated_at = new Date().toISOString();
   const blob = new Blob([JSON.stringify(body)], { type: 'application/json' });

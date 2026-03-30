@@ -1,0 +1,21 @@
+$ next dev --turbopack
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+ ⚠ Invalid next.config.ts options detected: 
+ ⚠     Unrecognized key(s) in object: 'fetchCache', 'serverBodySizeLimit' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://172.20.0.23:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · fetchCache: "force-no-store"
+     · serverBodySizeLimit: "50mb"
+
+ ✓ Starting...
+ ✓ Ready in 875ms
+ ○ Compiling /api/organograma ...
+ ✓ Compiled /api/organograma in 1344ms
+ GET /api/organograma 200 in 1851ms
+ ✓ Compiled /api/hierarquia in 82ms
+ GET /api/hierarquia 200 in 526ms

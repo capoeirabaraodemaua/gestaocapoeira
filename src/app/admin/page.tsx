@@ -283,6 +283,205 @@ const GRAD_OPCOES_INFANTIL = [
   'Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul',
 ];
 
+// ── Organograma / Hierarquia — editor inline no admin ───────────────────────
+function OrgHierTab({ tab }: { tab: 'organograma' | 'hierarquia' }) {
+  const isOrg = tab === 'organograma';
+  const apiPath = isOrg ? '/api/organograma' : '/api/hierarquia';
+  const label   = isOrg ? 'Organograma' : 'Hierarquia';
+  const icon    = isOrg ? '🏛️' : '🥋';
+  const color   = isOrg ? '#1d4ed8' : '#dc2626';
+  const viewUrl = isOrg ? '/organograma' : '/hierarquia';
+
+  const [loading, setLoading]   = React.useState(true);
+  const [saving,  setSaving]    = React.useState(false);
+  const [msg,     setMsg]       = React.useState<{ text: string; ok: boolean } | null>(null);
+  const [data,    setData]      = React.useState<Record<string, unknown>>({});
+
+  React.useEffect(() => {
+    setLoading(true); setMsg(null);
+    fetch(apiPath, { cache: 'no-store' })
+      .then(r => r.json()).then(d => { setData(d || {}); setLoading(false); })
+      .catch(() => { setData({}); setLoading(false); });
+  }, [apiPath]);
+
+  async function handleSave() {
+    setSaving(true); setMsg(null);
+    try {
+      const res = await fetch(apiPath, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      });
+      if (res.ok) {
+        setMsg({ text: `✓ ${label} atualizado! Visível automaticamente para todos os alunos.`, ok: true });
+        setTimeout(() => setMsg(null), 5000);
+      } else {
+        const e = await res.json().catch(() => ({}));
+        setMsg({ text: e.error || `Erro ao salvar ${label}.`, ok: false });
+      }
+    } catch { setMsg({ text: 'Erro de conexão.', ok: false }); }
+    setSaving(false);
+  }
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%', boxSizing: 'border-box', padding: '9px 12px',
+    background: 'var(--bg-input)', border: '1.5px solid var(--border)',
+    borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none',
+  };
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Carregando...</div>;
+
+  return (
+    <div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+        <div>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{icon} {label} da ACCBM</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>
+            Atualize os dados abaixo. Ao salvar, aparece automaticamente para todos os alunos em <strong>{viewUrl}</strong>.
+          </div>
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <a href={viewUrl} target="_blank" rel="noreferrer"
+            style={{ padding: '9px 16px', borderRadius: 9, background: 'var(--bg-input)', border: `1px solid ${color}50`,
+              color, fontWeight: 700, fontSize: '0.82rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+            👁 Ver página
+          </a>
+          <button onClick={handleSave} disabled={saving}
+            style={{ padding: '9px 20px', borderRadius: 9, background: `linear-gradient(135deg,${color},${color}cc)`,
+              border: 'none', color: '#fff', fontWeight: 800, fontSize: '0.85rem', cursor: saving ? 'wait' : 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? '⏳ Salvando...' : '💾 Salvar e Publicar'}
+          </button>
+        </div>
+      </div>
+
+      {msg && (
+        <div style={{ marginBottom: 16, padding: '10px 14px', borderRadius: 9, fontSize: '0.85rem', fontWeight: 600,
+          background: msg.ok ? 'rgba(22,163,74,0.1)' : 'rgba(220,38,38,0.1)',
+          border: `1px solid ${msg.ok ? 'rgba(22,163,74,0.35)' : 'rgba(220,38,38,0.35)'}`,
+          color: msg.ok ? '#4ade80' : '#f87171' }}>
+          {msg.text}
+        </div>
+      )}
+
+      <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '18px 20px' }}>
+        {isOrg ? (
+          <OrgEditor data={data} setData={setData} inputStyle={inputStyle} color={color} />
+        ) : (
+          <HierEditor data={data} setData={setData} inputStyle={inputStyle} color={color} />
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OrgEditor({ data, setData, inputStyle, color }: { data: Record<string, unknown>; setData: (d: Record<string, unknown>) => void; inputStyle: React.CSSProperties; color: string }) {
+  const set = (k: string, v: unknown) => setData({ ...data, [k]: v });
+  const setMembro = (campo: string, subField: string, val: string) => {
+    const curr = (data[campo] as Record<string, unknown>) || {};
+    set(campo, { ...curr, [subField]: val });
+  };
+  const conselho = (data.conselho_fiscal as Array<Record<string, unknown>>) || [];
+  const updateConselho = (i: number, field: string, val: string) => {
+    const arr = [...conselho]; arr[i] = { ...arr[i], [field]: val }; set('conselho_fiscal', arr);
+  };
+  const addConselho = () => set('conselho_fiscal', [...conselho, { nome: '', foto_url: null }]);
+  const removeConselho = (i: number) => set('conselho_fiscal', conselho.filter((_: unknown, idx: number) => idx !== i));
+
+  const campos: { key: string; label: string }[] = [
+    { key: 'presidente', label: 'Presidente' },
+    { key: 'vice_presidente', label: 'Vice-Presidente' },
+    { key: 'secretario', label: 'Secretário(a)' },
+    { key: 'tesoureiro', label: 'Tesoureiro(a)' },
+    { key: 'coordenador_tecnico_cultural', label: 'Coordenador Técnico-Cultural' },
+  ];
+
+  const lStyle: React.CSSProperties = { fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {campos.map(c => {
+        const membro = (data[c.key] as Record<string, unknown>) || {};
+        return (
+          <div key={c.key} style={{ background: 'var(--bg-input)', borderRadius: 9, padding: '12px 14px' }}>
+            <label style={{ ...lStyle, color }}>{c.label}</label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+              <div>
+                <label style={lStyle}>Nome</label>
+                <input style={inputStyle} placeholder={`Nome do(a) ${c.label}`} value={(membro.nome as string) || ''} onChange={e => setMembro(c.key, 'nome', e.target.value)} />
+              </div>
+              <div>
+                <label style={lStyle}>URL da foto (opcional)</label>
+                <input style={inputStyle} placeholder="https://..." value={(membro.foto_url as string) || ''} onChange={e => setMembro(c.key, 'foto_url', e.target.value)} />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+          <label style={{ ...lStyle, marginBottom: 0 }}>Conselho Fiscal</label>
+          <button onClick={addConselho} style={{ padding: '5px 12px', borderRadius: 7, background: `${color}15`, border: `1px solid ${color}40`, color, fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>+ Adicionar</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {conselho.map((m, i) => (
+            <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'center', background: 'var(--bg-input)', borderRadius: 9, padding: '10px 12px' }}>
+              <input style={inputStyle} placeholder="Nome" value={(m.nome as string) || ''} onChange={e => updateConselho(i, 'nome', e.target.value)} />
+              <input style={inputStyle} placeholder="URL da foto (opcional)" value={(m.foto_url as string) || ''} onChange={e => updateConselho(i, 'foto_url', e.target.value)} />
+              <button onClick={() => removeConselho(i)} style={{ padding: '6px 10px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>✕</button>
+            </div>
+          ))}
+          {!conselho.length && <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', fontStyle: 'italic', textAlign: 'center', padding: '8px 0' }}>Nenhum membro no conselho fiscal.</div>}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function HierEditor({ data, setData, inputStyle, color }: { data: Record<string, unknown>; setData: (d: Record<string, unknown>) => void; inputStyle: React.CSSProperties; color: string }) {
+  const set = (k: string, v: unknown) => setData({ ...data, [k]: v });
+
+  const nivelKeys: { key: string; label: string }[] = [
+    { key: 'mestres', label: 'Mestres' },
+    { key: 'mestrandos', label: 'Mestrandos' },
+    { key: 'professores', label: 'Professores' },
+    { key: 'instrutores', label: 'Instrutores' },
+    { key: 'monitores', label: 'Monitores' },
+    { key: 'alunos_graduados', label: 'Alunos Graduados' },
+  ];
+
+  const lStyle: React.CSSProperties = { fontSize: '0.72rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em', display: 'block', marginBottom: 5 };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+      {nivelKeys.map(({ key, label }) => {
+        const membros = (data[key] as Array<Record<string, unknown>>) || [];
+        const updateMembro = (i: number, field: string, val: string) => {
+          const arr = [...membros]; arr[i] = { ...arr[i], [field]: val }; set(key, arr);
+        };
+        const addMembro = () => set(key, [...membros, { id: `${key}_${Date.now()}`, nome: '', nucleo: '', foto_url: null }]);
+        const removeMembro = (i: number) => set(key, membros.filter((_: unknown, idx: number) => idx !== i));
+        return (
+          <div key={key} style={{ background: 'var(--bg-input)', borderRadius: 10, padding: '12px 14px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <label style={{ ...lStyle, color, marginBottom: 0 }}>{label} ({membros.length})</label>
+              <button onClick={addMembro} style={{ padding: '4px 11px', borderRadius: 7, background: `${color}15`, border: `1px solid ${color}40`, color, fontWeight: 700, fontSize: '0.75rem', cursor: 'pointer' }}>+ Adicionar</button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {membros.map((m, i) => (
+                <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 7, alignItems: 'center' }}>
+                  <input style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.82rem' }} placeholder="Nome" value={(m.nome as string) || ''} onChange={e => updateMembro(i, 'nome', e.target.value)} />
+                  <input style={{ ...inputStyle, padding: '7px 10px', fontSize: '0.82rem' }} placeholder="Núcleo (opcional)" value={(m.nucleo as string) || ''} onChange={e => updateMembro(i, 'nucleo', e.target.value)} />
+                  <button onClick={() => removeMembro(i)} style={{ padding: '5px 9px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}>✕</button>
+                </div>
+              ))}
+              {!membros.length && <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', fontStyle: 'italic', textAlign: 'center', padding: '6px 0' }}>Nenhum(a) {label.toLowerCase()} cadastrado(a).</div>}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 // ── Componente de upload direto para documentos institucionais ──────────────
 function DocUploadCard({ docKey, label, color, icon }: { docKey: string; label: string; color: string; icon: string }) {
   const [fileName, setFileName] = React.useState<string | null>(null);
@@ -670,7 +869,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
@@ -1910,6 +2109,8 @@ export default function AdminPage() {
             { key: 'bibliografia', icon: '📚', label: 'Bibliografia dos Mestres' },
             { key: 'estatuto',     icon: '📄', label: 'Estatuto Social' },
             { key: 'regimento',    icon: '📝', label: 'Regimento Interno' },
+            { key: 'organograma',  icon: '🏛️', label: 'Organograma' },
+            { key: 'hierarquia',   icon: '🥋', label: 'Hierarquia' },
             { key: 'informacoes',  icon: 'ℹ️',  label: 'Informações Gerais' },
           ];
           const institucionalColor = '#ea580c';
@@ -7928,6 +8129,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           </div>
         );
       })()}
+
+      {/* ===== ABAS ORGANOGRAMA / HIERARQUIA ===== */}
+      {(activeTab === 'organograma' || activeTab === 'hierarquia') && (
+        <OrgHierTab tab={activeTab} />
+      )}
 
       {/* ===== ABA CONFIGURAÇÃO DO BANCO ===== */}
       {activeTab === 'informacoes' && activeNucleo === 'geral' && (() => {
