@@ -420,8 +420,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
 
     const autorizado = await cpfAutorizadoParaNucleo(cpfKey, nucleo_key);
-    if (!autorizado)
-      return NextResponse.json({ error: `CPF não encontrado no módulo Responsáveis de Núcleo para ${profile.label}. Cadastre o responsável primeiro na aba Responsáveis.` }, { status: 422 });
+    if (!autorizado) {
+      // Auto-register the CPF in responsaveis.json so the user can log in right away
+      try {
+        const { data: respUrlData } = await supabase.storage.from(BUCKET).createSignedUrl('config/responsaveis.json', 10);
+        let respList: Array<Record<string, unknown>> = [];
+        if (respUrlData?.signedUrl) {
+          const respRes = await fetch(respUrlData.signedUrl, { cache: 'no-store' });
+          if (respRes.ok) { const j = await respRes.json(); respList = j.responsaveis || []; }
+        }
+        const existing = respList.findIndex((r: any) => r.nucleo_key === nucleo_key);
+        const newEntry = existing >= 0
+          ? { ...respList[existing], cpf: cpfKey, nome: (respList[existing] as any).nome || nome?.trim() || '' }
+          : { nucleo_key, nucleo_label: profile.label, nome: nome?.trim() || '', cpf: cpfKey };
+        if (existing >= 0) respList[existing] = newEntry;
+        else respList.push(newEntry);
+        const blob = new Blob([JSON.stringify({ responsaveis: respList, updated_at: new Date().toISOString() })], { type: 'application/json' });
+        await supabase.storage.from(BUCKET).upload('config/responsaveis.json', blob, { upsert: true });
+      } catch { /* non-blocking */ }
+    }
 
     creds[cpfKey] = {
       nucleo: profile.nucleo,
@@ -433,7 +450,7 @@ export async function POST(req: NextRequest) {
       first_login: true,
     };
     await saveCreds(creds);
-    return NextResponse.json({ ok: true, cpf: cpfKey });
+    return NextResponse.json({ ok: true, cpf: cpfKey, message: 'Cadastro realizado com sucesso!' });
   }
 
   // ── CRIAR ADMIN GERAL ADICIONAL (máx. 3 no total) ──

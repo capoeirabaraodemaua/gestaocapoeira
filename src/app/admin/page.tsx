@@ -285,6 +285,7 @@ const GRAD_OPCOES_INFANTIL = [
 
 export default function AdminPage() {
   const { t, lang } = useLanguage();
+  const contentAreaRef = useRef<HTMLDivElement>(null);
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
@@ -1663,6 +1664,10 @@ export default function AdminPage() {
         {(() => {
           function goTab(key: string) {
             setActiveTab(key as typeof activeTab);
+            // Auto-scroll to content area after tab change
+            setTimeout(() => {
+              contentAreaRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }, 80);
             if (key === 'presencas') fetchPresencas();
             if ((key === 'relatorio' || key === 'ranking') && Object.keys(relatorioHistorico).length === 0) fetchRelatorio(relDias);
             if (key === 'relatorio') {
@@ -2061,6 +2066,9 @@ export default function AdminPage() {
           );
         })()}
 
+        {/* Scroll anchor for auto-scroll from nav */}
+        <div ref={contentAreaRef} style={{ scrollMarginTop: 12 }} />
+
         {activeTab === 'alunos' && (
           <div>
           <div className="admin-stats">
@@ -2221,7 +2229,18 @@ export default function AdminPage() {
                       <td style={{ fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           {student.nome_completo}
-                          {(() => { try { const c: string[] = student.condicoes_atipicas ? JSON.parse(student.condicoes_atipicas) : []; return c.length > 0 ? <span title={c.join(', ')} style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.12)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, cursor: 'default', flexShrink: 0 }}>🧩 {c.length}</span> : null; } catch { return null; } })()}
+                          {(student as any).sexo === 'M' && (
+                            <span style={{ fontSize: '0.65rem', background: 'rgba(22,163,74,0.12)', color: '#16a34a', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluno</span>
+                          )}
+                          {(student as any).sexo === 'F' && (
+                            <span style={{ fontSize: '0.65rem', background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluna</span>
+                          )}
+                          {(() => {
+                            try {
+                              const c: string[] = (student as any).desenvolvimento_atipico ? (Array.isArray((student as any).desenvolvimento_atipico) ? (student as any).desenvolvimento_atipico : JSON.parse((student as any).desenvolvimento_atipico)) : ((student as any).condicoes_atipicas ? JSON.parse((student as any).condicoes_atipicas) : []);
+                              return c.length > 0 ? <span title={c.join(', ')} style={{ fontSize: '0.7rem', background: 'rgba(139,92,246,0.12)', color: '#5b21b6', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, cursor: 'default', flexShrink: 0 }}>🧩 {c.length}</span> : null;
+                            } catch { return null; }
+                          })()}
                         </div>
                       </td>
                       <td style={{ fontFamily: 'monospace', fontSize: '0.78rem', color: '#6366f1', fontWeight: 700, whiteSpace: 'nowrap' }}>
@@ -10459,7 +10478,7 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                     const d = await res.json();
                     if (res.ok) {
                       const savedPass = respNewPass;
-                      setRespCreateMsg(`✓ Responsável cadastrado! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado. Senha inicial: ${savedPass}`);
+                      setRespCreateMsg(`✅ Cadastro realizado com sucesso! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado para ${respNewNucleo}. Senha inicial: ${savedPass}`);
                       setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo(''); setRespShowPass(false);
                       const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                       const ld = await lr.json();

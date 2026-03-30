@@ -143,6 +143,7 @@ export async function PATCH(req: NextRequest) {
       'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
       'nome_pai', 'nome_mae', 'apelido', 'nome_social', 'sexo',
       'nome_responsavel', 'cpf_responsavel', 'foto_url',
+      'desenvolvimento_atipico',
     ];
 
     const payload: Record<string, unknown> = {};

@@ -26,6 +26,7 @@ type Student = {
   nome_responsavel?: string;
   cpf_responsavel?: string;
   menor_de_idade?: boolean;
+  desenvolvimento_atipico?: string[];
   [key: string]: unknown;
 };
 
@@ -184,6 +185,7 @@ export default function AlunoPage() {
     nome_pai: '', nome_mae: '',
     nome_responsavel: '', cpf_responsavel: '',
     apelido: '', nome_social: '', sexo: '',
+    desenvolvimento_atipico: [] as string[],
   });
   const [dadosLoading, setDadosLoading] = useState(false);
   const [dadosMsg, setDadosMsg] = useState('');
@@ -531,6 +533,7 @@ export default function AlunoPage() {
         apelido:          student.apelido           as string || '',
         nome_social:      student.nome_social       as string || '',
         sexo:             student.sexo              as string || '',
+        desenvolvimento_atipico: Array.isArray(student.desenvolvimento_atipico) ? student.desenvolvimento_atipico as string[] : [],
       });
       setDadosInitialized(true);
     }
@@ -2006,6 +2009,14 @@ export default function AlunoPage() {
 
           // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
+            // Numeração Única rule: if filled, CPF and Identidade must be blank
+            if (dadosForm.numeracao_unica.trim()) {
+              if (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) {
+                setDadosMsg('⚠️ Ao preencher a Numeração Única, os campos CPF e Identidade devem ficar em branco para evitar conflito de identificação.');
+                setDadosMsgType('error');
+                return;
+              }
+            }
             // CPF validation before save
             if (dadosForm.cpf) {
               const cpfDigits = dadosForm.cpf.replace(/\D/g, '');
@@ -2115,6 +2126,17 @@ export default function AlunoPage() {
                 </div>
               )}
 
+              {/* Aviso de completude obrigatório */}
+              <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 12, padding: '12px 16px', fontSize: '0.82rem', color: '#1e40af', fontWeight: 600, display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <span style={{ fontSize: '1.1rem', flexShrink: 0 }}>📝</span>
+                <div>
+                  <div>Por favor, complete e atualize todos os dados do seu cadastro.</div>
+                  <div style={{ fontWeight: 400, fontSize: '0.75rem', marginTop: 3, color: '#3b82f6' }}>
+                    Caso preencha a <strong>Numeração Única</strong>, deixe os campos <strong>CPF</strong> e <strong>Identidade</strong> em branco para evitar conflito de identificação.
+                  </div>
+                </div>
+              </div>
+
               {isMissing && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: '0.8rem', color: '#92400e' }}>
                   ⚠️ Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>. Preencha abaixo.
@@ -2199,7 +2221,30 @@ export default function AlunoPage() {
                   </div>
                   <div>
                     <label style={ls}>Data de Nascimento</label>
-                    <input type="date" value={dadosForm.data_nascimento} onChange={e => setDadosForm(p => ({ ...p, data_nascimento: e.target.value, tipo_graduacao: p.tipo_graduacao }))} style={fs} />
+                    <input type="date" value={dadosForm.data_nascimento} onChange={e => {
+                      const dob = e.target.value;
+                      setDadosForm(p => ({ ...p, data_nascimento: dob }));
+                      // Auto-detect minor → show Termo alert
+                      if (dob) {
+                        const age = (new Date().getFullYear()) - parseInt(dob.slice(0,4));
+                        const isMinor = age < 18;
+                        if (isMinor) {
+                          setDadosMsg('⚠️ Aluno menor de idade detectado. O Termo de Responsabilidade é obrigatório — acesse a aba Termo.');
+                          setDadosMsgType('error');
+                        }
+                      }
+                    }} style={fs} />
+                    {(() => {
+                      if (!dadosForm.data_nascimento) return null;
+                      const age = (new Date().getFullYear()) - parseInt(dadosForm.data_nascimento.slice(0,4));
+                      if (age >= 18) return null;
+                      return (
+                        <div style={{ marginTop: 6, background: '#fef9c3', border: '1px solid #fde047', borderRadius: 8, padding: '7px 10px', fontSize: '0.75rem', color: '#854d0e' }}>
+                          ⚠️ Menor de idade — Termo de Responsabilidade obrigatório.{' '}
+                          <button type="button" onClick={() => setActiveTab('termo')} style={{ background: '#854d0e', color: '#fff', border: 'none', borderRadius: 5, padding: '2px 8px', fontSize: '0.7rem', fontWeight: 700, cursor: 'pointer', marginLeft: 4 }}>Assinar Termo →</button>
+                        </div>
+                      );
+                    })()}
                   </div>
                   <div>
                     <label style={ls}>CPF <span style={{ color: '#ef4444' }}>*</span></label>
@@ -2218,8 +2263,16 @@ export default function AlunoPage() {
                   </div>
                   <div>
                     <label style={ls}>Numeração Única</label>
-                    <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))} style={fs} placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
-                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Identificador único do aluno no sistema ACCBM</div>
+                    <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))}
+                      style={{ ...fs, borderColor: dadosForm.numeracao_unica.trim() && (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) ? '#fca5a5' : '#e5e7eb' }}
+                      placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
+                    {dadosForm.numeracao_unica.trim() && (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) ? (
+                      <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 3, fontWeight: 600 }}>
+                        ⚠️ Com Numeração Única preenchida, deixe CPF e Identidade em branco
+                      </div>
+                    ) : (
+                      <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Identificador único do aluno no sistema ACCBM</div>
+                    )}
                   </div>
                   <div>
                     <label style={ls}>Telefone / WhatsApp</label>
@@ -2303,6 +2356,48 @@ export default function AlunoPage() {
                   <div style={{ marginTop: 10, background: '#eff6ff', borderRadius: 8, padding: '8px 12px', fontSize: '0.75rem', color: '#1e40af' }}>
                     ℹ️ Como aluno(a) menor de idade, o Termo de Responsabilidade também deve ser assinado. Acesse a aba <strong>📄 Termo</strong>.
                     <button onClick={() => setActiveTab('termo')} style={{ marginLeft: 8, background: '#1e40af', color: '#fff', border: 'none', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, cursor: 'pointer' }}>Ver Termo</button>
+                  </div>
+                )}
+              </div>
+
+              {/* ── Desenvolvimento Atípico / Necessidades Específicas ── */}
+              <div style={{ background: '#fff', borderRadius: 16, padding: '18px 20px', border: '1px solid #e5e7eb', boxShadow: '0 1px 6px rgba(0,0,0,0.04)' }}>
+                <div style={sec}>Desenvolvimento Atípico / Necessidades Específicas</div>
+                <p style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 0, marginBottom: 12 }}>Campo opcional. Selecione todas as condições que se aplicam.</p>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+                  {[
+                    'Transtorno do Espectro Autista (TEA)',
+                    'Deficiência intelectual',
+                    'Dislexia',
+                    'Transtorno de ansiedade',
+                    'Atraso no desenvolvimento (fala, motor ou cognitivo)',
+                    'Deficiência auditiva',
+                    'Transtorno Opositivo Desafiador (TOD)',
+                    'Epilepsia',
+                    'Transtorno de Déficit de Atenção e Hiperatividade (TDAH)',
+                    'Síndrome de Down',
+                    'Discalculia',
+                    'Transtorno de aprendizagem',
+                    'Deficiência visual',
+                    'Deficiência física motora',
+                    'Altas habilidades / superdotação',
+                    'Outros',
+                  ].map(opt => {
+                    const checked = dadosForm.desenvolvimento_atipico.includes(opt);
+                    return (
+                      <label key={opt} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer', fontSize: '0.78rem', color: '#374151', padding: '6px 8px', background: checked ? `${nucleoColor}08` : 'transparent', borderRadius: 8, border: `1px solid ${checked ? nucleoColor + '30' : 'transparent'}`, transition: 'all 0.15s' }}>
+                        <input type="checkbox" checked={checked} onChange={e => {
+                          if (e.target.checked) setDadosForm(p => ({ ...p, desenvolvimento_atipico: [...p.desenvolvimento_atipico, opt] }));
+                          else setDadosForm(p => ({ ...p, desenvolvimento_atipico: p.desenvolvimento_atipico.filter(x => x !== opt) }));
+                        }} style={{ marginTop: 2, flexShrink: 0, accentColor: nucleoColor }} />
+                        <span>{opt}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {dadosForm.desenvolvimento_atipico.length > 0 && (
+                  <div style={{ marginTop: 10, fontSize: '0.72rem', color: nucleoColor, fontWeight: 600 }}>
+                    ✓ {dadosForm.desenvolvimento_atipico.length} condição(ões) selecionada(s)
                   </div>
                 )}
               </div>
