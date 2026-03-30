@@ -1,14 +1,8 @@
 /**
  * docStorage.ts
- * Supabase Storage-backed file storage for shared documents (Estatuto, Regimento).
- * Files are stored at docs/estatuto and docs/regimento in the 'photos' bucket,
- * making them accessible to ALL users/devices.
+ * Server-backed file storage for shared documents (Estatuto, Regimento, etc.).
+ * All Supabase operations go through /api/docs (server-side, uses service_role).
  */
-
-import { supabaseAdmin as supabase } from '@/lib/supabase';
-
-const BUCKET = 'photos';
-const DOC_PREFIX = 'docs';
 
 export interface StoredFile {
   name: string;
@@ -17,55 +11,33 @@ export interface StoredFile {
   data: ArrayBuffer;
 }
 
-/** Map storage key → Supabase path */
-function toPath(key: string): string {
-  // e.g. 'accbm_estatuto' → 'docs/estatuto'
-  const slug = key.replace('accbm_', '');
-  return `${DOC_PREFIX}/${slug}`;
-}
-
-/** Save file to Supabase Storage (overwrites if exists) */
+/** Save file to Supabase Storage via server API (overwrites if exists) */
 export async function saveDocFile(key: string, file: File): Promise<void> {
   const MAX = 50 * 1024 * 1024;
   if (file.size > MAX) {
     throw new Error(`O arquivo (${(file.size / 1024 / 1024).toFixed(1)} MB) excede o limite de 50 MB.`);
   }
-  const path = toPath(key);
-  // Store metadata as a separate small JSON sidecar
-  const meta = { name: file.name, type: file.type || 'application/octet-stream', size: file.size };
-  const metaBlob = new Blob([JSON.stringify(meta)], { type: 'application/json' });
-  const { error: metaErr } = await supabase.storage.from(BUCKET).upload(
-    `${path}.meta.json`, metaBlob, { upsert: true, contentType: 'application/json' }
-  );
-  if (metaErr) throw new Error(`Erro ao salvar metadados: ${metaErr.message}`);
 
-  const { error } = await supabase.storage.from(BUCKET).upload(path, file, {
-    upsert: true,
-    contentType: file.type || 'application/octet-stream',
-  });
-  if (error) throw new Error(`Erro ao fazer upload: ${error.message}`);
+  const formData = new FormData();
+  formData.append('key', key);
+  formData.append('file', file);
 
-  // Also cache name locally for fast UI rendering
+  const res = await fetch('/api/docs', { method: 'POST', body: formData });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({ error: 'Erro desconhecido' }));
+    throw new Error(body.error || `Erro ao fazer upload (${res.status})`);
+  }
+
   cacheFileName(key, file.name);
 }
 
-/** Get public download URL from Supabase Storage */
-export async function getDocPublicUrl(key: string): Promise<string | null> {
-  const path = toPath(key);
-  // Check if file exists by trying to get its metadata
-  const meta = await getDocMeta(key);
-  if (!meta) return null;
-  const { data } = supabase.storage.from(BUCKET).getPublicUrl(path);
-  return data?.publicUrl ?? null;
-}
-
-/** Get stored file metadata (name, type, size) from sidecar JSON */
-export async function getDocMeta(key: string): Promise<{ name: string; type: string; size: number } | null> {
-  const path = `${toPath(key)}.meta.json`;
-  const { data, error } = await supabase.storage.from(BUCKET).download(path);
-  if (error || !data) return null;
+/** Get stored file metadata + signed URL from server */
+export async function getDocMeta(key: string): Promise<{ name: string; type: string; size: number; signedUrl?: string } | null> {
   try {
-    return JSON.parse(await data.text());
+    const res = await fetch(`/api/docs?key=${encodeURIComponent(key)}`, { cache: 'no-store' });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data ?? null;
   } catch {
     return null;
   }
@@ -76,11 +48,13 @@ export async function downloadDocFile(key: string, fallbackName = 'documento'): 
   const meta = await getDocMeta(key);
   if (!meta) throw new Error('Arquivo não encontrado.');
 
-  const path = toPath(key);
-  const { data, error } = await supabase.storage.from(BUCKET).download(path);
-  if (error || !data) throw new Error('Erro ao baixar arquivo.');
+  if (!meta.signedUrl) throw new Error('Não foi possível obter o link de download.');
 
-  const url = URL.createObjectURL(data);
+  const res = await fetch(meta.signedUrl);
+  if (!res.ok) throw new Error('Erro ao baixar arquivo.');
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = meta.name || fallbackName;
