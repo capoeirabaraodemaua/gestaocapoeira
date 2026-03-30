@@ -11,6 +11,7 @@ type Student = {
   nome_social?: string;
   cpf?: string;
   identidade?: string;
+  numeracao_unica?: string;
   data_nascimento?: string;
   telefone?: string;
   email?: string;
@@ -113,9 +114,12 @@ export default function AlunoPage() {
   const [forgotInput, setForgotInput] = useState('');
   const [forgotMsg, setForgotMsg] = useState('');
   const [forgotStudentId, setForgotStudentId] = useState('');
+  const [forgotStep, setForgotStep] = useState<'lookup' | 'reset' | 'done'>('lookup');
+  const [forgotLoading, setForgotLoading] = useState(false);
   const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetOtp, setResetOtp] = useState('');
   const [resetPassword, setResetPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetMsg, setResetMsg] = useState('');
 
   // ── Presença ──────────────────────────────────────────────────────────────
@@ -174,7 +178,7 @@ export default function AlunoPage() {
 
   const [dadosForm, setDadosForm] = useState({
     nucleo: '', graduacao: '', tipo_graduacao: '',
-    cpf: '', identidade: '', data_nascimento: '',
+    cpf: '', identidade: '', numeracao_unica: '', data_nascimento: '',
     telefone: '', email: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
     nome_pai: '', nome_mae: '',
@@ -509,6 +513,7 @@ export default function AlunoPage() {
         tipo_graduacao:   student.tipo_graduacao    as string || '',
         cpf:              student.cpf               as string || '',
         identidade:       student.identidade        as string || '',
+        numeracao_unica:  (student.numeracao_unica  as string) || '',
         data_nascimento:  student.data_nascimento   as string || '',
         telefone:         student.telefone          as string || '',
         email:            student.email             as string || '',
@@ -774,41 +779,106 @@ export default function AlunoPage() {
 
   // ── FORGOT PASSWORD ───────────────────────────────────────────────────────
   if (showForgot) {
+    const inpStyle = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' as const };
+    const lblStyle = { display: 'block', fontSize: '0.8rem', fontWeight: 600 as const, color: '#374151', marginBottom: 5 };
+
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
         <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 400, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 40, marginBottom: 6 }}>🔑</div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Recuperar Senha</h2>
-          </div>
-          {forgotMsg && <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', color: '#1e40af', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{forgotMsg}</div>}
-          {resetMsg && <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.82rem' }}>{resetMsg}</div>}
-          {!showResetPassword ? (
-            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }) }); const data = await res.json(); if (data.student_id) { setForgotStudentId(data.student_id); const dest = data.email ? `e-mail ${data.email}` : data.phone ? `WhatsApp ${data.phone}` : 'seu contato cadastrado'; setForgotMsg(`Código enviado para ${dest}.`); setShowResetPassword(true); } else { setForgotMsg(data.message || 'Se existir, você receberá um código.'); } }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Usuário ou E-mail</label>
-                <input type="text" value={forgotInput} onChange={e => setForgotInput(e.target.value)}
-                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} required />
+
+          {forgotStep === 'done' ? (
+            <div style={{ textAlign: 'center' }}>
+              <div style={{ fontSize: '3.5rem', marginBottom: 12 }}>✅</div>
+              <h2 style={{ margin: '0 0 8px', fontSize: '1.2rem', fontWeight: 800, color: '#111827' }}>Senha redefinida!</h2>
+              <p style={{ fontSize: '0.85rem', color: '#6b7280', marginBottom: 20 }}>Sua nova senha foi salva com sucesso. Você já pode fazer login.</p>
+              <button onClick={() => { setShowForgot(false); setForgotStep('lookup'); setForgotInput(''); setForgotMsg(''); setResetMsg(''); setResetPassword(''); setResetConfirmPassword(''); }}
+                style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '12px 32px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}>
+                Entrar agora
+              </button>
+            </div>
+          ) : forgotStep === 'reset' ? (
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 22 }}>
+                <div style={{ fontSize: 38, marginBottom: 6 }}>🔒</div>
+                <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>Criar nova senha</h2>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#6b7280' }}>Conta encontrada. Defina uma nova senha abaixo.</p>
               </div>
-              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.9rem', cursor: 'pointer' }}>Enviar Código de Recuperação</button>
-            </form>
+              {resetMsg && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.83rem' }}>{resetMsg}</div>}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                if (resetPassword.length < 6) { setResetMsg('Senha deve ter pelo menos 6 caracteres.'); return; }
+                if (resetPassword !== resetConfirmPassword) { setResetMsg('As senhas não coincidem.'); return; }
+                setForgotLoading(true); setResetMsg('');
+                // Use a dummy OTP since we store it in the account — we'll use forgot-password + reset-password
+                const res = await fetch('/api/aluno/auth', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'reset-password', student_id: forgotStudentId, otp: resetOtp, new_password: resetPassword }),
+                });
+                const data = await res.json();
+                setForgotLoading(false);
+                if (!res.ok) { setResetMsg(data.error || 'Erro ao redefinir senha.'); return; }
+                setForgotStep('done');
+              }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={lblStyle}>Nova Senha <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="password" value={resetPassword} onChange={e => setResetPassword(e.target.value)}
+                    style={{ ...inpStyle, borderColor: resetPassword && resetPassword.length < 6 ? '#fca5a5' : '#e5e7eb' }}
+                    placeholder="Mínimo 6 caracteres" minLength={6} required autoFocus />
+                  {resetPassword && resetPassword.length < 6 && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>Mínimo 6 caracteres</p>}
+                </div>
+                <div>
+                  <label style={lblStyle}>Confirmar Nova Senha <span style={{ color: '#ef4444' }}>*</span></label>
+                  <input type="password" value={resetConfirmPassword} onChange={e => setResetConfirmPassword(e.target.value)}
+                    style={{ ...inpStyle, borderColor: resetConfirmPassword && resetConfirmPassword !== resetPassword ? '#fca5a5' : resetConfirmPassword && resetConfirmPassword === resetPassword ? '#86efac' : '#e5e7eb' }}
+                    placeholder="Repita a nova senha" minLength={6} required />
+                  {resetConfirmPassword && resetConfirmPassword !== resetPassword && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#ef4444' }}>As senhas não coincidem</p>}
+                  {resetConfirmPassword && resetConfirmPassword === resetPassword && <p style={{ margin: '2px 0 0', fontSize: '0.68rem', color: '#16a34a' }}>✓ Senhas coincidem</p>}
+                </div>
+                <button type="submit" disabled={forgotLoading || resetPassword.length < 6 || resetPassword !== resetConfirmPassword}
+                  style={{ background: (resetPassword.length >= 6 && resetPassword === resetConfirmPassword) ? 'linear-gradient(135deg,#1d4ed8,#1e40af)' : '#e5e7eb', color: (resetPassword.length >= 6 && resetPassword === resetConfirmPassword) ? '#fff' : '#9ca3af', border: 'none', borderRadius: 10, padding: 13, fontWeight: 700, fontSize: '0.95rem', cursor: forgotLoading ? 'not-allowed' : 'pointer', transition: 'all 0.2s' }}>
+                  {forgotLoading ? '⏳ Salvando...' : '✅ Salvar Nova Senha'}
+                </button>
+              </form>
+              <button onClick={() => { setForgotStep('lookup'); setResetMsg(''); }} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem' }}>← Voltar</button>
+            </>
           ) : (
-            <form onSubmit={async (e) => { e.preventDefault(); const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'reset-password', student_id: forgotStudentId, otp: resetOtp, new_password: resetPassword }) }); const data = await res.json(); if (!res.ok) { setResetMsg(data.error || 'Erro.'); return; } setResetMsg('Senha redefinida! Faça login.'); setShowForgot(false); setShowResetPassword(false); }} style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Código de recuperação</label>
-                <input type="text" value={resetOtp} onChange={e => setResetOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                  style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 10, padding: '12px', fontSize: '1.8rem', textAlign: 'center', letterSpacing: '0.35em', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
-                  placeholder="000000" maxLength={6} required />
+            <>
+              <div style={{ textAlign: 'center', marginBottom: 22 }}>
+                <div style={{ fontSize: 38, marginBottom: 6 }}>🔑</div>
+                <h2 style={{ margin: '0 0 4px', fontSize: '1.1rem', fontWeight: 700 }}>Recuperar Senha</h2>
+                <p style={{ margin: 0, fontSize: '0.78rem', color: '#6b7280' }}>Informe seu e-mail ou usuário para localizar sua conta.</p>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 600, color: '#374151', marginBottom: 5 }}>Nova Senha</label>
-                <input type="password" value={resetPassword} onChange={e => setResetPassword(e.target.value)}
-                  style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '11px 14px', fontSize: '0.9rem', outline: 'none', boxSizing: 'border-box' }} minLength={6} required />
-              </div>
-              <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, cursor: 'pointer' }}>Redefinir Senha</button>
-            </form>
+              {forgotMsg && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.83rem' }}>{forgotMsg}</div>}
+              <form onSubmit={async (e) => {
+                e.preventDefault();
+                setForgotLoading(true); setForgotMsg('');
+                const res = await fetch('/api/aluno/auth', {
+                  method: 'POST', headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ action: 'forgot-password', username_or_email: forgotInput }),
+                });
+                const data = await res.json();
+                setForgotLoading(false);
+                if (data.student_id) {
+                  setForgotStudentId(data.student_id);
+                  setResetOtp(data.otp_code || ''); // dev mode only
+                  setForgotStep('reset');
+                } else {
+                  setForgotMsg('Conta não encontrada. Verifique o e-mail ou usuário informado.');
+                }
+              }} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div>
+                  <label style={lblStyle}>Usuário ou E-mail cadastrado</label>
+                  <input type="text" value={forgotInput} onChange={e => setForgotInput(e.target.value)}
+                    style={inpStyle} placeholder="seu@email.com ou nome de usuário" required autoFocus />
+                </div>
+                <button type="submit" disabled={forgotLoading || !forgotInput.trim()}
+                  style={{ background: forgotInput.trim() ? 'linear-gradient(135deg,#1d4ed8,#1e40af)' : '#e5e7eb', color: forgotInput.trim() ? '#fff' : '#9ca3af', border: 'none', borderRadius: 10, padding: 13, fontWeight: 700, fontSize: '0.95rem', cursor: forgotLoading ? 'not-allowed' : 'pointer' }}>
+                  {forgotLoading ? '⏳ Verificando...' : '🔍 Localizar Minha Conta'}
+                </button>
+              </form>
+              <button onClick={() => { setShowForgot(false); setForgotMsg(''); setForgotInput(''); }} style={{ width: '100%', marginTop: 12, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem' }}>← Voltar ao login</button>
+            </>
           )}
-          <button onClick={() => { setShowForgot(false); setShowResetPassword(false); setForgotMsg(''); setResetMsg(''); }} style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.82rem' }}>← Voltar ao login</button>
         </div>
       </div>
     );
@@ -1915,21 +1985,21 @@ export default function AlunoPage() {
             return d.length > 5 ? `${d.slice(0,5)}-${d.slice(5)}` : d;
           };
 
-          // ── CEP auto-fill ──────────────────────────────────────────────────
+          // ── CEP auto-fill (via server proxy to avoid CORS) ────────────────
           const handleCepBlur = async (cep: string) => {
             const digits = cep.replace(/\D/g, '');
             if (digits.length !== 8) return;
             try {
-              const r = await fetch(`https://viacep.com.br/ws/${digits}/json/`);
+              const r = await fetch(`/api/cep?cep=${digits}`);
               if (!r.ok) return;
               const d = await r.json();
-              if (d.erro) return;
+              if (d.error) return;
               setDadosForm(p => ({
                 ...p,
                 endereco: d.logradouro || p.endereco,
-                bairro: d.bairro || p.bairro,
-                cidade: d.localidade || p.cidade,
-                estado: d.uf || p.estado,
+                bairro:   d.bairro     || p.bairro,
+                cidade:   d.localidade || p.cidade,
+                estado:   d.uf         || p.estado,
               }));
             } catch { /* silently ignore */ }
           };
@@ -2031,16 +2101,16 @@ export default function AlunoPage() {
                 </div>
               </div>
 
-              {/* ── Numeração Única ── */}
+              {/* ── Matrícula ── */}
               {(student.ordem_inscricao || alunoInscricaoNum) && (
                 <div style={{ background: `${nucleoColor}08`, border: `1px solid ${nucleoColor}30`, borderRadius: 12, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
                   <div style={{ width: 36, height: 36, borderRadius: '50%', background: `${nucleoColor}18`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1rem', flexShrink: 0 }}>🪪</div>
                   <div>
-                    <div style={{ fontSize: '0.7rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 1 }}>Numeração Única do Aluno</div>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 1 }}>Matrícula</div>
                     <div style={{ fontWeight: 800, fontSize: '1.1rem', color: nucleoColor, fontFamily: 'monospace' }}>
                       #{String(student.ordem_inscricao as number || alunoInscricaoNum || 0).padStart(4, '0')}
                     </div>
-                    <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Identificador exclusivo e permanente</div>
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af' }}>Número de matrícula na associação</div>
                   </div>
                 </div>
               )}
@@ -2145,6 +2215,11 @@ export default function AlunoPage() {
                   <div>
                     <label style={ls}>Identidade (RG)</label>
                     <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fs} placeholder="Número do RG" />
+                  </div>
+                  <div>
+                    <label style={ls}>Numeração Única</label>
+                    <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))} style={fs} placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Identificador único do aluno no sistema ACCBM</div>
                   </div>
                   <div>
                     <label style={ls}>Telefone / WhatsApp</label>

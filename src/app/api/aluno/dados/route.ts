@@ -138,7 +138,7 @@ export async function PATCH(req: NextRequest) {
     // Allowed fields — students can only update their own profile data, not system fields
     const ALLOWED = [
       'nucleo', 'graduacao', 'tipo_graduacao',
-      'cpf', 'identidade', 'data_nascimento',
+      'cpf', 'identidade', 'numeracao_unica', 'data_nascimento',
       'telefone', 'email',
       'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
       'nome_pai', 'nome_mae', 'apelido', 'nome_social', 'sexo',
@@ -154,6 +154,22 @@ export async function PATCH(req: NextRequest) {
 
     if (Object.keys(payload).length === 0) {
       return NextResponse.json({ error: 'Nenhum campo válido para atualizar.' }, { status: 400 });
+    }
+
+    // Numeração Única duplicate check
+    if (payload.numeracao_unica && typeof payload.numeracao_unica === 'string') {
+      const nu = (payload.numeracao_unica as string).trim();
+      if (nu) {
+        const { data: nuConflict } = await supabaseAdmin
+          .from('students')
+          .select('id')
+          .eq('numeracao_unica', nu)
+          .neq('id', student_id)
+          .maybeSingle();
+        if (nuConflict) {
+          return NextResponse.json({ error: 'Esta Numeração Única já está cadastrada para outro aluno.' }, { status: 409 });
+        }
+      }
     }
 
     // CPF duplicate check — ensure no other student has the same CPF

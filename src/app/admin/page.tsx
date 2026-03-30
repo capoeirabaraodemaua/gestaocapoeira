@@ -304,6 +304,13 @@ export default function AdminPage() {
   const [profileEmail, setProfileEmail] = useState('');
   const [changeEmailMsg, setChangeEmailMsg] = useState('');
   const [changeSending, setChangeSending] = useState(false);
+  // Admin forgot-password inline flow
+  const [showAdminForgot, setShowAdminForgot] = useState(false);
+  const [adminForgotCpf, setAdminForgotCpf] = useState('');
+  const [adminForgotMsg, setAdminForgotMsg] = useState('');
+  const [adminForgotLoading, setAdminForgotLoading] = useState(false);
+  const [adminForgotDone, setAdminForgotDone] = useState(false);
+  const [adminResetUrl, setAdminResetUrl] = useState('');
 
   const SUPER_ADMIN_CPF = '09856925703';
 
@@ -1482,7 +1489,11 @@ export default function AdminPage() {
             {loginError && <div style={{ background: 'rgba(220,38,38,0.15)', border: '1px solid rgba(220,38,38,0.4)', borderRadius: 8, padding: '8px 12px', color: '#fca5a5', fontSize: '0.82rem', fontWeight: 600 }}>⚠ {loginError}</div>}
             <button type="submit" style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', marginTop: 4 }}>Entrar</button>
           </form>
-          <div style={{ textAlign: 'center', marginTop: 16 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 16 }}>
+            <button type="button" onClick={() => { setShowAdminForgot(v => !v); setAdminForgotMsg(''); setAdminForgotDone(false); setAdminForgotCpf(''); setAdminResetUrl(''); }}
+              style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>
+              🔑 Esqueceu a senha?
+            </button>
             <button type="button" onClick={() => {
                 const prof = getProfiles().find(p => p.nucleo === 'edson-alves');
                 setShowChangeCreds(true); setChangeError(''); setChangeDone(false);
@@ -1493,6 +1504,66 @@ export default function AdminPage() {
               Criar / Redefinir Senha
             </button>
           </div>
+
+          {/* Admin forgot-password inline panel */}
+          {showAdminForgot && (
+            <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '16px 18px' }}>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700, fontSize: '0.88rem', marginBottom: 10 }}>🔑 Recuperar Acesso</div>
+              {!adminForgotDone ? (
+                <>
+                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 0, marginBottom: 10, lineHeight: 1.5 }}>
+                    Informe seu CPF cadastrado. Você receberá um link de redefinição por e-mail.
+                  </p>
+                  <input
+                    type="text" inputMode="numeric"
+                    value={adminForgotCpf}
+                    onChange={e => setAdminForgotCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
+                    placeholder="CPF (apenas números)"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.88rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  {adminForgotMsg && (
+                    <div style={{ fontSize: '0.78rem', color: adminForgotMsg.startsWith('✅') ? '#86efac' : '#fca5a5', marginBottom: 8, lineHeight: 1.5 }}>{adminForgotMsg}</div>
+                  )}
+                  {adminResetUrl && (
+                    <div style={{ fontSize: '0.72rem', color: '#93c5fd', marginBottom: 8, wordBreak: 'break-all', lineHeight: 1.6 }}>
+                      <strong>Link de redefinição:</strong><br />
+                      <a href={adminResetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#93c5fd' }}>{adminResetUrl}</a>
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    disabled={adminForgotLoading || adminForgotCpf.length < 11}
+                    onClick={async () => {
+                      setAdminForgotLoading(true); setAdminForgotMsg(''); setAdminResetUrl('');
+                      try {
+                        const res = await fetch('/api/admin/panel-auth', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'forgot-password', cpf: adminForgotCpf }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          setAdminForgotMsg(data.message || '✅ Solicitação enviada!');
+                          if (data.reset_url) setAdminResetUrl(data.reset_url);
+                          if (!data.no_email && !data.no_resend) setAdminForgotDone(true);
+                        } else {
+                          setAdminForgotMsg(data.error || 'CPF não encontrado.');
+                        }
+                      } catch { setAdminForgotMsg('Erro de conexão.'); }
+                      setAdminForgotLoading(false);
+                    }}
+                    style={{ width: '100%', padding: '9px', background: adminForgotCpf.length >= 11 ? 'linear-gradient(135deg,#1d4ed8,#1e40af)' : 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: adminForgotCpf.length >= 11 ? 'pointer' : 'not-allowed', opacity: adminForgotLoading ? 0.6 : 1 }}>
+                    {adminForgotLoading ? '⏳ Enviando...' : '📧 Enviar Link de Redefinição'}
+                  </button>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', color: '#86efac', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                  ✅ Link enviado! Verifique seu e-mail e siga as instruções para redefinir a senha.
+                  <br />
+                  <button type="button" onClick={() => { setAdminForgotDone(false); setShowAdminForgot(false); }} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Fechar</button>
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {showChangeCreds && <ChangeCrendsModal />}
