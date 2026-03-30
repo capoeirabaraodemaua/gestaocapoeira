@@ -117,11 +117,12 @@ export async function POST(req: NextRequest) {
     for (const resp of novaLista) {
       const profile = NUCLEO_PROFILES[resp.nucleo_key];
       if (!profile) continue;
-      // CPF principal
+      // CPF principal — usa chave por núcleo para suportar o mesmo CPF em múltiplos núcleos
       const cpf1 = resp.cpf?.replace(/\D/g, '');
       if (cpf1?.length === 11) {
-        if (!creds[cpf1]) {
-          creds[cpf1] = {
+        const credKey1 = `${cpf1}_${resp.nucleo_key}`;
+        if (!creds[credKey1]) {
+          creds[credKey1] = {
             nucleo: resp.nucleo_key,
             label: profile.label,
             color: profile.color,
@@ -131,17 +132,17 @@ export async function POST(req: NextRequest) {
             first_login: true,
           };
           changed = true;
-        } else if (resp.email && creds[cpf1].email !== resp.email) {
-          // Atualiza email se mudou
-          creds[cpf1] = { ...creds[cpf1], email: resp.email };
+        } else if (resp.email && creds[credKey1].email !== resp.email) {
+          creds[credKey1] = { ...creds[credKey1], email: resp.email };
           changed = true;
         }
       }
-      // CPF secundário (cpf2)
+      // CPF secundário (cpf2) — usa chave por núcleo
       const cpf2 = resp.cpf2?.replace(/\D/g, '');
       if (cpf2?.length === 11) {
-        if (!creds[cpf2]) {
-          creds[cpf2] = {
+        const credKey2 = `${cpf2}_${resp.nucleo_key}`;
+        if (!creds[credKey2]) {
+          creds[credKey2] = {
             nucleo: resp.nucleo_key,
             label: profile.label,
             color: profile.color,
@@ -151,8 +152,8 @@ export async function POST(req: NextRequest) {
             first_login: true,
           };
           changed = true;
-        } else if ((resp as any).email2 && creds[cpf2].email !== (resp as any).email2) {
-          creds[cpf2] = { ...creds[cpf2], email: (resp as any).email2 };
+        } else if ((resp as any).email2 && creds[credKey2].email !== (resp as any).email2) {
+          creds[credKey2] = { ...creds[credKey2], email: (resp as any).email2 };
           changed = true;
         }
       }

@@ -184,42 +184,78 @@ export async function POST(req: NextRequest) {
       if (!entries.length)
         return NextResponse.json({ error: 'CPF não encontrado como responsável de nenhum núcleo. Solicite o cadastro ao Admin Geral.' }, { status: 403 });
 
-      const entry = entries[0];
+      // Determina o núcleo alvo (pode ser qualquer núcleo ao qual o CPF pertence)
+      const nucleoTarget = body.nucleo_target as string | undefined;
+      const nucleosByCpf = entries.map(e => e.nucleo_key);
 
-      // Auto-criar credencial na primeira vez com senha padrão do núcleo principal
-      if (!creds[cpfNorm]) {
-        const profile = NUCLEO_PROFILES[entry.nucleo_key];
+      // Verifica que o CPF pertence ao núcleo alvo (quando especificado)
+      if (nucleoTarget && !nucleosByCpf.includes(nucleoTarget))
+        return NextResponse.json({ error: 'Acesso não autorizado para este núcleo.' }, { status: 403 });
+
+      // Usa chave específica por núcleo quando nucleo_target é fornecido e válido
+      // Formato: cpf_nucleokey (ex: 17515705760_jayme-fichman)
+      const nucleoEfetivo = nucleoTarget || entries[0].nucleo_key;
+      const credKeyNucleo = `${cpfNorm}_${nucleoEfetivo}`;
+      const credKeyLegacy = cpfNorm; // chave antiga (sem sufixo de núcleo)
+
+      // Garante existência de credencial específica por núcleo
+      let credChanged = false;
+      if (!creds[credKeyNucleo]) {
+        const entryForNucleo = entries.find(e => e.nucleo_key === nucleoEfetivo) || entries[0];
+        const profile = NUCLEO_PROFILES[nucleoEfetivo];
         if (profile) {
-          const isMainCpf = normalizeCpf(entry.cpf || '') === cpfNorm;
-          creds[cpfNorm] = {
-            nucleo: entry.nucleo_key as NucleoKey,
+          const isMainCpf = normalizeCpf(entryForNucleo.cpf || '') === cpfNorm;
+          // Herda senha da credencial legada se existir (mesma senha para todos os núcleos do CPF)
+          const inheritedPassword = creds[credKeyLegacy]?.password;
+          creds[credKeyNucleo] = {
+            nucleo: nucleoEfetivo as NucleoKey,
             label: profile.label,
             color: profile.color,
-            password: NUCLEO_DEFAULT_PASSWORDS[entry.nucleo_key] || DEFAULT_PASSWORD,
-            nome: isMainCpf ? (entry.nome || '') : (entry.nome2 || entry.nome || ''),
-            email: entry.email || '',
-            first_login: true,
+            password: inheritedPassword || NUCLEO_DEFAULT_PASSWORDS[nucleoEfetivo] || DEFAULT_PASSWORD,
+            nome: isMainCpf ? (entryForNucleo.nome || '') : (entryForNucleo.nome2 || entryForNucleo.nome || ''),
+            email: entryForNucleo.email || '',
+            first_login: inheritedPassword ? (creds[credKeyLegacy]?.first_login ?? true) : true,
           };
-          await saveCreds(creds);
+          credChanged = true;
         }
       }
 
-      const user = creds[cpfNorm];
+      // Também garante credencial para todos os outros núcleos do CPF
+      for (const e of entries) {
+        const otherKey = `${cpfNorm}_${e.nucleo_key}`;
+        if (!creds[otherKey]) {
+          const profile = NUCLEO_PROFILES[e.nucleo_key];
+          if (profile) {
+            const inheritedPassword = creds[credKeyLegacy]?.password;
+            const isMainCpf = normalizeCpf(e.cpf || '') === cpfNorm;
+            creds[otherKey] = {
+              nucleo: e.nucleo_key as NucleoKey,
+              label: profile.label,
+              color: profile.color,
+              password: inheritedPassword || NUCLEO_DEFAULT_PASSWORDS[e.nucleo_key] || DEFAULT_PASSWORD,
+              nome: isMainCpf ? (e.nome || '') : (e.nome2 || e.nome || ''),
+              email: e.email || '',
+              first_login: inheritedPassword ? (creds[credKeyLegacy]?.first_login ?? true) : true,
+            };
+            credChanged = true;
+          }
+        }
+      }
+      if (credChanged) await saveCreds(creds);
+
+      const user = creds[credKeyNucleo];
       if (!user || !checkPassword(user.password, password))
         return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
 
-      // Determina qual núcleo retornar: se o nucleo_target foi enviado e o CPF pertence a ele, usa esse
-      const nucleoTarget = body.nucleo_target as string | undefined;
-      const nucleosByCpf = entries.map(e => e.nucleo_key);
-      const nucleoFinal = (nucleoTarget && nucleosByCpf.includes(nucleoTarget))
-        ? nucleoTarget
-        : user.nucleo;
+      // Verifica que o CPF tem acesso ao núcleo target
+      if (!nucleosByCpf.includes(nucleoEfetivo))
+        return NextResponse.json({ error: 'Acesso não autorizado para este núcleo.' }, { status: 403 });
 
-      const profile = NUCLEO_PROFILES[nucleoFinal] || NUCLEO_PROFILES[user.nucleo];
+      const profile = NUCLEO_PROFILES[nucleoEfetivo];
 
       return NextResponse.json({
         ok: true,
-        nucleo: nucleoFinal,
+        nucleo: nucleoEfetivo,
         label: profile?.label || user.label,
         color: profile?.color || user.color,
         nome: user.nome || '',
@@ -253,6 +289,26 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Nova senha deve ter pelo menos 6 caracteres.' }, { status: 400 });
     const creds = await loadCreds();
     const key = normalizeKey(username);
+    const isCpfKey = /^\d{11}$/.test(key);
+
+    if (isCpfKey) {
+      // Busca qualquer credencial do CPF (chave cpf_nucleo ou cpf legado)
+      const allKeys = Object.keys(creds).filter(k => k === key || k.startsWith(key + '_'));
+      const validKey = allKeys.find(k => checkPassword(creds[k].password, current_password));
+      if (!validKey)
+        return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 401 });
+      // Atualiza senha em TODAS as credenciais do CPF (mantém sincronizadas)
+      let changed = false;
+      for (const k of allKeys) {
+        if (checkPassword(creds[k].password, current_password)) {
+          creds[k] = { ...creds[k], password: new_password, first_login: false };
+          changed = true;
+        }
+      }
+      if (changed) await saveCreds(creds);
+      return NextResponse.json({ ok: true });
+    }
+
     const user = creds[key];
     if (!user || !checkPassword(user.password, current_password))
       return NextResponse.json({ error: 'Senha atual incorreta.' }, { status: 401 });
@@ -269,7 +325,9 @@ export async function POST(req: NextRequest) {
     if (cpfNorm.length !== 11) return NextResponse.json({ error: 'CPF inválido.' }, { status: 400 });
 
     const creds = await loadCreds();
-    const user = creds[cpfNorm];
+    // Busca credencial do CPF (nova chave com núcleo ou legada)
+    const allCpfKeys = Object.keys(creds).filter(k => k === cpfNorm || k.startsWith(cpfNorm + '_'));
+    const user = allCpfKeys.length > 0 ? creds[allCpfKeys[0]] : undefined;
 
     // Busca e-mail no módulo responsaveis ou nas credentials
     let email = user?.email || '';
@@ -326,10 +384,12 @@ export async function POST(req: NextRequest) {
     const entry = tokens[token];
     if (!entry || entry.expires < Date.now())
       return NextResponse.json({ error: 'Token inválido ou expirado.' }, { status: 400 });
-    // Busca nome do responsável
+    // Busca nome do responsável (chave por núcleo ou legada)
     const creds = await loadCreds();
-    const user = creds[entry.cpf];
-    return NextResponse.json({ ok: true, cpf: entry.cpf, nome: user?.nome || '', nucleo: user?.nucleo });
+    const cpfEntry = entry.cpf;
+    const allKeys = Object.keys(creds).filter(k => k === cpfEntry || k.startsWith(cpfEntry + '_'));
+    const user = allKeys.length > 0 ? creds[allKeys[0]] : undefined;
+    return NextResponse.json({ ok: true, cpf: cpfEntry, nome: user?.nome || '', nucleo: user?.nucleo });
   }
 
   // ── REDEFINIR SENHA VIA TOKEN ──
@@ -348,29 +408,34 @@ export async function POST(req: NextRequest) {
     const creds = await loadCreds();
     const cpfKey = entry.cpf;
 
-    if (!creds[cpfKey]) {
-      // Usuário não tem credentials ainda — pode ter CPF no responsaveis mas sem login
-      // Verifica se CPF existe no módulo responsaveis
+    // Atualiza todas as credenciais do CPF (chave legada e chaves por núcleo)
+    const allCpfCredsKeys = Object.keys(creds).filter(k => k === cpfKey || k.startsWith(cpfKey + '_'));
+    if (allCpfCredsKeys.length === 0) {
+      // Nenhuma credencial ainda — cria para todos os núcleos do responsável
       const lista = await loadResponsaveis();
-      const respEntry = lista.find(r =>
+      const respEntries = lista.filter(r =>
         normalizeCpf(r.cpf || '') === cpfKey || normalizeCpf(r.cpf2 || '') === cpfKey
       );
-      if (!respEntry)
+      if (!respEntries.length)
         return NextResponse.json({ error: 'Responsável não encontrado.' }, { status: 404 });
-      const profile = NUCLEO_PROFILES[respEntry.nucleo_key];
-      if (!profile)
-        return NextResponse.json({ error: 'Núcleo inválido.' }, { status: 400 });
-      const isMain = normalizeCpf(respEntry.cpf || '') === cpfKey;
-      creds[cpfKey] = {
-        nucleo: respEntry.nucleo_key as NucleoKey,
-        label: profile.label,
-        color: profile.color,
-        password: new_password,
-        nome: isMain ? (respEntry.nome || '') : (respEntry.nome2 || respEntry.nome || ''),
-        first_login: false,
-      };
+      for (const respEntry of respEntries) {
+        const profile = NUCLEO_PROFILES[respEntry.nucleo_key];
+        if (!profile) continue;
+        const isMain = normalizeCpf(respEntry.cpf || '') === cpfKey;
+        creds[`${cpfKey}_${respEntry.nucleo_key}`] = {
+          nucleo: respEntry.nucleo_key as NucleoKey,
+          label: profile.label,
+          color: profile.color,
+          password: new_password,
+          nome: isMain ? (respEntry.nome || '') : (respEntry.nome2 || respEntry.nome || ''),
+          first_login: false,
+        };
+      }
     } else {
-      creds[cpfKey] = { ...creds[cpfKey], password: new_password, first_login: false };
+      // Atualiza todas as credenciais existentes do CPF
+      for (const k of allCpfCredsKeys) {
+        creds[k] = { ...creds[k], password: new_password, first_login: false };
+      }
     }
 
     await saveCreds(creds);
@@ -424,8 +489,10 @@ export async function POST(req: NextRequest) {
     if (!isAdminGeral(creds, adminKey))
       return NextResponse.json({ error: 'Somente o Admin Geral pode criar usuários.' }, { status: 403 });
 
-    if (creds[cpfKey])
-      return NextResponse.json({ error: `CPF já cadastrado como responsável.` }, { status: 409 });
+    // Verifica se já existe credencial para este CPF neste núcleo
+    const credKeyForNucleo = `${cpfKey}_${nucleo_key}`;
+    if (creds[credKeyForNucleo] || creds[cpfKey])
+      return NextResponse.json({ error: `CPF já cadastrado como responsável neste núcleo.` }, { status: 409 });
 
     const profile = NUCLEO_PROFILES[nucleo_key];
     if (!profile)
@@ -452,7 +519,8 @@ export async function POST(req: NextRequest) {
       } catch { /* non-blocking */ }
     }
 
-    creds[cpfKey] = {
+    // Usa chave por núcleo para suportar o mesmo CPF em múltiplos núcleos
+    creds[credKeyForNucleo] = {
       nucleo: profile.nucleo,
       label: profile.label,
       color: profile.color,
