@@ -395,7 +395,14 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
             {/* Links secundários */}
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, paddingTop: 4 }}>
               <div style={{ fontSize: '0.65rem', color: 'rgba(255,255,255,0.22)' }}>
-                Primeiro acesso? Use a senha padrão: <strong style={{ color: 'rgba(255,255,255,0.35)' }}>123456</strong>
+                Primeiro acesso? Use a senha padrão: <strong style={{ color: 'rgba(255,255,255,0.45)' }}>{
+                  nucleoKey === 'edson-alves' ? 'edsonalves12345' :
+                  nucleoKey === 'ipiranga' ? 'ipiranga12345' :
+                  nucleoKey === 'saracuruna' ? 'saracuruna12345' :
+                  nucleoKey === 'vila-urussai' ? 'urussai12345' :
+                  nucleoKey === 'jayme-fichman' ? 'jaymefichman12345' :
+                  nucleoKey === 'academia-mais-saude' ? 'academiasaude12345' : '123456'
+                }</strong>
               </div>
               <div style={{ display: 'flex', gap: 16, alignItems: 'center' }}>
                 <button type="button" onClick={() => { setTela('alterar'); setAltMsg(''); }}
