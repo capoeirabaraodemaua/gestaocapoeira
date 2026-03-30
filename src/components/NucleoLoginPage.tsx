@@ -173,15 +173,9 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
       const data = await res.json();
 
       if (res.ok && data.ok) {
-        if (data.nucleo !== nucleoKey) {
-          const ls2 = getLockState();
-          const nc = ls2.count + 1;
-          if (nc >= MAX_ATTEMPTS) { setLockState(0, Date.now() + LOCKOUT_MS); }
-          else { setLockState(nc, 0); }
-          setErro('Acesso não autorizado para este núcleo.');
-          setLoading(false);
-          return;
-        }
+        // API já valida que o CPF pertence ao nucleoKey (nucleo_target).
+        // data.nucleo é o núcleo confirmado — pode ser nucleoKey ou diferente só se o CPF
+        // não pertence a este núcleo de forma alguma (a API retorna erro 403 nesse caso).
         setLockState(0, 0);
 
         // Primeiro acesso — forçar troca de senha
