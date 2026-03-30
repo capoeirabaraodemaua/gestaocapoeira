@@ -177,13 +177,16 @@ export async function POST(req: NextRequest) {
     if (isCpfLogin) {
       const lista = await loadResponsaveis();
       const cpfNorm = normalizeCpf(key);
-      const entry = lista.find(r =>
+      // Coleta TODAS as entradas onde este CPF aparece (pode ser responsável de múltiplos núcleos)
+      const entries = lista.filter(r =>
         normalizeCpf(r.cpf || '') === cpfNorm || normalizeCpf(r.cpf2 || '') === cpfNorm
       );
-      if (!entry)
+      if (!entries.length)
         return NextResponse.json({ error: 'CPF não encontrado como responsável de nenhum núcleo. Solicite o cadastro ao Admin Geral.' }, { status: 403 });
 
-      // Auto-criar credencial na primeira vez com senha padrão do núcleo
+      const entry = entries[0];
+
+      // Auto-criar credencial na primeira vez com senha padrão do núcleo principal
       if (!creds[cpfNorm]) {
         const profile = NUCLEO_PROFILES[entry.nucleo_key];
         if (profile) {
@@ -205,11 +208,20 @@ export async function POST(req: NextRequest) {
       if (!user || !checkPassword(user.password, password))
         return NextResponse.json({ error: 'Senha incorreta.' }, { status: 401 });
 
+      // Determina qual núcleo retornar: se o nucleo_target foi enviado e o CPF pertence a ele, usa esse
+      const nucleoTarget = body.nucleo_target as string | undefined;
+      const nucleosByCpf = entries.map(e => e.nucleo_key);
+      const nucleoFinal = (nucleoTarget && nucleosByCpf.includes(nucleoTarget))
+        ? nucleoTarget
+        : user.nucleo;
+
+      const profile = NUCLEO_PROFILES[nucleoFinal] || NUCLEO_PROFILES[user.nucleo];
+
       return NextResponse.json({
         ok: true,
-        nucleo: user.nucleo,
-        label: user.label,
-        color: user.color,
+        nucleo: nucleoFinal,
+        label: profile?.label || user.label,
+        color: profile?.color || user.color,
         nome: user.nome || '',
         isGeral: false,
         first_login: user.first_login === true,

@@ -168,7 +168,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
       const res = await fetch('/api/admin/panel-auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'login', username: cpfDigits, password: senha }),
+        body: JSON.stringify({ action: 'login', username: cpfDigits, password: senha, nucleo_target: nucleoKey }),
       });
       const data = await res.json();
 
