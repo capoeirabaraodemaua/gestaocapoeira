@@ -1,6 +1,6 @@
 'use client';
 // v2
-import { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/lib/supabase';
 import { getCordaColors, graduacoes, nomenclaturaGraduacao } from '@/lib/graduacoes';
 import { getCheckins, getHistorico, removeCheckin, CheckinRecord } from '@/lib/checkins';
