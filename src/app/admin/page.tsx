@@ -2109,12 +2109,14 @@ export default function AdminPage() {
             { key: 'bibliografia', icon: '📚', label: 'Bibliografia dos Mestres' },
             { key: 'estatuto',     icon: '📄', label: 'Estatuto Social' },
             { key: 'regimento',    icon: '📝', label: 'Regimento Interno' },
-            { key: 'organograma',  icon: '🏛️', label: 'Organograma' },
-            { key: 'hierarquia',   icon: '🥋', label: 'Hierarquia' },
             { key: 'informacoes',  icon: 'ℹ️',  label: 'Informações Gerais' },
           ];
+          const institucionalDirectItems: ColBtn[] = [
+            { key: 'organograma',  icon: '🏛️', label: 'Organograma', geralOnly: true },
+            { key: 'hierarquia',   icon: '🥋', label: 'Hierarquia',   geralOnly: true },
+          ];
           const institucionalColor = '#ea580c';
-          const institucionalIsActive = institucionalSubItems.some(b => b.key === activeTab);
+          const institucionalIsActive = [...institucionalSubItems, ...institucionalDirectItems].some(b => b.key === activeTab);
 
           return (
             <div style={{ marginBottom: 0 }}>
@@ -2154,21 +2156,47 @@ export default function AdminPage() {
                 <div style={{ background: `rgba(234,88,12,0.08)`, border: `1px solid ${institucionalColor}25`, borderRadius: 12, padding: '10px 10px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
                   <div style={{ fontSize: '0.6rem', fontWeight: 800, color: institucionalColor, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>Institucional</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                    {/* Botão principal Institucional */}
+
+                    {/* Botões diretos: Organograma e Hierarquia (geral only) */}
+                    {activeNucleo === 'geral' && (
+                      <>
+                        {institucionalDirectItems.map((btn, bi) => (
+                          <button key={`inst-direct-${bi}`}
+                            onClick={() => goTab(btn.key)}
+                            style={{
+                              display: 'flex', alignItems: 'center', gap: 7,
+                              padding: '7px 10px', borderRadius: 8, border: `1px solid ${institucionalColor}35`, cursor: 'pointer',
+                              background: activeTab === btn.key ? institucionalColor : `${institucionalColor}15`,
+                              color: activeTab === btn.key ? '#fff' : institucionalColor,
+                              fontWeight: 700,
+                              fontSize: '0.78rem', textAlign: 'left', transition: 'all 0.15s',
+                              boxShadow: activeTab === btn.key ? `0 2px 8px ${institucionalColor}50` : 'none',
+                            }}
+                          >
+                            <span style={{ fontSize: '0.9rem', lineHeight: 1, flexShrink: 0 }}>{btn.icon}</span>
+                            <span style={{ flex: 1, lineHeight: 1.3 }}>{btn.label}</span>
+                            <span style={{ fontSize: '0.6rem', opacity: 0.7 }}>✏️</span>
+                          </button>
+                        ))}
+                        <div style={{ height: 1, background: `${institucionalColor}25`, margin: '2px 0' }} />
+                      </>
+                    )}
+
+                    {/* Botão principal Institucional (outros docs) */}
                     <button
                       onClick={() => setInstitucionalExpanded(v => !v)}
                       style={{
                         display: 'flex', alignItems: 'center', gap: 7,
                         padding: '7px 10px', borderRadius: 8, border: 'none', cursor: 'pointer',
-                        background: institucionalIsActive || institucionalExpanded ? institucionalColor : 'rgba(255,255,255,0.06)',
-                        color: institucionalIsActive || institucionalExpanded ? '#fff' : 'var(--text-primary)',
-                        fontWeight: institucionalIsActive || institucionalExpanded ? 700 : 500,
+                        background: institucionalSubItems.some(b => b.key === activeTab) || institucionalExpanded ? institucionalColor : 'rgba(255,255,255,0.06)',
+                        color: institucionalSubItems.some(b => b.key === activeTab) || institucionalExpanded ? '#fff' : 'var(--text-primary)',
+                        fontWeight: institucionalSubItems.some(b => b.key === activeTab) || institucionalExpanded ? 700 : 500,
                         fontSize: '0.78rem', textAlign: 'left', transition: 'all 0.15s',
-                        boxShadow: institucionalIsActive || institucionalExpanded ? `0 2px 8px ${institucionalColor}50` : 'none',
+                        boxShadow: institucionalSubItems.some(b => b.key === activeTab) || institucionalExpanded ? `0 2px 8px ${institucionalColor}50` : 'none',
                       }}
                     >
-                      <span style={{ fontSize: '0.9rem', lineHeight: 1, flexShrink: 0 }}>🏛️</span>
-                      <span style={{ flex: 1, lineHeight: 1.3 }}>Institucional</span>
+                      <span style={{ fontSize: '0.9rem', lineHeight: 1, flexShrink: 0 }}>📂</span>
+                      <span style={{ flex: 1, lineHeight: 1.3 }}>Documentos</span>
                       <span style={{ fontSize: '0.75rem', transition: 'transform 0.2s', display: 'inline-block', transform: institucionalExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>▾</span>
                     </button>
                     {/* Submenus expandíveis */}
