@@ -857,35 +857,47 @@ _Associação Cultural de Capoeira Barão de Mauá_`
   return (
     <>
       {/* ── Hero Banner — imagem de fundo em tela cheia, com logo sobreposto ── */}
-      <div className="hero-banner" style={{ position: 'relative' }}>
+      <div className="hero-banner" style={{
+        position: 'relative',
+        minHeight: 420,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        overflow: 'hidden',
+      }}>
+        {/* Imagem de fundo */}
         <img
           src={bgUrl || '/wallpaper-capoeira.jpg'}
           alt="Capoeira Barão de Mauá"
           style={{
-            display: 'block',
+            position: 'absolute',
+            inset: 0,
             width: '100%',
-            height: 'auto',
+            height: '100%',
+            objectFit: 'cover',
             borderRadius: 12,
           }}
         />
-        {/* Logo sobreposta centralizada */}
+        {/* Overlay escuro leve para destacar a logo */}
         <div style={{
           position: 'absolute',
-          top: '50%',
-          left: '50%',
-          transform: 'translate(-50%, -50%)',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          pointerEvents: 'none',
+          inset: 0,
+          background: 'rgba(0,0,0,0.35)',
+          borderRadius: 12,
+        }} />
+        {/* Logo principal — GRANDE */}
+        <div style={{
+          position: 'relative',
           zIndex: 5,
+          padding: '32px 0',
         }}>
           <div style={{
-            width: 'clamp(260px, 55vw, 512px)',
-            height: 'clamp(260px, 55vw, 512px)',
+            width: 'min(82vw, 520px)',
+            height: 'min(82vw, 520px)',
             borderRadius: '50%',
             overflow: 'hidden',
-            boxShadow: '0 8px 60px rgba(0,0,0,0.95), 0 2px 16px rgba(0,0,0,0.8)',
+            boxShadow: '0 8px 80px rgba(0,0,0,1), 0 0 0 6px rgba(255,255,255,0.12)',
+            margin: '0 auto',
           }}>
             <img
               src="/logo-barao-maua.png"
