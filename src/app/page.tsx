@@ -494,7 +494,7 @@ export default function Home() {
       estado: form.estado || undefined,
       nucleo: nucleo || undefined,
       graduacao: graduacao || undefined,
-      tipo_graduacao: tipoGraduacao || undefined,
+      tipo_graduacao: tipoGraduacaoNorm || undefined,
       nome_pai: form.nome_pai || undefined,
       nome_mae: form.nome_mae || undefined,
       autoriza_imagem: form.autoriza_imagem,
@@ -618,7 +618,7 @@ export default function Home() {
         cidade: form.cidade || null,
         estado: form.estado || null,
         graduacao: graduacao || null,
-        tipo_graduacao: tipoGraduacao || null,
+        tipo_graduacao: tipoGraduacaoNorm || null,
         nucleo: nucleo || null,
         foto_url,
         nome_pai: form.nome_pai || null,
@@ -680,7 +680,7 @@ export default function Home() {
         identidade: form.identidade,
         nucleo,
         graduacao,
-        tipo_graduacao: tipoGraduacao,
+        tipo_graduacao: tipoGraduacaoNorm,
         foto_url: foto_url || null,
         menor_de_idade: menorDeIdade,
         nome_pai: form.nome_pai,
@@ -851,6 +851,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
   };
 
   const selectedColors = graduacao ? getCordaColors(graduacao) : [];
+  // Normalize tipo_graduacao to canonical form before any save
+  const tipoGraduacaoNorm = tipoGraduacao === 'infantil' ? 'Infantil' : tipoGraduacao === 'adulta' ? 'Adulto' : tipoGraduacao;
 
   return (
     <>

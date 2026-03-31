@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import Carteirinha from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
+import { graduacoes as GRADUACOES_ALL, nomenclaturaGraduacao } from '@/lib/graduacoes';
 
 type Student = {
   id: string;
@@ -536,7 +537,7 @@ export default function AlunoPage() {
       setDadosForm({
         nucleo:           student.nucleo           as string || '',
         graduacao:        student.graduacao         as string || '',
-        tipo_graduacao:   student.tipo_graduacao    as string || '',
+        tipo_graduacao:   (() => { const t = (student.tipo_graduacao as string || '').toLowerCase(); return t === 'infantil' ? 'Infantil' : t === 'adulta' || t === 'adulto' ? 'Adulto' : (student.tipo_graduacao as string || ''); })(),
         cpf:              student.cpf               as string || '',
         identidade:       student.identidade        as string || '',
         numeracao_unica:  (student.numeracao_unica  as string) || '',
@@ -2148,28 +2149,14 @@ export default function AlunoPage() {
             return r === parseInt(d[10]);
           };
 
-          // ── graduation lists ───────────────────────────────────────────────
-          const GRADS_INFANTIL = [
-            'Crua', 'Crua ponta cinza', 'Crua ponta amarela', 'Crua ponta laranja',
-            'Crua ponta verde', 'Crua ponta azul', 'Crua ponta roxa',
-            'Crua e cinza', 'Crua e laranja', 'Crua e verde', 'Crua e azul', 'Crua e roxa',
-            'Cinza', 'Cinza e amarela', 'Amarela e verde', 'Amarela e azul',
+          // ── graduation lists (canonical — from graduacoes.ts) ─────────────
+          const INFANTIL_KEYS = [
+            'Crua ponta Cinza','Crua ponta Amarela','Crua ponta Laranja','Crua ponta Verde',
+            'Crua ponta Azul','Crua ponta Roxa','Crua e Cinza','Crua e Laranja','Crua e Verde',
+            'Crua e Azul','Crua e Roxa','Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul',
           ];
-          const GRADS_ADULTO = [
-            'Crua', 'Crua e amarela', 'Amarela', 'Amarela e laranja', 'Laranja',
-            'Laranja e azul',
-            'Azul — Primeiro grau de aluno graduado',
-            'Azul e verde — Segundo grau de aluno graduado',
-            'Verde — Monitor',
-            'Verde e roxa — Primeiro grau de instrutor',
-            'Roxa — Segundo grau de instrutor',
-            'Roxa e marrom — Primeiro grau de professor',
-            'Marrom — Segundo grau de professor',
-            'Marrom e vermelha — Mestrando',
-            'Vermelha — Primeiro grau de mestre',
-            'Branco e vermelha — Segundo grau de mestre',
-            'Branco mor — Mestre Fundador',
-          ];
+          const GRADS_INFANTIL = GRADUACOES_ALL.filter(g => INFANTIL_KEYS.includes(g));
+          const GRADS_ADULTO   = GRADUACOES_ALL.filter(g => !INFANTIL_KEYS.includes(g));
 
           // Auto-detect tipo from birth date
           let autoTipo: 'Infantil' | 'Adulto' | '' = '';
@@ -2409,11 +2396,11 @@ export default function AlunoPage() {
                     <select value={dadosForm.graduacao} onChange={e => setDadosForm(p => ({ ...p, graduacao: e.target.value }))} style={fs}>
                       <option value="">— Selecione sua graduação —</option>
                       {tipoEfetivo && <optgroup label={`Graduação ${tipoEfetivo}`}>
-                        {gradOpts.map(g => <option key={g} value={g}>{g}</option>)}
+                        {gradOpts.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}
                       </optgroup>}
                       {!tipoEfetivo && <>
-                        <optgroup label="Graduação Infantil">{GRADS_INFANTIL.map(g => <option key={g} value={g}>{g}</option>)}</optgroup>
-                        <optgroup label="Graduação Adulta">{GRADS_ADULTO.map(g => <option key={g} value={g}>{g}</option>)}</optgroup>
+                        <optgroup label="Graduação Infantil">{GRADS_INFANTIL.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}</optgroup>
+                        <optgroup label="Graduação Adulta">{GRADS_ADULTO.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}</optgroup>
                       </>}
                     </select>
                     {tipoEfetivo && (
