@@ -10188,12 +10188,46 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                           ⚠ {withoutAccount.length} aluno{withoutAccount.length !== 1 ? 's' : ''} sem conta de acesso
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {withoutAccount.slice(0, 10).map(s => (
-                            <span key={s.id} style={{ background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 6, padding: '2px 8px', fontSize: '0.76rem', color: '#78350f' }}>
-                              {s.nome_completo.split(' ')[0]} {s.nome_completo.split(' ').slice(-1)[0]}{studentDisplayIds[s.id] ? ` (${studentDisplayIds[s.id]})` : ''}
-                            </span>
-                          ))}
-                          {withoutAccount.length > 10 && <span style={{ fontSize: '0.76rem', color: '#92400e' }}>+{withoutAccount.length - 10} mais...</span>}
+                          {withoutAccount.slice(0, 10).map(s => {
+                            const tel = (s.telefone || '').replace(/\D/g, '');
+                            const br = tel.startsWith('55') ? tel : `55${tel}`;
+                            const displayId = studentDisplayIds[s.id] || '';
+                            const msg = encodeURIComponent(
+`Olá, *${s.nome_completo}*! 👋
+
+Sua conta de acesso à *Área do Aluno* da Associação Cultural de Capoeira Barão de Mauá ainda não foi criada.
+
+Para criar sua conta e acessar sua ficha, carteirinha, presenças e muito mais, acesse:
+🔗 ${typeof window !== 'undefined' ? window.location.origin : ''}/aluno
+
+${displayId ? `Seu ID de matrícula é: *${displayId}*` : ''}
+
+Qualquer dúvida, fale conosco! 🥋
+
+_Associação Cultural de Capoeira Barão de Mauá_`
+                            );
+                            return (
+                              <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 6px 3px 10px' }}>
+                                <span style={{ fontSize: '0.76rem', color: '#78350f', fontWeight: 600 }}>
+                                  {s.nome_completo.split(' ')[0]} {s.nome_completo.split(' ').slice(-1)[0]}{displayId ? ` (${displayId})` : ''}
+                                </span>
+                                {tel.length >= 10 ? (
+                                  <a
+                                    href={`https://api.whatsapp.com/send?phone=${br}&text=${msg}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    title="Enviar convite pelo WhatsApp"
+                                    style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 6, padding: '2px 8px', textDecoration: 'none', fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
+                                  >
+                                    📱 WhatsApp
+                                  </a>
+                                ) : (
+                                  <span title="Sem telefone cadastrado" style={{ fontSize: '0.68rem', color: '#dc2626', opacity: 0.7 }}>📵</span>
+                                )}
+                              </div>
+                            );
+                          })}
+                          {withoutAccount.length > 10 && <span style={{ fontSize: '0.76rem', color: '#92400e', alignSelf: 'center' }}>+{withoutAccount.length - 10} mais...</span>}
                         </div>
                       </div>
                     )}
@@ -10322,19 +10356,45 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                       ⚠️ {semConta.length} aluno{semConta.length !== 1 ? 's' : ''} sem conta de acesso
                     </div>
                     <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-                      {shown.map((s: any) => (
-                        <span key={s.id} style={{
-                          background: 'rgba(254,243,199,0.9)',
-                          border: '1px solid rgba(234,179,8,0.4)',
-                          borderRadius: 20,
-                          padding: '5px 14px',
-                          fontSize: '0.82rem',
-                          fontWeight: 600,
-                          color: '#78350f',
-                        }}>
-                          {s.nome_completo}{studentDisplayIds[s.id] ? ` (${studentDisplayIds[s.id]})` : ''}
-                        </span>
-                      ))}
+                      {shown.map((s: any) => {
+                        const tel = (s.telefone || '').replace(/\D/g, '');
+                        const br = tel.startsWith('55') ? tel : `55${tel}`;
+                        const displayId = studentDisplayIds[s.id] || '';
+                        const msg = encodeURIComponent(
+`Olá, *${s.nome_completo}*! 👋
+
+Sua conta de acesso à *Área do Aluno* da Associação Cultural de Capoeira Barão de Mauá ainda não foi criada.
+
+Para criar sua conta e acessar sua ficha, carteirinha, presenças e muito mais, acesse:
+🔗 ${typeof window !== 'undefined' ? window.location.origin : ''}/aluno
+
+${displayId ? `Seu ID de matrícula é: *${displayId}*` : ''}
+
+Qualquer dúvida, fale conosco! 🥋
+
+_Associação Cultural de Capoeira Barão de Mauá_`
+                        );
+                        return (
+                          <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(254,243,199,0.9)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '4px 6px 4px 14px' }}>
+                            <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#78350f' }}>
+                              {s.nome_completo}{displayId ? ` (${displayId})` : ''}
+                            </span>
+                            {tel.length >= 10 ? (
+                              <a
+                                href={`https://api.whatsapp.com/send?phone=${br}&text=${msg}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                title="Enviar convite pelo WhatsApp"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 12, padding: '3px 10px', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}
+                              >
+                                📱 WhatsApp
+                              </a>
+                            ) : (
+                              <span title="Sem telefone cadastrado" style={{ fontSize: '0.75rem', opacity: 0.5 }}>📵</span>
+                            )}
+                          </div>
+                        );
+                      })}
                       {!semContaExpanded && semConta.length > PREVIEW && (
                         <button
                           onClick={() => setSemContaExpanded(true)}
