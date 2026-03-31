@@ -881,18 +881,16 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           zIndex: 5,
         }}>
           <div style={{
-            width: 'clamp(160px, 28vw, 300px)',
-            height: 'clamp(160px, 28vw, 300px)',
+            width: 'clamp(260px, 55vw, 512px)',
+            height: 'clamp(260px, 55vw, 512px)',
             borderRadius: '50%',
             overflow: 'hidden',
-            boxShadow: '0 6px 40px rgba(0,0,0,0.9), 0 2px 12px rgba(0,0,0,0.7)',
+            boxShadow: '0 8px 60px rgba(0,0,0,0.95), 0 2px 16px rgba(0,0,0,0.8)',
           }}>
             <img
               src="/logo-barao-maua.png"
               alt="Barão de Mauá"
               style={{
-                /* A logo PNG tem padding branco ao redor do círculo (~12% de cada lado) */
-                /* Ampliar em ~130% e centralizar elimina o fundo branco */
                 width: '130%',
                 height: '130%',
                 objectFit: 'cover',
