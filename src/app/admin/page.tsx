@@ -10193,18 +10193,18 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                             const br = tel.startsWith('55') ? tel : `55${tel}`;
                             const displayId = studentDisplayIds[s.id] || '';
                             const msg = encodeURIComponent(
-`Olá, *${s.nome_completo}*! 👋
+`Olá! 👋
 
-Sua conta de acesso à *Área do Aluno* da Associação Cultural de Capoeira Barão de Mauá ainda não foi criada.
+Somos da Associação Cultural de Capoeira Barão de Mauá.
 
-Para criar sua conta e acessar sua ficha, carteirinha, presenças e muito mais, acesse:
-🔗 ${typeof window !== 'undefined' ? window.location.origin : ''}/aluno
+Precisamos que você acesse a área do aluno, crie sua conta e, em seguida, entre novamente com essa conta para finalizar o seu cadastro.
 
-${displayId ? `Seu ID de matrícula é: *${displayId}*` : ''}
+A não realização desse processo impedirá o registro da sua presença nos treinos, o acesso aos seus relatórios individuais e poderá bloquear etapas importantes, inclusive a liberação para o batizado e a troca de graduação, pois é através desse acesso que teremos todo o controle.
 
-Qualquer dúvida, fale conosco! 🥋
+Solicitamos que realize esse procedimento o mais breve possível.
 
-_Associação Cultural de Capoeira Barão de Mauá_`
+Atenciosamente,
+Suporte Ginga Gestão.`
                             );
                             return (
                               <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 6px 3px 10px' }}>
@@ -10361,18 +10361,18 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         const br = tel.startsWith('55') ? tel : `55${tel}`;
                         const displayId = studentDisplayIds[s.id] || '';
                         const msg = encodeURIComponent(
-`Olá, *${s.nome_completo}*! 👋
+`Olá! 👋
 
-Sua conta de acesso à *Área do Aluno* da Associação Cultural de Capoeira Barão de Mauá ainda não foi criada.
+Somos da Associação Cultural de Capoeira Barão de Mauá.
 
-Para criar sua conta e acessar sua ficha, carteirinha, presenças e muito mais, acesse:
-🔗 ${typeof window !== 'undefined' ? window.location.origin : ''}/aluno
+Precisamos que você acesse a área do aluno, crie sua conta e, em seguida, entre novamente com essa conta para finalizar o seu cadastro.
 
-${displayId ? `Seu ID de matrícula é: *${displayId}*` : ''}
+A não realização desse processo impedirá o registro da sua presença nos treinos, o acesso aos seus relatórios individuais e poderá bloquear etapas importantes, inclusive a liberação para o batizado e a troca de graduação, pois é através desse acesso que teremos todo o controle.
 
-Qualquer dúvida, fale conosco! 🥋
+Solicitamos que realize esse procedimento o mais breve possível.
 
-_Associação Cultural de Capoeira Barão de Mauá_`
+Atenciosamente,
+Suporte Ginga Gestão.`
                         );
                         return (
                           <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 5, background: 'rgba(254,243,199,0.9)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 20, padding: '4px 6px 4px 14px' }}>
