@@ -49,7 +49,7 @@ type RegistroGraduacao = {
   criado_em: string;
 };
 
-type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados' | 'termo';
+type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados' | 'termo' | 'docs';
 
 const NUCLEO_COLORS: Record<string, string> = {
   'Poliesportivo Edson Alves': '#dc2626',
@@ -139,6 +139,11 @@ export default function AlunoPage() {
   // ── Graduação ─────────────────────────────────────────────────────────────
   const [historico, setHistorico] = useState<RegistroGraduacao[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+
+  // ── Documentos Pessoais ───────────────────────────────────────────────────
+  const [docsItems, setDocsItems] = useState<{ name: string; displayName: string; url: string; icon: string; size: string; sizeBytes: number; created_at: string; ext: string }[]>([]);
+  const [docsLoading, setDocsLoading] = useState(false);
+  const [docsMsg, setDocsMsg] = useState('');
 
   // ── Fotos e Vídeos ────────────────────────────────────────────────────────
   const [fotosMedia, setFotosMedia] = useState<{ name: string; url: string; type: 'foto' | 'video'; size: number; created_at: string }[]>([]);
@@ -295,11 +300,24 @@ export default function AlunoPage() {
     setFotosLoading(false);
   }, []);
 
+  const loadDocs = useCallback(async (student_id: string) => {
+    setDocsLoading(true);
+    try {
+      const res = await fetch(`/api/aluno/docs?student_id=${student_id}`);
+      if (res.ok) {
+        const { docs } = await res.json();
+        setDocsItems(docs || []);
+      }
+    } catch {}
+    setDocsLoading(false);
+  }, []);
+
   useEffect(() => {
     if (session) {
       if (activeTab === 'justificativas') loadJustificativas(session.student_id);
       if (activeTab === 'graduacao') loadHistorico(session.student_id);
       if (activeTab === 'fotos') loadFotos(session.student_id);
+      if (activeTab === 'docs') loadDocs(session.student_id);
       if (activeTab === 'financeiro') {
         setFichaFinLoading(true);
         fetch(`/api/financeiro?student_id=${session.student_id}`)
@@ -316,7 +334,7 @@ export default function AlunoPage() {
         fetch(`/api/aluno/evolucao?student_id=${session.student_id}`).then(r => r.json()).then(d => { setEvolucaoDates(Array.isArray(d.dates) ? d.dates : []); setEvolucaoEntries(Array.isArray(d.entries) ? d.entries : []); setEvolucaoLoading(false); }).catch(() => setEvolucaoLoading(false));
       }
     }
-  }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos]);
+  }, [session, activeTab, loadJustificativas, loadHistorico, loadFotos, loadDocs]);
 
   // ── Login handler ─────────────────────────────────────────────────────────
   const handleLogin = async (e: React.FormEvent) => {
@@ -956,6 +974,7 @@ export default function AlunoPage() {
     { id: 'financeiro',     icon: '💰', label: 'Financeiro' },
     { id: 'graduacao',      icon: '🎖️', label: 'Graduação' },
     { id: 'fotos',          icon: '📸', label: 'Fotos' },
+    { id: 'docs',           icon: '📂', label: 'Docs' },
     { id: 'justificativas', icon: '📝', label: 'Justific.' },
     { id: 'playlist',       icon: '🎵', label: 'Playlist' },
     { id: 'conta',          icon: '⚙️', label: 'Conta' },
@@ -1640,6 +1659,50 @@ export default function AlunoPage() {
             <div style={{ fontSize: '0.72rem', color: '#9ca3af', textAlign: 'center' }}>
               Formatos aceitos: JPG, PNG, GIF, MP4, MOV • Máx. 50 MB por arquivo
             </div>
+          </div>
+        )}
+
+        {/* ── DOCUMENTOS PESSOAIS ── */}
+        {activeTab === 'docs' && (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div>
+              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📂 Meus Documentos</h2>
+              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Documentos pessoais disponibilizados pela associação</p>
+            </div>
+
+            {docsMsg && (
+              <div style={{ padding: '10px 14px', background: docsMsg.startsWith('✓') ? '#f0fdf4' : '#fef2f2', border: `1px solid ${docsMsg.startsWith('✓') ? '#bbf7d0' : '#fecaca'}`, borderRadius: 10, fontSize: '0.83rem', color: docsMsg.startsWith('✓') ? '#166534' : '#991b1b', fontWeight: 600 }}>
+                {docsMsg}
+              </div>
+            )}
+
+            {docsLoading ? (
+              <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando documentos...</div>
+            ) : docsItems.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#f0f9ff', borderRadius: 16, border: '2px dashed #bae6fd' }}>
+                <div style={{ fontSize: '3rem', marginBottom: 12 }}>📂</div>
+                <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.95rem' }}>Nenhum documento disponível</div>
+                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Os documentos disponibilizados pela associação aparecerão aqui</div>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                {docsItems.map(doc => (
+                  <div key={doc.name} style={{ background: '#fff', border: '1px solid #e5e7eb', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+                    <div style={{ fontSize: '2rem', flexShrink: 0 }}>{doc.icon}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{doc.displayName}</div>
+                      <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 2 }}>
+                        {doc.size} • {doc.ext.toUpperCase()} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : ''}
+                      </div>
+                    </div>
+                    <a href={doc.url} target="_blank" rel="noopener noreferrer" download
+                      style={{ background: 'linear-gradient(135deg, #0369a1, #0284c7)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>
+                      ⬇ Baixar
+                    </a>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         )}
 
