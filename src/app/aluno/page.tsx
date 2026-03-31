@@ -1056,16 +1056,57 @@ export default function AlunoPage() {
 
             {/* Incomplete data / termo pending banners */}
             {student && (!student.nucleo || !student.graduacao || !student.cpf) && (
-              <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
-                <div style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>📋</div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#92400e', marginBottom: 3 }}>Complete seu cadastro</div>
-                  <div style={{ fontSize: '0.8rem', color: '#78350f', lineHeight: 1.5, marginBottom: 10 }}>
-                    Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>
+              <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
+                {/* Top stripe */}
+                <div style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fff', letterSpacing: '0.02em' }}>ATENÇÃO — Dados incompletos</span>
+                </div>
+
+                {/* Body */}
+                <div style={{ background: '#fffbeb', padding: '18px 18px 20px' }}>
+                  <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#78350f', lineHeight: 1.6 }}>
+                    Seu cadastro está <strong>incompleto</strong>. Para registrar presença nos treinos, acessar seus relatórios e liberar o batizado/troca de graduação, finalize agora clicando no botão abaixo:
+                  </p>
+
+                  {/* Visual guide — mockup card with arrow */}
+                  <div style={{ background: '#fff', border: '1.5px dashed #fbbf24', borderRadius: 12, padding: '14px 16px', marginBottom: 16, position: 'relative' }}>
+                    {/* Simulated card */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, opacity: 0.6 }}>
+                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb' }} />
+                      <div>
+                        <div style={{ width: 100, height: 8, borderRadius: 4, background: '#d1d5db', marginBottom: 4 }} />
+                        <div style={{ width: 60, height: 6, borderRadius: 4, background: '#e5e7eb' }} />
+                      </div>
+                    </div>
+                    {/* Simulated button + pointer */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ background: '#f59e0b', borderRadius: 8, padding: '8px 18px', color: '#fff', fontWeight: 800, fontSize: '0.82rem', boxShadow: '0 2px 8px rgba(245,158,11,0.4)', border: '2px solid #d97706' }}>
+                        ✏️ Completar Cadastro
+                      </div>
+                      {/* Arrow + finger pointing */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
+                        <span style={{ fontSize: '1.6rem', lineHeight: 1, animation: 'none' }}>👆</span>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
+                          <svg width="38" height="18" viewBox="0 0 38 18" fill="none">
+                            <path d="M36 9H2M2 9L10 3M2 9L10 15" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                          </svg>
+                          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#dc2626', whiteSpace: 'nowrap' }}>Clique aqui!</span>
+                        </div>
+                      </div>
+                    </div>
+                    {/* Label */}
+                    <div style={{ position: 'absolute', top: 8, right: 10, fontSize: '0.62rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>como fazer</div>
                   </div>
-                  <button onClick={() => setActiveTab('dados')}
-                    style={{ background: '#f59e0b', color: '#fff', border: 'none', borderRadius: 8, padding: '8px 16px', fontWeight: 700, fontSize: '0.82rem', cursor: 'pointer' }}>
-                    ✏️ Completar Cadastro
+
+                  {/* Real button */}
+                  <button
+                    onClick={() => setActiveTab('dados')}
+                    style={{ width: '100%', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 20px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(245,158,11,0.35)' }}
+                  >
+                    <span style={{ fontSize: '1.1rem' }}>✏️</span>
+                    Completar Cadastro
+                    <span style={{ fontSize: '1rem' }}>→</span>
                   </button>
                 </div>
               </div>
@@ -2352,7 +2393,7 @@ export default function AlunoPage() {
 
               {isMissing && (
                 <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 12, padding: '12px 16px', fontSize: '0.8rem', color: '#92400e' }}>
-                  ⚠️ Dados incompletos: <strong>{[!student.nucleo && 'Núcleo', !student.graduacao && 'Graduação', !student.cpf && 'CPF'].filter(Boolean).join(', ')}</strong>. Preencha abaixo.
+                  ⚠️ Dados incompletos. Preencha os campos abaixo para finalizar seu cadastro.
                 </div>
               )}
 
