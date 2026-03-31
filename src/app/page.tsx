@@ -856,33 +856,30 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
   return (
     <>
-      {/* ── Hero Banner — imagem de fundo em tela cheia, com logo sobreposto ── */}
+      {/* ── Hero Banner — imagem de fundo completa, sem corte ── */}
       <div className="hero-banner" style={{
         position: 'relative',
-        minHeight: 420,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
+        width: '100%',
+        borderRadius: 12,
         overflow: 'hidden',
+        lineHeight: 0,
       }}>
-        {/* Imagem de fundo */}
+        {/* Imagem de fundo — contain para não cortar nada */}
         <img
           src={bgUrl || '/wallpaper-capoeira.jpg'}
           alt="Capoeira Barão de Mauá"
           style={{
-            position: 'absolute',
-            inset: 0,
+            display: 'block',
             width: '100%',
-            height: '100%',
-            objectFit: 'cover',
+            height: 'auto',
             borderRadius: 12,
           }}
         />
-        {/* Overlay escuro leve para destacar a logo */}
+        {/* Overlay escuro leve */}
         <div style={{
           position: 'absolute',
           inset: 0,
-          background: 'rgba(0,0,0,0.18)',
+          background: 'rgba(0,0,0,0.12)',
           borderRadius: 12,
         }} />
 
