@@ -1501,6 +1501,7 @@ export default function AdminPage() {
         nome_responsavel: editForm.nome_responsavel,
         cpf_responsavel: editForm.cpf_responsavel,
         menor_de_idade: menorDeIdadeComputed,
+        autoriza_imagem: !!(editForm as any).autoriza_imagem,
         foto_url,
         ...(tenantIdComputed ? { tenant_id: tenantIdComputed } : {}),
         // email included in core so it's saved even if optional columns (apelido/sexo) are missing
@@ -6447,7 +6448,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               </div>
               <div className="detail-item">
                 <span className="detail-label">Data de Nascimento</span>
-                <span className="detail-value">{new Date(selected.data_nascimento).toLocaleDateString('pt-BR')}</span>
+                <span className="detail-value">{selected.data_nascimento ? new Date(selected.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—'}</span>
               </div>
               <div className="detail-item">
                 <span className="detail-label">Telefone</span>
@@ -6924,6 +6925,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="detail-item">
                 <span className="detail-label">Nome da Mãe</span>
                 <input className="edit-input" name="nome_mae" value={editForm.nome_mae || ''} onChange={handleEditChange} />
+              </div>
+              <div className="detail-item">
+                <span className="detail-label">Autorização de Imagem</span>
+                <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', marginTop: 4 }}>
+                  <input
+                    type="checkbox"
+                    name="autoriza_imagem"
+                    checked={!!(editForm as any).autoriza_imagem}
+                    onChange={e => setEditForm(prev => ({ ...prev, autoriza_imagem: e.target.checked } as any))}
+                    style={{ width: 18, height: 18, accentColor: '#16a34a', cursor: 'pointer' }}
+                  />
+                  <span style={{ fontSize: '0.82rem', color: 'var(--text-primary)' }}>
+                    Autorizo o uso da minha imagem
+                  </span>
+                </label>
               </div>
               {editing.menor_de_idade && (
                 <>
