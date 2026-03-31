@@ -928,6 +928,7 @@ export default function AdminPage() {
   const [auditSearch, setAuditSearch] = useState('');
   // ── Engagement Dashboard ──────────────────────────────────────────────────
   const [engagementFilter, setEngagementFilter] = useState<'todos' | 'ativos' | 'nunca' | 'sem-email'>('todos');
+  const [semContaExpanded, setSemContaExpanded] = useState(false);
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -10272,6 +10273,90 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
       {/* ===== ABA AUDITORIA (geral only) ===== */}
       {activeTab === 'auditoria' && activeNucleo === 'geral' && (
         <div style={{ paddingTop: 24 }}>
+
+          {/* ── CONTAS CADASTRADAS ── */}
+          {(() => {
+            const allActive = students.filter((s: any) => !s.deleted_at);
+            const contaIds = new Set(alunoContas.map(a => a.student_id));
+            const semConta = allActive.filter((s: any) => !contaIds.has(s.id));
+            const PREVIEW = 8;
+            const shown = semContaExpanded ? semConta : semConta.slice(0, PREVIEW);
+            return (
+              <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: 16, padding: '18px 20px', marginBottom: 24 }}>
+                {/* Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 16 }}>
+                  <div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <span style={{ fontSize: '1.2rem' }}>📋</span>
+                      <span style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Contas cadastradas</span>
+                    </div>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2, marginLeft: 30 }}>Todos os núcleos visíveis</div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setLoadingContas(true);
+                      Promise.all([
+                        fetch('/api/admin/contas').then(r => r.json()),
+                        fetch('/api/admin/contas?displayIds=1').then(r => r.json()),
+                      ]).then(([contas, idMap]) => {
+                        setAlunoContas(Array.isArray(contas) ? contas : []);
+                        if (idMap && typeof idMap === 'object') setStudentDisplayIds(idMap as Record<string, string>);
+                        setLoadingContas(false);
+                      }).catch(() => setLoadingContas(false));
+                    }}
+                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px', borderRadius: 8, background: '#4f46e5', color: '#fff', border: 'none', cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem' }}
+                  >
+                    🔄 Atualizar
+                  </button>
+                </div>
+
+                {loadingContas ? (
+                  <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: 20, fontSize: '0.85rem' }}>Carregando...</div>
+                ) : semConta.length === 0 ? (
+                  <div style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 10, padding: '12px 16px', fontSize: '0.85rem', color: '#166534', fontWeight: 600 }}>
+                    ✅ Todos os alunos possuem conta de acesso.
+                  </div>
+                ) : (
+                  <div style={{ background: 'rgba(234,179,8,0.07)', border: '1.5px solid rgba(234,179,8,0.35)', borderRadius: 12, padding: '14px 16px' }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.95rem', color: '#92400e', marginBottom: 12 }}>
+                      ⚠️ {semConta.length} aluno{semConta.length !== 1 ? 's' : ''} sem conta de acesso
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                      {shown.map((s: any) => (
+                        <span key={s.id} style={{
+                          background: 'rgba(254,243,199,0.9)',
+                          border: '1px solid rgba(234,179,8,0.4)',
+                          borderRadius: 20,
+                          padding: '5px 14px',
+                          fontSize: '0.82rem',
+                          fontWeight: 600,
+                          color: '#78350f',
+                        }}>
+                          {s.nome_completo}{studentDisplayIds[s.id] ? ` (${studentDisplayIds[s.id]})` : ''}
+                        </span>
+                      ))}
+                      {!semContaExpanded && semConta.length > PREVIEW && (
+                        <button
+                          onClick={() => setSemContaExpanded(true)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#d97706', padding: '5px 4px' }}
+                        >
+                          +{semConta.length - PREVIEW} mais...
+                        </button>
+                      )}
+                      {semContaExpanded && semConta.length > PREVIEW && (
+                        <button
+                          onClick={() => setSemContaExpanded(false)}
+                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#d97706', padding: '5px 4px' }}
+                        >
+                          Ver menos ▲
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* ── ENGAGEMENT DASHBOARD ── */}
           {(() => {
