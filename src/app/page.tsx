@@ -889,28 +889,21 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         <div style={{
           position: 'relative',
           zIndex: 5,
-          padding: '32px 0',
+          padding: '24px 0',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
         }}>
-          <div style={{
-            width: 'min(82vw, 520px)',
-            height: 'min(82vw, 520px)',
-            borderRadius: '50%',
-            overflow: 'hidden',
-            boxShadow: '0 8px 80px rgba(0,0,0,1), 0 0 0 6px rgba(255,255,255,0.12)',
-            margin: '0 auto',
-          }}>
-            <img
-              src="/logo-barao-maua.png"
-              alt="Barão de Mauá"
-              style={{
-                width: '130%',
-                height: '130%',
-                objectFit: 'cover',
-                marginLeft: '-15%',
-                marginTop: '-15%',
-              }}
-            />
-          </div>
+          <img
+            src="/logo-barao-maua-transparent.png"
+            alt="Barão de Mauá"
+            style={{
+              width: 'min(90vw, 700px)',
+              height: 'min(90vw, 700px)',
+              objectFit: 'contain',
+              filter: 'drop-shadow(0 6px 40px rgba(0,0,0,0.95)) drop-shadow(0 2px 16px rgba(0,0,0,0.8))',
+            }}
+          />
         </div>
         {/* Floating background changer button */}
         <button
