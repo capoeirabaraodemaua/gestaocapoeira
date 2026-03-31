@@ -2151,6 +2151,7 @@ export default function AlunoPage() {
 
           // ── graduation lists (canonical — from graduacoes.ts) ─────────────
           const INFANTIL_KEYS = [
+            'Crua (Infantil)',
             'Crua ponta Cinza','Crua ponta Amarela','Crua ponta Laranja','Crua ponta Verde',
             'Crua ponta Azul','Crua ponta Roxa','Crua e Cinza','Crua e Laranja','Crua e Verde',
             'Crua e Azul','Crua e Roxa','Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul',

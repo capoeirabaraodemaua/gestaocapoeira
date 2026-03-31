@@ -1,5 +1,6 @@
 export const graduacoes = [
   // Infantil
+  'Crua (Infantil)',
   'Crua ponta Cinza',
   'Crua ponta Amarela',
   'Crua ponta Laranja',
@@ -38,6 +39,7 @@ export const graduacoes = [
 // Nomenclatura oficial de cada graduação
 export const nomenclaturaGraduacao: Record<string, string> = {
   // Infantil
+  'Crua (Infantil)':     'Graduação Infantil',
   'Crua ponta Cinza':    'Graduação Infantil',
   'Crua ponta Amarela':  'Graduação Infantil',
   'Crua ponta Laranja':  'Graduação Infantil',
@@ -76,6 +78,7 @@ export const nomenclaturaGraduacao: Record<string, string> = {
 export function getCordaColors(name: string): string[] {
   const map: Record<string, string[]> = {
     'Crua': ['#F5F5DC'],
+    'Crua (Infantil)': ['#F5F5DC'],
     'Crua ponta Cinza': ['#F5F5DC', '#808080'],
     'Crua ponta Amarela': ['#F5F5DC', '#FFD700'],
     'Crua ponta Laranja': ['#F5F5DC', '#FF8C00'],
