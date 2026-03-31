@@ -8,10 +8,20 @@ export const metadata: Metadata = {
   description: "Sistema de Gestão de Alunos da Associação Cultural de Capoeira Barão de Mauá",
   manifest: "/manifest.json",
   themeColor: "#e94560",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: 'any' },
+      { url: '/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/apple-touch-icon.png', sizes: '180x180', type: 'image/png' },
+    ],
+    shortcut: '/favicon.ico',
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Sistema de Gestão de Alunos ACCBM",
+    title: "ACCBM",
   },
   openGraph: {
     title: "Sistema de Gestão de Alunos ACCBM",
@@ -19,6 +29,7 @@ export const metadata: Metadata = {
     siteName: "Sistema de Gestão de Alunos ACCBM",
     locale: "pt_BR",
     type: "website",
+    images: [{ url: '/icon-512.png' }],
   },
   twitter: {
     card: "summary",
@@ -32,7 +43,8 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="pt-BR">
       <head>
         <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-        <link rel="apple-touch-icon" href="/icon-192.png" />
+        <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+        <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png" />
       </head>
       <body suppressHydrationWarning>
         <LanguageProvider>
