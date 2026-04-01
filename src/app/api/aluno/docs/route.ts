@@ -76,6 +76,56 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ docs });
 }
 
+/** POST /api/aluno/docs — upload a document */
+export async function POST(req: NextRequest) {
+  try {
+    const formData = await req.formData();
+    const student_id = formData.get('student_id') as string;
+    const file = formData.get('file') as File | null;
+
+    if (!student_id || !file) {
+      return NextResponse.json({ error: 'student_id e arquivo são obrigatórios.' }, { status: 400 });
+    }
+
+    const MAX_SIZE = 50 * 1024 * 1024; // 50 MB
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: 'Arquivo deve ter no máximo 50 MB.' }, { status: 400 });
+    }
+
+    const ext = file.name.split('.').pop()?.toLowerCase() || 'bin';
+    const safeName = file.name
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+      .replace(/[^a-zA-Z0-9._-]/g, '_')
+      .slice(0, 80);
+    const timestamp = Date.now();
+    const fileName = `${timestamp}_${safeName}`;
+    const path = `${docsFolder(student_id)}/${fileName}`;
+
+    const buf = await file.arrayBuffer();
+    const { error: uploadError } = await supabase.storage
+      .from(BUCKET)
+      .upload(path, buf, { contentType: file.type || 'application/octet-stream', upsert: false });
+
+    if (uploadError) {
+      return NextResponse.json({ error: 'Erro ao fazer upload: ' + uploadError.message }, { status: 500 });
+    }
+
+    const { data: signed } = await supabase.storage.from(BUCKET).createSignedUrl(path, 3600 * 24);
+
+    return NextResponse.json({
+      ok: true,
+      name: fileName,
+      displayName: file.name,
+      url: signed?.signedUrl ?? '',
+      icon: getIcon(fileName),
+      size: formatSize(file.size),
+      ext,
+    });
+  } catch (err) {
+    return NextResponse.json({ error: 'Erro interno: ' + String(err) }, { status: 500 });
+  }
+}
+
 /** DELETE /api/aluno/docs — remove a document */
 export async function DELETE(req: NextRequest) {
   const { student_id, name } = await req.json();

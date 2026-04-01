@@ -137,6 +137,8 @@ export default function AlunoPage() {
   const [docsItems, setDocsItems] = useState<{ name: string; displayName: string; url: string; icon: string; size: string; sizeBytes: number; created_at: string; ext: string }[]>([]);
   const [docsLoading, setDocsLoading] = useState(false);
   const [docsMsg, setDocsMsg] = useState('');
+  const [docsUploading, setDocsUploading] = useState(false);
+  const docsFileRef = useRef<HTMLInputElement>(null);
 
   // ── Fotos e Vídeos ────────────────────────────────────────────────────────
   const [fotosMedia, setFotosMedia] = useState<{ name: string; url: string; type: 'foto' | 'video'; size: number; created_at: string }[]>([]);
@@ -989,6 +991,23 @@ export default function AlunoPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Incomplete data / termo pending banners */}
+            {!student && (
+              <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
+                <div style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  <span style={{ fontSize: '1.1rem' }}>⚠️</span>
+                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fff', letterSpacing: '0.02em' }}>ATENÇÃO — Cadastro incompleto</span>
+                </div>
+                <div style={{ background: '#fffbeb', padding: '16px 18px 18px' }}>
+                  <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: '#78350f', lineHeight: 1.6 }}>
+                    Sua conta foi criada, mas seu cadastro na associação ainda não foi vinculado. Acesse a aba <strong>Dados</strong> e preencha seus dados para finalizar.
+                  </p>
+                  <button onClick={() => setActiveTab('dados')}
+                    style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 2px 10px rgba(245,158,11,0.35)' }}>
+                    ✏️ Completar Cadastro →
+                  </button>
+                </div>
+              </div>
+            )}
             {student && (!student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica)) && (
               <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
                 {/* Top stripe */}
@@ -1641,9 +1660,36 @@ export default function AlunoPage() {
         {/* ── DOCUMENTOS PESSOAIS ── */}
         {activeTab === 'docs' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📂 Meus Documentos</h2>
-              <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>Documentos pessoais disponibilizados pela associação</p>
+            <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+              <div>
+                <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>📂 Meus Documentos</h2>
+                <p style={{ margin: '4px 0 0', fontSize: '0.75rem', color: '#6b7280' }}>PDF, Word, imagens, planilhas e qualquer formato — máx. 50 MB</p>
+              </div>
+              <button
+                onClick={() => docsFileRef.current?.click()}
+                disabled={docsUploading}
+                style={{ background: docsUploading ? '#e5e7eb' : `linear-gradient(135deg, ${nucleoColor}, ${nucleoColor}cc)`, color: docsUploading ? '#9ca3af' : '#fff', border: 'none', borderRadius: 10, padding: '9px 18px', cursor: docsUploading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0 }}>
+                {docsUploading ? '⏳ Enviando...' : '⬆ Enviar Documento'}
+              </button>
+              <input ref={docsFileRef} type="file" accept="*/*" style={{ display: 'none' }} onChange={async e => {
+                const file = e.target.files?.[0];
+                if (!file || !session) return;
+                setDocsUploading(true); setDocsMsg('');
+                try {
+                  const fd = new FormData();
+                  fd.append('student_id', session.student_id);
+                  fd.append('file', file);
+                  const res = await fetch('/api/aluno/docs', { method: 'POST', body: fd });
+                  const data = await res.json();
+                  if (!res.ok) { setDocsMsg(data.error || 'Erro ao enviar.'); }
+                  else {
+                    setDocsMsg('✓ Documento enviado com sucesso!');
+                    loadDocs(session.student_id);
+                    setTimeout(() => setDocsMsg(''), 3000);
+                  }
+                } catch { setDocsMsg('Erro de conexão.'); }
+                finally { setDocsUploading(false); e.target.value = ''; }
+              }} />
             </div>
 
             {docsMsg && (
@@ -1655,10 +1701,10 @@ export default function AlunoPage() {
             {docsLoading ? (
               <div style={{ textAlign: 'center', padding: '40px 0', color: '#9ca3af', fontSize: '0.9rem' }}>Carregando documentos...</div>
             ) : docsItems.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '60px 20px', background: '#f0f9ff', borderRadius: 16, border: '2px dashed #bae6fd' }}>
+              <div style={{ textAlign: 'center', padding: '50px 20px', background: '#f0f9ff', borderRadius: 16, border: '2px dashed #bae6fd' }}>
                 <div style={{ fontSize: '3rem', marginBottom: 12 }}>📂</div>
-                <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.95rem' }}>Nenhum documento disponível</div>
-                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Os documentos disponibilizados pela associação aparecerão aqui</div>
+                <div style={{ fontWeight: 700, color: '#0369a1', fontSize: '0.95rem' }}>Nenhum documento ainda</div>
+                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6, lineHeight: 1.5 }}>Clique em <strong>Enviar Documento</strong> para adicionar PDFs, imagens,<br/>contratos ou qualquer arquivo</div>
               </div>
             ) : (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -1671,10 +1717,21 @@ export default function AlunoPage() {
                         {doc.size} • {doc.ext.toUpperCase()} • {doc.created_at ? new Date(doc.created_at).toLocaleDateString('pt-BR') : ''}
                       </div>
                     </div>
-                    <a href={doc.url} target="_blank" rel="noopener noreferrer" download
-                      style={{ background: 'linear-gradient(135deg, #0369a1, #0284c7)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 16px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, whiteSpace: 'nowrap' }}>
-                      ⬇ Baixar
-                    </a>
+                    <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                      <a href={doc.url} target="_blank" rel="noopener noreferrer" download
+                        style={{ background: 'linear-gradient(135deg, #0369a1, #0284c7)', color: '#fff', border: 'none', borderRadius: 10, padding: '8px 14px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap' }}>
+                        ⬇ Baixar
+                      </a>
+                      <button onClick={async () => {
+                        if (!session) return;
+                        const res = await fetch('/api/aluno/docs', { method: 'DELETE', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ student_id: session.student_id, name: doc.name }) });
+                        if (res.ok) { setDocsItems(prev => prev.filter(d => d.name !== doc.name)); setDocsMsg('✓ Documento removido.'); setTimeout(() => setDocsMsg(''), 3000); }
+                        else setDocsMsg('Erro ao remover documento.');
+                      }}
+                        style={{ background: '#fef2f2', color: '#dc2626', border: '1px solid #fecaca', borderRadius: 10, padding: '8px 12px', cursor: 'pointer', fontWeight: 700, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>
+                        🗑
+                      </button>
+                    </div>
                   </div>
                 ))}
               </div>
