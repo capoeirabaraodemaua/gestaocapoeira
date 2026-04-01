@@ -10235,8 +10235,54 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                   <>
                     {withoutAccount.length > 0 && (
                       <div style={{ background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 10, padding: '12px 14px', marginBottom: 16 }}>
-                        <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e', marginBottom: 8 }}>
-                          ⚠ {withoutAccount.length} aluno{withoutAccount.length !== 1 ? 's' : ''} sem conta de acesso
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                          <div style={{ fontSize: '0.82rem', fontWeight: 700, color: '#92400e' }}>
+                            ⚠ {withoutAccount.length} aluno{withoutAccount.length !== 1 ? 's' : ''} sem conta de acesso
+                          </div>
+                          {/* Bulk dispatch button */}
+                          {withoutAccount.filter(s => (s.telefone || '').replace(/\D/g, '').length >= 10).length > 0 && (
+                            <button
+                              onClick={() => {
+                                const studentsWithPhone = withoutAccount.filter(s => (s.telefone || '').replace(/\D/g, '').length >= 10);
+                                const bulkMsg = encodeURIComponent(
+`Olá! Tudo bem? 👋🏽
+
+Somos da Associação Cultural de Capoeira Barão de Mauá. Precisamos que você crie sua conta na área do aluno para ter acesso completo à plataforma.
+
+Acesse agora: ${process.env.NEXT_PUBLIC_APP_URL || 'https://accbm.vercel.app'}/aluno
+
+Com sua conta você poderá:
+✅ Registrar sua presença nos treinos
+✅ Acompanhar seu histórico de graduações
+✅ Acessar documentos e informativos
+✅ Visualizar sua carteirinha digital
+
+A criação da conta é necessária para participar do batizado e troca de graduação.
+
+Atenciosamente,
+Associação Cultural de Capoeira Barão de Mauá 🥋`
+                                );
+                                let i = 0;
+                                const openNext = () => {
+                                  if (i >= studentsWithPhone.length) return;
+                                  const s = studentsWithPhone[i];
+                                  const tel = (s.telefone || '').replace(/\D/g, '');
+                                  const br = tel.startsWith('55') ? tel : `55${tel}`;
+                                  window.open(`https://api.whatsapp.com/send?phone=${br}&text=${bulkMsg}`, '_blank');
+                                  i++;
+                                  if (i < studentsWithPhone.length) {
+                                    setTimeout(openNext, 1500);
+                                  }
+                                };
+                                if (window.confirm(`Isso abrirá ${studentsWithPhone.length} janelas do WhatsApp (uma por aluno). Continuar?`)) {
+                                  openNext();
+                                }
+                              }}
+                              style={{ display: 'inline-flex', alignItems: 'center', gap: 5, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', border: 'none', borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap' }}
+                            >
+                              📲 Disparar WhatsApp para todos ({withoutAccount.filter(s => (s.telefone || '').replace(/\D/g, '').length >= 10).length})
+                            </button>
+                          )}
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
                           {withoutAccount.map(s => {
@@ -10244,18 +10290,22 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                             const br = tel.startsWith('55') ? tel : `55${tel}`;
                             const displayId = studentDisplayIds[s.id] || '';
                             const msg = encodeURIComponent(
-`Olá! 👋
+`Olá! Tudo bem? 👋🏽
 
-Somos da Associação Cultural de Capoeira Barão de Mauá.
+Somos da Associação Cultural de Capoeira Barão de Mauá. Precisamos que você crie sua conta na área do aluno para ter acesso completo à plataforma.
 
-Precisamos que você acesse a área do aluno, crie sua conta e, em seguida, entre novamente com essa conta para finalizar o seu cadastro.
+Acesse agora: ${process.env.NEXT_PUBLIC_APP_URL || 'https://accbm.vercel.app'}/aluno
 
-A não realização desse processo impedirá o registro da sua presença nos treinos, o acesso aos seus relatórios individuais e poderá bloquear etapas importantes, inclusive a liberação para o batizado e a troca de graduação, pois é através desse acesso que teremos todo o controle.
+Com sua conta você poderá:
+✅ Registrar sua presença nos treinos
+✅ Acompanhar seu histórico de graduações
+✅ Acessar documentos e informativos
+✅ Visualizar sua carteirinha digital
 
-Solicitamos que realize esse procedimento o mais breve possível.
+A criação da conta é necessária para participar do batizado e troca de graduação.
 
 Atenciosamente,
-Suporte Ginga Gestão.`
+Associação Cultural de Capoeira Barão de Mauá 🥋`
                             );
                             return (
                               <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 6px 3px 10px' }}>

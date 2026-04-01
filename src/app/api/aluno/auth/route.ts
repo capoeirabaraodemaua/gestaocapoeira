@@ -203,7 +203,13 @@ export async function POST(req: NextRequest) {
 
       // ── Duplicate checks ──────────────────────────────────────────────────
       if (authMap[student_id]) {
-        return NextResponse.json({ error: 'Este aluno já possui uma conta. Use a opção de recuperar senha caso tenha esquecido o acesso.' }, { status: 409 });
+        const existing = authMap[student_id];
+        // Allow re-registration only if account is inactive (pending OTP) — e.g. phone was corrected by admin
+        if (existing.active) {
+          return NextResponse.json({ error: 'Este aluno já possui uma conta. Use a opção de recuperar senha caso tenha esquecido o acesso.' }, { status: 409 });
+        }
+        // Inactive account: allow overwrite so student can re-register with corrected phone/data
+        // (fall through — will overwrite the pending account below)
       }
 
       // Username taken?
@@ -380,21 +386,32 @@ export async function POST(req: NextRequest) {
       if (!account) return NextResponse.json({ error: 'Conta não encontrada.' }, { status: 404 });
       if (account.active) return NextResponse.json({ error: 'Conta já ativada.' }, { status: 400 });
 
+      // Always fetch latest phone from students table — admin may have corrected it
+      const { data: studentRecord } = await supabaseAdmin
+        .from('students').select('nome_completo, telefone').eq('id', student_id).maybeSingle();
+
+      const latestPhoneRaw = (studentRecord?.telefone || account.phone || '').replace(/\D/g, '');
+      const latestPhone = latestPhoneRaw ? (latestPhoneRaw.startsWith('55') ? latestPhoneRaw : `55${latestPhoneRaw}`) : '';
+
       const otp = generateOTP();
       authMap[student_id] = {
         ...account,
+        phone: latestPhone || account.phone, // update stored phone to latest
         pending_otp: otp,
         otp_expires: new Date(Date.now() + 10 * 60 * 1000).toISOString(),
       };
       await saveAuthMap(authMap);
 
-      if (account.phone) {
-        const { data: student } = await supabaseAdmin
-          .from('students').select('nome_completo').eq('id', student_id).maybeSingle();
-        await sendWhatsAppOTP(account.phone, otp, student?.nome_completo || 'Aluno');
+      let sent = false;
+      if (latestPhone) {
+        sent = await sendWhatsAppOTP(latestPhone, otp, studentRecord?.nome_completo || 'Aluno');
       }
 
-      return NextResponse.json({ success: true });
+      return NextResponse.json({
+        success: true,
+        phone: latestPhone ? `****${latestPhone.slice(-4)}` : null,
+        sent,
+      });
     }
 
     if (action === 'forgot-password') {
@@ -740,11 +757,32 @@ export async function POST(req: NextRequest) {
         account.email = new_email || '';
         try { await supabaseAdmin.from('students').update({ email: new_email || null }).eq('id', student_id); } catch { /* column may not exist */ }
       }
-      if (new_phone !== undefined) account.phone = new_phone || '';
+
+      let otpSentToNewPhone = false;
+      if (new_phone !== undefined) {
+        const oldPhone = account.phone || '';
+        const newPhoneDigits = (new_phone || '').replace(/\D/g, '');
+        const newPhoneNorm = newPhoneDigits ? (newPhoneDigits.startsWith('55') ? newPhoneDigits : `55${newPhoneDigits}`) : '';
+        const phoneChanged = newPhoneNorm !== oldPhone.replace(/\D/g, '');
+
+        account.phone = newPhoneNorm;
+
+        // When phone changes on an inactive account: generate a new OTP for the new number
+        if (phoneChanged && !account.active && newPhoneNorm) {
+          const newOtp = generateOTP();
+          account.pending_otp = newOtp;
+          account.otp_expires = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+          // Also update students table phone
+          try { await supabaseAdmin.from('students').update({ telefone: new_phone }).eq('id', student_id); } catch { /* silent */ }
+          // Send OTP to new phone
+          const { data: st } = await supabaseAdmin.from('students').select('nome_completo').eq('id', student_id).maybeSingle();
+          otpSentToNewPhone = await sendWhatsAppOTP(newPhoneNorm, newOtp, st?.nome_completo || 'Aluno');
+        }
+      }
 
       authMap[student_id] = account;
       await saveAuthMap(authMap);
-      return NextResponse.json({ success: true, username: account.username, email: account.email, phone: account.phone });
+      return NextResponse.json({ success: true, username: account.username, email: account.email, phone: account.phone, otp_resent: otpSentToNewPhone });
     }
 
     // ── Admin: delete account — no password required (admin privilege)
