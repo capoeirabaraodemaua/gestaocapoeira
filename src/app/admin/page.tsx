@@ -10,6 +10,7 @@ import DocumentsBar from '@/components/DocumentsBar';
 import AlunoViewer from '@/components/AlunoViewer';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getTenantIdByKey } from '@/lib/tenants';
+import WhatsappFilaPanel from '@/components/WhatsappFilaPanel';
 
 interface PresencaCount {
   student_id: string;
@@ -10317,6 +10318,12 @@ Suporte Ginga Gestão.`
               })()
             }
           </div>
+
+          {/* ── FILA WHATSAPP ── */}
+          <WhatsappFilaPanel
+            students={students.filter((s: any) => !s.deleted_at)}
+            alunoContasIds={new Set(alunoContas.map(a => a.student_id))}
+          />
         </div>
       )}
 
