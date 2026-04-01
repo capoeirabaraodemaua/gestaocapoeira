@@ -990,80 +990,6 @@ export default function AlunoPage() {
         {activeTab === 'dashboard' && (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
-            {/* Incomplete data / termo pending banners */}
-            {!student && (
-              <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
-                <div style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fff', letterSpacing: '0.02em' }}>ATENÇÃO — Cadastro incompleto</span>
-                </div>
-                <div style={{ background: '#fffbeb', padding: '16px 18px 18px' }}>
-                  <p style={{ margin: '0 0 12px', fontSize: '0.85rem', color: '#78350f', lineHeight: 1.6 }}>
-                    Sua conta foi criada, mas seu cadastro na associação ainda não foi vinculado. Acesse a aba <strong>Dados</strong> e preencha seus dados para finalizar.
-                  </p>
-                  <button onClick={() => setActiveTab('dados')}
-                    style={{ background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 10, padding: '10px 22px', fontWeight: 800, fontSize: '0.9rem', cursor: 'pointer', boxShadow: '0 2px 10px rgba(245,158,11,0.35)' }}>
-                    ✏️ Completar Cadastro →
-                  </button>
-                </div>
-              </div>
-            )}
-            {student && (!student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica)) && (
-              <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
-                {/* Top stripe */}
-                <div style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <span style={{ fontSize: '1.1rem' }}>⚠️</span>
-                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#fff', letterSpacing: '0.02em' }}>ATENÇÃO — Dados incompletos</span>
-                </div>
-
-                {/* Body */}
-                <div style={{ background: '#fffbeb', padding: '18px 18px 20px' }}>
-                  <p style={{ margin: '0 0 16px', fontSize: '0.85rem', color: '#78350f', lineHeight: 1.6 }}>
-                    Seu cadastro está <strong>incompleto</strong>. Para registrar presença nos treinos, acessar seus relatórios e liberar o batizado/troca de graduação, finalize agora clicando no botão abaixo:
-                  </p>
-
-                  {/* Visual guide — mockup card with arrow */}
-                  <div style={{ background: '#fff', border: '1.5px dashed #fbbf24', borderRadius: 12, padding: '14px 16px', marginBottom: 16, position: 'relative' }}>
-                    {/* Simulated card */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10, opacity: 0.6 }}>
-                      <div style={{ width: 32, height: 32, borderRadius: '50%', background: '#e5e7eb' }} />
-                      <div>
-                        <div style={{ width: 100, height: 8, borderRadius: 4, background: '#d1d5db', marginBottom: 4 }} />
-                        <div style={{ width: 60, height: 6, borderRadius: 4, background: '#e5e7eb' }} />
-                      </div>
-                    </div>
-                    {/* Simulated button + pointer */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                      <div style={{ background: '#f59e0b', borderRadius: 8, padding: '8px 18px', color: '#fff', fontWeight: 800, fontSize: '0.82rem', boxShadow: '0 2px 8px rgba(245,158,11,0.4)', border: '2px solid #d97706' }}>
-                        ✏️ Completar Cadastro
-                      </div>
-                      {/* Arrow + finger pointing */}
-                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 2 }}>
-                        <span style={{ fontSize: '1.6rem', lineHeight: 1, animation: 'none' }}>👆</span>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 3 }}>
-                          <svg width="38" height="18" viewBox="0 0 38 18" fill="none">
-                            <path d="M36 9H2M2 9L10 3M2 9L10 15" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          <span style={{ fontSize: '0.68rem', fontWeight: 800, color: '#dc2626', whiteSpace: 'nowrap' }}>Clique aqui!</span>
-                        </div>
-                      </div>
-                    </div>
-                    {/* Label */}
-                    <div style={{ position: 'absolute', top: 8, right: 10, fontSize: '0.62rem', fontWeight: 700, color: '#d97706', textTransform: 'uppercase', letterSpacing: '0.05em' }}>como fazer</div>
-                  </div>
-
-                  {/* Real button */}
-                  <button
-                    onClick={() => setActiveTab('dados')}
-                    style={{ width: '100%', background: 'linear-gradient(135deg,#f59e0b,#d97706)', color: '#fff', border: 'none', borderRadius: 10, padding: '13px 20px', fontWeight: 800, fontSize: '0.95rem', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, boxShadow: '0 4px 16px rgba(245,158,11,0.35)' }}
-                  >
-                    <span style={{ fontSize: '1.1rem' }}>✏️</span>
-                    Completar Cadastro
-                    <span style={{ fontSize: '1rem' }}>→</span>
-                  </button>
-                </div>
-              </div>
-            )}
             {student && (student.menor_de_idade as boolean) && !student.assinatura_responsavel && (
               <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 14, padding: '14px 18px', display: 'flex', alignItems: 'flex-start', gap: 12 }}>
                 <div style={{ fontSize: '1.4rem', flexShrink: 0, marginTop: 1 }}>📄</div>
@@ -1119,6 +1045,41 @@ export default function AlunoPage() {
                   <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{student?.nucleo || 'ACCBM'}</div>
                 </div>
               </div>
+              {/* ── Banner cadastro incompleto DENTRO do card verde ── */}
+              {(!student || !student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica)) && (
+                <div style={{ marginTop: 14, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 18px rgba(0,0,0,0.25)', animation: 'pulseCard 1.6s ease-in-out infinite' }}>
+                  <style>{`
+                    @keyframes pulseCard { 0%,100%{box-shadow:0 4px 18px rgba(0,0,0,0.25),0 0 0 0 rgba(255,255,255,0.4)} 50%{box-shadow:0 4px 28px rgba(0,0,0,0.35),0 0 0 6px rgba(255,255,255,0)} }
+                    @keyframes sirenBlink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+                    @keyframes bounce { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-5px)} }
+                  `}</style>
+                  {/* Topo vermelho com sirene */}
+                  <div style={{ background: 'linear-gradient(90deg,#dc2626,#b91c1c)', padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span style={{ animation: 'sirenBlink 0.7s ease-in-out infinite', fontSize: '1rem' }}>🚨</span>
+                    <span style={{ fontWeight: 800, fontSize: '0.82rem', color: '#fff', letterSpacing: '0.04em', flex: 1 }}>CADASTRO INCOMPLETO</span>
+                    <span style={{ animation: 'sirenBlink 0.7s ease-in-out infinite 0.35s', fontSize: '1rem' }}>🚨</span>
+                  </div>
+                  {/* Corpo branco */}
+                  <div style={{ background: '#fff', padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.85rem', color: '#111827', marginBottom: 3 }}>
+                        Seus dados estão incompletos!
+                      </div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
+                        Preencha núcleo, graduação e CPF para liberar presenças e batizado.
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
+                      <span style={{ fontSize: '1.3rem', animation: 'bounce 1s ease-in-out infinite' }}>👇</span>
+                      <button
+                        onClick={() => setActiveTab('dados')}
+                        style={{ background: 'linear-gradient(135deg,#dc2626,#b91c1c)', color: '#fff', border: 'none', borderRadius: 10, padding: '9px 16px', fontWeight: 800, fontSize: '0.82rem', cursor: 'pointer', whiteSpace: 'nowrap', boxShadow: '0 3px 10px rgba(220,38,38,0.4)' }}>
+                        ✏️ Completar agora
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Quick actions grid */}
