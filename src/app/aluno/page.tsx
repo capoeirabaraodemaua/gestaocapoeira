@@ -542,7 +542,18 @@ export default function AlunoPage() {
   const cadastroIncompleto = studentLoaded && student !== null && (() => {
     const isMinor = !!(student as any).menor_de_idade;
     const hasId = !!(student.cpf || (student as any).numeracao_unica);
-    return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
+    const sexo = (student as any).sexo;
+    const autorizaImagem = (student as any).autoriza_imagem;
+    return (
+      !student.nucleo ||
+      !student.graduacao ||
+      !student.telefone ||
+      !student.data_nascimento ||
+      (!isMinor && !hasId) ||
+      !student.email ||
+      !sexo ||
+      autorizaImagem === null || autorizaImagem === undefined
+    );
   })();
 
   const cartData = student ? {
@@ -1076,7 +1087,7 @@ export default function AlunoPage() {
                         Seus dados estão incompletos!
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
-                        Preencha os dados obrigatórios (núcleo, graduação, e-mail, telefone, data de nascimento) para liberar presenças e batizado.
+                        Preencha os dados obrigatórios: e-mail, sexo e autorização de uso de imagem para liberar presenças e batizado.
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
