@@ -536,6 +536,13 @@ export default function AlunoPage() {
   const genderColor = student?.sexo === 'M' ? '#1d4ed8' : student?.sexo === 'F' ? '#dc2626' : null;
   const nucleoColor = genderColor || (student ? getNucleoColor(student.nucleo || '') : '#1d4ed8');
 
+  // Cadastro incompleto — calculado uma vez quando student carrega, não depende de loading
+  const cadastroIncompleto = student !== null && (() => {
+    const isMinor = !!(student as any).menor_de_idade;
+    const hasId = !!(student.cpf || (student as any).numeracao_unica);
+    return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
+  })();
+
   const cartData = student ? {
     nome: student.nome_completo,
     cpf: student.cpf || '',
@@ -1047,11 +1054,7 @@ export default function AlunoPage() {
                 </div>
               </div>
               {/* ── Banner cadastro incompleto DENTRO do card verde ── */}
-              {!loading && student && (() => {
-                const isMinor = !!(student as any).menor_de_idade;
-                const hasId = !!(student.cpf || (student as any).numeracao_unica);
-                return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
-              })() && (
+              {cadastroIncompleto && (
                 <div style={{ marginTop: 14, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 18px rgba(0,0,0,0.25)', animation: 'pulseCard 1.6s ease-in-out infinite' }}>
                   <style>{`
                     @keyframes pulseCard { 0%,100%{box-shadow:0 4px 18px rgba(0,0,0,0.25),0 0 0 0 rgba(255,255,255,0.4)} 50%{box-shadow:0 4px 28px rgba(0,0,0,0.35),0 0 0 6px rgba(255,255,255,0)} }
@@ -2257,9 +2260,7 @@ export default function AlunoPage() {
           const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-          const isMinorDados = !!(student as any).menor_de_idade;
-          const hasIdDados = !!(student.cpf || (student as any).numeracao_unica);
-          const isMissing = !student.nucleo || !student.graduacao || !student.email || !student.telefone || !student.data_nascimento || (!isMinorDados && !hasIdDados);
+          const isMissing = cadastroIncompleto;
           const fs: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' };
           const ls: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
           const sec: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
