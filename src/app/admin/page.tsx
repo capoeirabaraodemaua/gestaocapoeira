@@ -2390,7 +2390,7 @@ export default function AdminPage() {
                     const age = now.getFullYear() - parseInt(s.data_nascimento.split('-')[0]);
                     const phone = (s.telefone || '').replace(/\D/g, '');
                     const br = phone.startsWith('55') ? phone : `55${phone}`;
-                    const msg = encodeURIComponent(`🎉✨ *Feliz Aniversário, ${s.nome_completo}!* ✨🎉\n\nEm nome de toda a família da *Associação Cultural de Capoeira Barão de Mauá*, celebramos com muita alegria mais um ano da sua jornada!\n\nQue este dia seja repleto de saúde, paz e muita ginga de vida. Que a energia do axé ilumine cada passo seu, dentro e fora do treino.\n\n🥋 Continue evoluindo — a capoeira transforma!\n\n_Com carinho e respeito,_\n_Mestre e família ACCBM_ 🌟\n\n*Axé!* 🤸‍♂️`);
+                    const msg = encodeURIComponent(`Feliz aniversário, ${s.nome_completo}! 🎉\n\nHoje o dia está mais alegre porque celebramos a sua vida.\nDesejamos que Deus ilumine cada passo do seu caminho, protegendo seus sonhos e derramando muitas bênçãos de saúde, paz e felicidade sobre você e toda a sua família.\nQue Ele seja sempre o seu guia, te dando forças para conquistar tudo o que deseja.\nÉ uma alegria enorme ter você conosco!`);
                     return (
                       <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 10, padding: '8px 12px' }}>
                         {s.foto_url
@@ -2581,12 +2581,40 @@ export default function AdminPage() {
                       <td style={{ fontWeight: 600 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
                           {student.nome_completo}
-                          {(student as any).sexo === 'M' && (
-                            <span style={{ fontSize: '0.65rem', background: 'rgba(29,78,216,0.12)', color: '#1d4ed8', border: '1px solid rgba(29,78,216,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluno</span>
-                          )}
-                          {(student as any).sexo === 'F' && (
-                            <span style={{ fontSize: '0.65rem', background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluna</span>
-                          )}
+                          {(() => {
+                            const nivel = nomenclaturaGraduacao[student.graduacao] || '';
+                            const sexo = (student as any).sexo;
+                            // Determina rótulo baseado no nível real da graduação
+                            const isInfantil = student.tipo_graduacao === 'infantil' || nivel === 'Graduação Infantil';
+                            const isMestre = nivel.startsWith('Mestre');
+                            const isProf = nivel.startsWith('Professor');
+                            const isMestrando = nivel === 'Mestrando';
+                            const isInstrutor = nivel.startsWith('Instrutor');
+                            const isMonitor = nivel === 'Monitor';
+                            const isGraduado = nivel.startsWith('Aluno Graduado');
+                            if (isInfantil) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(234,179,8,0.12)', color: '#b45309', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Infantil</span>;
+                            }
+                            if (isMestre) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>{nivel}</span>;
+                            }
+                            if (isMestrando || isProf) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(139,92,246,0.12)', color: '#7c3aed', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>{nivel}</span>;
+                            }
+                            if (isInstrutor) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(8,145,178,0.12)', color: '#0369a1', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>{nivel}</span>;
+                            }
+                            if (isMonitor) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(22,163,74,0.12)', color: '#15803d', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Monitor</span>;
+                            }
+                            if (isGraduado) {
+                              return <span style={{ fontSize: '0.65rem', background: 'rgba(29,78,216,0.12)', color: '#1d4ed8', border: '1px solid rgba(29,78,216,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>{nivel}</span>;
+                            }
+                            // Aluno comum — usa sexo para Aluno/Aluna
+                            if (sexo === 'M') return <span style={{ fontSize: '0.65rem', background: 'rgba(29,78,216,0.12)', color: '#1d4ed8', border: '1px solid rgba(29,78,216,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluno</span>;
+                            if (sexo === 'F') return <span style={{ fontSize: '0.65rem', background: 'rgba(220,38,38,0.12)', color: '#dc2626', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 99, padding: '1px 6px', fontWeight: 700, flexShrink: 0 }}>Aluna</span>;
+                            return null;
+                          })()}
                           {(() => {
                             try {
                               const c: string[] = (student as any).desenvolvimento_atipico ? (Array.isArray((student as any).desenvolvimento_atipico) ? (student as any).desenvolvimento_atipico : JSON.parse((student as any).desenvolvimento_atipico)) : ((student as any).condicoes_atipicas ? JSON.parse((student as any).condicoes_atipicas) : []);
@@ -6884,7 +6912,13 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Graduação (Corda)</span>
                 <select className="edit-input" name="graduacao" value={editForm.graduacao || ''} onChange={handleEditChange}>
                   <option value="">Selecione</option>
-                  {graduacoes.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}
+                  {(() => {
+                    const isInfantil = (editForm as any).tipo_graduacao === 'infantil';
+                    const INFANTIL = ['Crua (Infantil)','Crua ponta Cinza','Crua ponta Amarela','Crua ponta Laranja','Crua ponta Verde','Crua ponta Azul','Crua ponta Roxa','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa','Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul'];
+                    const ADULTA = graduacoes.filter(g => !INFANTIL.includes(g));
+                    const lista = isInfantil ? INFANTIL : ADULTA;
+                    return lista.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>);
+                  })()}
                 </select>
               </div>
               <div className="detail-item detail-full" style={{ paddingTop: 8, borderTop: '1px solid var(--border)', marginTop: 4 }}>
