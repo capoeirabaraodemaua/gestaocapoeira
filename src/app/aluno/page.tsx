@@ -179,7 +179,7 @@ export default function AlunoPage() {
 
   const [dadosForm, setDadosForm] = useState({
     nucleo: '', graduacao: '', tipo_graduacao: '',
-    cpf: '', identidade: '', numeracao_unica: '', data_nascimento: '',
+    identidade: '', numeracao_unica: '', data_nascimento: '',
     telefone: '', email: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
     nome_pai: '', nome_mae: '',
@@ -503,7 +503,7 @@ export default function AlunoPage() {
         nucleo:           student.nucleo           as string || '',
         graduacao:        student.graduacao         as string || '',
         tipo_graduacao:   (() => { const t = (student.tipo_graduacao as string || '').toLowerCase(); return t === 'infantil' ? 'Infantil' : t === 'adulta' || t === 'adulto' ? 'Adulto' : (student.tipo_graduacao as string || ''); })(),
-        cpf:              student.cpf               as string || '',
+
         identidade:       student.identidade        as string || '',
         numeracao_unica:  (student.numeracao_unica  as string) || '',
         data_nascimento:  student.data_nascimento   as string || '',
@@ -903,7 +903,7 @@ export default function AlunoPage() {
   // ── TABS NAVIGATION ───────────────────────────────────────────────────────
   const tabs: { id: Tab; icon: string; label: string; badge?: boolean }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
-    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao)) },
+    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || !student.email)) },
     { id: 'termo',          icon: '📄', label: 'Termo', badge: !!(student && student.menor_de_idade && !student.assinatura_responsavel) },
     { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
@@ -1050,7 +1050,7 @@ export default function AlunoPage() {
                 if (!student) return true;
                 const isMinor = !!(student as any).menor_de_idade;
                 const hasId = !!(student.cpf || (student as any).numeracao_unica);
-                return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
+                return !student.nucleo || !student.graduacao || !student.email || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
               })() && (
                 <div style={{ marginTop: 14, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 18px rgba(0,0,0,0.25)', animation: 'pulseCard 1.6s ease-in-out infinite' }}>
                   <style>{`
@@ -1071,7 +1071,7 @@ export default function AlunoPage() {
                         Seus dados estão incompletos!
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
-                        Preencha os dados obrigatórios (telefone, data de nascimento, CPF/identidade) para liberar presenças e batizado.
+                        Preencha os dados obrigatórios (núcleo, graduação, e-mail, telefone, data de nascimento) para liberar presenças e batizado.
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
@@ -2212,23 +2212,6 @@ export default function AlunoPage() {
 
           // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
-            // Numeração Única rule: if filled, CPF and Identidade must be blank
-            if (dadosForm.numeracao_unica.trim()) {
-              if (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) {
-                setDadosMsg('⚠️ Ao preencher a Numeração Única, os campos CPF e Identidade devem ficar em branco para evitar conflito de identificação.');
-                setDadosMsgType('error');
-                return;
-              }
-            }
-            // CPF validation before save
-            if (dadosForm.cpf) {
-              const cpfDigits = dadosForm.cpf.replace(/\D/g, '');
-              if (cpfDigits.length > 0 && !validarCPF(dadosForm.cpf)) {
-                setDadosMsg('CPF inválido. Verifique os dígitos e tente novamente.');
-                setDadosMsgType('error');
-                return;
-              }
-            }
             setDadosLoading(true); setDadosMsg('');
             try {
               const payload = {
@@ -2276,7 +2259,7 @@ export default function AlunoPage() {
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
           const isMinorDados = !!(student as any).menor_de_idade;
           const hasIdDados = !!(student.cpf || (student as any).numeracao_unica);
-          const isMissing = !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinorDados && !hasIdDados);
+          const isMissing = !student.nucleo || !student.graduacao || !student.email || !student.telefone || !student.data_nascimento || (!isMinorDados && !hasIdDados);
           const fs: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' };
           const ls: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
           const sec: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
@@ -2465,32 +2448,15 @@ export default function AlunoPage() {
                     })()}
                   </div>
                   <div>
-                    <label style={ls}>CPF <span style={{ color: '#ef4444' }}>*</span></label>
-                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))}
-                      style={{ ...fs, borderColor: dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 ? (validarCPF(dadosForm.cpf) ? '#86efac' : '#fca5a5') : '#e5e7eb' }}
-                      placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
-                    {dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 && (
-                      <div style={{ fontSize: '0.7rem', marginTop: 3, fontWeight: 600, color: validarCPF(dadosForm.cpf) ? '#16a34a' : '#dc2626' }}>
-                        {validarCPF(dadosForm.cpf) ? '✓ CPF válido' : '✗ CPF inválido — verifique os dígitos'}
-                      </div>
-                    )}
-                  </div>
-                  <div>
                     <label style={ls}>Identidade (RG)</label>
                     <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fs} placeholder="Número do RG" />
                   </div>
                   <div>
                     <label style={ls}>Numeração Única <span style={{ color: '#ef4444' }}>*</span></label>
                     <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))}
-                      style={{ ...fs, borderColor: dadosForm.numeracao_unica.trim() && (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) ? '#fca5a5' : '#e5e7eb' }}
+                      style={fs}
                       placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
-                    {dadosForm.numeracao_unica.trim() && (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) ? (
-                      <div style={{ fontSize: '0.7rem', color: '#dc2626', marginTop: 3, fontWeight: 600 }}>
-                        ⚠️ Com Numeração Única preenchida, deixe CPF e Identidade em branco
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Obrigatório se CPF não informado — identificador único no sistema ACCBM</div>
-                    )}
+                    <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 2 }}>Identificador único no sistema ACCBM</div>
                   </div>
                   <div>
                     <label style={ls}>Telefone / WhatsApp</label>
