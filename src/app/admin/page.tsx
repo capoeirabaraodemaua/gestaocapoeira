@@ -7106,6 +7106,36 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <label style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>WhatsApp</label>
                 <input type="tel" value={editContaForm.new_phone} onChange={e => setEditContaForm(f => ({ ...f, new_phone: e.target.value }))} placeholder="(21) 99999-9999" style={{ width: '100%', padding: '9px 10px', borderRadius: 8, border: '1px solid var(--border)', fontSize: '0.85rem', background: 'var(--input-bg)', color: 'var(--text-primary)', boxSizing: 'border-box' }} />
               </div>
+              {(() => {
+                const acc = alunoContas.find(a => a.student_id === editContaForm.student_id);
+                if (!acc) return null;
+                return (
+                  <div style={{ background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.35)', borderRadius: 10, padding: '12px 14px' }}>
+                    <div style={{ fontSize: '0.78rem', fontWeight: 700, color: '#92400e', marginBottom: 6 }}>
+                      🔄 Resetar validação de telefone
+                    </div>
+                    <div style={{ fontSize: '0.73rem', color: '#78350f', marginBottom: 10, lineHeight: 1.5 }}>
+                      Use quando o telefone foi corrigido e o aluno está travado sem conseguir validar a conta.
+                      Isso vai {acc.active ? 'desativar a conta e ' : ''}enviar um novo código para o número atual cadastrado no sistema.
+                    </div>
+                    <button
+                      onClick={async () => {
+                        setEditContaLoading(true); setContasMsg('');
+                        const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'admin-reset-phone-validation', student_id: editContaForm.student_id }) });
+                        const d = await res.json();
+                        setEditContaLoading(false);
+                        if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
+                        setContasMsg(`✅ Validação resetada. Código enviado para ${d.phone || 'telefone cadastrado'}. O aluno pode se reconectar agora.`);
+                        fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
+                      }}
+                      disabled={editContaLoading}
+                      style={{ padding: '7px 16px', background: '#d97706', color: '#fff', border: 'none', borderRadius: 8, cursor: editContaLoading ? 'not-allowed' : 'pointer', fontWeight: 700, fontSize: '0.78rem', opacity: editContaLoading ? 0.6 : 1 }}
+                    >
+                      🔄 Resetar e reenviar código
+                    </button>
+                  </div>
+                );
+              })()}
             </div>
             {contasMsg && showEditContaModal && (
               <div style={{ padding: '10px 14px', borderRadius: 8, marginBottom: 14, background: contasMsg.includes('✅') ? '#f0fdf4' : '#fef2f2', color: contasMsg.includes('✅') ? '#166534' : '#991b1b', border: `1px solid ${contasMsg.includes('✅') ? '#bbf7d0' : '#fecaca'}`, fontSize: '0.85rem' }}>{contasMsg}</div>
