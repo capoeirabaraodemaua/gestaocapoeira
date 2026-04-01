@@ -903,7 +903,7 @@ export default function AlunoPage() {
   // ── TABS NAVIGATION ───────────────────────────────────────────────────────
   const tabs: { id: Tab; icon: string; label: string; badge?: boolean }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
-    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica))) },
+    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao)) },
     { id: 'termo',          icon: '📄', label: 'Termo', badge: !!(student && student.menor_de_idade && !student.assinatura_responsavel) },
     { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
@@ -1046,7 +1046,7 @@ export default function AlunoPage() {
                 </div>
               </div>
               {/* ── Banner cadastro incompleto DENTRO do card verde ── */}
-              {(!student || !student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica)) && (
+              {(!student || !student.nucleo || !student.graduacao) && (
                 <div style={{ marginTop: 14, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 18px rgba(0,0,0,0.25)', animation: 'pulseCard 1.6s ease-in-out infinite' }}>
                   <style>{`
                     @keyframes pulseCard { 0%,100%{box-shadow:0 4px 18px rgba(0,0,0,0.25),0 0 0 0 rgba(255,255,255,0.4)} 50%{box-shadow:0 4px 28px rgba(0,0,0,0.35),0 0 0 6px rgba(255,255,255,0)} }
@@ -2207,14 +2207,6 @@ export default function AlunoPage() {
 
           // ── save ───────────────────────────────────────────────────────────
           const handleSaveDados = async () => {
-            // Require at least one of CPF or Numeração Única
-            const cpfFilled = dadosForm.cpf.replace(/\D/g, '').length > 0;
-            const nuFilled = dadosForm.numeracao_unica.trim().length > 0;
-            if (!cpfFilled && !nuFilled) {
-              setDadosMsg('Preencha o CPF ou a Numeração Única. Ao menos um é obrigatório.');
-              setDadosMsgType('error');
-              return;
-            }
             // Numeração Única rule: if filled, CPF and Identidade must be blank
             if (dadosForm.numeracao_unica.trim()) {
               if (dadosForm.cpf.replace(/\D/g,'').length > 0 || dadosForm.identidade.trim()) {
@@ -2277,8 +2269,7 @@ export default function AlunoPage() {
           const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-          const hasId = !!(student.cpf || (student as any).numeracao_unica);
-          const isMissing = !student.nucleo || !student.graduacao || !hasId;
+          const isMissing = !student.nucleo || !student.graduacao;
           const fs: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' };
           const ls: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
           const sec: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
@@ -2339,7 +2330,7 @@ export default function AlunoPage() {
                 <div>
                   <div>Por favor, complete e atualize todos os dados do seu cadastro.</div>
                   <div style={{ fontWeight: 400, fontSize: '0.75rem', marginTop: 3, color: '#3b82f6' }}>
-                    Preencha o <strong>CPF</strong> ou a <strong>Numeração Única</strong> (obrigatório ao menos um). Se usar Numeração Única, deixe CPF e Identidade em branco.
+                    CPF, Identidade e Numeração Única são opcionais — crianças podem salvar sem preencher esses campos.
                   </div>
                 </div>
               </div>
