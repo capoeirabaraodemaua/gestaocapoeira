@@ -1494,7 +1494,7 @@ export default function AdminPage() {
         cidade: editForm.cidade,
         estado: editForm.estado,
         graduacao: editForm.graduacao,
-        tipo_graduacao: editForm.tipo_graduacao || (menorDeIdadeComputed ? 'infantil' : 'adulta'),
+        tipo_graduacao: (() => { const t = (editForm.tipo_graduacao || (menorDeIdadeComputed ? 'infantil' : 'adulta')).toLowerCase(); return t === 'infantil' ? 'Infantil' : 'Adulto'; })(),
         nucleo: editForm.nucleo,
         nome_pai: editForm.nome_pai,
         nome_mae: editForm.nome_mae,
@@ -2260,12 +2260,12 @@ export default function AdminPage() {
                     >
                       <option value="">🎖️ Todas as graduações</option>
                       <optgroup label="── Adulto ──">
-                        {graduacoes.filter(g => !g.includes('ponta') && !['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                        {graduacoes.filter(g => nomenclaturaGraduacao[g] !== 'Graduação Infantil').map(g => (
                           <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>
                         ))}
                       </optgroup>
                       <optgroup label="── Infantil ──">
-                        {graduacoes.filter(g => g.includes('ponta') || ['Cinza','Cinza e Amarela','Verde e Amarela','Amarela e Azul','Crua e Cinza','Crua e Laranja','Crua e Verde','Crua e Azul','Crua e Roxa'].includes(g)).map(g => (
+                        {graduacoes.filter(g => nomenclaturaGraduacao[g] === 'Graduação Infantil').map(g => (
                           <option key={g} value={g}>{g}</option>
                         ))}
                       </optgroup>
@@ -2390,7 +2390,7 @@ export default function AdminPage() {
                     const age = now.getFullYear() - parseInt(s.data_nascimento.split('-')[0]);
                     const phone = (s.telefone || '').replace(/\D/g, '');
                     const br = phone.startsWith('55') ? phone : `55${phone}`;
-                    const msg = encodeURIComponent(`Feliz aniversário, ${s.nome_completo}! 🎉\n\nHoje o dia está mais alegre porque celebramos a sua vida.\nDesejamos que Deus ilumine cada passo do seu caminho, protegendo seus sonhos e derramando muitas bênçãos de saúde, paz e felicidade sobre você e toda a sua família.\nQue Ele seja sempre o seu guia, te dando forças para conquistar tudo o que deseja.\nÉ uma alegria enorme ter você conosco!`);
+                    const msg = encodeURIComponent(`Feliz aniversário! Hoje o dia está mais alegre porque celebramos a sua vida.\n\nDesejamos que Deus ilumine cada passo do seu caminho, protegendo seus sonhos e derramando muitas bênçãos de saúde, paz e felicidade sobre você e toda a sua família.\n\nQue Ele seja sempre o seu guia, te dando forças para conquistar tudo o que deseja.\n\nÉ uma alegria enorme ter você conosco!\n\nAssociação Cultural de Capoeira Barão de Mauá 🥋`);
                     return (
                       <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(220,38,38,0.35)', borderRadius: 10, padding: '8px 12px' }}>
                         {s.foto_url
@@ -2585,7 +2585,8 @@ export default function AdminPage() {
                             const nivel = nomenclaturaGraduacao[student.graduacao] || '';
                             const sexo = (student as any).sexo;
                             // Determina rótulo baseado no nível real da graduação
-                            const isInfantil = student.tipo_graduacao === 'infantil' || nivel === 'Graduação Infantil';
+                            const tipoGrad = (student.tipo_graduacao || '').toLowerCase();
+                            const isInfantil = tipoGrad === 'infantil' || nivel === 'Graduação Infantil' || student.menor_de_idade;
                             const isMestre = nivel.startsWith('Mestre');
                             const isProf = nivel.startsWith('Professor');
                             const isMestrando = nivel === 'Mestrando';
@@ -6904,8 +6905,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div className="detail-item">
                 <span className="detail-label">Tipo Graduação</span>
                 <select className="edit-input" name="tipo_graduacao" value={editForm.tipo_graduacao || ''} onChange={handleEditChange}>
-                  <option value="adulta">Adulta</option>
-                  <option value="infantil">Infantil</option>
+                  <option value="Adulto">Adulto</option>
+                  <option value="Infantil">Infantil</option>
                 </select>
               </div>
               <div className="detail-item">

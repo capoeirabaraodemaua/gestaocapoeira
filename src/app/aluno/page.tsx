@@ -969,7 +969,7 @@ export default function AlunoPage() {
   // ── TABS NAVIGATION ───────────────────────────────────────────────────────
   const tabs: { id: Tab; icon: string; label: string; badge?: boolean }[] = [
     { id: 'dashboard',      icon: '🏠', label: 'Início' },
-    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || !student.cpf)) },
+    { id: 'dados',          icon: '✏️', label: 'Meus Dados', badge: !!(student && (!student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica))) },
     { id: 'termo',          icon: '📄', label: 'Termo', badge: !!(student && student.menor_de_idade && !student.assinatura_responsavel) },
     { id: 'evolucao',       icon: '📊', label: 'Evolução' },
     { id: 'carteirinha',    icon: '🪪', label: 'Carteirinha' },
@@ -1057,7 +1057,7 @@ export default function AlunoPage() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
 
             {/* Incomplete data / termo pending banners */}
-            {student && (!student.nucleo || !student.graduacao || !student.cpf) && (
+            {student && (!student.nucleo || !student.graduacao || (!student.cpf && !(student as any).numeracao_unica)) && (
               <div style={{ borderRadius: 18, overflow: 'hidden', boxShadow: '0 4px 24px rgba(245,158,11,0.18)', border: '2px solid #fbbf24' }}>
                 {/* Top stripe */}
                 <div style={{ background: 'linear-gradient(90deg,#f59e0b,#d97706)', padding: '10px 18px', display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -2327,7 +2327,8 @@ export default function AlunoPage() {
           const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
-          const isMissing = !student.nucleo || !student.graduacao || !student.cpf;
+          const hasId = !!(student.cpf || (student as any).numeracao_unica);
+          const isMissing = !student.nucleo || !student.graduacao || !hasId;
           const fs: React.CSSProperties = { width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 11px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box', background: '#fff' };
           const ls: React.CSSProperties = { display: 'block', fontSize: '0.75rem', fontWeight: 600, color: '#374151', marginBottom: 4 };
           const sec: React.CSSProperties = { fontWeight: 800, fontSize: '0.78rem', color: '#6b7280', textTransform: 'uppercase' as const, letterSpacing: '0.06em', marginBottom: 10, paddingBottom: 6, borderBottom: '1px solid #f3f4f6' };
