@@ -539,22 +539,15 @@ export default function AlunoPage() {
   const nucleoColor = genderColor || (student ? getNucleoColor(student.nucleo || '') : '#1d4ed8');
 
   // Cadastro incompleto — só avalia depois que student foi carregado do servidor (studentLoaded é one-way: false→true, nunca volta)
-  const cadastroIncompleto = studentLoaded && student !== null && (() => {
-    const isMinor = !!(student as any).menor_de_idade;
-    const hasId = !!(student.cpf || (student as any).numeracao_unica);
-    const sexo = (student as any).sexo;
-    const autorizaImagem = (student as any).autoriza_imagem;
-    return (
-      !student.nucleo ||
-      !student.graduacao ||
-      !student.telefone ||
-      !student.data_nascimento ||
-      (!isMinor && !hasId) ||
-      !student.email ||
-      !sexo ||
-      autorizaImagem === null || autorizaImagem === undefined
-    );
-  })();
+  const cadastroIncompleto = studentLoaded && student !== null && (
+    !student.nucleo ||
+    !student.graduacao ||
+    !student.telefone ||
+    !student.data_nascimento ||
+    !student.email ||
+    !(student as any).sexo ||
+    ((student as any).autoriza_imagem === null || (student as any).autoriza_imagem === undefined)
+  );
 
   const cartData = student ? {
     nome: student.nome_completo,
@@ -1087,7 +1080,7 @@ export default function AlunoPage() {
                         Seus dados estão incompletos!
                       </div>
                       <div style={{ fontSize: '0.75rem', color: '#6b7280', lineHeight: 1.5 }}>
-                        Preencha os dados obrigatórios: e-mail, sexo e autorização de uso de imagem para liberar presenças e batizado.
+                        Preencha os dados obrigatórios: núcleo, graduação, data de nascimento, telefone, e-mail, sexo e autorização de uso de imagem.
                       </div>
                     </div>
                     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, flexShrink: 0 }}>
