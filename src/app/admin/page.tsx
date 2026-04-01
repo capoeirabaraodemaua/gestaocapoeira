@@ -10257,9 +10257,9 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso ðŸ‘ðŸ
                   ? alunoContas
                   : alunoContas.filter(acc => visibleIds.has(acc.student_id));
 
-                // Students without accounts
-                const withAccounts = new Set(filteredContas.map(a => a.student_id));
-                const withoutAccount = visibleStudents.filter(s => !withAccounts.has(s.id));
+                // Students without active accounts
+                const withActiveAccounts = new Set(filteredContas.filter(a => a.active).map(a => a.student_id));
+                const withoutAccount = visibleStudents.filter(s => !withActiveAccounts.has(s.id));
 
                 return (
                   <>
