@@ -86,6 +86,7 @@ export default function AlunoPage() {
   const [student, setStudent] = useState<Student | null>(null);
   const [activeTab, setActiveTab] = useState<Tab>('dashboard');
   const [loading, setLoading] = useState(true);
+  const [studentLoaded, setStudentLoaded] = useState(false);
   const [alunoInscricaoNum, setAlunoInscricaoNum] = useState<number | null>(null);
   const carteirinhaRef = useRef<HTMLDivElement>(null);
 
@@ -246,6 +247,7 @@ export default function AlunoPage() {
         const { student } = await res.json();
         if (student) {
           setStudent(student);
+          setStudentLoaded(true);
           // Fetch display ID for carteirinha (gerar-id is the authoritative source)
           const ordNum = (student as Record<string, unknown>).ordem_inscricao as number | null ?? null;
           if (ordNum) {
@@ -536,8 +538,8 @@ export default function AlunoPage() {
   const genderColor = student?.sexo === 'M' ? '#1d4ed8' : student?.sexo === 'F' ? '#dc2626' : null;
   const nucleoColor = genderColor || (student ? getNucleoColor(student.nucleo || '') : '#1d4ed8');
 
-  // Cadastro incompleto — calculado uma vez quando student carrega, não depende de loading
-  const cadastroIncompleto = student !== null && (() => {
+  // Cadastro incompleto — só avalia depois que student foi carregado do servidor (studentLoaded é one-way: false→true, nunca volta)
+  const cadastroIncompleto = studentLoaded && student !== null && (() => {
     const isMinor = !!(student as any).menor_de_idade;
     const hasId = !!(student.cpf || (student as any).numeracao_unica);
     return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
