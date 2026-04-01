@@ -929,7 +929,6 @@ export default function AdminPage() {
   const [auditSearch, setAuditSearch] = useState('');
   // ── Engagement Dashboard ──────────────────────────────────────────────────
   const [engagementFilter, setEngagementFilter] = useState<'todos' | 'ativos' | 'nunca' | 'sem-email'>('todos');
-  const [semContaExpanded, setSemContaExpanded] = useState(false);
   // Lixeira
   const [lixeira, setLixeira] = useState<Array<{ id: string; deleted_at: string; deleted_by: string; student: Record<string, unknown>; extras?: Record<string, string> }>>([]);
   const [loadingLixeira, setLoadingLixeira] = useState(false);
@@ -10205,7 +10204,7 @@ Assim que recebermos, criaremos sua conta e enviaremos os dados de acesso 👍�
                           ⚠ {withoutAccount.length} aluno{withoutAccount.length !== 1 ? 's' : ''} sem conta de acesso
                         </div>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                          {withoutAccount.slice(0, 10).map(s => {
+                          {withoutAccount.map(s => {
                             const tel = (s.telefone || '').replace(/\D/g, '');
                             const br = tel.startsWith('55') ? tel : `55${tel}`;
                             const displayId = studentDisplayIds[s.id] || '';
@@ -10336,8 +10335,7 @@ Suporte Ginga Gestão.`
             const allActive = students.filter((s: any) => !s.deleted_at);
             const contaIds = new Set(alunoContas.map(a => a.student_id));
             const semConta = allActive.filter((s: any) => !contaIds.has(s.id));
-            const PREVIEW = 8;
-            const shown = semContaExpanded ? semConta : semConta.slice(0, PREVIEW);
+            const shown = semConta;
             return (
               <div style={{ background: 'var(--bg-card)', border: '1.5px solid var(--border)', borderRadius: 16, padding: '18px 20px', marginBottom: 24 }}>
                 {/* Header */}
@@ -10418,22 +10416,6 @@ Suporte Ginga Gestão.`
                           </div>
                         );
                       })}
-                      {!semContaExpanded && semConta.length > PREVIEW && (
-                        <button
-                          onClick={() => setSemContaExpanded(true)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#d97706', padding: '5px 4px' }}
-                        >
-                          +{semConta.length - PREVIEW} mais...
-                        </button>
-                      )}
-                      {semContaExpanded && semConta.length > PREVIEW && (
-                        <button
-                          onClick={() => setSemContaExpanded(false)}
-                          style={{ background: 'transparent', border: 'none', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700, color: '#d97706', padding: '5px 4px' }}
-                        >
-                          Ver menos ▲
-                        </button>
-                      )}
                     </div>
                   </div>
                 )}
