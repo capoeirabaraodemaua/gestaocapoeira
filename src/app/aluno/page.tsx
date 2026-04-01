@@ -96,14 +96,6 @@ export default function AlunoPage() {
   const [loginAttempts, setLoginAttempts] = useState(0);
   const [lockedUntil, setLockedUntil] = useState(0);
 
-  // ── OTP ───────────────────────────────────────────────────────────────────
-  const [showOtp, setShowOtp] = useState(false);
-  const [otpStudentId, setOtpStudentId] = useState('');
-  const [otpPhone, setOtpPhone] = useState('');
-  const [otpCode, setOtpCode] = useState('');
-  const [otpError, setOtpError] = useState('');
-  const [otpLoading, setOtpLoading] = useState(false);
-
   // ── Register ──────────────────────────────────────────────────────────────
   const [showRegister, setShowRegister] = useState(false);
   const [registerForm, setRegisterForm] = useState({ cpf_or_doc: '', username: '', email: '', password: '', confirmPassword: '', phone: '' });
@@ -360,10 +352,6 @@ export default function AlunoPage() {
         if (newAttempts >= 5) {
           setLockedUntil(Date.now() + 5 * 60 * 1000);
           setLoginError('Muitas tentativas. Aguarde 5 minutos.');
-        } else if (data.pending) {
-          setOtpStudentId(data.student_id);
-          setOtpPhone(data.phone || '');
-          setShowOtp(true);
         } else {
           setLoginError(data.error || 'Usuário ou senha incorretos.');
         }
@@ -387,19 +375,6 @@ export default function AlunoPage() {
     setSession(null);
     setStudent(null);
     setActiveTab('dashboard');
-  };
-
-  const handleVerifyOtp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setOtpLoading(true); setOtpError('');
-    try {
-      const res = await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'verify-otp', student_id: otpStudentId, otp: otpCode }) });
-      const data = await res.json();
-      if (!res.ok) { setOtpError(data.error || 'Código inválido.'); return; }
-      setShowOtp(false);
-      setLoginError('✅ Conta ativada! Faça login.');
-    } catch { setOtpError('Erro de conexão.'); }
-    finally { setOtpLoading(false); }
   };
 
   const handleRegister = async (e: React.FormEvent) => {
@@ -429,16 +404,8 @@ export default function AlunoPage() {
         });
         const data = await res.json();
         if (res.ok) {
-          // Success — may need OTP or direct login
-          if (data.pending_otp) {
-            setOtpStudentId(data.student_id || '');
-            setOtpPhone(data.phone || '');
-            setRegisterSuccess('Cadastro realizado com sucesso! Verifique o código de verificação.');
-            setTimeout(() => { setShowRegister(false); setShowOtp(true); }, 2200);
-          } else {
-            setRegisterSuccess('Cadastro realizado com sucesso. Acesse agora sua conta para completar seus dados.');
-            setTimeout(() => { setShowRegister(false); }, 2200);
-          }
+          setRegisterSuccess('Conta criada com sucesso! Acesse agora sua área do aluno.');
+          setTimeout(() => { setShowRegister(false); }, 2000);
           return;
         }
         // If CPF not found, fall through to name-based
@@ -448,29 +415,24 @@ export default function AlunoPage() {
       }
 
       // Step 2: name-based registration (when no CPF or CPF not found)
-      if (!registerForm.cpf_or_doc.trim() || true) {
-        if (!registerForm.username.trim()) { setRegisterError('Informe seu nome completo exatamente como está cadastrado.'); return; }
-        const res2 = await fetch('/api/aluno/auth', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'register-by-name',
-            nome_completo: registerForm.username.trim(),
-            email: registerForm.email.trim().toLowerCase(),
-            password: registerForm.password,
-          }),
-        });
-        const data2 = await res2.json();
-        if (!res2.ok) {
-          let msg = data2.error || 'Erro ao criar conta.';
-          if (data2.candidates?.length) msg += `\n\nNomes similares encontrados:\n• ${data2.candidates.join('\n• ')}`;
-          setRegisterError(msg); return;
-        }
-        // Show success and redirect to login screen
-        setRegisterSuccess('Cadastro realizado com sucesso. Acesse agora sua conta para completar seus dados.');
-        setTimeout(() => {
-          setShowRegister(false);
-        }, 2200);
+      if (!registerForm.username.trim()) { setRegisterError('Informe seu nome completo exatamente como está cadastrado.'); return; }
+      const res2 = await fetch('/api/aluno/auth', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'register-by-name',
+          nome_completo: registerForm.username.trim(),
+          email: registerForm.email.trim().toLowerCase(),
+          password: registerForm.password,
+        }),
+      });
+      const data2 = await res2.json();
+      if (!res2.ok) {
+        let msg = data2.error || 'Erro ao criar conta.';
+        if (data2.candidates?.length) msg += `\n\nNomes similares encontrados:\n• ${data2.candidates.join('\n• ')}`;
+        setRegisterError(msg); return;
       }
+      setRegisterSuccess('Conta criada com sucesso! Acesse agora sua área do aluno.');
+      setTimeout(() => { setShowRegister(false); }, 2000);
     } catch { setRegisterError('Erro de conexão. Tente novamente.'); }
     finally { setRegisterLoading(false); }
   };
@@ -591,7 +553,7 @@ export default function AlunoPage() {
   } : null;
 
   // ── LOGIN ─────────────────────────────────────────────────────────────────
-  if (!session && !showOtp && !showRegister && !showForgot) {
+  if (!session && !showRegister && !showForgot) {
     return (
       <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
         <div style={{ width: '100%', maxWidth: 420 }}>
@@ -681,36 +643,6 @@ export default function AlunoPage() {
               <a href="/" style={{ color: '#9ca3af', fontSize: '0.82rem', textDecoration: 'none' }}>← Voltar à página inicial</a>
             </div>
           </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ── OTP ───────────────────────────────────────────────────────────────────
-  if (showOtp) {
-    return (
-      <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a,#1e293b)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-        <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', width: '100%', maxWidth: 400, boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
-          <div style={{ textAlign: 'center', marginBottom: 24 }}>
-            <div style={{ fontSize: 48, marginBottom: 8 }}>📱</div>
-            <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Verificação WhatsApp</h2>
-            {otpPhone && <p style={{ margin: '6px 0 0', fontSize: '0.82rem', color: '#6b7280' }}>Código enviado para ****{otpPhone.slice(-4)}</p>}
-          </div>
-          {otpError && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', color: '#991b1b', borderRadius: 10, padding: '10px 14px', marginBottom: 16, fontSize: '0.83rem' }}>{otpError}</div>}
-          <form onSubmit={handleVerifyOtp} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <input type="text" value={otpCode} onChange={e => setOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
-              style={{ width: '100%', border: '2px solid #e5e7eb', borderRadius: 12, padding: '14px', fontSize: '2rem', textAlign: 'center', letterSpacing: '0.4em', fontFamily: 'monospace', outline: 'none', boxSizing: 'border-box' }}
-              placeholder="000000" maxLength={6} required autoFocus />
-            <button type="submit" disabled={otpLoading || otpCode.length !== 6}
-              style={{ background: 'linear-gradient(135deg,#1d4ed8,#1e40af)', color: '#fff', border: 'none', borderRadius: 10, padding: 12, fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer', opacity: otpCode.length !== 6 ? 0.5 : 1 }}>
-              {otpLoading ? 'Verificando...' : 'Verificar Código'}
-            </button>
-          </form>
-          <button onClick={async () => { await fetch('/api/aluno/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'resend-otp', student_id: otpStudentId }) }); alert('Novo código enviado!'); }}
-            style={{ width: '100%', marginTop: 10, background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '0.83rem', padding: '8px 0' }}>
-            Reenviar código
-          </button>
-          <button onClick={() => setShowOtp(false)} style={{ width: '100%', marginTop: 4, background: 'none', border: 'none', color: '#9ca3af', cursor: 'pointer', fontSize: '0.83rem', padding: '6px 0' }}>Cancelar</button>
         </div>
       </div>
     );

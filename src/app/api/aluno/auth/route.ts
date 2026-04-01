@@ -258,9 +258,7 @@ export async function POST(req: NextRequest) {
         email: finalEmail,
         password_hash,
         salt,
-        active: false, // pending OTP
-        pending_otp: otp,
-        otp_expires: new Date(Date.now() + 10 * 60 * 1000).toISOString(), // 10 min
+        active: true, // activate immediately — no OTP required
         phone: phone_to_use,
         created_at: new Date().toISOString(),
       };
@@ -275,23 +273,10 @@ export async function POST(req: NextRequest) {
         } catch { /* column may not exist yet — silent fail */ }
       }
 
-      // ── Send OTP via WhatsApp ─────────────────────────────────────────────
-      let otpSent = false;
-      if (phone_to_use) {
-        try {
-          otpSent = await sendWhatsAppOTP(phone_to_use, otp, student.nome_completo);
-        } catch { /* silent fail — OTP still stored */ }
-      }
-
       return NextResponse.json({
         success: true,
-        pending_otp: true,
-        phone: phone_to_use ? `****${phone_to_use.slice(-4)}` : null,
-        phone_sent: otpSent,
         student_id,
         student_name: student.nome_completo.split(' ')[0],
-        // Return OTP in dev mode only
-        ...(process.env.NODE_ENV === 'development' ? { otp } : {}),
       });
     }
 
