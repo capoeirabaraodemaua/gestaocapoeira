@@ -191,6 +191,7 @@ export default function AlunoPage() {
     nome_pai: '', nome_mae: '',
     nome_responsavel: '', cpf_responsavel: '',
     apelido: '', nome_social: '', sexo: '',
+    autoriza_imagem: false as boolean,
     desenvolvimento_atipico: [] as string[],
   });
   const [dadosLoading, setDadosLoading] = useState(false);
@@ -558,6 +559,7 @@ export default function AlunoPage() {
         apelido:          student.apelido           as string || '',
         nome_social:      student.nome_social       as string || '',
         sexo:             student.sexo              as string || '',
+        autoriza_imagem:  !!(student.autoriza_imagem),
         desenvolvimento_atipico: Array.isArray(student.desenvolvimento_atipico) ? student.desenvolvimento_atipico as string[] : [],
       });
       setDadosInitialized(true);
@@ -2472,6 +2474,19 @@ export default function AlunoPage() {
                       <option value="">— Selecione —</option>
                       {sexo_opts.map(s => <option key={s.v} value={s.v}>{s.l}</option>)}
                     </select>
+                  </div>
+                  <div style={{ gridColumn: '1 / -1' }}>
+                    <label style={{ ...ls, display: 'flex', alignItems: 'flex-start', gap: 10, cursor: 'pointer', userSelect: 'none' }}>
+                      <input
+                        type="checkbox"
+                        checked={dadosForm.autoriza_imagem}
+                        onChange={e => setDadosForm(p => ({ ...p, autoriza_imagem: e.target.checked }))}
+                        style={{ width: 18, height: 18, marginTop: 1, accentColor: nucleoColor, flexShrink: 0 }}
+                      />
+                      <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#374151', lineHeight: 1.4 }}>
+                        Autorizo o uso da minha imagem (fotos/vídeos) para fins institucionais da ACCBM, incluindo redes sociais, materiais de divulgação e eventos.
+                      </span>
+                    </label>
                   </div>
                   <div>
                     <label style={ls}>Data de Nascimento</label>

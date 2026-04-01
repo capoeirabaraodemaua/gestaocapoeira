@@ -147,14 +147,20 @@ export async function PATCH(req: NextRequest) {
       'telefone', 'email',
       'cep', 'endereco', 'numero', 'complemento', 'bairro', 'cidade', 'estado',
       'nome_pai', 'nome_mae', 'apelido', 'nome_social', 'sexo',
+      'autoriza_imagem',
       'nome_responsavel', 'cpf_responsavel', 'foto_url',
       'desenvolvimento_atipico',
     ];
 
+    const BOOLEAN_FIELDS = new Set(['autoriza_imagem']);
     const payload: Record<string, unknown> = {};
     for (const key of ALLOWED) {
       if (key in updates) {
-        payload[key] = updates[key] === '' ? null : updates[key];
+        if (BOOLEAN_FIELDS.has(key)) {
+          payload[key] = !!updates[key];
+        } else {
+          payload[key] = updates[key] === '' ? null : updates[key];
+        }
       }
     }
 
