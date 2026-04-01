@@ -179,7 +179,7 @@ export default function AlunoPage() {
 
   const [dadosForm, setDadosForm] = useState({
     nucleo: '', graduacao: '', tipo_graduacao: '',
-    identidade: '', numeracao_unica: '', data_nascimento: '',
+    cpf: '', identidade: '', numeracao_unica: '', data_nascimento: '',
     telefone: '', email: '',
     cep: '', endereco: '', numero: '', complemento: '', bairro: '', cidade: '', estado: '',
     nome_pai: '', nome_mae: '',
@@ -504,6 +504,7 @@ export default function AlunoPage() {
         graduacao:        student.graduacao         as string || '',
         tipo_graduacao:   (() => { const t = (student.tipo_graduacao as string || '').toLowerCase(); return t === 'infantil' ? 'Infantil' : t === 'adulta' || t === 'adulto' ? 'Adulto' : (student.tipo_graduacao as string || ''); })(),
 
+        cpf:              student.cpf               as string || '',
         identidade:       student.identidade        as string || '',
         numeracao_unica:  (student.numeracao_unica  as string) || '',
         data_nascimento:  student.data_nascimento   as string || '',
@@ -2448,11 +2449,22 @@ export default function AlunoPage() {
                     })()}
                   </div>
                   <div>
+                    <label style={ls}>CPF</label>
+                    <input value={dadosForm.cpf} onChange={e => setDadosForm(p => ({ ...p, cpf: maskCPF(e.target.value) }))}
+                      style={{ ...fs, borderColor: dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 ? (validarCPF(dadosForm.cpf) ? '#86efac' : '#fca5a5') : '#e5e7eb' }}
+                      placeholder="000.000.000-00" inputMode="numeric" maxLength={14} />
+                    {dadosForm.cpf && dadosForm.cpf.replace(/\D/g,'').length === 11 && (
+                      <div style={{ fontSize: '0.7rem', marginTop: 3, fontWeight: 600, color: validarCPF(dadosForm.cpf) ? '#16a34a' : '#dc2626' }}>
+                        {validarCPF(dadosForm.cpf) ? '✓ CPF válido' : '✗ CPF inválido — verifique os dígitos'}
+                      </div>
+                    )}
+                  </div>
+                  <div>
                     <label style={ls}>Identidade (RG)</label>
                     <input value={dadosForm.identidade} onChange={e => setDadosForm(p => ({ ...p, identidade: e.target.value }))} style={fs} placeholder="Número do RG" />
                   </div>
                   <div>
-                    <label style={ls}>Numeração Única <span style={{ color: '#ef4444' }}>*</span></label>
+                    <label style={ls}>Numeração Única</label>
                     <input value={dadosForm.numeracao_unica} onChange={e => setDadosForm(p => ({ ...p, numeracao_unica: e.target.value }))}
                       style={fs}
                       placeholder="Ex: 0042 (exclusivo por aluno)" maxLength={20} />
