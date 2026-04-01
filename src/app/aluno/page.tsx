@@ -1047,11 +1047,10 @@ export default function AlunoPage() {
                 </div>
               </div>
               {/* ── Banner cadastro incompleto DENTRO do card verde ── */}
-              {(() => {
-                if (!student) return true;
+              {!loading && student && (() => {
                 const isMinor = !!(student as any).menor_de_idade;
                 const hasId = !!(student.cpf || (student as any).numeracao_unica);
-                return !student.nucleo || !student.graduacao || !student.email || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
+                return !student.nucleo || !student.graduacao || !student.telefone || !student.data_nascimento || (!isMinor && !hasId);
               })() && (
                 <div style={{ marginTop: 14, borderRadius: 14, overflow: 'hidden', border: '2px solid rgba(255,255,255,0.5)', boxShadow: '0 4px 18px rgba(0,0,0,0.25)', animation: 'pulseCard 1.6s ease-in-out infinite' }}>
                   <style>{`
