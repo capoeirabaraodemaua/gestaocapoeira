@@ -1099,6 +1099,9 @@ export default function AdminPage() {
   const [finVisaoSearch, setFinVisaoSearch] = useState('');
   const [finVisaoPage, setFinVisaoPage] = useState(0);
   const FIN_VISAO_PAGE_SIZE = 30;
+  const [finVisaoEditKey, setFinVisaoEditKey] = useState<string | null>(null);
+  const [finVisaoEditData, setFinVisaoEditData] = useState<Record<string, any>>({});
+  const [finVisaoEditSaving, setFinVisaoEditSaving] = useState(false);
 
   // ── Doações state ─────────────────────────────────────────────────────────
   const [doacoes, setDoacoes] = useState<any[]>([]);
@@ -4229,13 +4232,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {/* Tabela de lançamentos */}
                     <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
                       {/* Header */}
-                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                         <span>Aluno</span>
                         <span>Descrição</span>
                         <span>Núcleo</span>
                         <span>Valor</span>
                         <span>Status</span>
                         <span>Data</span>
+                        <span>Ações</span>
                       </div>
 
                       {pageItems.length === 0 && (
@@ -4244,21 +4248,149 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         </div>
                       )}
 
-                      {pageItems.map((l: any, i: number) => (
-                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr', gap: 0, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
-                          <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
-                          <div>
-                            <span style={{ background: `rgba(${tipoColor[l.tipo] === '#0891b2' ? '8,145,178' : tipoColor[l.tipo] === '#7c3aed' ? '124,58,237' : tipoColor[l.tipo] === '#16a34a' ? '22,163,74' : '217,119,6'},0.12)`, color: tipoColor[l.tipo] || '#94a3b8', borderRadius: 6, padding: '2px 7px', fontSize: '0.68rem', fontWeight: 700, marginRight: 4 }}>{tipoLabel[l.tipo] || l.tipo}</span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{l.descricao.replace(/^(Mensalidade|Batizado Parcela|Contribuição|Uniforme)\s*/i,'') || ''}</span>
+                      {pageItems.map((l: any, i: number) => {
+                        // Build a unique key for this row
+                        const rowKey = `${l.student_id}:${l.tipo}:${l.tipo === 'mensalidade' ? l.mes : l.tipo === 'batizado' ? l.numero : l.tipo === 'contribuicao' ? l.mes : l.id}`;
+                        const isEditingRow = finVisaoEditKey === rowKey;
+
+                        // Status options per type
+                        const statusOpts: string[] = l.tipo === 'uniforme'
+                          ? ['solicitado','confirmado','entregue','cancelado']
+                          : ['pago','pendente','atrasado'];
+
+                        return (
+                        <div key={i}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr 80px', gap: 0, padding: '9px 14px', borderBottom: isEditingRow ? 'none' : '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: isEditingRow ? 'rgba(124,58,237,0.07)' : i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                            <div>
+                              <span style={{ background: `rgba(${tipoColor[l.tipo] === '#0891b2' ? '8,145,178' : tipoColor[l.tipo] === '#7c3aed' ? '124,58,237' : tipoColor[l.tipo] === '#16a34a' ? '22,163,74' : '217,119,6'},0.12)`, color: tipoColor[l.tipo] || '#94a3b8', borderRadius: 6, padding: '2px 7px', fontSize: '0.68rem', fontWeight: 700, marginRight: 4 }}>{tipoLabel[l.tipo] || l.tipo}</span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{l.descricao.replace(/^(Mensalidade|Batizado Parcela|Contribuição|Uniforme)\s*/i,'') || ''}</span>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nucleo}</div>
+                            <div style={{ fontWeight: 700, color: l.status === 'pago' || l.status === 'entregue' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor || 0).toFixed(2)}</div>
+                            <div>
+                              <span style={{ background: `${statusColor[l.status] || '#64748b'}22`, border: `1px solid ${statusColor[l.status] || '#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status] || '#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status] || l.status}</span>
+                            </div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.data ? l.data.slice(0,7) : '—'}</div>
+                            {/* Action buttons */}
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button title="Editar" onClick={() => {
+                                if (isEditingRow) { setFinVisaoEditKey(null); return; }
+                                setFinVisaoEditKey(rowKey);
+                                setFinVisaoEditData({ valor: l.valor, status: l.status, mes: l.mes || l.data?.slice(0,7) || '', vencimento: l.vencimento || '', descricao: l.descricao || '' });
+                              }} style={{ padding: '4px 7px', borderRadius: 7, background: isEditingRow ? 'rgba(124,58,237,0.25)' : 'var(--bg-input)', border: `1px solid ${isEditingRow ? 'rgba(124,58,237,0.5)' : 'var(--border)'}`, color: isEditingRow ? '#a78bfa' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                ✏️
+                              </button>
+                              <button title="Excluir" onClick={async () => {
+                                if (!confirm(`Excluir este lançamento de ${l.nome_completo}?`)) return;
+                                // Load ficha, remove item, save
+                                const res = await fetch(`/api/financeiro?student_id=${l.student_id}`);
+                                if (!res.ok) { alert('Erro ao carregar ficha'); return; }
+                                const { data: fd } = await res.json();
+                                const ficha = normalizeFicha(fd, { id: l.student_id, nome_completo: l.nome_completo });
+                                let updated: any = { ...ficha };
+                                if (l.tipo === 'mensalidade') {
+                                  updated = { ...ficha, mensalidades: ficha.mensalidades.filter((m: any) => m.mes !== l.mes) };
+                                } else if (l.tipo === 'batizado') {
+                                  const remaining = ficha.batizado.parcelas.filter((p: any) => p.numero !== l.numero).map((p: any, idx: number) => ({ ...p, numero: idx + 1 }));
+                                  updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: remaining, modalidade: remaining.length <= 1 ? 'integral' : 'parcelado' } };
+                                } else if (l.tipo === 'contribuicao') {
+                                  updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.filter((c: any) => c.mes !== l.mes) } };
+                                } else if (l.tipo === 'uniforme') {
+                                  updated = { ...ficha, uniformes: ficha.uniformes.filter((u: any) => u.id !== l.id) };
+                                }
+                                const saveRes = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updated, _admin_save: true }) });
+                                if (saveRes.ok) {
+                                  // Refresh visao geral
+                                  setFinVisaoLoading(true);
+                                  fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false));
+                                } else { alert('Erro ao excluir'); }
+                              }} style={{ padding: '4px 7px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                🗑
+                              </button>
+                            </div>
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nucleo}</div>
-                          <div style={{ fontWeight: 700, color: l.status === 'pago' || l.status === 'entregue' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor || 0).toFixed(2)}</div>
-                          <div>
-                            <span style={{ background: `${statusColor[l.status] || '#64748b'}22`, border: `1px solid ${statusColor[l.status] || '#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status] || '#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status] || l.status}</span>
-                          </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.data ? l.data.slice(0,7) : '—'}</div>
+                          {/* Inline edit row */}
+                          {isEditingRow && (
+                            <div style={{ padding: '10px 14px 12px', background: 'rgba(124,58,237,0.07)', borderBottom: '1px solid rgba(124,58,237,0.2)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              {/* Valor */}
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Valor (R$)</label>
+                                <input type="number" min={0} step={0.01} value={finVisaoEditData.valor ?? ''} onChange={e => setFinVisaoEditData(p => ({ ...p, valor: parseFloat(e.target.value) || 0 }))}
+                                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 90, outline: 'none' }} />
+                              </div>
+                              {/* Status */}
+                              <div>
+                                <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Status</label>
+                                <select value={finVisaoEditData.status ?? ''} onChange={e => setFinVisaoEditData(p => ({ ...p, status: e.target.value }))}
+                                  style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}>
+                                  {statusOpts.map(s => <option key={s} value={s}>{statusLabel[s] || s}</option>)}
+                                </select>
+                              </div>
+                              {/* Vencimento (batizado) */}
+                              {l.tipo === 'batizado' && (
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Vencimento</label>
+                                  <input type="date" value={finVisaoEditData.vencimento ?? ''} onChange={e => setFinVisaoEditData(p => ({ ...p, vencimento: e.target.value }))}
+                                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+                                </div>
+                              )}
+                              {/* Mês (mensalidade / contribuicao) */}
+                              {(l.tipo === 'mensalidade' || l.tipo === 'contribuicao') && (
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Mês ref.</label>
+                                  <input type="month" value={finVisaoEditData.mes ?? ''} onChange={e => setFinVisaoEditData(p => ({ ...p, mes: e.target.value }))}
+                                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+                                </div>
+                              )}
+                              {/* Descrição (uniforme) */}
+                              {l.tipo === 'uniforme' && (
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Descrição</label>
+                                  <input value={finVisaoEditData.descricao ?? ''} onChange={e => setFinVisaoEditData(p => ({ ...p, descricao: e.target.value }))}
+                                    style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 160, outline: 'none' }} />
+                                </div>
+                              )}
+                              {/* Save / Cancel */}
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button disabled={finVisaoEditSaving} onClick={async () => {
+                                  setFinVisaoEditSaving(true);
+                                  try {
+                                    const res = await fetch(`/api/financeiro?student_id=${l.student_id}`);
+                                    if (!res.ok) throw new Error('load failed');
+                                    const { data: fd } = await res.json();
+                                    const ficha = normalizeFicha(fd, { id: l.student_id, nome_completo: l.nome_completo });
+                                    let updated: any = { ...ficha };
+                                    if (l.tipo === 'mensalidade') {
+                                      updated = { ...ficha, mensalidades: ficha.mensalidades.map((m: any) => m.mes === l.mes ? { ...m, mes: finVisaoEditData.mes, valor: finVisaoEditData.valor, status: finVisaoEditData.status } : m) };
+                                    } else if (l.tipo === 'batizado') {
+                                      updated = { ...ficha, batizado: { ...ficha.batizado, parcelas: ficha.batizado.parcelas.map((p: any) => p.numero === l.numero ? { ...p, valor: finVisaoEditData.valor, status: finVisaoEditData.status, vencimento: finVisaoEditData.vencimento } : p) } };
+                                    } else if (l.tipo === 'contribuicao') {
+                                      updated = { ...ficha, contribuicao: { ...ficha.contribuicao, historico: ficha.contribuicao.historico.map((c: any) => c.mes === l.mes ? { ...c, mes: finVisaoEditData.mes, valor: finVisaoEditData.valor, status: finVisaoEditData.status } : c) } };
+                                    } else if (l.tipo === 'uniforme') {
+                                      updated = { ...ficha, uniformes: ficha.uniformes.map((u: any) => u.id === l.id ? { ...u, descricao: finVisaoEditData.descricao, valor_unitario: finVisaoEditData.valor, status: finVisaoEditData.status } : u) };
+                                    }
+                                    const saveRes = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updated, _admin_save: true }) });
+                                    if (!saveRes.ok) throw new Error('save failed');
+                                    setFinVisaoEditKey(null);
+                                    // Refresh
+                                    setFinVisaoLoading(true);
+                                    fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false));
+                                  } catch { alert('Erro ao salvar'); }
+                                  setFinVisaoEditSaving(false);
+                                }} style={{ padding: '5px 14px', background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.5)', color: '#a78bfa', borderRadius: 7, cursor: finVisaoEditSaving ? 'not-allowed' : 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                  {finVisaoEditSaving ? '⏳' : '💾 Salvar'}
+                                </button>
+                                <button onClick={() => setFinVisaoEditKey(null)}
+                                  style={{ padding: '5px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>
+                                  Cancelar
+                                </button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
 
                     {/* Paginação */}
