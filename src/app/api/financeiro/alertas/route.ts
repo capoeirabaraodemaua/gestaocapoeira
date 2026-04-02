@@ -38,8 +38,8 @@ export async function GET() {
       .filter(f => f.name.endsWith('.json') && !SKIP_FILES.has(f.name))
       .map(async f => {
         const studentId = f.name.replace('.json', '');
-        // Skip anything that doesn't look like a UUID/student id
-        if (studentId.length < 8) return;
+        // Skip non-student files (must be a numeric ID or UUID, not a config filename)
+        if (!/^\d+$/.test(studentId) && !/^[0-9a-f-]{8,}$/i.test(studentId)) return;
 
         const { data } = await supabase.storage
           .from(BUCKET)

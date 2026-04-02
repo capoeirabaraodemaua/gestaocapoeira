@@ -1,17 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
-// Read-only client (anon key) for GET
+// Service role for both read and write — bucket 'photos' is private, anon key cannot read it
 const supabaseRead = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-);
-
-// Write client (service role) for POST — bypasses RLS
-const supabaseWrite = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,
 );
+
+const supabaseWrite = supabaseRead;
 
 const BUCKET = 'photos';
 
@@ -81,22 +77,34 @@ export interface FichaFinanceira {
   updated_at: string;
 }
 
+export const dynamic = 'force-dynamic';
+
 export async function GET(req: NextRequest) {
   const studentId = req.nextUrl.searchParams.get('student_id');
   if (!studentId) return NextResponse.json({ error: 'student_id required' }, { status: 400 });
 
-  const { data, error } = await supabaseRead.storage
-    .from(BUCKET)
-    .download(`financeiro/${studentId}.json`);
-
-  if (error || !data) {
-    // Return empty default record
-    return NextResponse.json(null);
-  }
+  // Fetch directly via HTTP to bypass all Next.js / SDK caches
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/financeiro/${studentId}.json?t=${Date.now()}`;
 
   try {
-    const text = await data.text();
-    return NextResponse.json(JSON.parse(text));
+    const res = await fetch(url, {
+      headers: {
+        Authorization: `Bearer ${SERVICE_KEY}`,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+      },
+      // @ts-ignore
+      cache: 'no-store',
+      next: { revalidate: 0 },
+    });
+
+    if (!res.ok) return NextResponse.json(null);
+
+    const text = await res.text();
+    return NextResponse.json(JSON.parse(text), {
+      headers: { 'Cache-Control': 'no-store, no-cache, must-revalidate' },
+    });
   } catch {
     return NextResponse.json(null);
   }
