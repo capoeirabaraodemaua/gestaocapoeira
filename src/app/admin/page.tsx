@@ -10443,7 +10443,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                                       {acc.active ? t('admin_account_active') : t('admin_account_pending')}
                                     </span>
                                   </td>
-                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.created_at ? new Date(acc.created_at).toLocaleDateString('pt-BR') : '—'}</td>
+                                  <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(acc.created_at)}</td>
                                   <td style={{ padding: '8px 10px', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{acc.last_login ? new Date(acc.last_login).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : <span style={{ color: '#d97706', fontSize: '0.74rem' }}>Nunca acessou</span>}</td>
                                   <td style={{ padding: '8px 10px', whiteSpace: 'nowrap' }}>
                                     <button

@@ -56,6 +56,8 @@ export async function GET(req: NextRequest) {
     if (!d) return '';
     const day = String(d).split('T')[0];
     if (day === '1900-01-01' || day === '0001-01-01') return '';
+    const year = parseInt(day.slice(0, 4), 10);
+    if (isNaN(year) || year < 2000) return '';
     return day;
   };
 
