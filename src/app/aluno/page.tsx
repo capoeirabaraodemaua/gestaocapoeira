@@ -133,6 +133,8 @@ export default function AlunoPage() {
   // ── Graduação ─────────────────────────────────────────────────────────────
   const [historico, setHistorico] = useState<RegistroGraduacao[]>([]);
   const [loadingHistorico, setLoadingHistorico] = useState(false);
+  const [eventos, setEventos] = useState<any[]>([]);
+  const [eventosLoading, setEventosLoading] = useState(false);
 
   // ── Documentos Pessoais ───────────────────────────────────────────────────
   const [docsItems, setDocsItems] = useState<{ name: string; displayName: string; url: string; icon: string; size: string; sizeBytes: number; created_at: string; ext: string }[]>([]);
@@ -313,7 +315,20 @@ export default function AlunoPage() {
   useEffect(() => {
     if (session) {
       if (activeTab === 'justificativas') loadJustificativas(session.student_id);
-      if (activeTab === 'graduacao') loadHistorico(session.student_id);
+      if (activeTab === 'graduacao') {
+        loadHistorico(session.student_id);
+        setEventosLoading(true);
+        fetch('/api/eventos', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(d => { setEventos(Array.isArray(d) ? d.filter((e: any) => !e.finalizado) : []); setEventosLoading(false); })
+          .catch(() => setEventosLoading(false));
+      }
+      if (activeTab === 'dashboard' && eventos.length === 0) {
+        fetch('/api/eventos', { cache: 'no-store' })
+          .then(r => r.json())
+          .then(d => { setEventos(Array.isArray(d) ? d.filter((e: any) => !e.finalizado) : []); })
+          .catch(() => {});
+      }
       if (activeTab === 'fotos') loadFotos(session.student_id);
       if (activeTab === 'docs') loadDocs(session.student_id);
       if (activeTab === 'financeiro') {
@@ -1114,6 +1129,34 @@ export default function AlunoPage() {
               ))}
             </div>
 
+            {/* Próximos eventos */}
+            {eventos.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Próximos Eventos</div>
+                {eventos.slice(0, 3).map((ev: any) => (
+                  <div key={ev.id} style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 10, background: ev.tipo === 'batizado' ? '#fef3c7' : '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.3rem', flexShrink: 0 }}>
+                      {ev.tipo === 'batizado' ? '🥋' : '🎖️'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.9rem', color: '#111827', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{ev.nome}</div>
+                      <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 2 }}>
+                        {ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric' }) : '—'}
+                        {ev.hora ? ` · ${ev.hora}` : ''}
+                        {ev.local ? ` · ${ev.local}` : ''}
+                      </div>
+                    </div>
+                    <span style={{ flexShrink: 0, background: ev.tipo === 'batizado' ? '#fef3c7' : '#ede9fe', color: ev.tipo === 'batizado' ? '#92400e' : '#5b21b6', borderRadius: 8, padding: '3px 9px', fontSize: '0.7rem', fontWeight: 700 }}>
+                      {ev.tipo === 'batizado' ? 'Batizado' : 'Troca'}
+                    </span>
+                  </div>
+                ))}
+                {eventos.length > 3 && (
+                  <div style={{ textAlign: 'center', fontSize: '0.75rem', color: '#9ca3af' }}>+{eventos.length - 3} evento(s) — veja na aba Graduação</div>
+                )}
+              </div>
+            )}
+
             {/* Links institucionais */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>ACCBM</div>
@@ -1396,6 +1439,45 @@ export default function AlunoPage() {
               <h2 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#111827' }}>🎖️ Histórico de Graduação</h2>
               <button onClick={() => student && loadHistorico(student.id)} style={{ background: 'none', border: `1px solid ${nucleoColor}`, color: nucleoColor, borderRadius: 8, padding: '5px 12px', fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer' }}>🔄 Atualizar</button>
             </div>
+
+            {/* Próximos eventos */}
+            {(eventosLoading || eventos.length > 0) && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div style={{ fontSize: '0.75rem', fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Próximos Eventos</div>
+                {eventosLoading && <div style={{ textAlign: 'center', padding: '12px 0', color: '#9ca3af', fontSize: '0.82rem' }}>Carregando...</div>}
+                {!eventosLoading && eventos.map((ev: any) => (
+                  <div key={ev.id} style={{ background: '#fff', borderRadius: 14, padding: '14px 16px', border: '1px solid #e5e7eb', display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <div style={{ width: 44, height: 44, borderRadius: 10, background: ev.tipo === 'batizado' ? '#fef3c7' : '#ede9fe', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '1.4rem', flexShrink: 0 }}>
+                      {ev.tipo === 'batizado' ? '🥋' : '🎖️'}
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.92rem', color: '#111827' }}>{ev.nome}</div>
+                      {ev.data && (
+                        <div style={{ fontSize: '0.78rem', color: nucleoColor, fontWeight: 600, marginTop: 2 }}>
+                          📅 {new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long', year: 'numeric' })}
+                          {ev.hora ? ` · ${ev.hora}` : ''}
+                        </div>
+                      )}
+                      {ev.local && <div style={{ fontSize: '0.75rem', color: '#6b7280', marginTop: 1 }}>📍 {ev.local}</div>}
+                      {ev.nucleo && <div style={{ fontSize: '0.72rem', color: '#9ca3af', marginTop: 1 }}>Núcleo: {ev.nucleo}</div>}
+                    </div>
+                    <div style={{ flexShrink: 0, textAlign: 'center' }}>
+                      <div style={{ background: ev.tipo === 'batizado' ? '#fef3c7' : '#ede9fe', color: ev.tipo === 'batizado' ? '#92400e' : '#5b21b6', borderRadius: 8, padding: '4px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
+                        {ev.tipo === 'batizado' ? 'Batizado' : 'Troca de Corda'}
+                      </div>
+                      {ev.participantes && ev.participantes.length > 0 && (
+                        <div style={{ fontSize: '0.68rem', color: '#9ca3af', marginTop: 3 }}>{ev.participantes.length} participante(s)</div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {!eventosLoading && eventos.length === 0 && (
+                  <div style={{ background: '#f9fafb', borderRadius: 12, padding: '14px 16px', border: '1px solid #e5e7eb', textAlign: 'center', fontSize: '0.82rem', color: '#9ca3af' }}>
+                    Nenhum evento programado no momento.
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Current graduation badge */}
             {student?.graduacao && (() => {
