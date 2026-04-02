@@ -1080,6 +1080,16 @@ export default function AdminPage() {
   const [finMsg, setFinMsg] = useState('');
   const [finSection, setFinSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
 
+  // ── Visão Geral Financeiro (geral only) ────────────────────────────────────
+  const [finVisao, setFinVisao] = useState<any>(null);
+  const [finVisaoLoading, setFinVisaoLoading] = useState(false);
+  const [finVisaoNucleo, setFinVisaoNucleo] = useState<string>('todos');
+  const [finVisaoTipo, setFinVisaoTipo] = useState<string>('todos');
+  const [finVisaoStatus, setFinVisaoStatus] = useState<string>('todos');
+  const [finVisaoSearch, setFinVisaoSearch] = useState('');
+  const [finVisaoPage, setFinVisaoPage] = useState(0);
+  const FIN_VISAO_PAGE_SIZE = 30;
+
   // ── Doações state ─────────────────────────────────────────────────────────
   const [doacoes, setDoacoes] = useState<any[]>([]);
   const [loadingDoacoes, setLoadingDoacoes] = useState(false);
@@ -2104,6 +2114,10 @@ export default function AdminPage() {
               setFinLoadingAlerts(true);
               fetch('/api/financeiro/alertas').then(r => r.json()).then(d => { setFinAlerts(d); setFinLoadingAlerts(false); }).catch(() => setFinLoadingAlerts(false));
               fetch('/api/financeiro/config').then(r => r.json()).then(d => { if (d) setFinConfig(d); }).catch(() => {});
+              if (activeNucleo === 'geral') {
+                setFinVisaoLoading(true);
+                fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false));
+              }
             }
             if (key === 'doacoes') { setLoadingDoacoes(true); fetch('/api/doacoes').then(r => r.json()).then(d => { setDoacoes(d); setLoadingDoacoes(false); }).catch(() => setLoadingDoacoes(false)); }
             if (key === 'playlist') { fetch('/api/admin/manual-videos').then(r => r.json()).then(d => setManualVideos(d.videos || [])).catch(() => {}); }
@@ -4071,6 +4085,194 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA FINANCEIRO ===== */}
       {activeTab === 'financeiro' && (
         <div>
+
+          {/* ── Visão Geral dos Lançamentos (admin geral only) ── */}
+          {activeNucleo === 'geral' && (
+            <div style={{ marginBottom: 24 }}>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
+                <div style={{ fontWeight: 800, fontSize: '1rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: 8 }}>
+                  📊 Visão Geral dos Lançamentos Financeiros
+                </div>
+                <button
+                  onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false)); }}
+                  disabled={finVisaoLoading}
+                  style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', borderRadius: 8, padding: '6px 14px', cursor: finVisaoLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                  {finVisaoLoading ? '⏳ Carregando...' : '↻ Atualizar'}
+                </button>
+              </div>
+
+              {finVisaoLoading && !finVisao && (
+                <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                  ⏳ Carregando lançamentos de todos os núcleos...
+                </div>
+              )}
+
+              {finVisao && (() => {
+                const vg = finVisao as any;
+
+                // Cards de resumo por núcleo
+                const nucleos = Object.keys(vg.por_nucleo || {});
+                const NUCLEO_COLORS: Record<string,string> = {
+                  'Poliesportivo Edson Alves': '#dc2626',
+                  'Poliesportivo do Ipiranga': '#ea580c',
+                  'Saracuruna': '#16a34a',
+                  'Vila Urussaí': '#9333ea',
+                  'Jayme Fichman': '#0891b2',
+                  'Academia Mais Saúde': '#059669',
+                };
+
+                // Filter lançamentos
+                const allLanc: any[] = vg.lancamentos || [];
+                const filtered = allLanc.filter((l: any) => {
+                  if (finVisaoNucleo !== 'todos' && l.nucleo !== finVisaoNucleo) return false;
+                  if (finVisaoTipo !== 'todos' && l.tipo !== finVisaoTipo) return false;
+                  if (finVisaoStatus !== 'todos' && l.status !== finVisaoStatus) return false;
+                  if (finVisaoSearch.trim()) {
+                    const q = finVisaoSearch.toLowerCase();
+                    if (!(l.nome_completo || '').toLowerCase().includes(q) && !(l.descricao || '').toLowerCase().includes(q)) return false;
+                  }
+                  return true;
+                });
+
+                const totalPages = Math.ceil(filtered.length / FIN_VISAO_PAGE_SIZE);
+                const pageItems = filtered.slice(finVisaoPage * FIN_VISAO_PAGE_SIZE, (finVisaoPage + 1) * FIN_VISAO_PAGE_SIZE);
+
+                const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171', solicitado: '#60a5fa', confirmado: '#a78bfa', entregue: '#4ade80', cancelado: '#64748b', nao_definido: '#64748b' };
+                const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado', solicitado: '📋 Solicitado', confirmado: '✓ Confirmado', entregue: '🎁 Entregue', cancelado: '✗ Cancelado', nao_definido: '— N/D' };
+                const tipoLabel: Record<string,string> = { mensalidade: '📅 Mensalidade', batizado: '🥋 Batizado', contribuicao: '🤝 Contribuição', uniforme: '👕 Uniforme' };
+                const tipoColor: Record<string,string> = { mensalidade: '#0891b2', batizado: '#7c3aed', contribuicao: '#16a34a', uniforme: '#d97706' };
+
+                return (
+                  <div>
+                    {/* Totais globais */}
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(160px,1fr))', gap: 10, marginBottom: 16 }}>
+                      {[
+                        { label: 'Alunos com ficha', value: String(vg.total_alunos_com_ficha), color: '#60a5fa', icon: '👥' },
+                        { label: 'Total Arrecadado', value: `R$ ${(vg.total_arrecadado || 0).toFixed(2)}`, color: '#4ade80', icon: '💰' },
+                        { label: 'Total Pendente', value: `R$ ${(vg.total_pendente || 0).toFixed(2)}`, color: '#fbbf24', icon: '⏳' },
+                        { label: 'Total Lançamentos', value: String(allLanc.length), color: '#a78bfa', icon: '📋' },
+                      ].map(card => (
+                        <div key={card.label} style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px' }}>
+                          <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 4 }}>{card.icon} {card.label}</div>
+                          <div style={{ fontSize: '1.25rem', fontWeight: 800, color: card.color }}>{card.value}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Cards por núcleo */}
+                    {nucleos.length > 0 && (
+                      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px,1fr))', gap: 8, marginBottom: 16 }}>
+                        {nucleos.map(nucleo => {
+                          const nd = vg.por_nucleo[nucleo];
+                          const cor = NUCLEO_COLORS[nucleo] || '#64748b';
+                          return (
+                            <div key={nucleo}
+                              onClick={() => { setFinVisaoNucleo(finVisaoNucleo === nucleo ? 'todos' : nucleo); setFinVisaoPage(0); }}
+                              style={{ background: finVisaoNucleo === nucleo ? `rgba(${cor === '#dc2626' ? '220,38,38' : cor === '#ea580c' ? '234,88,12' : cor === '#16a34a' ? '22,163,74' : cor === '#9333ea' ? '147,51,234' : cor === '#0891b2' ? '8,145,178' : '5,150,105'},0.15)` : 'var(--bg-card)', border: `1.5px solid ${finVisaoNucleo === nucleo ? cor : 'var(--border)'}`, borderRadius: 12, padding: '12px 14px', cursor: 'pointer', transition: 'all 0.15s' }}>
+                              <div style={{ fontWeight: 700, fontSize: '0.78rem', color: cor, marginBottom: 6, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{nucleo}</div>
+                              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                                <span style={{ fontSize: '0.7rem', color: '#4ade80' }}>💰 R$ {(nd.arrecadado || 0).toFixed(2)}</span>
+                                <span style={{ fontSize: '0.7rem', color: '#fbbf24' }}>⏳ R$ {(nd.pendente || 0).toFixed(2)}</span>
+                                {nd.atrasado > 0 && <span style={{ fontSize: '0.7rem', color: '#f87171' }}>⚠ R$ {nd.atrasado.toFixed(2)}</span>}
+                              </div>
+                              <div style={{ fontSize: '0.65rem', color: 'var(--text-secondary)', marginTop: 4 }}>{nd.alunos} aluno{nd.alunos !== 1 ? 's' : ''}</div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+
+                    {/* Filtros */}
+                    <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 12, alignItems: 'center' }}>
+                      <input
+                        type="text" placeholder="Buscar aluno ou descrição..."
+                        value={finVisaoSearch} onChange={e => { setFinVisaoSearch(e.target.value); setFinVisaoPage(0); }}
+                        style={{ flex: 1, minWidth: 160, background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 12px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}
+                      />
+                      <select value={finVisaoTipo} onChange={e => { setFinVisaoTipo(e.target.value); setFinVisaoPage(0); }}
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-primary)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        <option value="todos">Todos os tipos</option>
+                        <option value="mensalidade">📅 Mensalidade</option>
+                        <option value="batizado">🥋 Batizado</option>
+                        <option value="contribuicao">🤝 Contribuição</option>
+                        <option value="uniforme">👕 Uniforme</option>
+                      </select>
+                      <select value={finVisaoStatus} onChange={e => { setFinVisaoStatus(e.target.value); setFinVisaoPage(0); }}
+                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '7px 10px', color: 'var(--text-primary)', fontSize: '0.78rem', cursor: 'pointer' }}>
+                        <option value="todos">Todos os status</option>
+                        <option value="pago">✓ Pago</option>
+                        <option value="pendente">⏳ Pendente</option>
+                        <option value="atrasado">⚠ Atrasado</option>
+                        <option value="solicitado">📋 Solicitado</option>
+                        <option value="entregue">🎁 Entregue</option>
+                      </select>
+                      {(finVisaoNucleo !== 'todos' || finVisaoTipo !== 'todos' || finVisaoStatus !== 'todos' || finVisaoSearch) && (
+                        <button onClick={() => { setFinVisaoNucleo('todos'); setFinVisaoTipo('todos'); setFinVisaoStatus('todos'); setFinVisaoSearch(''); setFinVisaoPage(0); }}
+                          style={{ background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, padding: '6px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                          ✕ Limpar filtros
+                        </button>
+                      )}
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginLeft: 'auto' }}>{filtered.length} lançamento{filtered.length !== 1 ? 's' : ''}</span>
+                    </div>
+
+                    {/* Tabela de lançamentos */}
+                    <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                      {/* Header */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                        <span>Aluno</span>
+                        <span>Descrição</span>
+                        <span>Núcleo</span>
+                        <span>Valor</span>
+                        <span>Status</span>
+                        <span>Data</span>
+                      </div>
+
+                      {pageItems.length === 0 && (
+                        <div style={{ textAlign: 'center', padding: '32px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
+                          Nenhum lançamento encontrado com esses filtros.
+                        </div>
+                      )}
+
+                      {pageItems.map((l: any, i: number) => (
+                        <div key={i} style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 1fr 0.8fr 0.8fr', gap: 0, padding: '9px 14px', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: i % 2 === 0 ? 'transparent' : 'rgba(255,255,255,0.015)' }}>
+                          <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                          <div>
+                            <span style={{ background: `rgba(${tipoColor[l.tipo] === '#0891b2' ? '8,145,178' : tipoColor[l.tipo] === '#7c3aed' ? '124,58,237' : tipoColor[l.tipo] === '#16a34a' ? '22,163,74' : '217,119,6'},0.12)`, color: tipoColor[l.tipo] || '#94a3b8', borderRadius: 6, padding: '2px 7px', fontSize: '0.68rem', fontWeight: 700, marginRight: 4 }}>{tipoLabel[l.tipo] || l.tipo}</span>
+                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{l.descricao.replace(/^(Mensalidade|Batizado Parcela|Contribuição|Uniforme)\s*/i,'') || ''}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nucleo}</div>
+                          <div style={{ fontWeight: 700, color: l.status === 'pago' || l.status === 'entregue' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor || 0).toFixed(2)}</div>
+                          <div>
+                            <span style={{ background: `${statusColor[l.status] || '#64748b'}22`, border: `1px solid ${statusColor[l.status] || '#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status] || '#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status] || l.status}</span>
+                          </div>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.data ? l.data.slice(0,7) : '—'}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Paginação */}
+                    {totalPages > 1 && (
+                      <div style={{ display: 'flex', justifyContent: 'center', gap: 6, marginTop: 12, flexWrap: 'wrap' }}>
+                        <button onClick={() => setFinVisaoPage(p => Math.max(0, p - 1))} disabled={finVisaoPage === 0}
+                          style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', cursor: finVisaoPage === 0 ? 'not-allowed' : 'pointer', fontSize: '0.78rem', opacity: finVisaoPage === 0 ? 0.4 : 1 }}>
+                          ← Anterior
+                        </button>
+                        <span style={{ padding: '5px 12px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                          Página {finVisaoPage + 1} de {totalPages}
+                        </span>
+                        <button onClick={() => setFinVisaoPage(p => Math.min(totalPages - 1, p + 1))} disabled={finVisaoPage >= totalPages - 1}
+                          style={{ padding: '5px 14px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', cursor: finVisaoPage >= totalPages - 1 ? 'not-allowed' : 'pointer', fontSize: '0.78rem', opacity: finVisaoPage >= totalPages - 1 ? 0.4 : 1 }}>
+                          Próxima →
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })()}
+            </div>
+          )}
+
           {/* Alert strip */}
           {finLoadingAlerts ? (
             <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{t('admin_checking_alerts')}</div>
