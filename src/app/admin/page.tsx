@@ -913,6 +913,14 @@ export default function AdminPage() {
 
   const currentProfile = getProfiles().find(p => p.nucleo === activeNucleo);
 
+  // Safe date formatter — guards against null/undefined/epoch-zero that would show 31/12/1969
+  const fmtDate = (val: string | null | undefined, opts?: Intl.DateTimeFormatOptions): string => {
+    if (!val) return '—';
+    const d = new Date(val);
+    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—';
+    return d.toLocaleDateString('pt-BR', opts);
+  };
+
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -1343,7 +1351,8 @@ export default function AdminPage() {
     if (!error && data) {
       const list = data as Student[];
       // Compute virtual ordem_inscricao for students missing it (sort by created_at asc → index+1)
-      const sortedAsc = [...list].sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+      const safeTs = (v: string) => { const d = new Date(v); return isNaN(d.getTime()) ? 0 : d.getTime(); };
+      const sortedAsc = [...list].sort((a, b) => safeTs(a.created_at) - safeTs(b.created_at));
       let listWithNum = list.map(s => ({
         ...s,
         ordem_inscricao: s.ordem_inscricao ?? (sortedAsc.findIndex(x => x.id === s.id) + 1),
@@ -2776,7 +2785,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                        {new Date(student.created_at).toLocaleDateString('pt-BR')}
+                        {fmtDate(student.created_at)}
                       </td>
                       <td style={{ whiteSpace: 'nowrap' }}>
                         {(() => {
@@ -6631,7 +6640,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               )}
               <div className="detail-item detail-full" style={{ marginTop: 8 }}>
                 <span className="detail-label">Data de Inscrição</span>
-                <span className="detail-value">{new Date(selected.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                <span className="detail-value">{fmtDate(selected.created_at, { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
               </div>
               {(() => {
                 let conds: string[] = [];
@@ -8466,7 +8475,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       {a.email && <> · {a.email}</>}
                     </div>
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                      Criado em {new Date(a.created_at).toLocaleDateString('pt-BR')}
+                      Criado em {fmtDate(a.created_at)}
                     </div>
                   </div>
                   <span style={{ background: 'rgba(29,78,216,0.15)', color: '#60a5fa', borderRadius: 6, padding: '3px 10px', fontSize: '0.72rem', fontWeight: 700, flexShrink: 0 }}>Admin Geral</span>
