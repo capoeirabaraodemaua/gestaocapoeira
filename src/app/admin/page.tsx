@@ -1079,6 +1079,16 @@ export default function AdminPage() {
   const [finSaving, setFinSaving] = useState(false);
   const [finMsg, setFinMsg] = useState('');
   const [finSection, setFinSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
+  // inline edit state: key = 'mensalidade:YYYY-MM' | 'parcela:N' | 'contribuicao:YYYY-MM' | 'uniforme:ID'
+  const [finEditKey, setFinEditKey] = useState<string | null>(null);
+  const [finEditData, setFinEditData] = useState<Record<string, any>>({});
+  // add-mensalidade / add-contribuicao / add-uniforme forms
+  const [finAddMes, setFinAddMes] = useState(false);
+  const [finAddMesData, setFinAddMesData] = useState<Record<string, any>>({});
+  const [finAddContrib, setFinAddContrib] = useState(false);
+  const [finAddContribData, setFinAddContribData] = useState<Record<string, any>>({});
+  const [finAddUnif, setFinAddUnif] = useState(false);
+  const [finAddUnifData, setFinAddUnifData] = useState<Record<string, any>>({});
 
   // ── Visão Geral Financeiro (geral only) ────────────────────────────────────
   const [finVisao, setFinVisao] = useState<any>(null);
@@ -4713,9 +4723,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             const waAlertLink = buildWaLink(alertMsg);
                             const cardBg = atrasado ? 'rgba(220,38,38,0.05)' : vencendo ? 'rgba(234,179,8,0.05)' : p.status === 'pago' ? 'rgba(22,163,74,0.04)' : 'var(--bg-input)';
                             const cardBorder = atrasado ? 'rgba(220,38,38,0.3)' : vencendo ? 'rgba(234,179,8,0.3)' : aguardando ? 'rgba(234,179,8,0.25)' : p.status === 'pago' ? 'rgba(22,163,74,0.2)' : 'var(--border)';
+                            const parcelaEditKey = `parcela:${p.numero}`;
+                            const parcelaEditing = finEditKey === parcelaEditKey;
                             return (
-                            <div key={p.numero} style={{ background: cardBg, border: `1.5px solid ${cardBorder}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
-                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+                            <div key={p.numero} style={{ background: cardBg, border: `1.5px solid ${parcelaEditing ? 'rgba(124,58,237,0.6)' : cardBorder}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: parcelaEditing ? 10 : 10, flexWrap: 'wrap', gap: 8 }}>
                                 <div>
                                   <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>Parcela {p.numero}/{f.batizado.parcelas.length} — R$ {p.valor.toFixed(2)}</span>
                                   {p.vencimento && (
@@ -4753,12 +4765,52 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                       {statusLabel[st]}
                                     </button>
                                   ))}
+                                  <button onClick={() => { setFinEditKey(parcelaEditing ? null : parcelaEditKey); setFinEditData({ valor: p.valor, vencimento: p.vencimento }); }}
+                                    style={{ padding: '3px 8px', borderRadius: 8, background: parcelaEditing ? 'rgba(124,58,237,0.25)' : 'var(--bg-card)', border: `1px solid ${parcelaEditing ? 'rgba(124,58,237,0.5)' : 'var(--border)'}`, color: parcelaEditing ? '#a78bfa' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                    ✏️
+                                  </button>
+                                  {f.batizado.parcelas.length > 1 && (
+                                    <button onClick={async () => {
+                                      if (!confirm(`Excluir parcela ${p.numero}?`)) return;
+                                      const remaining = f.batizado.parcelas.filter((pp: any) => pp.numero !== p.numero).map((pp: any, i: number) => ({ ...pp, numero: i + 1 }));
+                                      const updated = { ...f, batizado: { ...f.batizado, parcelas: remaining, modalidade: remaining.length === 1 ? 'integral' as const : 'parcelado' as const } };
+                                      setFinFicha(updated); await adminSaveFicha(updated);
+                                    }} style={{ padding: '3px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                      🗑
+                                    </button>
+                                  )}
                                 </div>
                               </div>
                               {/* Aguardando confirmação notice for admin */}
                               {aguardando && (
                                 <div style={{ marginBottom: 8, padding: '5px 10px', background: 'rgba(234,179,8,0.08)', border: '1px solid rgba(234,179,8,0.3)', borderRadius: 7, fontSize: '0.72rem', color: '#fbbf24' }}>
                                   ⏳ Aluno enviou comprovante — aguardando confirmação
+                                </div>
+                              )}
+                              {/* Inline edit form for parcela */}
+                              {parcelaEditing && (
+                                <div style={{ background: 'rgba(124,58,237,0.07)', border: '1px solid rgba(124,58,237,0.25)', borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
+                                  <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor (R$)</label>
+                                      <input type="number" min={0} step={0.01} value={finEditData.valor || ''} onChange={e => setFinEditData((prev: any) => ({ ...prev, valor: parseFloat(e.target.value) || 0 }))}
+                                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', width: 90 }} />
+                                    </div>
+                                    <div>
+                                      <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Vencimento</label>
+                                      <input type="date" value={finEditData.vencimento || ''} onChange={e => setFinEditData((prev: any) => ({ ...prev, vencimento: e.target.value }))}
+                                        style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+                                    </div>
+                                    <div style={{ display: 'flex', gap: 6 }}>
+                                      <button onClick={async () => {
+                                        const updated = { ...f, batizado: { ...f.batizado, parcelas: f.batizado.parcelas.map((pp: any) => pp.numero === p.numero ? { ...pp, valor: finEditData.valor, vencimento: finEditData.vencimento } : pp) } };
+                                        setFinFicha(updated); await adminSaveFicha(updated); setFinEditKey(null);
+                                      }} style={{ padding: '5px 12px', background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.5)', color: '#a78bfa', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                        💾 Salvar
+                                      </button>
+                                      <button onClick={() => setFinEditKey(null)} style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
+                                    </div>
+                                  </div>
                                 </div>
                               )}
                               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 8 }}>
@@ -4807,39 +4859,79 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {/* MENSALIDADES */}
                 {finSection === 'mensalidades' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
-                    <div style={{ background: 'linear-gradient(135deg,#0891b2,#0369a1)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ background: 'linear-gradient(135deg,#0891b2,#0369a1)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                       <div style={{ color: '#fff', fontWeight: 800 }}>📅 Mensalidades</div>
-                      <button onClick={async () => {
-                        const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
-                        const mes = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
-                        if (f.mensalidades.find((m: any) => m.mes === mes)) { setFinMsg('Mês já registrado'); setTimeout(() => setFinMsg(''), 2000); return; }
-                        const nova = { mes, valor: 80, status: 'pendente' };
-                        const updated = { ...f, mensalidades: [...f.mensalidades, nova].sort((a: any, b: any) => b.mes.localeCompare(a.mes)) };
-                        setFinFicha(updated); await adminSaveFicha(updated);
-                      }}
+                      <button onClick={() => { setFinAddMes(v => !v); setFinAddMesData({ mes: new Date().toISOString().slice(0,7), valor: finConfig.mensalidade_valor, status: 'pendente' }); }}
                         style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                        + {t('admin_add_month')}
+                        + Adicionar Mensalidade
                       </button>
                     </div>
                     <div style={{ padding: '16px' }}>
-                      {f.mensalidades.length === 0 && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0', fontSize: '0.85rem' }}>{t('admin_no_mensalidades')}</div>}
+                      {/* Add form */}
+                      {finAddMes && (
+                        <div style={{ background: 'rgba(8,145,178,0.07)', border: '1px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#67e8f9', marginBottom: 10 }}>+ Nova Mensalidade</div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês/Ano</label>
+                              <input type="month" value={finAddMesData.mes || ''} onChange={e => setFinAddMesData((p: any) => ({ ...p, mes: e.target.value }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor (R$)</label>
+                              <input type="number" min={0} step={0.01} value={finAddMesData.valor || ''} onChange={e => setFinAddMesData((p: any) => ({ ...p, valor: parseFloat(e.target.value) || 0 }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', width: 100 }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label>
+                              <select value={finAddMesData.status || 'pendente'} onChange={e => setFinAddMesData((p: any) => ({ ...p, status: e.target.value }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}>
+                                <option value="pendente">Pendente</option>
+                                <option value="pago">Pago</option>
+                                <option value="atrasado">Atrasado</option>
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={async () => {
+                                const mes = finAddMesData.mes;
+                                if (!mes) return;
+                                if (f.mensalidades.find((m: any) => m.mes === mes)) { setFinMsg('Mês já registrado'); setTimeout(() => setFinMsg(''), 2000); return; }
+                                const nova = { mes, valor: finAddMesData.valor || finConfig.mensalidade_valor, status: finAddMesData.status || 'pendente' };
+                                const updated = { ...f, mensalidades: [...f.mensalidades, nova].sort((a: any, b: any) => b.mes.localeCompare(a.mes)) };
+                                setFinFicha(updated); await adminSaveFicha(updated); setFinAddMes(false);
+                              }} style={{ padding: '6px 14px', background: 'rgba(8,145,178,0.25)', border: '1px solid rgba(8,145,178,0.5)', color: '#67e8f9', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                                💾 Salvar
+                              </button>
+                              <button onClick={() => setFinAddMes(false)} style={{ padding: '6px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {f.mensalidades.length === 0 && !finAddMes && <div style={{ textAlign: 'center', color: 'var(--text-secondary)', padding: '20px 0', fontSize: '0.85rem' }}>{t('admin_no_mensalidades')}</div>}
                       {f.mensalidades.map((m: any) => {
                         const [y, mo] = m.mes.split('-');
                         const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        const editKey = `mensalidade:${m.mes}`;
+                        const isEditing = finEditKey === editKey;
                         return (
-                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
-                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: `1px solid ${isEditing ? 'rgba(8,145,178,0.5)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: isEditing ? 10 : 8, flexWrap: 'wrap', gap: 6 }}>
                               <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{names[parseInt(mo)-1]}/{y} — R$ {m.valor.toFixed(2)}</span>
                               <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
                                 {(['pago', 'pendente', 'atrasado'] as const).map(st => (
                                   <button key={st} onClick={async () => {
                                     const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, status: st, admin_confirmado: st === 'pago', data_pagamento: st === 'pago' ? new Date().toISOString().slice(0,10) : mm.data_pagamento } : mm) };
                                     setFinFicha(updated); await adminSaveFicha(updated);
-                                  }}
-                                    style={{ padding: '3px 9px', borderRadius: 12, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                  }} style={{ padding: '3px 9px', borderRadius: 12, cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
                                     {statusLabel[st]}
                                   </button>
                                 ))}
+                                <button onClick={() => { setFinEditKey(isEditing ? null : editKey); setFinEditData({ mes: m.mes, valor: m.valor }); }}
+                                  style={{ padding: '3px 8px', borderRadius: 8, background: isEditing ? 'rgba(8,145,178,0.25)' : 'var(--bg-card)', border: `1px solid ${isEditing ? 'rgba(8,145,178,0.5)' : 'var(--border)'}`, color: isEditing ? '#67e8f9' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.7rem', fontWeight: 700 }}>
+                                  ✏️
+                                </button>
                                 <button onClick={async () => {
                                   if (!confirm(`Excluir mensalidade de ${names[parseInt(mo)-1]}/${y}?`)) return;
                                   const updated = { ...f, mensalidades: f.mensalidades.filter((mm: any) => mm.mes !== m.mes) };
@@ -4849,13 +4941,45 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                 </button>
                               </div>
                             </div>
+                            {/* Inline edit form */}
+                            {isEditing && (
+                              <div style={{ background: 'rgba(8,145,178,0.07)', border: '1px solid rgba(8,145,178,0.25)', borderRadius: 8, padding: '10px 12px', marginBottom: 8 }}>
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês/Ano</label>
+                                    <input type="month" value={finEditData.mes || ''} onChange={e => setFinEditData((p: any) => ({ ...p, mes: e.target.value }))}
+                                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor (R$)</label>
+                                    <input type="number" min={0} step={0.01} value={finEditData.valor || ''} onChange={e => setFinEditData((p: any) => ({ ...p, valor: parseFloat(e.target.value) || 0 }))}
+                                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', width: 90 }} />
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    <button onClick={async () => {
+                                      const novoMes = finEditData.mes;
+                                      const novoValor = finEditData.valor;
+                                      if (!novoMes || !novoValor) return;
+                                      // if month changed, check duplicate
+                                      if (novoMes !== m.mes && f.mensalidades.find((mm: any) => mm.mes === novoMes)) { setFinMsg('Mês já existe'); setTimeout(() => setFinMsg(''), 2000); return; }
+                                      const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, mes: novoMes, valor: novoValor } : mm).sort((a: any, b: any) => b.mes.localeCompare(a.mes)) };
+                                      setFinFicha(updated); await adminSaveFicha(updated); setFinEditKey(null);
+                                    }} style={{ padding: '5px 12px', background: 'rgba(8,145,178,0.25)', border: '1px solid rgba(8,145,178,0.5)', color: '#67e8f9', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                      💾 Salvar
+                                    </button>
+                                    <button onClick={() => setFinEditKey(null)} style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>
+                                      ✕
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                             <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
                               {METODOS.map(mt => (
                                 <button key={mt} onClick={async () => {
                                   const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, metodo: mt } : mm) };
                                   setFinFicha(updated); await adminSaveFicha(updated);
-                                }}
-                                  style={{ padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(8,145,178,0.2)' : 'var(--bg-card)', border: `1px solid ${m.metodo === mt ? 'rgba(8,145,178,0.5)' : 'var(--border)'}`, color: m.metodo === mt ? '#67e8f9' : 'var(--text-secondary)' }}>
+                                }} style={{ padding: '3px 8px', borderRadius: 6, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 600, background: m.metodo === mt ? 'rgba(8,145,178,0.2)' : 'var(--bg-card)', border: `1px solid ${m.metodo === mt ? 'rgba(8,145,178,0.5)' : 'var(--border)'}`, color: m.metodo === mt ? '#67e8f9' : 'var(--text-secondary)' }}>
                                   {mt}
                                 </button>
                               ))}
@@ -4867,8 +4991,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                                   <button onClick={async () => {
                                     const updated = { ...f, mensalidades: f.mensalidades.map((mm: any) => mm.mes === m.mes ? { ...mm, status: 'pago', admin_confirmado: true, comprovante_pendente: false, data_pagamento: new Date().toISOString().slice(0,10) } : mm) };
                                     setFinFicha(updated); await adminSaveFicha(updated);
-                                  }}
-                                    style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                                  }} style={{ padding: '3px 10px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
                                     ✓ {t('admin_confirm_payment')}
                                   </button>
                                 )}
@@ -4885,40 +5008,127 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {/* CONTRIBUICAO */}
                 {finSection === 'contribuicao' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
-                    <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', padding: '10px 16px' }}>
+                    <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
                       <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição — Projeto Social</div>
+                      <button onClick={() => { setFinAddContrib(v => !v); setFinAddContribData({ mes: new Date().toISOString().slice(0,7), valor: finConfig.contribuicao_mensal, status: 'pendente' }); }}
+                        style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        + Adicionar
+                      </button>
                     </div>
                     <div style={{ padding: '16px' }}>
-                      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <div style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                         <span style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Status:</span>
                         <span style={{ fontWeight: 700, color: f.contribuicao.ativa ? '#4ade80' : 'var(--text-secondary)', fontSize: '0.85rem' }}>{f.contribuicao.ativa ? '✓ Ativo' : '— Inativo'}</span>
+                        <button onClick={async () => {
+                          const updated = { ...f, contribuicao: { ...f.contribuicao, ativa: !f.contribuicao.ativa } };
+                          setFinFicha(updated); await adminSaveFicha(updated);
+                        }} style={{ padding: '2px 10px', borderRadius: 8, background: f.contribuicao.ativa ? 'rgba(220,38,38,0.12)' : 'rgba(22,163,74,0.12)', border: `1px solid ${f.contribuicao.ativa ? 'rgba(220,38,38,0.3)' : 'rgba(22,163,74,0.3)'}`, color: f.contribuicao.ativa ? '#f87171' : '#4ade80', cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
+                          {f.contribuicao.ativa ? 'Desativar' : 'Ativar'}
+                        </button>
                       </div>
-                      {f.contribuicao.historico.length === 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Nenhum registro de contribuição.</div>}
+                      {/* Add form */}
+                      {finAddContrib && (
+                        <div style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#4ade80', marginBottom: 10 }}>+ Nova Contribuição</div>
+                          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês/Ano</label>
+                              <input type="month" value={finAddContribData.mes || ''} onChange={e => setFinAddContribData((p: any) => ({ ...p, mes: e.target.value }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor (R$)</label>
+                              <input type="number" min={0} step={0.01} value={finAddContribData.valor || ''} onChange={e => setFinAddContribData((p: any) => ({ ...p, valor: parseFloat(e.target.value) || 0 }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', width: 100 }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label>
+                              <select value={finAddContribData.status || 'pendente'} onChange={e => setFinAddContribData((p: any) => ({ ...p, status: e.target.value }))}
+                                style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none' }}>
+                                <option value="pendente">Pendente</option>
+                                <option value="pago">Pago</option>
+                                <option value="atrasado">Atrasado</option>
+                              </select>
+                            </div>
+                            <div style={{ display: 'flex', gap: 6 }}>
+                              <button onClick={async () => {
+                                const mes = finAddContribData.mes;
+                                if (!mes) return;
+                                if (f.contribuicao.historico.find((c: any) => c.mes === mes)) { setFinMsg('Mês já registrado'); setTimeout(() => setFinMsg(''), 2000); return; }
+                                const nova = { mes, valor: finAddContribData.valor || finConfig.contribuicao_mensal, status: finAddContribData.status || 'pendente' };
+                                const updated = { ...f, contribuicao: { ...f.contribuicao, ativa: true, historico: [...f.contribuicao.historico, nova].sort((a: any, b: any) => b.mes.localeCompare(a.mes)) } };
+                                setFinFicha(updated); await adminSaveFicha(updated); setFinAddContrib(false);
+                              }} style={{ padding: '6px 14px', background: 'rgba(22,163,74,0.25)', border: '1px solid rgba(22,163,74,0.5)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                                💾 Salvar
+                              </button>
+                              <button onClick={() => setFinAddContrib(false)} style={{ padding: '6px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>
+                                Cancelar
+                              </button>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                      {f.contribuicao.historico.length === 0 && !finAddContrib && <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Nenhum registro de contribuição.</div>}
                       {f.contribuicao.historico.map((m: any) => {
                         const [y, mo] = m.mes.split('-');
                         const names = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+                        const contribEditKey = `contribuicao:${m.mes}`;
+                        const contribEditing = finEditKey === contribEditKey;
                         return (
-                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 12px', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                            <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y}</span>
-                            <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>R$ {m.valor.toFixed(2)}</span>
-                            <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center' }}>
-                              {(['pago', 'pendente', 'atrasado'] as const).map(st => (
-                                <button key={st} onClick={async () => {
-                                  const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.map((c: any) => c.mes === m.mes ? { ...c, status: st, admin_confirmado: st === 'pago' } : c) } };
-                                  setFinFicha(updated); await adminSaveFicha(updated);
-                                }}
-                                  style={{ padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
-                                  {statusLabel[st]}
+                          <div key={m.mes} style={{ background: 'var(--bg-input)', border: `1px solid ${contribEditing ? 'rgba(22,163,74,0.5)' : 'var(--border)'}`, borderRadius: 10, padding: '10px 12px', marginBottom: 8 }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                              <span style={{ fontWeight: 600, fontSize: '0.85rem' }}>{names[parseInt(mo)-1]}/{y}</span>
+                              <span style={{ color: 'var(--text-secondary)', fontSize: '0.78rem' }}>R$ {m.valor.toFixed(2)}</span>
+                              <div style={{ display: 'flex', gap: 4, marginLeft: 'auto', alignItems: 'center', flexWrap: 'wrap' }}>
+                                {(['pago', 'pendente', 'atrasado'] as const).map(st => (
+                                  <button key={st} onClick={async () => {
+                                    const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.map((c: any) => c.mes === m.mes ? { ...c, status: st, admin_confirmado: st === 'pago' } : c) } };
+                                    setFinFicha(updated); await adminSaveFicha(updated);
+                                  }} style={{ padding: '2px 8px', borderRadius: 12, cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700, border: 'none', background: m.status === st ? (st === 'pago' ? '#16a34a' : st === 'pendente' ? '#ca8a04' : '#dc2626') : 'var(--bg-card)', color: m.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                    {statusLabel[st]}
+                                  </button>
+                                ))}
+                                <button onClick={() => { setFinEditKey(contribEditing ? null : contribEditKey); setFinEditData({ mes: m.mes, valor: m.valor }); }}
+                                  style={{ padding: '2px 8px', borderRadius: 8, background: contribEditing ? 'rgba(22,163,74,0.25)' : 'var(--bg-card)', border: `1px solid ${contribEditing ? 'rgba(22,163,74,0.5)' : 'var(--border)'}`, color: contribEditing ? '#4ade80' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  ✏️
                                 </button>
-                              ))}
-                              <button onClick={async () => {
-                                if (!confirm(`Excluir contribuição de ${names[parseInt(mo)-1]}/${y}?`)) return;
-                                const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.filter((c: any) => c.mes !== m.mes) } };
-                                setFinFicha(updated); await adminSaveFicha(updated);
-                              }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
-                                🗑
-                              </button>
+                                <button onClick={async () => {
+                                  if (!confirm(`Excluir contribuição de ${names[parseInt(mo)-1]}/${y}?`)) return;
+                                  const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.filter((c: any) => c.mes !== m.mes) } };
+                                  setFinFicha(updated); await adminSaveFicha(updated);
+                                }} style={{ padding: '2px 8px', borderRadius: 8, background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.68rem', fontWeight: 700 }}>
+                                  🗑
+                                </button>
+                              </div>
                             </div>
+                            {contribEditing && (
+                              <div style={{ background: 'rgba(22,163,74,0.07)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 8, padding: '10px 12px', marginTop: 8 }}>
+                                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês/Ano</label>
+                                    <input type="month" value={finEditData.mes || ''} onChange={e => setFinEditData((p: any) => ({ ...p, mes: e.target.value }))}
+                                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }} />
+                                  </div>
+                                  <div>
+                                    <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor (R$)</label>
+                                    <input type="number" min={0} step={0.01} value={finEditData.valor || ''} onChange={e => setFinEditData((p: any) => ({ ...p, valor: parseFloat(e.target.value) || 0 }))}
+                                      style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', width: 90 }} />
+                                  </div>
+                                  <div style={{ display: 'flex', gap: 6 }}>
+                                    <button onClick={async () => {
+                                      const novoMes = finEditData.mes; const novoValor = finEditData.valor;
+                                      if (!novoMes || !novoValor) return;
+                                      if (novoMes !== m.mes && f.contribuicao.historico.find((c: any) => c.mes === novoMes)) { setFinMsg('Mês já existe'); setTimeout(() => setFinMsg(''), 2000); return; }
+                                      const updated = { ...f, contribuicao: { ...f.contribuicao, historico: f.contribuicao.historico.map((c: any) => c.mes === m.mes ? { ...c, mes: novoMes, valor: novoValor } : c).sort((a: any, b: any) => b.mes.localeCompare(a.mes)) } };
+                                      setFinFicha(updated); await adminSaveFicha(updated); setFinEditKey(null);
+                                    }} style={{ padding: '5px 12px', background: 'rgba(22,163,74,0.25)', border: '1px solid rgba(22,163,74,0.5)', color: '#4ade80', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                      💾 Salvar
+                                    </button>
+                                    <button onClick={() => setFinEditKey(null)} style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
+                                  </div>
+                                </div>
+                              </div>
+                            )}
                           </div>
                         );
                       })}
@@ -4929,41 +5139,135 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {/* UNIFORMES */}
                 {finSection === 'uniformes' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
-                    <div style={{ background: 'linear-gradient(135deg,#d97706,#b45309)', padding: '10px 16px' }}>
+                    <div style={{ background: 'linear-gradient(135deg,#d97706,#b45309)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <div style={{ color: '#fff', fontWeight: 800 }}>👕 Uniformes Solicitados</div>
+                      <button onClick={() => { setFinAddUnif(v => !v); setFinAddUnifData({ descricao: '', tamanho: '', quantidade: 1, valor_unitario: 0, status: 'confirmado' }); }}
+                        style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        + Adicionar Uniforme
+                      </button>
                     </div>
                     <div style={{ padding: '16px' }}>
-                      {f.uniformes.length === 0 && <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '16px 0' }}>Nenhuma solicitação.</div>}
-                      {f.uniformes.map((u: any) => (
-                        <div key={u.id} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 10, padding: '12px', marginBottom: 8 }}>
+                      {/* Add form */}
+                      {finAddUnif && (
+                        <div style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.3)', borderRadius: 10, padding: '12px 14px', marginBottom: 14 }}>
+                          <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#fbbf24', marginBottom: 10 }}>+ Novo Uniforme</div>
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(150px,1fr))', gap: 10, marginBottom: 10 }}>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Descrição</label>
+                              <input value={finAddUnifData.descricao || ''} onChange={e => setFinAddUnifData((p: any) => ({ ...p, descricao: e.target.value }))} placeholder="Ex: Calça, Camiseta..."
+                                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Tamanho</label>
+                              <input value={finAddUnifData.tamanho || ''} onChange={e => setFinAddUnifData((p: any) => ({ ...p, tamanho: e.target.value }))} placeholder="PP, P, M, G, GG..."
+                                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Qtde</label>
+                              <input type="number" min={1} value={finAddUnifData.quantidade || 1} onChange={e => setFinAddUnifData((p: any) => ({ ...p, quantidade: parseInt(e.target.value) || 1 }))}
+                                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor Unit. (R$)</label>
+                              <input type="number" min={0} step={0.01} value={finAddUnifData.valor_unitario || ''} onChange={e => setFinAddUnifData((p: any) => ({ ...p, valor_unitario: parseFloat(e.target.value) || 0 }))}
+                                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }} />
+                            </div>
+                            <div>
+                              <label style={{ display: 'block', fontSize: '0.7rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label>
+                              <select value={finAddUnifData.status || 'confirmado'} onChange={e => setFinAddUnifData((p: any) => ({ ...p, status: e.target.value }))}
+                                style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, padding: '6px 10px', color: 'var(--text-primary)', fontSize: '0.82rem', outline: 'none', boxSizing: 'border-box' }}>
+                                <option value="solicitado">Solicitado</option>
+                                <option value="confirmado">Confirmado</option>
+                                <option value="entregue">Entregue</option>
+                              </select>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', gap: 6 }}>
+                            <button onClick={async () => {
+                              if (!finAddUnifData.descricao?.trim()) { setFinMsg('Preencha a descrição'); setTimeout(() => setFinMsg(''), 2000); return; }
+                              const novo = { id: Date.now().toString(), descricao: finAddUnifData.descricao, tamanho: finAddUnifData.tamanho || undefined, quantidade: finAddUnifData.quantidade || 1, valor_unitario: finAddUnifData.valor_unitario || 0, status: finAddUnifData.status || 'confirmado', data_solicitacao: new Date().toISOString().slice(0,10) };
+                              const updated = { ...f, uniformes: [...f.uniformes, novo] };
+                              setFinFicha(updated); await adminSaveFicha(updated); setFinAddUnif(false);
+                            }} style={{ padding: '6px 14px', background: 'rgba(217,119,6,0.25)', border: '1px solid rgba(217,119,6,0.5)', color: '#fbbf24', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                              💾 Salvar
+                            </button>
+                            <button onClick={() => setFinAddUnif(false)} style={{ padding: '6px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem' }}>
+                              Cancelar
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                      {f.uniformes.length === 0 && !finAddUnif && <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center', padding: '16px 0' }}>Nenhuma solicitação.</div>}
+                      {f.uniformes.map((u: any) => {
+                        const unifEditKey = `uniforme:${u.id}`;
+                        const unifEditing = finEditKey === unifEditKey;
+                        return (
+                        <div key={u.id} style={{ background: 'var(--bg-input)', border: `1px solid ${unifEditing ? 'rgba(217,119,6,0.5)' : 'var(--border)'}`, borderRadius: 10, padding: '12px', marginBottom: 8 }}>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6, flexWrap: 'wrap', gap: 6 }}>
                             <span style={{ fontWeight: 700, fontSize: '0.88rem' }}>{u.descricao}{u.tamanho ? ` (${u.tamanho})` : ''}</span>
-                            <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+                            <div style={{ display: 'flex', gap: 4, alignItems: 'center', flexWrap: 'wrap' }}>
                               {(['solicitado', 'confirmado', 'entregue', 'cancelado'] as const).map(st => (
                                 <button key={st} onClick={async () => {
                                   const updated = { ...f, uniformes: f.uniformes.map((uu: any) => uu.id === u.id ? { ...uu, status: st, data_entrega: st === 'entregue' ? new Date().toISOString().slice(0,10) : uu.data_entrega } : uu) };
                                   setFinFicha(updated); await adminSaveFicha(updated);
-                                }}
-                                  style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: u.status === st ? (st === 'entregue' ? '#16a34a' : st === 'confirmado' ? '#7c3aed' : st === 'cancelado' ? '#64748b' : '#3b82f6') : 'var(--bg-card)', color: u.status === st ? '#fff' : 'var(--text-secondary)' }}>
+                                }} style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: u.status === st ? (st === 'entregue' ? '#16a34a' : st === 'confirmado' ? '#7c3aed' : st === 'cancelado' ? '#64748b' : '#3b82f6') : 'var(--bg-card)', color: u.status === st ? '#fff' : 'var(--text-secondary)' }}>
                                   {st}
                                 </button>
                               ))}
+                              <button onClick={() => { setFinEditKey(unifEditing ? null : unifEditKey); setFinEditData({ descricao: u.descricao, tamanho: u.tamanho || '', quantidade: u.quantidade, valor_unitario: u.valor_unitario }); }}
+                                style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: unifEditing ? 'rgba(217,119,6,0.25)' : 'var(--bg-card)', color: unifEditing ? '#fbbf24' : 'var(--text-secondary)', marginLeft: 4 }}>
+                                ✏️
+                              </button>
                               <button onClick={async () => {
                                 if (!confirm(`Excluir solicitação de "${u.descricao}"?`)) return;
                                 const updated = { ...f, uniformes: f.uniformes.filter((uu: any) => uu.id !== u.id) };
                                 setFinFicha(updated); await adminSaveFicha(updated);
-                              }}
-                                style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: 'rgba(220,38,38,0.15)', color: '#f87171', marginLeft: 4 }}
-                                title="Excluir solicitação">
+                              }} style={{ padding: '2px 7px', borderRadius: 10, cursor: 'pointer', fontSize: '0.65rem', fontWeight: 700, border: 'none', background: 'rgba(220,38,38,0.15)', color: '#f87171', marginLeft: 2 }}>
                                 🗑
                               </button>
                             </div>
                           </div>
-                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                          <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginBottom: unifEditing ? 8 : 0 }}>
                             {u.quantidade}× R$ {u.valor_unitario.toFixed(2)} · Total: R$ {(u.quantidade * u.valor_unitario).toFixed(2)} · {new Date(u.data_solicitacao + 'T12:00:00').toLocaleDateString('pt-BR')}
                           </div>
+                          {unifEditing && (
+                            <div style={{ background: 'rgba(217,119,6,0.07)', border: '1px solid rgba(217,119,6,0.25)', borderRadius: 8, padding: '10px 12px', marginTop: 6 }}>
+                              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(130px,1fr))', gap: 8, marginBottom: 8 }}>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Descrição</label>
+                                  <input value={finEditData.descricao || ''} onChange={e => setFinEditData((p: any) => ({ ...p, descricao: e.target.value }))}
+                                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Tamanho</label>
+                                  <input value={finEditData.tamanho || ''} onChange={e => setFinEditData((p: any) => ({ ...p, tamanho: e.target.value }))}
+                                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Qtde</label>
+                                  <input type="number" min={1} value={finEditData.quantidade || 1} onChange={e => setFinEditData((p: any) => ({ ...p, quantidade: parseInt(e.target.value) || 1 }))}
+                                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                                <div>
+                                  <label style={{ display: 'block', fontSize: '0.68rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Valor Unit. (R$)</label>
+                                  <input type="number" min={0} step={0.01} value={finEditData.valor_unitario || ''} onChange={e => setFinEditData((p: any) => ({ ...p, valor_unitario: parseFloat(e.target.value) || 0 }))}
+                                    style={{ width: '100%', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none', boxSizing: 'border-box' }} />
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button onClick={async () => {
+                                  const updated = { ...f, uniformes: f.uniformes.map((uu: any) => uu.id === u.id ? { ...uu, descricao: finEditData.descricao, tamanho: finEditData.tamanho || undefined, quantidade: finEditData.quantidade, valor_unitario: finEditData.valor_unitario } : uu) };
+                                  setFinFicha(updated); await adminSaveFicha(updated); setFinEditKey(null);
+                                }} style={{ padding: '5px 12px', background: 'rgba(217,119,6,0.25)', border: '1px solid rgba(217,119,6,0.5)', color: '#fbbf24', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+                                  💾 Salvar
+                                </button>
+                                <button onClick={() => setFinEditKey(null)} style={{ padding: '5px 10px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>✕</button>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   </div>
                 )}
