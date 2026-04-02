@@ -1444,14 +1444,15 @@ export default function AdminPage() {
     try {
       let foto_url = editForm.foto_url ?? null;
 
-      // Upload new photo if selected
+      // Upload new photo via server API (bucket is private — signed URLs required)
       if (editFotoFile) {
-        const ext = editFotoFile.name.split('.').pop() || 'jpg';
-        const path = `fotos/${editing.id}_${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from(BUCKET).upload(path, editFotoFile, { upsert: true });
-        if (!upErr) {
-          const { data: pubData } = supabase.storage.from(BUCKET).getPublicUrl(path);
-          foto_url = pubData.publicUrl;
+        const fd = new FormData();
+        fd.append('student_id', editing.id);
+        fd.append('foto', editFotoFile);
+        const upRes = await fetch('/api/upload-foto', { method: 'POST', body: fd });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          if (upData.foto_url) foto_url = upData.foto_url;
         }
       }
 

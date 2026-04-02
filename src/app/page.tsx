@@ -586,17 +586,15 @@ export default function Home() {
     setLoading(true);
 
     try {
-      // Upload de foto (storage público do Supabase)
+      // Upload de foto via API server-side (bucket privado — usa signed URL)
       let foto_url = null;
       if (photoFile) {
-        const ext = photoFile.name.split('.').pop();
-        const fileName = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-        const { error: uploadError } = await supabase.storage
-          .from('photos')
-          .upload(fileName, photoFile);
-        if (!uploadError) {
-          const { data } = supabase.storage.from('photos').getPublicUrl(fileName);
-          foto_url = data.publicUrl;
+        const fd = new FormData();
+        fd.append('foto', photoFile);
+        const upRes = await fetch('/api/upload-foto', { method: 'POST', body: fd });
+        if (upRes.ok) {
+          const upData = await upRes.json();
+          foto_url = upData.foto_url || null;
         }
       }
 
