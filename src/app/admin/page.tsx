@@ -1084,6 +1084,41 @@ export default function AdminPage() {
   const [editalEditId, setEditalEditId] = useState<string | null>(null);
   const [showEditalForm, setShowEditalForm] = useState(false);
 
+  // ── Helpers financeiro ───────────────────────────────────────────────────
+  function normalizeFicha(d: any, s?: any): any {
+    const now = new Date().toISOString().slice(0,10);
+    return {
+      student_id: d?.student_id ?? s?.id ?? '',
+      nome_completo: d?.nome_completo ?? s?.nome_completo ?? '',
+      cpf: d?.cpf ?? s?.cpf ?? '',
+      nucleo: d?.nucleo ?? s?.nucleo ?? '',
+      batizado: {
+        modalidade: d?.batizado?.modalidade ?? 'nao_definido',
+        valor_total: d?.batizado?.valor_total ?? 150,
+        parcelas: d?.batizado?.parcelas ?? [],
+        status_geral: d?.batizado?.status_geral ?? 'nao_definido',
+      },
+      contribuicao: {
+        ativa: d?.contribuicao?.ativa ?? false,
+        valor_mensal: d?.contribuicao?.valor_mensal ?? 30,
+        historico: d?.contribuicao?.historico ?? [],
+      },
+      mensalidades: d?.mensalidades ?? [],
+      uniformes: d?.uniformes ?? [],
+      alertas: {
+        comprovante_pendente: d?.alertas?.comprovante_pendente ?? false,
+        uniforme_solicitado: d?.alertas?.uniforme_solicitado ?? false,
+        mensalidade_atrasada: d?.alertas?.mensalidade_atrasada ?? false,
+        batizado_modalidade_escolhida: d?.alertas?.batizado_modalidade_escolhida ?? false,
+        mensalidade_registrada: d?.alertas?.mensalidade_registrada ?? false,
+        contribuicao_registrada: d?.alertas?.contribuicao_registrada ?? false,
+        pagamento_registrado: d?.alertas?.pagamento_registrado ?? false,
+        ultimas_acoes: d?.alertas?.ultimas_acoes ?? [],
+      },
+      updated_at: d?.updated_at ?? now,
+    };
+  }
+
   // ── Config financeiro ────────────────────────────────────────────────────
   const [finConfig, setFinConfig] = useState<{ mensalidade_valor: number; batizado_integral: number; batizado_max_parcelas: number; contribuicao_mensal: number }>({ mensalidade_valor: 80, batizado_integral: 150, batizado_max_parcelas: 12, contribuicao_mensal: 30 });
   const [finConfigSaving, setFinConfigSaving] = useState(false);
@@ -4062,7 +4097,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     if (!s) return;
                     setFinStudent(s); setFinLoading(true);
                     const res = await fetch(`/api/financeiro?student_id=${s.id}`);
-                    const d = await res.json(); setFinFicha(d); setFinLoading(false);
+                    const d = await res.json(); setFinFicha(normalizeFicha(d, s)); setFinLoading(false);
                   }}
                     style={{ padding: '4px 14px', background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.35)', color: '#4ade80', borderRadius: 8, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>
                     Abrir Ficha →
@@ -4157,11 +4192,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         setFinStudent(s); setFinLoading(true);
                         const res = await fetch(`/api/financeiro?student_id=${s.id}`);
                         const d = await res.json();
-                        if (d) { setFinFicha(d); }
-                        else {
-                          const now = new Date().toISOString().slice(0,10);
-                          setFinFicha({ student_id: s.id, nome_completo: s.nome_completo, cpf: s.cpf, nucleo: s.nucleo || '', batizado: { modalidade: 'nao_definido', valor_total: 150, parcelas: [], status_geral: 'nao_definido' }, contribuicao: { ativa: false, valor_mensal: 30, historico: [] }, mensalidades: [], uniformes: [], alertas: { comprovante_pendente: false, uniforme_solicitado: false, mensalidade_atrasada: false }, updated_at: now });
-                        }
+                        setFinFicha(normalizeFicha(d, s));
                         setFinLoading(false);
                       }}>
                       {s.foto_url
@@ -4205,7 +4236,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               const res = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updated, _admin_save: true }) });
               if (res.ok) {
                 const { data } = await res.json();
-                if (data) setFinFicha(data);
+                if (data) setFinFicha(normalizeFicha(data));
                 setFinMsg('Salvo!'); setTimeout(() => setFinMsg(''), 2500);
               } else { setFinMsg('Erro ao salvar'); }
               setFinSaving(false);
