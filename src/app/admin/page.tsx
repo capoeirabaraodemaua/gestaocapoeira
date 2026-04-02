@@ -4180,7 +4180,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             // Filtra por núcleo se for representante
             const baseList = nucleoFilter ? students.filter(s => s.nucleo === nucleoFilter) : students;
             const list = q.length >= 1
-              ? baseList.filter(s => s.nome_completo.toLowerCase().includes(q) || s.cpf.replace(/\D/g,'').includes(q.replace(/\D/g,'')))
+              ? baseList.filter(s => (s.nome_completo || '').toLowerCase().includes(q) || (s.cpf || '').replace(/\D/g,'').includes(q.replace(/\D/g,'')))
               : baseList;
             return (
               <div style={{ display: 'grid', gap: 8 }}>
@@ -6301,8 +6301,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {indivSearch.trim().length >= 2 && !indivStudent && (() => {
               const q = indivSearch.trim().toLowerCase().replace(/\D/g,'');
               const results = students.filter(s => {
-                const nameMatch = s.nome_completo.toLowerCase().includes(indivSearch.trim().toLowerCase());
-                const cpfMatch = q.length >= 3 && s.cpf.replace(/\D/g,'').includes(q);
+                const nameMatch = (s.nome_completo || '').toLowerCase().includes(indivSearch.trim().toLowerCase());
+                const cpfMatch = q.length >= 3 && (s.cpf || '').replace(/\D/g,'').includes(q);
                 return nameMatch || cpfMatch;
               }).slice(0, 8);
               if (results.length === 0) return (
@@ -9318,7 +9318,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     const alreadyIds = new Set((eventoForm.participantes || []).map((p: any) => p.student_id));
                     const results = students.filter(s =>
                       !alreadyIds.has(s.id) &&
-                      (s.nome_completo.toLowerCase().includes(eventoParticipantSearch.toLowerCase()) ||
+                      ((s.nome_completo || '').toLowerCase().includes(eventoParticipantSearch.toLowerCase()) ||
                        (s.cpf || '').replace(/\D/g, '').includes(q))
                     ).slice(0, 10);
                     if (!results.length) return (
@@ -9827,10 +9827,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           .filter(s => {
             if (!alunoViewSearch.trim()) return true;
             const q = alunoViewSearch.toLowerCase();
-            return s.nome_completo.toLowerCase().includes(q) ||
+            return (s.nome_completo || '').toLowerCase().includes(q) ||
               (studentDisplayIds[s.id] || '').toLowerCase().includes(q);
           })
-          .sort((a, b) => a.nome_completo.localeCompare(b.nome_completo));
+          .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
 
         const selectedStudent = students.find(s => s.id === alunoViewStudentId) || null;
 
@@ -10369,7 +10369,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                             return (
                               <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 4, background: '#fef3c7', border: '1px solid #fde68a', borderRadius: 8, padding: '3px 6px 3px 10px' }}>
                                 <span style={{ fontSize: '0.76rem', color: '#78350f', fontWeight: 600 }}>
-                                  {s.nome_completo.split(' ')[0]} {s.nome_completo.split(' ').slice(-1)[0]}{displayId ? ` (${displayId})` : ''}
+                                  {(s.nome_completo || '').split(' ')[0]} {(s.nome_completo || '').split(' ').slice(-1)[0]}{displayId ? ` (${displayId})` : ''}
                                 </span>
                                 {tel.length >= 10 ? (
                                   <a
