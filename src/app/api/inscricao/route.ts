@@ -325,10 +325,41 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // Garante foto_url no banco — pode ter sido removida do insert se coluna não existia ainda
+    // Garante foto_url no banco e move arquivo temp para pasta definitiva do aluno
     if (studentId && payload.foto_url) {
       try {
-        await supabaseAdmin.from('students').update({ foto_url: payload.foto_url }).eq('id', studentId);
+        const BUCKET = 'photos';
+        let finalFotoUrl = payload.foto_url as string;
+
+        // Se a foto está em fotos/temp/, mover para fotos/{student_id}/perfil.ext
+        const tempMatch = (payload.foto_url as string).match(/fotos\/temp\/([^?]+)/);
+        if (tempMatch) {
+          const tempPath = `fotos/temp/${tempMatch[1]}`;
+          const ext = tempMatch[1].split('.').pop() || 'jpg';
+          const destPath = `fotos/${studentId}/perfil.${ext}`;
+
+          // Baixa o arquivo temp e re-faz upload na pasta definitiva
+          const { data: tempUrlData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(tempPath, 60);
+          if (tempUrlData?.signedUrl) {
+            const fileRes = await fetch(tempUrlData.signedUrl);
+            if (fileRes.ok) {
+              const buf = await fileRes.arrayBuffer();
+              const contentType = fileRes.headers.get('content-type') || 'image/jpeg';
+              const { error: mvErr } = await supabaseAdmin.storage
+                .from(BUCKET).upload(destPath, buf, { contentType, upsert: true });
+              if (!mvErr) {
+                // Deleta o temp
+                await supabaseAdmin.storage.from(BUCKET).remove([tempPath]);
+                // Gera URL definitiva de 10 anos
+                const { data: signData } = await supabaseAdmin.storage
+                  .from(BUCKET).createSignedUrl(destPath, 60 * 60 * 24 * 365 * 10);
+                if (signData?.signedUrl) finalFotoUrl = signData.signedUrl;
+              }
+            }
+          }
+        }
+
+        await supabaseAdmin.from('students').update({ foto_url: finalFotoUrl }).eq('id', studentId);
       } catch { /* não bloqueia */ }
     }
 
