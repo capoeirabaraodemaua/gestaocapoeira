@@ -325,6 +325,13 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Garante foto_url no banco — pode ter sido removida do insert se coluna não existia ainda
+    if (studentId && payload.foto_url) {
+      try {
+        await supabaseAdmin.from('students').update({ foto_url: payload.foto_url }).eq('id', studentId);
+      } catch { /* não bloqueia */ }
+    }
+
     // Salva apelido, nome_social, sexo no Storage (sempre, independente de colunas DB)
     if (studentId) {
       // Usa safePayload pois pode ter sido removido do insert por coluna inexistente
