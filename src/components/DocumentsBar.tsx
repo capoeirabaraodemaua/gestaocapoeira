@@ -24,7 +24,7 @@ const NUCLEO_LABELS: Record<NucleoTab,string> = { geral:'🌐 Geral', maua:'🔴
 const NUCLEO_COLORS: Record<NucleoTab,string> = { geral:'#1d4ed8', maua:'#dc2626', saracuruna:'#16a34a' };
 
 export interface SimpleStudent {
-  id: string; nome_completo: string; telefone: string; nucleo: string | null; email?: string;
+  id: string; nome_completo: string; telefone: string | null; nucleo: string | null; email?: string | null;
 }
 interface Props {
   students?: SimpleStudent[];
@@ -509,7 +509,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
                           <div style={{fontWeight:700,fontSize:'0.85rem',overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{s.nome_completo}</div>
                           <div style={{fontSize:'0.7rem',color:'var(--text-secondary)'}}>{s.telefone}{s.nucleo?` · ${s.nucleo}`:''}</div>
                         </div>
-                        <a href={waLink(s.telefone,sendModal.text)} target="_blank" rel="noopener noreferrer"
+                        <a href={waLink(s.telefone ?? '',sendModal.text)} target="_blank" rel="noopener noreferrer"
                           onClick={()=>setSentSet(p=>new Set([...p,s.id]))}
                           style={{display:'flex',alignItems:'center',gap:5,padding:'7px 12px',borderRadius:8,textDecoration:'none',fontWeight:700,fontSize:'0.78rem',flexShrink:0,transition:'all .15s',
                             background:sent?'rgba(22,163,74,0.15)':'linear-gradient(135deg,#25d366,#128c7e)',

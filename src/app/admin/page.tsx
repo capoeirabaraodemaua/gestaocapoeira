@@ -595,6 +595,63 @@ function DocUploadCard({ docKey, label, color, icon }: { docKey: string; label: 
   );
 }
 
+function DbStatusPanel({ ds, dbCopied, setDbCopied }: { ds: Record<string,unknown>; dbCopied: boolean; setDbCopied: (v: boolean) => void }) {
+  const cols = ds.columns != null && typeof ds.columns === 'object' ? ds.columns as Record<string,boolean> : null;
+  const fr = ds.fill_result != null && typeof ds.fill_result === 'object' ? ds.fill_result as Record<string,unknown> : null;
+  return (
+    <div style={{ fontSize: '0.8rem' }}>
+      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#60a5fa' }}>{String(ds.student_count ?? 0)}</div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>alunos no Supabase</div>
+        </div>
+        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
+          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: ds.needs_manual_sql ? '#f87171' : '#4ade80' }}>
+            {ds.needs_manual_sql ? '⚠ SQL Pendente' : '✅ Configurado'}
+          </div>
+          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>status das colunas</div>
+        </div>
+      </div>
+      {cols && (
+        <div style={{ marginBottom: 14 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.78rem', marginBottom: 6, color: 'var(--text-secondary)' }}>COLUNAS NA TABELA students:</div>
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+            {Object.entries(cols).map(([col, exists]) => (
+              <span key={col} style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: exists ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', color: exists ? '#4ade80' : '#f87171', border: `1px solid ${exists ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
+                {exists ? '✓' : '✗'} {col}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+      {fr && (
+        <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.78rem' }}>
+          ✅ tenant_id preenchido — <strong>{String(fr.updated ?? 0)}</strong> atualizados,{' '}
+          <strong>{String(fr.already_set ?? 0)}</strong> já tinham,{' '}
+          <strong>{String(fr.update_errors ?? 0)}</strong> erros
+        </div>
+      )}
+      {!!(ds.needs_manual_sql) && !!(ds.sql_to_run) && (
+        <div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#f87171' }}>⚠ Execute este SQL no Supabase Dashboard → SQL Editor:</div>
+            <button onClick={() => { navigator.clipboard.writeText(String(ds.sql_to_run)); setDbCopied(true); setTimeout(() => setDbCopied(false), 2000); }}
+              style={{ background: dbCopied ? 'rgba(22,163,74,0.2)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: dbCopied ? '#4ade80' : 'var(--text-secondary)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
+              {dbCopied ? '✓ Copiado!' : '📋 Copiar SQL'}
+            </button>
+          </div>
+          <pre style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 16px', fontSize: '0.72rem', color: '#94a3b8', overflowX: 'auto', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto' }}>
+            {String(ds.sql_to_run)}
+          </pre>
+          <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24' }}>
+            💡 Depois de executar o SQL, clique em <strong>"🏷️ Preencher tenant_id"</strong> na aba <strong>Alunos</strong> para preencher os dados de todos os 120 alunos.
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminPage() {
   const { t, lang } = useLanguage();
   const contentAreaRef = useRef<HTMLDivElement>(null);
@@ -999,7 +1056,7 @@ export default function AdminPage() {
   const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
-  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman'>('todos');
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude'>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   // ── Financeiro admin state ────────────────────────────────────────────────
@@ -1123,6 +1180,10 @@ export default function AdminPage() {
   const [emailTestTo, setEmailTestTo] = useState('');
   const [emailTestLoading, setEmailTestLoading] = useState(false);
   const [savingExtraAdmin, setSavingExtraAdmin] = useState(false);
+  // ── DB setup panel (informacoes tab) ─────────────────────────────────────
+  const [dbStatus, setDbStatus] = useState<Record<string, unknown> | null>(null);
+  const [dbLoading, setDbLoading] = useState(false);
+  const [dbCopied, setDbCopied] = useState(false);
 
   // ── Manual video links state ──────────────────────────────────────────────
   const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
@@ -8186,17 +8247,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {manuais.map((m: { name: string; url: string; size?: number; updated_at?: string }) => (
+              {manuais.map((m) => (
                 <div key={m.name} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10 }}>
                   <span style={{ fontSize: '1.4rem' }}>📄</span>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: '0.88rem', color: 'var(--text-primary)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{m.name.replace(/^manuais\//, '').replace(/\.pdf$/i, '')}</div>
                     {m.size && <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{(m.size / 1024).toFixed(0)} KB</div>}
                   </div>
-                  <a href={m.url} target="_blank" rel="noreferrer"
+                  {m.url && <a href={m.url} target="_blank" rel="noreferrer"
                     style={{ background: '#7c3aed', color: '#fff', borderRadius: 8, padding: '6px 14px', fontSize: '0.78rem', fontWeight: 700, textDecoration: 'none', flexShrink: 0 }}>
                     ⬇ Baixar
-                  </a>
+                  </a>}
                   {activeNucleo === 'geral' && (
                     <button onClick={async () => {
                       if (!confirm(`Excluir "${m.name}"?`)) return;
@@ -8255,10 +8316,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               Diagnóstico e setup da coluna <code style={{ background: 'rgba(255,255,255,0.08)', padding: '1px 6px', borderRadius: 4 }}>tenant_id</code> para todos os alunos.
             </div>
             {(() => {
-              const [dbStatus, setDbStatus] = (useState as Function)<Record<string, unknown> | null>(null);
-              const [dbLoading, setDbLoading] = (useState as Function)<boolean>(false);
-              const [copied, setCopied] = (useState as Function)<boolean>(false);
-
               const runDiag = async () => {
                 setDbLoading(true);
                 try {
@@ -8281,67 +8338,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </button>
                   </div>
 
-                  {dbStatus && (
-                    <div style={{ fontSize: '0.8rem' }}>
-                      {/* Status geral */}
-                      <div style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 14 }}>
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: '#60a5fa' }}>{String(dbStatus.student_count ?? 0)}</div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>alunos no Supabase</div>
-                        </div>
-                        <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 16px', minWidth: 140 }}>
-                          <div style={{ fontSize: '1.4rem', fontWeight: 800, color: dbStatus.needs_manual_sql ? '#f87171' : '#4ade80' }}>
-                            {dbStatus.needs_manual_sql ? '⚠ SQL Pendente' : '✅ Configurado'}
-                          </div>
-                          <div style={{ color: 'var(--text-secondary)', fontSize: '0.72rem', marginTop: 2 }}>status das colunas</div>
-                        </div>
-                      </div>
-
-                      {/* Colunas */}
-                      {dbStatus.columns && (
-                        <div style={{ marginBottom: 14 }}>
-                          <div style={{ fontWeight: 700, fontSize: '0.78rem', marginBottom: 6, color: 'var(--text-secondary)' }}>COLUNAS NA TABELA students:</div>
-                          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                            {Object.entries(dbStatus.columns as Record<string, boolean>).map(([col, exists]) => (
-                              <span key={col} style={{ padding: '3px 10px', borderRadius: 99, fontSize: '0.72rem', fontWeight: 700, background: exists ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.12)', color: exists ? '#4ade80' : '#f87171', border: `1px solid ${exists ? 'rgba(22,163,74,0.3)' : 'rgba(220,38,38,0.3)'}` }}>
-                                {exists ? '✓' : '✗'} {col}
-                              </span>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Fill result */}
-                      {dbStatus.fill_result && typeof dbStatus.fill_result === 'object' && (
-                        <div style={{ background: 'rgba(22,163,74,0.08)', border: '1px solid rgba(22,163,74,0.25)', borderRadius: 10, padding: '10px 14px', marginBottom: 14, fontSize: '0.78rem' }}>
-                          ✅ tenant_id preenchido — <strong>{String((dbStatus.fill_result as Record<string,unknown>).updated ?? 0)}</strong> atualizados,{' '}
-                          <strong>{String((dbStatus.fill_result as Record<string,unknown>).already_set ?? 0)}</strong> já tinham,{' '}
-                          <strong>{String((dbStatus.fill_result as Record<string,unknown>).update_errors ?? 0)}</strong> erros
-                        </div>
-                      )}
-
-                      {/* SQL to run */}
-                      {dbStatus.needs_manual_sql && dbStatus.sql_to_run && (
-                        <div>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                            <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#f87171' }}>
-                              ⚠ Execute este SQL no Supabase Dashboard → SQL Editor:
-                            </div>
-                            <button onClick={() => { navigator.clipboard.writeText(String(dbStatus.sql_to_run)); setCopied(true); setTimeout(() => setCopied(false), 2000); }}
-                              style={{ background: copied ? 'rgba(22,163,74,0.2)' : 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.15)', color: copied ? '#4ade80' : 'var(--text-secondary)', borderRadius: 6, padding: '4px 12px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
-                              {copied ? '✓ Copiado!' : '📋 Copiar SQL'}
-                            </button>
-                          </div>
-                          <pre style={{ background: '#0f172a', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 10, padding: '14px 16px', fontSize: '0.72rem', color: '#94a3b8', overflowX: 'auto', lineHeight: 1.6, whiteSpace: 'pre-wrap', wordBreak: 'break-word', maxHeight: 320, overflowY: 'auto' }}>
-                            {String(dbStatus.sql_to_run)}
-                          </pre>
-                          <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24' }}>
-                            💡 Depois de executar o SQL, clique em <strong>"🏷️ Preencher tenant_id"</strong> na aba <strong>Alunos</strong> para preencher os dados de todos os 120 alunos.
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  {dbStatus && <DbStatusPanel ds={dbStatus as Record<string,unknown>} dbCopied={dbCopied} setDbCopied={setDbCopied} />}
                 </>
               );
             })()}
@@ -8622,9 +8619,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               <span style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 99, background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>Excluído</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px', marginTop: 6, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-                              {s.cpf && <span>CPF: {String(s.cpf)}</span>}
-                              {s.nucleo && <span>Núcleo: {String(s.nucleo)}</span>}
-                              {s.graduacao && <span>Graduação: {String(s.graduacao)}</span>}
+                              {!!s.cpf && <span>CPF: {String(s.cpf)}</span>}
+                              {!!s.nucleo && <span>Núcleo: {String(s.nucleo)}</span>}
+                              {!!s.graduacao && <span>Graduação: {String(s.graduacao)}</span>}
                               {entry.extras?.sexo && <span>Sexo: {entry.extras.sexo}</span>}
                               {entry.extras?.nome_social && <span>Nome social: {entry.extras.nome_social}</span>}
                             </div>

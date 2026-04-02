@@ -58,7 +58,7 @@ function TermoContent() {
         .eq('id', id)
         .single();
       if (error || !data) throw new Error(error?.message || 'not found');
-      const s = { assinatura_pai: false, assinatura_mae: false, ...data } as Student;
+      const s = { ...data, assinatura_pai: data.assinatura_pai ?? false, assinatura_mae: data.assinatura_mae ?? false } as Student;
       setStudent(s);
       setForm({ nome_responsavel: s.nome_responsavel || '', cpf_responsavel: s.cpf_responsavel || '' });
     } catch {

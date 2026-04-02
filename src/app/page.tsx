@@ -435,6 +435,8 @@ export default function Home() {
         assinatura_responsavel: draft.assinatura_responsavel ?? false,
         assinatura_pai: draft.assinatura_pai ?? false,
         assinatura_mae: draft.assinatura_mae ?? false,
+        condicoes_atipicas: draft.condicoes_atipicas || [],
+        condicoes_atipicas_outro: draft.condicoes_atipicas_outro || '',
       });
       if (draft.nucleo) setNucleo(draft.nucleo);
       if (draft.graduacao) setGraduacao(draft.graduacao);

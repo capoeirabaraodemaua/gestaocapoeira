@@ -90,7 +90,7 @@ function statusBadge(status: string, large?: boolean) {
 /** Derives the display status for a parcela, considering overdue and awaiting-confirmation states */
 function resolveParcelaStatus(p: Parcela): string {
   if (p.status === 'pago') return 'pago';
-  if ((p as any).comprovante_enviado && p.status !== 'pago') return 'aguardando_confirmacao';
+  if ((p as any).comprovante_enviado) return 'aguardando_confirmacao';
   if (isAtrasado(p.vencimento, p.status)) return 'atrasado';
   return p.status;
 }

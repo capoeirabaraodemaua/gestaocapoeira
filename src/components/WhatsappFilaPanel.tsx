@@ -17,7 +17,7 @@ Atenciosamente,
 Suporte Ginga Gestão.`;
 
 interface Props {
-  students: { id: string; nome_completo: string; telefone?: string; nucleo?: string }[];
+  students: { id: string; nome_completo: string; telefone?: string | null; nucleo?: string | null }[];
   alunoContasIds: Set<string>;
 }
 

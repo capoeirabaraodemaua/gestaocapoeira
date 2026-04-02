@@ -43,12 +43,13 @@ export async function POST(req: NextRequest) {
   const insertPayload = { id, ...studentData };
 
   // Remove extras columns from insert payload (may not exist in DB)
-  delete insertPayload.apelido;
-  delete insertPayload.nome_social;
-  delete insertPayload.sexo;
-  delete insertPayload.ordem_inscricao;
-  delete insertPayload.ultimo_checkin;
-  delete insertPayload.checkin_nucleo;
+  const p = insertPayload as Record<string, unknown>;
+  delete p.apelido;
+  delete p.nome_social;
+  delete p.sexo;
+  delete p.ordem_inscricao;
+  delete p.ultimo_checkin;
+  delete p.checkin_nucleo;
 
   const { error } = await supabaseAdmin.from('students').insert(insertPayload);
   if (error) {
