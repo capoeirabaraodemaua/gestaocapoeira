@@ -9442,16 +9442,30 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
                     {/* Actions */}
                     <div style={{ padding: '10px 14px', display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center', borderTop: '1px solid var(--border)' }}>
-                      {!ev.finalizado && (
-                        <button onClick={() => {
-                          setEventoEditId(ev.id);
-                          setEventoForm({ ...ev });
-                          setShowEventoForm(true);
-                          setEventoMsg('');
-                          setEventoParticipantSearch('');
-                          setEventoParticipantStaging(null);
-                        }} style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)', color: '#38bdf8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                          ✏ {t('admin_edit')}
+                      {/* Editar — sempre visível */}
+                      <button onClick={() => {
+                        setEventoEditId(ev.id);
+                        setEventoForm({ ...ev });
+                        setShowEventoForm(true);
+                        setEventoMsg('');
+                        setEventoParticipantSearch('');
+                        setEventoParticipantStaging(null);
+                      }} style={{ background: 'rgba(14,165,233,0.12)', border: '1px solid rgba(14,165,233,0.3)', color: '#38bdf8', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        ✏ {t('admin_edit')}
+                      </button>
+
+                      {/* Reabrir evento finalizado */}
+                      {ev.finalizado && (
+                        <button onClick={async () => {
+                          if (!confirm(`Reabrir o evento "${ev.nome}"?\n\nIsso marcará o evento como pendente novamente. As graduações já aplicadas NÃO serão revertidas automaticamente.`)) return;
+                          const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...ev, id: ev.id, finalizado: false }) });
+                          if (res.ok) {
+                            setEventoMsg('✓ Evento reaberto. Edite e aplique as graduações novamente quando necessário.');
+                            const d = await fetch('/api/eventos').then(r => r.json());
+                            setEventos(Array.isArray(d) ? d : []);
+                          }
+                        }} style={{ background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                          ↩ Reabrir Evento
                         </button>
                       )}
 
@@ -10063,6 +10077,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   if (!eventoForm.nome?.trim()) { setEventoMsg(t('admin_event_name_required')); return; }
                   if (!eventoForm.data) { setEventoMsg(t('admin_event_date_required')); return; }
                   setEventoSaving(true); setEventoMsg('');
+                  const isEditingFinalized = eventoEditId && eventos.find((e: any) => e.id === eventoEditId)?.finalizado;
                   const payload = eventoEditId ? { ...eventoForm, id: eventoEditId } : eventoForm;
                   const res = await fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
                   const json = await res.json();
@@ -10078,6 +10093,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     } catch {}
                     setEventoMsg('✓ Evento salvo com sucesso!');
                     setActiveTab('eventos');
+                    // If editing a finalized event, offer to re-apply graduations
+                    if (isEditingFinalized && (payload.participantes || []).length > 0) {
+                      setTimeout(() => {
+                        if (confirm(`Evento finalizado editado.\n\nDeseja reaplicar as graduações dos ${(payload.participantes || []).length} participante(s) agora?`)) {
+                          fetch('/api/eventos', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ _finalize: eventoEditId }) })
+                            .then(r => r.json())
+                            .then(r => {
+                              if (r.ok) setEventoMsg(`✓ Evento salvo e ${r.applied || 0} graduação(ões) reaplicada(s)!`);
+                              else setEventoMsg('Evento salvo. Erro ao reaplicar graduações: ' + (r.errors || []).join(', '));
+                              fetch('/api/eventos').then(r => r.json()).then(d => setEventos(Array.isArray(d) ? d : []));
+                            });
+                        }
+                      }, 300);
+                    }
                   } else {
                     setEventoMsg('Erro ao salvar evento. Tente novamente.');
                   }
