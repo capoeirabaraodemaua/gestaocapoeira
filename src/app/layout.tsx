@@ -1,13 +1,16 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import LanguageButton from "@/components/LanguageButton";
+
+export const viewport: Viewport = {
+  themeColor: "#e94560",
+};
 
 export const metadata: Metadata = {
   title: "Sistema de Gestão de Alunos ACCBM",
   description: "Sistema de Gestão de Alunos da Associação Cultural de Capoeira Barão de Mauá",
   manifest: "/manifest.json",
-  themeColor: "#e94560",
   icons: {
     icon: [
       { url: '/favicon.ico', sizes: 'any' },

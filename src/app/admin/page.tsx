@@ -914,10 +914,12 @@ export default function AdminPage() {
   const currentProfile = getProfiles().find(p => p.nucleo === activeNucleo);
 
   // Safe date formatter — guards against null/undefined/epoch-zero that would show 31/12/1969
-  const fmtDate = (val: string | null | undefined, opts?: Intl.DateTimeFormatOptions): string => {
-    if (!val) return '—';
-    const d = new Date(val);
-    if (isNaN(d.getTime()) || d.getFullYear() < 2000) return '—';
+  const fmtDate = (val: string | null | undefined | number, opts?: Intl.DateTimeFormatOptions): string => {
+    if (val === null || val === undefined || val === '' || val === 0) return '—';
+    const d = new Date(val as string);
+    if (isNaN(d.getTime())) return '—';
+    const year = d.getFullYear();
+    if (year < 2000 || year > 2100) return '—';
     return d.toLocaleDateString('pt-BR', opts);
   };
 
