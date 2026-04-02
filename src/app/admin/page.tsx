@@ -2579,6 +2579,15 @@ export default function AdminPage() {
         {/* ── Botões de manutenção ── */}
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 14 }}>
           <button onClick={async () => {
+            if (!confirm('Migrar fotos de todos os alunos para o novo formato estável?\nIsso corrige fotos que aparecem quebradas no sistema.')) return;
+            const res = await fetch('/api/admin/migrate-fotos', { method: 'POST', headers: { 'x-admin-auth': 'geral' } });
+            const d = await res.json();
+            alert(d.message || (d.error ? 'Erro: ' + d.error : JSON.stringify(d)));
+            fetchStudents(activeNucleo);
+          }} style={{ background: 'rgba(168,85,247,0.1)', border: '1px solid rgba(168,85,247,0.35)', color: '#c084fc', borderRadius: 8, padding: '7px 14px', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700 }}>
+            🖼️ Migrar Fotos (corrigir URLs quebradas)
+          </button>
+          <button onClick={async () => {
             if (!confirm('Preencher tenant_id de todos os alunos com base no núcleo?\nAlunos que já possuem tenant_id não serão alterados.')) return;
             const res = await fetch('/api/admin/backfill-tenants', {
               method: 'POST',

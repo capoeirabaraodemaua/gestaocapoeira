@@ -105,8 +105,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Erro ao fazer upload.' }, { status: 500 });
     }
 
-    const { data: signedData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(path, 60 * 60 * 24 * 365);
-    const foto_url = signedData?.signedUrl || '';
+    // Use a stable proxy URL — /api/foto always generates a fresh signed URL on demand
+    const foto_url = `/api/foto?id=${encodeURIComponent(student_id)}`;
 
     // Update students table
     await supabaseAdmin.from('students').update({ foto_url }).eq('id', student_id);

@@ -45,19 +45,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Erro ao fazer upload da foto.' }, { status: 500 });
     }
 
-    // 10-year signed URL (bucket is private, public URLs don't work)
-    const { data: signedData, error: signErr } = await supabaseAdmin.storage
-      .from(BUCKET)
-      .createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
-
-    if (signErr || !signedData?.signedUrl) {
-      return NextResponse.json({ error: 'Erro ao gerar URL da foto.' }, { status: 500 });
-    }
-
-    const foto_url = signedData.signedUrl;
+    // Use a stable proxy URL that always generates a fresh signed URL on demand.
+    // This avoids storing expiring tokens in the DB.
+    const foto_url = student_id
+      ? `/api/foto?id=${encodeURIComponent(student_id)}`
+      : null;
 
     // If student_id provided, update the DB record immediately
-    if (student_id) {
+    if (student_id && foto_url) {
       await supabaseAdmin.from('students').update({ foto_url }).eq('id', student_id);
     }
 
