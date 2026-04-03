@@ -206,6 +206,20 @@ export default function AlunoPage() {
   const [fichaFin, setFichaFin] = useState<Record<string, unknown> | null>(null);
   const [fichaFinLoading, setFichaFinLoading] = useState(false);
 
+  // ── Solicitações financeiras ────────────────────────────────────────────────
+  const [showSolBatizado, setShowSolBatizado] = useState(false);
+  const [solBatizadoModalidade, setSolBatizadoModalidade] = useState<'integral'|'parcelado'>('integral');
+  const [solBatizadoParcelas, setSolBatizadoParcelas] = useState(2);
+  const [solBatizadoSaving, setSolBatizadoSaving] = useState(false);
+  const [solBatizadoMsg, setSolBatizadoMsg] = useState('');
+
+  const [showSolUniforme, setShowSolUniforme] = useState(false);
+  const [solUnifItem, setSolUnifItem] = useState('');
+  const [solUnifTam, setSolUnifTam] = useState('M');
+  const [solUnifQtd, setSolUnifQtd] = useState(1);
+  const [solUnifSaving, setSolUnifSaving] = useState(false);
+  const [solUnifMsg, setSolUnifMsg] = useState('');
+
   // ── Admin preview mode flag ────────────────────────────────────────────────
   const [isAdminPreview, setIsAdminPreview] = useState(false);
 
@@ -1322,6 +1336,130 @@ export default function AlunoPage() {
             </div>
 
             {fichaFinLoading && <div style={{ textAlign: 'center', padding: '32px 0', color: '#9ca3af' }}>Carregando...</div>}
+
+            {/* ── Ações: Solicitar Batizado / Uniforme ── */}
+            {!fichaFinLoading && (
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                {/* Solicitar Batizado — só se ainda não tem modalidade */}
+                {(!fichaFin || (fichaFin as any)?.batizado?.modalidade === 'nao_definido' || !(fichaFin as any)?.batizado) && (
+                  <div style={{ background: '#fff', border: `1.5px solid ${showSolBatizado ? '#7c3aed' : '#e5e7eb'}`, borderRadius: 14, padding: '14px 16px', flex: 1, minWidth: 240 }}>
+                    <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#7c3aed', marginBottom: showSolBatizado ? 12 : 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span>🥋 Solicitar Batizado</span>
+                      <button onClick={() => { setShowSolBatizado(v=>!v); setSolBatizadoMsg(''); }}
+                        style={{ background: showSolBatizado ? 'rgba(124,58,237,0.12)' : 'rgba(124,58,237,0.08)', border: '1px solid rgba(124,58,237,0.3)', color: '#7c3aed', borderRadius: 8, padding: '3px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                        {showSolBatizado ? '✕ Fechar' : '+ Solicitar'}
+                      </button>
+                    </div>
+                    {!showSolBatizado && <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 4 }}>Participe do próximo batizado/troca de graduação.</div>}
+                    {showSolBatizado && (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: '#374151', fontWeight: 600, marginBottom: 4 }}>Forma de pagamento</label>
+                          <div style={{ display: 'flex', gap: 8 }}>
+                            {(['integral','parcelado'] as const).map(m => (
+                              <button key={m} onClick={() => setSolBatizadoModalidade(m)}
+                                style={{ flex: 1, padding: '6px 0', borderRadius: 8, border: `1.5px solid ${solBatizadoModalidade === m ? '#7c3aed' : '#e5e7eb'}`, background: solBatizadoModalidade === m ? 'rgba(124,58,237,0.08)' : '#f9fafb', color: solBatizadoModalidade === m ? '#7c3aed' : '#6b7280', fontWeight: solBatizadoModalidade === m ? 700 : 500, cursor: 'pointer', fontSize: '0.8rem' }}>
+                                {m === 'integral' ? '💳 À vista' : '📅 Parcelado'}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                        {solBatizadoModalidade === 'parcelado' && (
+                          <div>
+                            <label style={{ display: 'block', fontSize: '0.75rem', color: '#374151', fontWeight: 600, marginBottom: 4 }}>Número de parcelas</label>
+                            <input type="number" min={2} max={12} value={solBatizadoParcelas} onChange={e => setSolBatizadoParcelas(Math.max(2, Math.min(12, parseInt(e.target.value)||2)))}
+                              style={{ width: '100%', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 10px', fontSize: '0.85rem', outline: 'none' }} />
+                          </div>
+                        )}
+                        {solBatizadoMsg && <div style={{ fontSize: '0.78rem', color: solBatizadoMsg.startsWith('✅') ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{solBatizadoMsg}</div>}
+                        <button disabled={solBatizadoSaving} onClick={async () => {
+                          if (!session) return;
+                          setSolBatizadoSaving(true); setSolBatizadoMsg('');
+                          try {
+                            const getRes = await fetch(`/api/financeiro?student_id=${session.student_id}`);
+                            const { data: fd } = await getRes.json();
+                            const ficha = fd || {};
+                            const batizado = {
+                              ...(ficha.batizado || {}),
+                              modalidade: solBatizadoModalidade,
+                              status_geral: 'pendente',
+                              parcelas: solBatizadoModalidade === 'integral' ? (ficha.batizado?.parcelas?.length ? ficha.batizado.parcelas : [{ numero: 1, valor: ficha.batizado?.valor_total || 0, status: 'pendente', vencimento: '' }]) : Array.from({ length: solBatizadoParcelas }, (_, i) => ({ numero: i+1, valor: 0, status: 'pendente', vencimento: '' })),
+                            };
+                            const updated = { ...ficha, batizado, student_id: session.student_id };
+                            const saveRes = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+                            if (!saveRes.ok) throw new Error();
+                            setSolBatizadoMsg('✅ Solicitação enviada! O administrador irá configurar os valores.');
+                            setFichaFinLoading(true);
+                            fetch(`/api/financeiro?student_id=${session.student_id}`).then(r=>r.json()).then(d=>{setFichaFin(d);setFichaFinLoading(false);}).catch(()=>setFichaFinLoading(false));
+                            setShowSolBatizado(false);
+                          } catch { setSolBatizadoMsg('Erro ao enviar solicitação. Tente novamente.'); }
+                          setSolBatizadoSaving(false);
+                        }} style={{ padding: '8px 0', background: solBatizadoSaving ? '#e5e7eb' : 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: solBatizadoSaving ? 'not-allowed' : 'pointer', fontSize: '0.85rem' }}>
+                          {solBatizadoSaving ? '⏳ Enviando...' : '🥋 Enviar Solicitação'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Solicitar Uniforme */}
+                <div style={{ background: '#fff', border: `1.5px solid ${showSolUniforme ? '#d97706' : '#e5e7eb'}`, borderRadius: 14, padding: '14px 16px', flex: 1, minWidth: 240 }}>
+                  <div style={{ fontWeight: 800, fontSize: '0.9rem', color: '#d97706', marginBottom: showSolUniforme ? 12 : 0, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                    <span>👕 Solicitar Uniforme</span>
+                    <button onClick={() => { setShowSolUniforme(v=>!v); setSolUnifMsg(''); }}
+                      style={{ background: showSolUniforme ? 'rgba(217,119,6,0.12)' : 'rgba(217,119,6,0.08)', border: '1px solid rgba(217,119,6,0.3)', color: '#d97706', borderRadius: 8, padding: '3px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                      {showSolUniforme ? '✕ Fechar' : '+ Solicitar'}
+                    </button>
+                  </div>
+                  {!showSolUniforme && <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 4 }}>Solicite camisetas, bermudas e outros itens.</div>}
+                  {showSolUniforme && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.75rem', color: '#374151', fontWeight: 600, marginBottom: 4 }}>Item</label>
+                        <input value={solUnifItem} onChange={e => setSolUnifItem(e.target.value)} placeholder="Ex: Camiseta, Bermuda..."
+                          style={{ width: '100%', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 10px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <div style={{ flex: 1 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: '#374151', fontWeight: 600, marginBottom: 4 }}>Tamanho</label>
+                          <select value={solUnifTam} onChange={e => setSolUnifTam(e.target.value)}
+                            style={{ width: '100%', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 8px', fontSize: '0.85rem', outline: 'none' }}>
+                            {['PP','P','M','G','GG','XGG'].map(t => <option key={t} value={t}>{t}</option>)}
+                          </select>
+                        </div>
+                        <div style={{ width: 80 }}>
+                          <label style={{ display: 'block', fontSize: '0.75rem', color: '#374151', fontWeight: 600, marginBottom: 4 }}>Qtd.</label>
+                          <input type="number" min={1} max={10} value={solUnifQtd} onChange={e => setSolUnifQtd(Math.max(1, parseInt(e.target.value)||1))}
+                            style={{ width: '100%', background: '#f9fafb', border: '1px solid #e5e7eb', borderRadius: 8, padding: '6px 8px', fontSize: '0.85rem', outline: 'none' }} />
+                        </div>
+                      </div>
+                      {solUnifMsg && <div style={{ fontSize: '0.78rem', color: solUnifMsg.startsWith('✅') ? '#16a34a' : '#dc2626', fontWeight: 600 }}>{solUnifMsg}</div>}
+                      <button disabled={solUnifSaving || !solUnifItem.trim()} onClick={async () => {
+                        if (!session || !solUnifItem.trim()) return;
+                        setSolUnifSaving(true); setSolUnifMsg('');
+                        try {
+                          const getRes = await fetch(`/api/financeiro?student_id=${session.student_id}`);
+                          const { data: fd } = await getRes.json();
+                          const ficha = fd || {};
+                          const novoItem = { id: Date.now().toString(), descricao: `${solUnifItem.trim()} | ${solUnifTam} | ${solUnifQtd}`, tamanho: solUnifTam, quantidade: solUnifQtd, valor_unitario: 0, status: 'solicitado', data_pedido: new Date().toISOString().slice(0,10) };
+                          const updated = { ...ficha, uniformes: [...(ficha.uniformes || []), novoItem], student_id: session.student_id };
+                          const saveRes = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(updated) });
+                          if (!saveRes.ok) throw new Error();
+                          setSolUnifMsg('✅ Solicitação enviada!');
+                          setSolUnifItem(''); setSolUnifTam('M'); setSolUnifQtd(1);
+                          setFichaFinLoading(true);
+                          fetch(`/api/financeiro?student_id=${session.student_id}`).then(r=>r.json()).then(d=>{setFichaFin(d);setFichaFinLoading(false);}).catch(()=>setFichaFinLoading(false));
+                          setShowSolUniforme(false);
+                        } catch { setSolUnifMsg('Erro ao enviar solicitação. Tente novamente.'); }
+                        setSolUnifSaving(false);
+                      }} style={{ padding: '8px 0', background: (solUnifSaving || !solUnifItem.trim()) ? '#e5e7eb' : 'linear-gradient(135deg,#d97706,#b45309)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, cursor: (solUnifSaving || !solUnifItem.trim()) ? 'not-allowed' : 'pointer', fontSize: '0.85rem' }}>
+                        {solUnifSaving ? '⏳ Enviando...' : '👕 Enviar Solicitação'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
 
             {!fichaFinLoading && !fichaFin && (
               <div style={{ background: '#fff', borderRadius: 14, padding: '28px 20px', border: '1px solid #e5e7eb', textAlign: 'center' }}>

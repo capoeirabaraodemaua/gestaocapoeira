@@ -1102,6 +1102,7 @@ export default function AdminPage() {
   const [finVisaoEditKey, setFinVisaoEditKey] = useState<string | null>(null);
   const [finVisaoEditData, setFinVisaoEditData] = useState<Record<string, any>>({});
   const [finVisaoEditSaving, setFinVisaoEditSaving] = useState(false);
+  const [finSubTab, setFinSubTab] = useState<'visao'|'batizado'|'uniformes'|'mensalidades'|'contribuicao'>('visao');
 
   // ── Doações state ─────────────────────────────────────────────────────────
   const [doacoes, setDoacoes] = useState<any[]>([]);
@@ -4099,8 +4100,24 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {activeTab === 'financeiro' && (
         <div>
 
+          {/* ── Sub-tabs de Financeiro ── */}
+          <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 18 }}>
+            {([
+              { key: 'visao', label: '📊 Visão Geral' },
+              { key: 'batizado', label: '🥋 Batizado' },
+              { key: 'uniformes', label: '👕 Uniformes' },
+              { key: 'mensalidades', label: '📅 Mensalidades' },
+              { key: 'contribuicao', label: '🤝 Contribuição' },
+            ] as const).map(st => (
+              <button key={st.key} onClick={() => setFinSubTab(st.key)}
+                style={{ padding: '7px 16px', borderRadius: 10, border: `1.5px solid ${finSubTab === st.key ? '#34d399' : 'var(--border)'}`, background: finSubTab === st.key ? 'rgba(52,211,153,0.12)' : 'var(--bg-card)', color: finSubTab === st.key ? '#34d399' : 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: finSubTab === st.key ? 800 : 500, transition: 'all 0.15s' }}>
+                {st.label}
+              </button>
+            ))}
+          </div>
+
           {/* ── Visão Geral dos Lançamentos (admin geral only) ── */}
-          {activeNucleo === 'geral' && (
+          {finSubTab === 'visao' && activeNucleo === 'geral' && (
             <div style={{ marginBottom: 24 }}>
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10, marginBottom: 14 }}>
@@ -4414,6 +4431,229 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               })()}
             </div>
           )}
+
+          {/* ── Sub-tab: Batizado ── */}
+          {finSubTab === 'batizado' && (() => {
+            const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'batizado' && (!nucleoFilter || l.nucleo === nucleoFilter));
+            const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
+            const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>🥋 Batizado — {allLanc.length} lançamento{allLanc.length !== 1 ? 's' : ''}</div>
+                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                </div>
+                {allLanc.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhum lançamento de batizado encontrado.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
+                ) : (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 80px', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      <span>Aluno</span><span>Núcleo</span><span>Parcela</span><span>Valor</span><span>Status</span><span>Vencimento</span><span>Ações</span>
+                    </div>
+                    {allLanc.map((l: any, i: number) => {
+                      const rowKey = `${l.student_id}:batizado:${l.numero}`;
+                      const isEdit = finVisaoEditKey === rowKey;
+                      return (
+                        <div key={i}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 0.8fr 0.8fr 0.8fr 0.8fr 80px', gap: 0, padding: '9px 14px', borderBottom: isEdit ? 'none' : '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: isEdit ? 'rgba(124,58,237,0.07)' : i%2===0?'transparent':'rgba(255,255,255,0.015)' }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.nucleo}</div>
+                            <div style={{ fontSize: '0.78rem' }}>Parcela {l.numero}</div>
+                            <div style={{ fontWeight: 700, color: l.status === 'pago' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor||0).toFixed(2)}</div>
+                            <div><span style={{ background: `${statusColor[l.status]||'#64748b'}22`, border: `1px solid ${statusColor[l.status]||'#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status]||'#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status]||l.status}</span></div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.vencimento || l.data?.slice(0,10) || '—'}</div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button title="Editar" onClick={() => { if(isEdit){setFinVisaoEditKey(null);return;} setFinVisaoEditKey(rowKey); setFinVisaoEditData({ valor: l.valor, status: l.status, vencimento: l.vencimento||l.data?.slice(0,10)||'' }); }} style={{ padding: '4px 7px', borderRadius: 7, background: isEdit?'rgba(124,58,237,0.25)':'var(--bg-input)', border: `1px solid ${isEdit?'rgba(124,58,237,0.5)':'var(--border)'}`, color: isEdit?'#a78bfa':'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem' }}>✏️</button>
+                              <button title="Excluir" onClick={async()=>{ if(!confirm(`Excluir parcela ${l.numero} de ${l.nome_completo}?`))return; const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok){alert('Erro');return;} const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const remaining=ficha.batizado.parcelas.filter((p:any)=>p.numero!==l.numero).map((p:any,idx:number)=>({...p,numero:idx+1})); const updated={...ficha,batizado:{...ficha.batizado,parcelas:remaining,modalidade:remaining.length<=1?'integral':'parcelado'}}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(s.ok){setFinVisaoLoading(true);fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false));}else{alert('Erro ao excluir');} }} style={{ padding: '4px 7px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                            </div>
+                          </div>
+                          {isEdit && (
+                            <div style={{ padding: '10px 14px 12px', background: 'rgba(124,58,237,0.07)', borderBottom: '1px solid rgba(124,58,237,0.2)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Valor (R$)</label><input type="number" min={0} step={0.01} value={finVisaoEditData.valor??''} onChange={e=>setFinVisaoEditData(p=>({...p,valor:parseFloat(e.target.value)||0}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 90, outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Status</label><select value={finVisaoEditData.status??''} onChange={e=>setFinVisaoEditData(p=>({...p,status:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}>{['pago','pendente','atrasado'].map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}</select></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Vencimento</label><input type="date" value={finVisaoEditData.vencimento??''} onChange={e=>setFinVisaoEditData(p=>({...p,vencimento:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}/></div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button disabled={finVisaoEditSaving} onClick={async()=>{ setFinVisaoEditSaving(true); try{ const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok)throw new Error(); const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,batizado:{...ficha.batizado,parcelas:ficha.batizado.parcelas.map((p:any)=>p.numero===l.numero?{...p,valor:finVisaoEditData.valor,status:finVisaoEditData.status,vencimento:finVisaoEditData.vencimento}:p)}}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(!s.ok)throw new Error(); setFinVisaoEditKey(null); setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }catch{alert('Erro ao salvar');} setFinVisaoEditSaving(false); }} style={{ padding: '5px 14px', background: 'rgba(124,58,237,0.25)', border: '1px solid rgba(124,58,237,0.5)', color: '#a78bfa', borderRadius: 7, cursor: finVisaoEditSaving?'not-allowed':'pointer', fontSize: '0.75rem', fontWeight: 700 }}>{finVisaoEditSaving?'⏳':'💾 Salvar'}</button>
+                                <button onClick={()=>setFinVisaoEditKey(null)} style={{ padding: '5px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Sub-tab: Uniformes ── */}
+          {finSubTab === 'uniformes' && (() => {
+            const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'uniforme' && (!nucleoFilter || l.nucleo === nucleoFilter));
+            const statusColor: Record<string,string> = { solicitado: '#60a5fa', confirmado: '#a78bfa', entregue: '#4ade80', cancelado: '#64748b' };
+            const statusLabel: Record<string,string> = { solicitado: '📋 Solicitado', confirmado: '✓ Confirmado', entregue: '🎁 Entregue', cancelado: '✗ Cancelado' };
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>👕 Uniformes — {allLanc.length} pedido{allLanc.length !== 1 ? 's' : ''}</div>
+                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                </div>
+                {allLanc.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhum pedido de uniforme encontrado.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
+                ) : (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.5fr 0.6fr 0.5fr 0.8fr 0.9fr 80px', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      <span>Aluno</span><span>Núcleo</span><span>Item</span><span>Tam</span><span>Qtd</span><span>Valor</span><span>Status</span><span>Ações</span>
+                    </div>
+                    {allLanc.map((l: any, i: number) => {
+                      const rowKey = `${l.student_id}:uniforme:${l.id}`;
+                      const isEdit = finVisaoEditKey === rowKey;
+                      const desc = (l.descricao || '').replace(/^Uniforme\s*/i,'');
+                      const [item='', tam='', qtdRaw=''] = desc.split(/\|/).map((s: string) => s.trim());
+                      const qtd = parseInt(qtdRaw) || 1;
+                      return (
+                        <div key={i}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1.5fr 0.6fr 0.5fr 0.8fr 0.9fr 80px', gap: 0, padding: '9px 14px', borderBottom: isEdit ? 'none' : '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: isEdit ? 'rgba(217,119,6,0.07)' : i%2===0?'transparent':'rgba(255,255,255,0.015)' }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.nucleo}</div>
+                            <div style={{ fontSize: '0.75rem', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item || desc}</div>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{tam||'—'}</div>
+                            <div style={{ fontSize: '0.78rem' }}>{qtd}</div>
+                            <div style={{ fontWeight: 700 }}>R$ {(l.valor||0).toFixed(2)}</div>
+                            <div><span style={{ background: `${statusColor[l.status]||'#64748b'}22`, border: `1px solid ${statusColor[l.status]||'#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status]||'#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status]||l.status}</span></div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button title="Editar" onClick={() => { if(isEdit){setFinVisaoEditKey(null);return;} setFinVisaoEditKey(rowKey); setFinVisaoEditData({ valor: l.valor, status: l.status, descricao: l.descricao||'' }); }} style={{ padding: '4px 7px', borderRadius: 7, background: isEdit?'rgba(217,119,6,0.25)':'var(--bg-input)', border: `1px solid ${isEdit?'rgba(217,119,6,0.5)':'var(--border)'}`, color: isEdit?'#fbbf24':'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem' }}>✏️</button>
+                              <button title="Excluir" onClick={async()=>{ if(!confirm(`Excluir uniforme de ${l.nome_completo}?`))return; const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok){alert('Erro');return;} const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,uniformes:ficha.uniformes.filter((u:any)=>u.id!==l.id)}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(s.ok){setFinVisaoLoading(true);fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false));}else{alert('Erro ao excluir');} }} style={{ padding: '4px 7px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                            </div>
+                          </div>
+                          {isEdit && (
+                            <div style={{ padding: '10px 14px 12px', background: 'rgba(217,119,6,0.07)', borderBottom: '1px solid rgba(217,119,6,0.25)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Descrição</label><input value={finVisaoEditData.descricao??''} onChange={e=>setFinVisaoEditData(p=>({...p,descricao:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 200, outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Valor (R$)</label><input type="number" min={0} step={0.01} value={finVisaoEditData.valor??''} onChange={e=>setFinVisaoEditData(p=>({...p,valor:parseFloat(e.target.value)||0}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 90, outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Status</label><select value={finVisaoEditData.status??''} onChange={e=>setFinVisaoEditData(p=>({...p,status:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}>{['solicitado','confirmado','entregue','cancelado'].map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}</select></div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button disabled={finVisaoEditSaving} onClick={async()=>{ setFinVisaoEditSaving(true); try{ const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok)throw new Error(); const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,uniformes:ficha.uniformes.map((u:any)=>u.id===l.id?{...u,descricao:finVisaoEditData.descricao,valor_unitario:finVisaoEditData.valor,status:finVisaoEditData.status}:u)}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(!s.ok)throw new Error(); setFinVisaoEditKey(null); setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }catch{alert('Erro ao salvar');} setFinVisaoEditSaving(false); }} style={{ padding: '5px 14px', background: 'rgba(217,119,6,0.25)', border: '1px solid rgba(217,119,6,0.5)', color: '#fbbf24', borderRadius: 7, cursor: finVisaoEditSaving?'not-allowed':'pointer', fontSize: '0.75rem', fontWeight: 700 }}>{finVisaoEditSaving?'⏳':'💾 Salvar'}</button>
+                                <button onClick={()=>setFinVisaoEditKey(null)} style={{ padding: '5px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Sub-tab: Mensalidades ── */}
+          {finSubTab === 'mensalidades' && (() => {
+            const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'mensalidade' && (!nucleoFilter || l.nucleo === nucleoFilter));
+            const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
+            const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#67e8f9' }}>📅 Mensalidades — {allLanc.length} registro{allLanc.length !== 1 ? 's' : ''}</div>
+                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(103,232,249,0.1)', border: '1px solid rgba(103,232,249,0.3)', color: '#67e8f9', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                </div>
+                {allLanc.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhuma mensalidade encontrada.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
+                ) : (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr 80px', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      <span>Aluno</span><span>Núcleo</span><span>Mês</span><span>Valor</span><span>Status</span><span>Data Pgto</span><span>Ações</span>
+                    </div>
+                    {allLanc.map((l: any, i: number) => {
+                      const rowKey = `${l.student_id}:mensalidade:${l.mes}`;
+                      const isEdit = finVisaoEditKey === rowKey;
+                      return (
+                        <div key={i}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 0.8fr 0.8fr 80px', gap: 0, padding: '9px 14px', borderBottom: isEdit ? 'none' : '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: isEdit ? 'rgba(8,145,178,0.07)' : i%2===0?'transparent':'rgba(255,255,255,0.015)' }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.nucleo}</div>
+                            <div style={{ fontSize: '0.78rem' }}>{l.mes||l.data?.slice(0,7)||'—'}</div>
+                            <div style={{ fontWeight: 700, color: l.status === 'pago' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor||0).toFixed(2)}</div>
+                            <div><span style={{ background: `${statusColor[l.status]||'#64748b'}22`, border: `1px solid ${statusColor[l.status]||'#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status]||'#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status]||l.status}</span></div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.data_pagamento||l.data?.slice(0,10)||'—'}</div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button title="Editar" onClick={() => { if(isEdit){setFinVisaoEditKey(null);return;} setFinVisaoEditKey(rowKey); setFinVisaoEditData({ valor: l.valor, status: l.status, mes: l.mes||l.data?.slice(0,7)||'' }); }} style={{ padding: '4px 7px', borderRadius: 7, background: isEdit?'rgba(8,145,178,0.25)':'var(--bg-input)', border: `1px solid ${isEdit?'rgba(8,145,178,0.5)':'var(--border)'}`, color: isEdit?'#67e8f9':'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem' }}>✏️</button>
+                              <button title="Excluir" onClick={async()=>{ if(!confirm(`Excluir mensalidade ${l.mes||l.data?.slice(0,7)} de ${l.nome_completo}?`))return; const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok){alert('Erro');return;} const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,mensalidades:ficha.mensalidades.filter((m:any)=>m.mes!==l.mes)}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(s.ok){setFinVisaoLoading(true);fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false));}else{alert('Erro ao excluir');} }} style={{ padding: '4px 7px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                            </div>
+                          </div>
+                          {isEdit && (
+                            <div style={{ padding: '10px 14px 12px', background: 'rgba(8,145,178,0.07)', borderBottom: '1px solid rgba(8,145,178,0.25)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Mês ref.</label><input type="month" value={finVisaoEditData.mes??''} onChange={e=>setFinVisaoEditData(p=>({...p,mes:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Valor (R$)</label><input type="number" min={0} step={0.01} value={finVisaoEditData.valor??''} onChange={e=>setFinVisaoEditData(p=>({...p,valor:parseFloat(e.target.value)||0}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 90, outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Status</label><select value={finVisaoEditData.status??''} onChange={e=>setFinVisaoEditData(p=>({...p,status:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}>{['pago','pendente','atrasado'].map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}</select></div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button disabled={finVisaoEditSaving} onClick={async()=>{ setFinVisaoEditSaving(true); try{ const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok)throw new Error(); const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,mensalidades:ficha.mensalidades.map((m:any)=>m.mes===l.mes?{...m,mes:finVisaoEditData.mes,valor:finVisaoEditData.valor,status:finVisaoEditData.status}:m)}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(!s.ok)throw new Error(); setFinVisaoEditKey(null); setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }catch{alert('Erro ao salvar');} setFinVisaoEditSaving(false); }} style={{ padding: '5px 14px', background: 'rgba(8,145,178,0.25)', border: '1px solid rgba(8,145,178,0.5)', color: '#67e8f9', borderRadius: 7, cursor: finVisaoEditSaving?'not-allowed':'pointer', fontSize: '0.75rem', fontWeight: 700 }}>{finVisaoEditSaving?'⏳':'💾 Salvar'}</button>
+                                <button onClick={()=>setFinVisaoEditKey(null)} style={{ padding: '5px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
+          {/* ── Sub-tab: Contribuição ── */}
+          {finSubTab === 'contribuicao' && (() => {
+            const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'contribuicao' && (!nucleoFilter || l.nucleo === nucleoFilter));
+            const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
+            const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            return (
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                  <div style={{ fontWeight: 800, fontSize: '1rem', color: '#4ade80' }}>🤝 Contribuição — {allLanc.length} registro{allLanc.length !== 1 ? 's' : ''}</div>
+                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                </div>
+                {allLanc.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhuma contribuição encontrada.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
+                ) : (
+                  <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 12, overflow: 'hidden' }}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 0.8fr 80px', gap: 0, background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)', padding: '9px 14px', fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', textTransform: 'uppercase' as const, letterSpacing: '0.05em' }}>
+                      <span>Aluno</span><span>Núcleo</span><span>Mês</span><span>Valor</span><span>Status</span><span>Ações</span>
+                    </div>
+                    {allLanc.map((l: any, i: number) => {
+                      const rowKey = `${l.student_id}:contribuicao:${l.mes}`;
+                      const isEdit = finVisaoEditKey === rowKey;
+                      return (
+                        <div key={i}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1.2fr 1fr 0.8fr 0.8fr 80px', gap: 0, padding: '9px 14px', borderBottom: isEdit ? 'none' : '1px solid rgba(255,255,255,0.04)', fontSize: '0.78rem', alignItems: 'center', background: isEdit ? 'rgba(22,163,74,0.07)' : i%2===0?'transparent':'rgba(255,255,255,0.015)' }}>
+                            <div style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.nome_completo}</div>
+                            <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{l.nucleo}</div>
+                            <div style={{ fontSize: '0.78rem' }}>{l.mes||l.data?.slice(0,7)||'—'}</div>
+                            <div style={{ fontWeight: 700, color: l.status === 'pago' ? '#4ade80' : l.status === 'atrasado' ? '#f87171' : 'var(--text-primary)' }}>R$ {(l.valor||0).toFixed(2)}</div>
+                            <div><span style={{ background: `${statusColor[l.status]||'#64748b'}22`, border: `1px solid ${statusColor[l.status]||'#64748b'}55`, borderRadius: 6, padding: '2px 7px', color: statusColor[l.status]||'#94a3b8', fontSize: '0.68rem', fontWeight: 700 }}>{statusLabel[l.status]||l.status}</span></div>
+                            <div style={{ display: 'flex', gap: 4 }}>
+                              <button title="Editar" onClick={() => { if(isEdit){setFinVisaoEditKey(null);return;} setFinVisaoEditKey(rowKey); setFinVisaoEditData({ valor: l.valor, status: l.status, mes: l.mes||l.data?.slice(0,7)||'' }); }} style={{ padding: '4px 7px', borderRadius: 7, background: isEdit?'rgba(22,163,74,0.25)':'var(--bg-input)', border: `1px solid ${isEdit?'rgba(22,163,74,0.5)':'var(--border)'}`, color: isEdit?'#4ade80':'var(--text-secondary)', cursor: 'pointer', fontSize: '0.72rem' }}>✏️</button>
+                              <button title="Excluir" onClick={async()=>{ if(!confirm(`Excluir contribuição ${l.mes||l.data?.slice(0,7)} de ${l.nome_completo}?`))return; const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok){alert('Erro');return;} const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,contribuicao:{...ficha.contribuicao,historico:ficha.contribuicao.historico.filter((c:any)=>c.mes!==l.mes)}}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(s.ok){setFinVisaoLoading(true);fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false));}else{alert('Erro ao excluir');} }} style={{ padding: '4px 7px', borderRadius: 7, background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', cursor: 'pointer', fontSize: '0.72rem' }}>🗑</button>
+                            </div>
+                          </div>
+                          {isEdit && (
+                            <div style={{ padding: '10px 14px 12px', background: 'rgba(22,163,74,0.07)', borderBottom: '1px solid rgba(22,163,74,0.25)', display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Mês ref.</label><input type="month" value={finVisaoEditData.mes??''} onChange={e=>setFinVisaoEditData(p=>({...p,mes:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Valor (R$)</label><input type="number" min={0} step={0.01} value={finVisaoEditData.valor??''} onChange={e=>setFinVisaoEditData(p=>({...p,valor:parseFloat(e.target.value)||0}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', width: 90, outline: 'none' }}/></div>
+                              <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 2 }}>Status</label><select value={finVisaoEditData.status??''} onChange={e=>setFinVisaoEditData(p=>({...p,status:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.8rem', outline: 'none' }}>{['pago','pendente','atrasado'].map(s=><option key={s} value={s}>{statusLabel[s]||s}</option>)}</select></div>
+                              <div style={{ display: 'flex', gap: 6 }}>
+                                <button disabled={finVisaoEditSaving} onClick={async()=>{ setFinVisaoEditSaving(true); try{ const res=await fetch(`/api/financeiro?student_id=${l.student_id}`); if(!res.ok)throw new Error(); const{data:fd}=await res.json(); const ficha=normalizeFicha(fd,{id:l.student_id,nome_completo:l.nome_completo}); const updated={...ficha,contribuicao:{...ficha.contribuicao,historico:ficha.contribuicao.historico.map((c:any)=>c.mes===l.mes?{...c,mes:finVisaoEditData.mes,valor:finVisaoEditData.valor,status:finVisaoEditData.status}:c)}}; const s=await fetch('/api/financeiro',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({...updated,_admin_save:true})}); if(!s.ok)throw new Error(); setFinVisaoEditKey(null); setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }catch{alert('Erro ao salvar');} setFinVisaoEditSaving(false); }} style={{ padding: '5px 14px', background: 'rgba(22,163,74,0.25)', border: '1px solid rgba(22,163,74,0.5)', color: '#4ade80', borderRadius: 7, cursor: finVisaoEditSaving?'not-allowed':'pointer', fontSize: '0.75rem', fontWeight: 700 }}>{finVisaoEditSaving?'⏳':'💾 Salvar'}</button>
+                                <button onClick={()=>setFinVisaoEditKey(null)} style={{ padding: '5px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 7, cursor: 'pointer', fontSize: '0.75rem' }}>Cancelar</button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Alert strip */}
           {finLoadingAlerts ? (
