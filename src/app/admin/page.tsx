@@ -1153,6 +1153,13 @@ export default function AdminPage() {
     };
   }
 
+  // ── PDF filter states ────────────────────────────────────────────────────
+  const [pdfFilterNucleo, setPdfFilterNucleo] = useState<Record<string,string>>({});
+  const [pdfFilterStatus, setPdfFilterStatus] = useState<Record<string,string>>({});
+  const [pdfFilterDataInicio, setPdfFilterDataInicio] = useState<Record<string,string>>({});
+  const [pdfFilterDataFim, setPdfFilterDataFim] = useState<Record<string,string>>({});
+  const [showPdfFilter, setShowPdfFilter] = useState<Record<string,boolean>>({});
+
   // ── Config financeiro ────────────────────────────────────────────────────
   const [finConfig, setFinConfig] = useState<{ mensalidade_valor: number; batizado_integral: number; batizado_max_parcelas: number; contribuicao_mensal: number }>({ mensalidade_valor: 80, batizado_integral: 150, batizado_max_parcelas: 12, contribuicao_mensal: 30 });
   const [finConfigSaving, setFinConfigSaving] = useState(false);
@@ -2020,6 +2027,162 @@ export default function AdminPage() {
         {showChangeCreds && <ChangeCrendsModal />}
       </div>
     );
+  }
+
+  // ── PDF Report Generator ──────────────────────────────────────────────────
+  function gerarRelatorioFinanceiroPDF(opts: {
+    tipo: string;
+    tipoLabel: string;
+    tipoIcon: string;
+    tipoColor: string;
+    lancamentos: any[];
+    nucleoFiltro: string;
+    statusFiltro: string;
+    dataInicio: string;
+    dataFim: string;
+    colunas: { key: string; label: string; render?: (l: any) => string }[];
+    statusColorMap: Record<string,string>;
+    statusLabelMap: Record<string,string>;
+  }) {
+    const { tipo, tipoLabel, tipoIcon, tipoColor, lancamentos, nucleoFiltro, statusFiltro, dataInicio, dataFim, colunas, statusColorMap, statusLabelMap } = opts;
+
+    // Apply filters
+    let rows = lancamentos.filter((l: any) => {
+      if (nucleoFiltro && nucleoFiltro !== 'todos' && l.nucleo !== nucleoFiltro) return false;
+      if (statusFiltro && statusFiltro !== 'todos' && l.status !== statusFiltro) return false;
+      if (dataInicio) {
+        const d = (l.data || l.mes || l.vencimento || '').slice(0, 10);
+        if (d && d < dataInicio) return false;
+      }
+      if (dataFim) {
+        const d = (l.data || l.mes || l.vencimento || '').slice(0, 10);
+        if (d && d > dataFim) return false;
+      }
+      return true;
+    });
+
+    // Totals
+    const totalPago = rows.filter((l: any) => ['pago','entregue','confirmado'].includes(l.status)).reduce((a: number, l: any) => a + (l.valor || 0), 0);
+    const totalPendente = rows.filter((l: any) => !['pago','entregue','confirmado','cancelado'].includes(l.status)).reduce((a: number, l: any) => a + (l.valor || 0), 0);
+    const totalAtrasado = rows.filter((l: any) => l.status === 'atrasado').reduce((a: number, l: any) => a + (l.valor || 0), 0);
+
+    // Build table rows HTML
+    const tableRows = rows.map((l: any, i: number) => {
+      const cells = colunas.map(col => {
+        let val = col.render ? col.render(l) : (l[col.key] ?? '—');
+        if (col.key === 'status') {
+          const sc = statusColorMap[l.status] || '#64748b';
+          const sl = statusLabelMap[l.status] || l.status;
+          return `<td><span class="badge" style="background:${sc}22;color:${sc};border:1px solid ${sc}55;">${sl}</span></td>`;
+        }
+        if (col.key === 'valor') val = `R$ ${Number(l.valor||0).toFixed(2)}`;
+        return `<td>${val}</td>`;
+      }).join('');
+      return `<tr class="${i%2===0?'even':'odd'}">${cells}</tr>`;
+    }).join('');
+
+    const filtersInfo = [
+      nucleoFiltro && nucleoFiltro !== 'todos' ? `Núcleo: ${nucleoFiltro}` : 'Todos os núcleos',
+      statusFiltro && statusFiltro !== 'todos' ? `Status: ${statusLabelMap[statusFiltro] || statusFiltro}` : 'Todos os status',
+      dataInicio ? `De: ${dataInicio}` : null,
+      dataFim ? `Até: ${dataFim}` : null,
+    ].filter(Boolean).join(' · ');
+
+    const now = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+
+    const html = `<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8"/>
+<title>Relatório ${tipoLabel} — ACCBM</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1e293b; background: #fff; padding: 32px; }
+  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; border-bottom: 3px solid ${tipoColor}; padding-bottom: 18px; }
+  .org { font-size: 13px; color: #64748b; font-weight: 600; }
+  .title { font-size: 22px; font-weight: 900; color: ${tipoColor}; margin: 6px 0 4px; }
+  .subtitle { font-size: 11px; color: #64748b; }
+  .meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.7; }
+  .filters { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: #475569; }
+  .filters strong { color: #0f172a; }
+  .summary { display: flex; gap: 12px; margin-bottom: 20px; }
+  .sum-card { flex: 1; border-radius: 8px; padding: 12px 14px; border: 1px solid #e2e8f0; }
+  .sum-card .label { font-size: 10px; color: #64748b; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 4px; }
+  .sum-card .value { font-size: 18px; font-weight: 900; }
+  table { width: 100%; border-collapse: collapse; margin-bottom: 24px; }
+  thead tr { background: ${tipoColor}; color: #fff; }
+  thead th { padding: 9px 10px; text-align: left; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+  tbody tr.even { background: #f8fafc; }
+  tbody tr.odd { background: #fff; }
+  tbody td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
+  .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+  .total-row { font-weight: 700; font-size: 11px; color: #0f172a; }
+  @media print {
+    body { padding: 16px; }
+    button { display: none !important; }
+    @page { size: A4 landscape; margin: 15mm; }
+  }
+</style>
+</head>
+<body>
+<div class="header">
+  <div>
+    <div class="org">Associação Cultural de Capoeira Barão de Mauá</div>
+    <div class="title">${tipoIcon} Relatório — ${tipoLabel}</div>
+    <div class="subtitle">${filtersInfo}</div>
+  </div>
+  <div class="meta">
+    <div><strong>Data de emissão:</strong> ${now}</div>
+    <div><strong>Total de registros:</strong> ${rows.length}</div>
+    ${nucleoFiltro && nucleoFiltro !== 'todos' ? `<div><strong>Núcleo:</strong> ${nucleoFiltro}</div>` : ''}
+  </div>
+</div>
+
+<div class="filters">
+  <strong>Filtros aplicados:</strong> ${filtersInfo}
+</div>
+
+<div class="summary">
+  <div class="sum-card" style="background:#f0fdf4;border-color:#bbf7d0">
+    <div class="label">💰 Total Arrecadado</div>
+    <div class="value" style="color:#16a34a">R$ ${totalPago.toFixed(2)}</div>
+  </div>
+  <div class="sum-card" style="background:#fffbeb;border-color:#fde68a">
+    <div class="label">⏳ Total Pendente</div>
+    <div class="value" style="color:#d97706">R$ ${totalPendente.toFixed(2)}</div>
+  </div>
+  ${tipo !== 'uniforme' ? `<div class="sum-card" style="background:#fef2f2;border-color:#fecaca">
+    <div class="label">⚠ Total Atrasado</div>
+    <div class="value" style="color:#dc2626">R$ ${totalAtrasado.toFixed(2)}</div>
+  </div>` : ''}
+  <div class="sum-card" style="background:#f8fafc;border-color:#e2e8f0">
+    <div class="label">📋 Total Geral</div>
+    <div class="value" style="color:#1e293b">R$ ${(totalPago + totalPendente).toFixed(2)}</div>
+  </div>
+</div>
+
+<table>
+  <thead>
+    <tr>${colunas.map(c => `<th>${c.label}</th>`).join('')}</tr>
+  </thead>
+  <tbody>
+    ${tableRows}
+    ${rows.length === 0 ? `<tr><td colspan="${colunas.length}" style="text-align:center;padding:24px;color:#94a3b8;">Nenhum registro encontrado com os filtros selecionados.</td></tr>` : ''}
+  </tbody>
+</table>
+
+<div class="footer">
+  <span>ACCBM — Associação Cultural de Capoeira Barão de Mauá</span>
+  <span>Emitido em ${now}</span>
+</div>
+
+<script>window.onload = function(){ window.print(); }</script>
+</body>
+</html>`;
+
+    const pw = window.open('', '_blank', 'width=1100,height=800');
+    if (pw) { pw.document.write(html); pw.document.close(); }
   }
 
   return (
@@ -4124,12 +4287,28 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <div style={{ fontWeight: 800, fontSize: '1rem', color: '#34d399', display: 'flex', alignItems: 'center', gap: 8 }}>
                   📊 Visão Geral dos Lançamentos Financeiros
                 </div>
-                <button
-                  onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false)); }}
-                  disabled={finVisaoLoading}
-                  style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', borderRadius: 8, padding: '6px 14px', cursor: finVisaoLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
-                  {finVisaoLoading ? '⏳ Carregando...' : '↻ Atualizar'}
-                </button>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r => r.json()).then(d => { setFinVisao(d); setFinVisaoLoading(false); }).catch(() => setFinVisaoLoading(false)); }}
+                    disabled={finVisaoLoading}
+                    style={{ background: 'rgba(16,185,129,0.1)', border: '1px solid rgba(16,185,129,0.3)', color: '#34d399', borderRadius: 8, padding: '6px 14px', cursor: finVisaoLoading ? 'not-allowed' : 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                    {finVisaoLoading ? '⏳ Carregando...' : '↻ Atualizar'}
+                  </button>
+                  {finVisao && (
+                    <button onClick={() => gerarRelatorioFinanceiroPDF({
+                      tipo: 'visao', tipoLabel: 'Visão Geral Financeira', tipoIcon: '📊', tipoColor: '#059669',
+                      lancamentos: finVisao.lancamentos || [],
+                      nucleoFiltro: pdfFilterNucleo['visao']||'todos', statusFiltro: pdfFilterStatus['visao']||'todos',
+                      dataInicio: pdfFilterDataInicio['visao']||'', dataFim: pdfFilterDataFim['visao']||'',
+                      statusColorMap: { pago:'#4ade80', pendente:'#fbbf24', atrasado:'#f87171', solicitado:'#60a5fa', confirmado:'#a78bfa', entregue:'#4ade80', cancelado:'#64748b' },
+                      statusLabelMap: { pago:'✓ Pago', pendente:'⏳ Pendente', atrasado:'⚠ Atrasado', solicitado:'📋 Solicitado', confirmado:'✓ Confirmado', entregue:'🎁 Entregue', cancelado:'✗ Cancelado' },
+                      colunas: [{key:'nome_completo',label:'Aluno'},{key:'tipo',label:'Tipo',render:(l:any)=>({mensalidade:'Mensalidade',batizado:'Batizado',contribuicao:'Contribuição',uniforme:'Uniforme'}[l.tipo as string]||l.tipo)},{key:'nucleo',label:'Núcleo'},{key:'descricao',label:'Descrição'},{key:'valor',label:'Valor'},{key:'status',label:'Status'},{key:'data',label:'Data',render:(l:any)=>l.data||'—'}]
+                    })}
+                    style={{ background: 'rgba(5,150,105,0.15)', border: '1px solid rgba(5,150,105,0.4)', color: '#34d399', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
+                      🖨 Gerar PDF Completo
+                    </button>
+                  )}
+                </div>
               </div>
 
               {finVisaoLoading && !finVisao && (
@@ -4437,12 +4616,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'batizado' && (!nucleoFilter || l.nucleo === nucleoFilter));
             const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
             const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            const tab = 'batizado';
+            const tabNucleos = [...new Set(allLanc.map((l:any) => l.nucleo))].sort();
             return (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>🥋 Batizado — {allLanc.length} lançamento{allLanc.length !== 1 ? 's' : ''}</div>
-                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                    <button onClick={() => setShowPdfFilter(p => ({...p, [tab]: !p[tab]}))} style={{ background: showPdfFilter[tab] ? 'rgba(167,139,250,0.2)' : 'rgba(167,139,250,0.08)', border: '1px solid rgba(167,139,250,0.35)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🔽 Filtrar PDF</button>
+                    <button onClick={() => gerarRelatorioFinanceiroPDF({ tipo: tab, tipoLabel: 'Batizado / Troca de Graduação', tipoIcon: '🥋', tipoColor: '#7c3aed', lancamentos: allLanc, nucleoFiltro: pdfFilterNucleo[tab]||'todos', statusFiltro: pdfFilterStatus[tab]||'todos', dataInicio: pdfFilterDataInicio[tab]||'', dataFim: pdfFilterDataFim[tab]||'', statusColorMap: statusColor, statusLabelMap: statusLabel, colunas: [{key:'nome_completo',label:'Aluno'},{key:'nucleo',label:'Núcleo'},{key:'parcela',label:'Parcela',render:(l:any)=>`Parcela ${l.numero||1}`},{key:'valor',label:'Valor'},{key:'status',label:'Status'},{key:'vencimento',label:'Vencimento',render:(l:any)=>l.vencimento||l.data?.slice(0,10)||'—'}] })} style={{ background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.4)', color: '#a78bfa', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🖨 Gerar PDF</button>
+                  </div>
                 </div>
+                {showPdfFilter[tab] && (
+                  <div style={{ background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    {activeNucleo === 'geral' && (<div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Núcleo</label><select value={pdfFilterNucleo[tab]||'todos'} onChange={e=>setPdfFilterNucleo(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{tabNucleos.map(n=><option key={n} value={n}>{n}</option>)}</select></div>)}
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label><select value={pdfFilterStatus[tab]||'todos'} onChange={e=>setPdfFilterStatus(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{Object.entries(statusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Data início</label><input type="date" value={pdfFilterDataInicio[tab]||''} onChange={e=>setPdfFilterDataInicio(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Data fim</label><input type="date" value={pdfFilterDataFim[tab]||''} onChange={e=>setPdfFilterDataFim(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <button onClick={()=>{setPdfFilterNucleo(p=>({...p,[tab]:'todos'}));setPdfFilterStatus(p=>({...p,[tab]:'todos'}));setPdfFilterDataInicio(p=>({...p,[tab]:''}));setPdfFilterDataFim(p=>({...p,[tab]:''}));}} style={{ padding: '5px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>✕ Limpar</button>
+                  </div>
+                )}
                 {allLanc.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhum lançamento de batizado encontrado.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
                 ) : (
@@ -4492,12 +4686,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'uniforme' && (!nucleoFilter || l.nucleo === nucleoFilter));
             const statusColor: Record<string,string> = { solicitado: '#60a5fa', confirmado: '#a78bfa', entregue: '#4ade80', cancelado: '#64748b' };
             const statusLabel: Record<string,string> = { solicitado: '📋 Solicitado', confirmado: '✓ Confirmado', entregue: '🎁 Entregue', cancelado: '✗ Cancelado' };
+            const tab = 'uniformes';
+            const tabNucleos = [...new Set(allLanc.map((l:any) => l.nucleo))].sort();
             return (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#fbbf24' }}>👕 Uniformes — {allLanc.length} pedido{allLanc.length !== 1 ? 's' : ''}</div>
-                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(251,191,36,0.1)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                    <button onClick={() => setShowPdfFilter(p => ({...p, [tab]: !p[tab]}))} style={{ background: showPdfFilter[tab] ? 'rgba(251,191,36,0.2)' : 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.35)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🔽 Filtrar PDF</button>
+                    <button onClick={() => gerarRelatorioFinanceiroPDF({ tipo: tab, tipoLabel: 'Uniformes', tipoIcon: '👕', tipoColor: '#d97706', lancamentos: allLanc, nucleoFiltro: pdfFilterNucleo[tab]||'todos', statusFiltro: pdfFilterStatus[tab]||'todos', dataInicio: pdfFilterDataInicio[tab]||'', dataFim: pdfFilterDataFim[tab]||'', statusColorMap: statusColor, statusLabelMap: statusLabel, colunas: [{key:'nome_completo',label:'Aluno'},{key:'nucleo',label:'Núcleo'},{key:'item',label:'Item',render:(l:any)=>{const d=(l.descricao||'').replace(/^Uniforme\s*/i,'');return d.split('|')[0]?.trim()||d;}},{key:'tamanho',label:'Tam.',render:(l:any)=>{const d=(l.descricao||'').split('|');return d[1]?.trim()||'—';}},{key:'qtd',label:'Qtd',render:(l:any)=>{const d=(l.descricao||'').split('|');return d[2]?.trim()||'1';}},{key:'valor',label:'Valor'},{key:'status',label:'Status'},{key:'data_pedido',label:'Data pedido',render:(l:any)=>l.data||'—'}] })} style={{ background: 'rgba(217,119,6,0.15)', border: '1px solid rgba(217,119,6,0.4)', color: '#fbbf24', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🖨 Gerar PDF</button>
+                  </div>
                 </div>
+                {showPdfFilter[tab] && (
+                  <div style={{ background: 'rgba(217,119,6,0.06)', border: '1px solid rgba(217,119,6,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    {activeNucleo === 'geral' && (<div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Núcleo</label><select value={pdfFilterNucleo[tab]||'todos'} onChange={e=>setPdfFilterNucleo(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{tabNucleos.map(n=><option key={n} value={n}>{n}</option>)}</select></div>)}
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label><select value={pdfFilterStatus[tab]||'todos'} onChange={e=>setPdfFilterStatus(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{Object.entries(statusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Data início</label><input type="date" value={pdfFilterDataInicio[tab]||''} onChange={e=>setPdfFilterDataInicio(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Data fim</label><input type="date" value={pdfFilterDataFim[tab]||''} onChange={e=>setPdfFilterDataFim(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <button onClick={()=>{setPdfFilterNucleo(p=>({...p,[tab]:'todos'}));setPdfFilterStatus(p=>({...p,[tab]:'todos'}));setPdfFilterDataInicio(p=>({...p,[tab]:''}));setPdfFilterDataFim(p=>({...p,[tab]:''}));}} style={{ padding: '5px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>✕ Limpar</button>
+                  </div>
+                )}
                 {allLanc.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhum pedido de uniforme encontrado.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
                 ) : (
@@ -4551,12 +4760,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'mensalidade' && (!nucleoFilter || l.nucleo === nucleoFilter));
             const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
             const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            const tab = 'mensalidades';
+            const tabNucleos = [...new Set(allLanc.map((l:any) => l.nucleo))].sort();
             return (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#67e8f9' }}>📅 Mensalidades — {allLanc.length} registro{allLanc.length !== 1 ? 's' : ''}</div>
-                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(103,232,249,0.1)', border: '1px solid rgba(103,232,249,0.3)', color: '#67e8f9', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(103,232,249,0.1)', border: '1px solid rgba(103,232,249,0.3)', color: '#67e8f9', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                    <button onClick={() => setShowPdfFilter(p => ({...p, [tab]: !p[tab]}))} style={{ background: showPdfFilter[tab] ? 'rgba(103,232,249,0.2)' : 'rgba(103,232,249,0.08)', border: '1px solid rgba(103,232,249,0.35)', color: '#67e8f9', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🔽 Filtrar PDF</button>
+                    <button onClick={() => gerarRelatorioFinanceiroPDF({ tipo: tab, tipoLabel: 'Mensalidades', tipoIcon: '📅', tipoColor: '#0891b2', lancamentos: allLanc, nucleoFiltro: pdfFilterNucleo[tab]||'todos', statusFiltro: pdfFilterStatus[tab]||'todos', dataInicio: pdfFilterDataInicio[tab]||'', dataFim: pdfFilterDataFim[tab]||'', statusColorMap: statusColor, statusLabelMap: statusLabel, colunas: [{key:'nome_completo',label:'Aluno'},{key:'nucleo',label:'Núcleo'},{key:'mes',label:'Mês ref.',render:(l:any)=>l.mes||l.data?.slice(0,7)||'—'},{key:'valor',label:'Valor'},{key:'status',label:'Status'},{key:'data_pagamento',label:'Data Pgto',render:(l:any)=>l.data_pagamento||l.data?.slice(0,10)||'—'}] })} style={{ background: 'rgba(8,145,178,0.15)', border: '1px solid rgba(8,145,178,0.4)', color: '#67e8f9', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🖨 Gerar PDF</button>
+                  </div>
                 </div>
+                {showPdfFilter[tab] && (
+                  <div style={{ background: 'rgba(8,145,178,0.06)', border: '1px solid rgba(8,145,178,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    {activeNucleo === 'geral' && (<div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Núcleo</label><select value={pdfFilterNucleo[tab]||'todos'} onChange={e=>setPdfFilterNucleo(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{tabNucleos.map(n=><option key={n} value={n}>{n}</option>)}</select></div>)}
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label><select value={pdfFilterStatus[tab]||'todos'} onChange={e=>setPdfFilterStatus(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{Object.entries(statusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês início</label><input type="month" value={pdfFilterDataInicio[tab]||''} onChange={e=>setPdfFilterDataInicio(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês fim</label><input type="month" value={pdfFilterDataFim[tab]||''} onChange={e=>setPdfFilterDataFim(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <button onClick={()=>{setPdfFilterNucleo(p=>({...p,[tab]:'todos'}));setPdfFilterStatus(p=>({...p,[tab]:'todos'}));setPdfFilterDataInicio(p=>({...p,[tab]:''}));setPdfFilterDataFim(p=>({...p,[tab]:''}));}} style={{ padding: '5px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>✕ Limpar</button>
+                  </div>
+                )}
                 {allLanc.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhuma mensalidade encontrada.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
                 ) : (
@@ -4606,12 +4830,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             const allLanc: any[] = (finVisao?.lancamentos || []).filter((l: any) => l.tipo === 'contribuicao' && (!nucleoFilter || l.nucleo === nucleoFilter));
             const statusColor: Record<string,string> = { pago: '#4ade80', pendente: '#fbbf24', atrasado: '#f87171' };
             const statusLabel: Record<string,string> = { pago: '✓ Pago', pendente: '⏳ Pendente', atrasado: '⚠ Atrasado' };
+            const tab = 'contribuicao';
+            const tabNucleos = [...new Set(allLanc.map((l:any) => l.nucleo))].sort();
             return (
               <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8, marginBottom: 12 }}>
                   <div style={{ fontWeight: 800, fontSize: '1rem', color: '#4ade80' }}>🤝 Contribuição — {allLanc.length} registro{allLanc.length !== 1 ? 's' : ''}</div>
-                  {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                  <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                    {!finVisao && <button onClick={() => { setFinVisaoLoading(true); fetch('/api/financeiro/visao-geral').then(r=>r.json()).then(d=>{setFinVisao(d);setFinVisaoLoading(false);}).catch(()=>setFinVisaoLoading(false)); }} disabled={finVisaoLoading} style={{ background: 'rgba(74,222,128,0.1)', border: '1px solid rgba(74,222,128,0.3)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>{finVisaoLoading ? '⏳' : '↻ Carregar'}</button>}
+                    <button onClick={() => setShowPdfFilter(p => ({...p, [tab]: !p[tab]}))} style={{ background: showPdfFilter[tab] ? 'rgba(74,222,128,0.2)' : 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.35)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🔽 Filtrar PDF</button>
+                    <button onClick={() => gerarRelatorioFinanceiroPDF({ tipo: tab, tipoLabel: 'Contribuição Mensal', tipoIcon: '🤝', tipoColor: '#16a34a', lancamentos: allLanc, nucleoFiltro: pdfFilterNucleo[tab]||'todos', statusFiltro: pdfFilterStatus[tab]||'todos', dataInicio: pdfFilterDataInicio[tab]||'', dataFim: pdfFilterDataFim[tab]||'', statusColorMap: statusColor, statusLabelMap: statusLabel, colunas: [{key:'nome_completo',label:'Aluno'},{key:'nucleo',label:'Núcleo'},{key:'mes',label:'Mês ref.',render:(l:any)=>l.mes||l.data?.slice(0,7)||'—'},{key:'valor',label:'Valor'},{key:'status',label:'Status'}] })} style={{ background: 'rgba(22,163,74,0.15)', border: '1px solid rgba(22,163,74,0.4)', color: '#4ade80', borderRadius: 8, padding: '6px 14px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>🖨 Gerar PDF</button>
+                  </div>
                 </div>
+                {showPdfFilter[tab] && (
+                  <div style={{ background: 'rgba(22,163,74,0.06)', border: '1px solid rgba(22,163,74,0.2)', borderRadius: 10, padding: '12px 14px', marginBottom: 14, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'flex-end' }}>
+                    {activeNucleo === 'geral' && (<div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Núcleo</label><select value={pdfFilterNucleo[tab]||'todos'} onChange={e=>setPdfFilterNucleo(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{tabNucleos.map(n=><option key={n} value={n}>{n}</option>)}</select></div>)}
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Status</label><select value={pdfFilterStatus[tab]||'todos'} onChange={e=>setPdfFilterStatus(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}><option value="todos">Todos</option>{Object.entries(statusLabel).map(([k,v])=><option key={k} value={k}>{v}</option>)}</select></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês início</label><input type="month" value={pdfFilterDataInicio[tab]||''} onChange={e=>setPdfFilterDataInicio(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <div><label style={{ display: 'block', fontSize: '0.65rem', color: 'var(--text-secondary)', marginBottom: 3 }}>Mês fim</label><input type="month" value={pdfFilterDataFim[tab]||''} onChange={e=>setPdfFilterDataFim(p=>({...p,[tab]:e.target.value}))} style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 7, padding: '5px 8px', color: 'var(--text-primary)', fontSize: '0.78rem' }}/></div>
+                    <button onClick={()=>{setPdfFilterNucleo(p=>({...p,[tab]:'todos'}));setPdfFilterStatus(p=>({...p,[tab]:'todos'}));setPdfFilterDataInicio(p=>({...p,[tab]:''}));setPdfFilterDataFim(p=>({...p,[tab]:''}));}} style={{ padding: '5px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 7, cursor: 'pointer', fontSize: '0.72rem', fontWeight: 700 }}>✕ Limpar</button>
+                  </div>
+                )}
                 {allLanc.length === 0 ? (
                   <div style={{ textAlign: 'center', padding: 32, color: 'var(--text-secondary)', fontSize: '0.85rem' }}>{finVisao ? 'Nenhuma contribuição encontrada.' : 'Clique em "↻ Carregar" para buscar os dados.'}</div>
                 ) : (
