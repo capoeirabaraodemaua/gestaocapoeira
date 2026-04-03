@@ -2089,6 +2089,7 @@ export default function AdminPage() {
     ].filter(Boolean).join(' · ');
 
     const now = new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Sao_Paulo', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    const origin = window.location.origin;
 
     const html = `<!DOCTYPE html>
 <html lang="pt-BR">
@@ -2098,11 +2099,14 @@ export default function AdminPage() {
 <style>
   * { box-sizing: border-box; margin: 0; padding: 0; }
   body { font-family: 'Segoe UI', Arial, sans-serif; font-size: 12px; color: #1e293b; background: #fff; padding: 32px; }
-  .header { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 28px; border-bottom: 3px solid ${tipoColor}; padding-bottom: 18px; }
-  .org { font-size: 13px; color: #64748b; font-weight: 600; }
-  .title { font-size: 22px; font-weight: 900; color: ${tipoColor}; margin: 6px 0 4px; }
-  .subtitle { font-size: 11px; color: #64748b; }
-  .meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.7; }
+  .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; border-bottom: 3px solid ${tipoColor}; padding-bottom: 18px; gap: 20px; }
+  .header-left { display: flex; align-items: center; gap: 18px; }
+  .header-logo { width: 72px; height: 72px; object-fit: contain; flex-shrink: 0; }
+  .header-text .org { font-size: 11px; color: #64748b; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+  .header-text .title { font-size: 20px; font-weight: 900; color: ${tipoColor}; margin-bottom: 3px; }
+  .header-text .subtitle { font-size: 11px; color: #64748b; }
+  .meta { text-align: right; font-size: 11px; color: #64748b; line-height: 1.8; flex-shrink: 0; }
+  .meta strong { color: #0f172a; }
   .filters { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 10px 14px; margin-bottom: 20px; font-size: 11px; color: #475569; }
   .filters strong { color: #0f172a; }
   .summary { display: flex; gap: 12px; margin-bottom: 20px; }
@@ -2116,7 +2120,8 @@ export default function AdminPage() {
   tbody tr.odd { background: #fff; }
   tbody td { padding: 8px 10px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
   .badge { display: inline-block; padding: 2px 8px; border-radius: 20px; font-size: 10px; font-weight: 700; white-space: nowrap; }
-  .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; }
+  .footer { border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 10px; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
+  .footer-logo { width: 28px; height: 28px; object-fit: contain; opacity: 0.5; }
   .total-row { font-weight: 700; font-size: 11px; color: #0f172a; }
   @media print {
     body { padding: 16px; }
@@ -2127,10 +2132,13 @@ export default function AdminPage() {
 </head>
 <body>
 <div class="header">
-  <div>
-    <div class="org">Associação Cultural de Capoeira Barão de Mauá</div>
-    <div class="title">${tipoIcon} Relatório — ${tipoLabel}</div>
-    <div class="subtitle">${filtersInfo}</div>
+  <div class="header-left">
+    <img class="header-logo" src="${origin}/logo-accbm-1600-transparent.png" alt="ACCBM" onerror="this.src='${origin}/logo-accbm.png'"/>
+    <div class="header-text">
+      <div class="org">Associação Cultural de Capoeira Barão de Mauá</div>
+      <div class="title">${tipoIcon} Relatório — ${tipoLabel}</div>
+      <div class="subtitle">${filtersInfo}</div>
+    </div>
   </div>
   <div class="meta">
     <div><strong>Data de emissão:</strong> ${now}</div>
@@ -2173,7 +2181,10 @@ export default function AdminPage() {
 </table>
 
 <div class="footer">
-  <span>ACCBM — Associação Cultural de Capoeira Barão de Mauá</span>
+  <div style="display:flex;align-items:center;gap:8px;">
+    <img class="footer-logo" src="${origin}/logo-accbm-1600-transparent.png" alt="" onerror="this.src='${origin}/logo-accbm.png'"/>
+    <span>ACCBM — Associação Cultural de Capoeira Barão de Mauá</span>
+  </div>
   <span>Emitido em ${now}</span>
 </div>
 
