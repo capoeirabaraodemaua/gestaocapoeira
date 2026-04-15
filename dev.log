@@ -1,0 +1,71 @@
+$ next dev --turbopack
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+ ⚠ Invalid next.config.ts options detected: 
+ ⚠     Unrecognized key(s) in object: 'fetchCache', 'serverBodySizeLimit' at "experimental"
+ ⚠ See more info here: https://nextjs.org/docs/messages/invalid-next-config
+   ▲ Next.js 15.5.9 (Turbopack)
+   - Local:        http://localhost:3000
+   - Network:      http://172.20.0.17:3000
+   - Environments: .env.local
+   - Experiments (use with caution):
+     · fetchCache: "force-no-store"
+     · serverBodySizeLimit: "50mb"
+
+ ✓ Starting...
+ ⚠ Found lockfile missing swc dependencies, run next locally to automatically patch
+ ✓ Ready in 865ms
+ ○ Compiling /api/eventos ...
+ ✓ Compiled /api/eventos in 1334ms
+ GET /api/eventos 200 in 1790ms
+ GET /api/eventos 200 in 403ms
+ GET /api/eventos?student_id=149 200 in 441ms
+ GET /api/eventos?student_id=149 200 in 567ms
+ GET /api/eventos?student_id=149 200 in 648ms
+ GET /api/eventos 200 in 399ms
+ POST /api/eventos 200 in 789ms
+ GET /api/eventos?student_id=149 200 in 632ms
+ POST /api/eventos 200 in 544ms
+ ○ Compiling / ...
+ ✓ Compiled / in 1779ms
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ GET /?_cb=1776203597838 200 in 2074ms
+ ✓ Compiled /api/admin/config in 144ms
+ GET /api/admin/config 200 in 618ms
+ GET /api/admin/background 200 in 782ms
+ GET /?_cb=1776203737126 200 in 122ms
+ GET /?_cb=1776203737837 200 in 164ms
+ GET /api/admin/config 200 in 323ms
+ GET /api/admin/background 200 in 790ms
+ GET /?_cb=1776204702094 200 in 104ms
+ GET /?_cb=1776204702794 200 in 127ms
+ GET /?_cb=1776204704217 200 in 109ms
+ GET /?_cb=1776204704959 200 in 117ms
+ ⚠ Cross origin request detected from 3000-46351eae-f6dc-4f47-9f4c-bde27e59be80.orchids.cloud to /_next/* resource. In a future major version of Next.js, you will need to explicitly configure "allowedDevOrigins" in next.config to allow this.
+Read more: https://nextjs.org/docs/app/api-reference/config/next-config-js/allowedDevOrigins
+ GET /api/admin/config 200 in 383ms
+ GET /api/admin/background 200 in 603ms
+ GET / 200 in 96ms
+ GET /?_cb=1776204832957 200 in 90ms
+ GET /api/admin/config 200 in 442ms
+ GET /api/admin/background 200 in 626ms
+ GET /?_cb=1776204702794 200 in 95ms
+ GET /?_cb=1776204936540 200 in 100ms
+ GET /?_cb=1776204937437 200 in 143ms
+ GET /?_cb=1776204938245 200 in 192ms
+ GET /api/admin/config 200 in 678ms
+ GET /api/admin/background 200 in 1047ms
+ ⚠ metadataBase property in metadata export is not set for resolving social open graph or twitter images, using "http://localhost:3000". See https://nextjs.org/docs/app/api-reference/functions/generate-metadata#metadatabase
+ GET /?_cb=1776204938245 200 in 114ms
+ GET /?_cb=1776204938245 200 in 49ms
+ GET / 200 in 181ms
+ GET /?_cb=1776204702794 200 in 92ms
+ GET /?_cb=1776205226517 200 in 95ms
+ GET /?_cb=1776205227746 200 in 126ms
+ GET /?_cb=1776205228425 200 in 112ms
+ GET /api/admin/background 200 in 636ms
+ GET /api/admin/config 200 in 705ms
+ GET /?_cb=1776205356473 200 in 82ms
+ GET /?_cb=1776205357228 200 in 78ms
+ GET /?_cb=1776205357750 200 in 77ms
+ GET /api/admin/config 200 in 541ms
+ GET /api/admin/background 200 in 781ms
