@@ -1,0 +1,22 @@
+User-agent: *
+Disallow: /admin
+Disallow: /admin/
+Disallow: /api/
+Disallow: /financeiro
+Disallow: /financeiro/
+Disallow: /presenca
+Disallow: /presenca/
+Disallow: /carteirinha
+Disallow: /carteirinha/
+Disallow: /organograma
+Disallow: /organograma/
+Disallow: /hierarquia
+Disallow: /hierarquia/
+Disallow: /termo
+Disallow: /termo/
+
+Allow: /
+Allow: /_next/static/
+Allow: /_next/image/
+
+Sitemap: https://accbm.com.br/sitemap.xml
