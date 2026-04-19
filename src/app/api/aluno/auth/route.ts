@@ -24,6 +24,8 @@ type AlunoAccount = {
   otp_expires?: string;
   phone?: string;
   created_at: string;
+  trial_end_at?: string;
+  plan_type?: string;
   last_login?: string;
 };
 
@@ -252,6 +254,19 @@ export async function POST(req: NextRequest) {
       const otp = generateOTP();
       const finalEmail = emailNorm || student.email || '';
 
+      const now = new Date();
+
+const isDemo = process.env.APP_MODE === "demo";
+
+let trialEnd: Date | null = null;
+let planType = "premium";
+
+if (isDemo) {
+  trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 3);
+  planType = "demo";
+}
+      
       const account: AlunoAccount = {
         student_id,
         username: username.trim().toLowerCase(),
@@ -261,6 +276,8 @@ export async function POST(req: NextRequest) {
         active: true, // activate immediately — no OTP required
         phone: phone_to_use,
         created_at: new Date().toISOString(),
+        trial_ends_at: trialEnd ? trialEnd.toISOString() : undefined,
+  plan_type: planType,
       };
 
       authMap[student_id] = account;
