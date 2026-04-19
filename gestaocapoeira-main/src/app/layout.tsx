@@ -2,6 +2,22 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LanguageProvider } from "@/lib/i18n/LanguageContext";
 import LanguageButton from "@/components/LanguageButton";
+import { isDemo } from "@/lib/config";
+
+export default function RootLayout({ children }) {
+  return (
+    <html>
+      <body>
+        {isDemo && (
+          <div style={{ background: "yellow", padding: "8px" }}>
+            Versão de teste (3 dias)
+          </div>
+        )}
+        {children}
+      </body>
+    </html>
+  );
+}
 
 export const viewport: Viewport = {
   themeColor: "#e94560",
