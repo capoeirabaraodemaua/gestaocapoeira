@@ -93,7 +93,19 @@ export async function POST(req: NextRequest) {
       if (hash !== account.password_hash) {
         return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
       }
+const isDemo = process.env.APP_MODE === "demo";
 
+if (
+  isDemo &&
+  account.plan_type === "demo" &&
+  account.trial_ends_at &&
+  new Date() > new Date(account.trial_ends_at)
+) {
+  return NextResponse.json(
+    { error: "Seu período de teste expirou." },
+    { status: 403 }
+  );
+}
       // Update last_login
       authMap[account.student_id] = { ...account, last_login: new Date().toISOString() };
       await saveAuthMap(authMap);
