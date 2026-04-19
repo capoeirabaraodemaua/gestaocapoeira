@@ -937,7 +937,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia' | 'nucleos'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
@@ -994,6 +994,16 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
+  // ── Gerenciamento de Núcleos (tenants) ────────────────────────────────────
+  type NucleoTenant = { id: string; nome: string; slug: string; endereco?: string; cidade?: string; estado?: string; telefone?: string; email?: string; logo_url?: string; ativo: boolean; created_at: string };
+  const [nucleosList, setNucleosList] = useState<NucleoTenant[]>([]);
+  const [loadingNucleos, setLoadingNucleos] = useState(false);
+  const [showCreateNucleoModal, setShowCreateNucleoModal] = useState(false);
+  const [nucleoForm, setNucleoForm] = useState({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' });
+  const [nucleoFormMsg, setNucleoFormMsg] = useState('');
+  const [nucleoFormSaving, setNucleoFormSaving] = useState(false);
+  const [nucleoDeleteConfirm, setNucleoDeleteConfirm] = useState<NucleoTenant | null>(null);
+  const [nucleoDeleting, setNucleoDeleting] = useState(false);
   // ── Engagement Dashboard ──────────────────────────────────────────────────
   const [engagementFilter, setEngagementFilter] = useState<'todos' | 'ativos' | 'nunca' | 'sem-email'>('todos');
   // Lixeira
@@ -1269,7 +1279,7 @@ export default function AdminPage() {
 
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
 
-  // ── Eventos state ──────────────────────────────────────────────────────────
+  // ── Eventos state ─────────────────────────────────────────��────────────────
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [eventoForm, setEventoForm] = useState<any>({ tipo: 'batizado', nome: '', data: '', hora: '', local: '', nucleo: '', participantes: [] });
@@ -2312,6 +2322,7 @@ export default function AdminPage() {
             if (key === 'editais') { setLoadingEditais(true); fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false)); }
             if (key === 'materiais') { setLoadingMateriais(true); fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false)); }
             if (key === 'patrimonio') { setLoadingPatrimonio(true); fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false)); }
+            if (key === 'nucleos') { setLoadingNucleos(true); fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } }).then(r => r.json()).then(d => { setNucleosList(d.nucleos || []); setLoadingNucleos(false); }).catch(() => setLoadingNucleos(false)); }
             if (key === 'rascunhos') {
               setLoadingRascunhos(true);
               fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
@@ -2404,6 +2415,7 @@ export default function AdminPage() {
                 { key: 'patrimonio',  icon: '🏛️', label: 'Patrimônio' },
                 { key: 'materiais',   icon: '📦', label: 'Materiais' },
                 { key: 'doacoes',     icon: '💝', label: 'Doações', geralOnly: true },
+                { key: 'nucleos',     icon: '🏢', label: 'Gerenciar Núcleos', geralOnly: true },
               ],
             },
             {
@@ -5631,7 +5643,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {finSection === 'contribuicao' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
                     <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                      <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição — Projeto Social</div>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição �� Projeto Social</div>
                       <button onClick={() => { setFinAddContrib(v => !v); setFinAddContribData({ mes: new Date().toISOString().slice(0,7), valor: finConfig.contribuicao_mensal, status: 'pendente' }); }}
                         style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                         + Adicionar
@@ -6108,6 +6120,250 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA GERENCIAR NÚCLEOS ===== */}
+      {activeTab === 'nucleos' && activeNucleo === 'geral' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#0ea5e9,#0284c7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🏢 Gerenciar Núcleos</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>Cadastre e gerencie os núcleos (tenants) do sistema</div>
+            </div>
+            <button
+              onClick={() => { setNucleoForm({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' }); setNucleoFormMsg(''); setShowCreateNucleoModal(true); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(14,165,233,0.3)' }}
+            >
+              <span style={{ fontSize: '1rem' }}>➕</span> Criar Novo Núcleo
+            </button>
+          </div>
+
+          {loadingNucleos ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando núcleos...</div>
+          ) : nucleosList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🏢</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Nenhum núcleo cadastrado</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Clique em &quot;Criar Novo Núcleo&quot; para começar</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {nucleosList.map(nucleo => (
+                <div key={nucleo.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: nucleo.ativo ? 'linear-gradient(135deg,#0ea5e9,#0284c7)' : 'linear-gradient(135deg,#6b7280,#4b5563)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>{nucleo.nome}</div>
+                    <span style={{ background: nucleo.ativo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+                      {nucleo.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 10 }}>
+                      <strong>Slug:</strong> {nucleo.slug}
+                    </div>
+                    {nucleo.endereco && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>📍 {nucleo.endereco}</div>}
+                    {(nucleo.cidade || nucleo.estado) && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>🏙️ {[nucleo.cidade, nucleo.estado].filter(Boolean).join(' - ')}</div>}
+                    {nucleo.telefone && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>📞 {nucleo.telefone}</div>}
+                    {nucleo.email && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>✉️ {nucleo.email}</div>}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 10 }}>
+                      Criado em {new Date(nucleo.created_at).toLocaleDateString('pt-BR')}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                      <button
+                        onClick={async () => {
+                          const newAtivo = !nucleo.ativo;
+                          const res = await fetch('/api/admin/nucleos', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                            body: JSON.stringify({ id: nucleo.id, ativo: newAtivo }),
+                          });
+                          if (res.ok) {
+                            setNucleosList(prev => prev.map(n => n.id === nucleo.id ? { ...n, ativo: newAtivo } : n));
+                          }
+                        }}
+                        style={{ flex: 1, padding: '8px 12px', background: nucleo.ativo ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${nucleo.ativo ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}`, color: nucleo.ativo ? '#f59e0b' : '#22c55e', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                      >
+                        {nucleo.ativo ? '⏸ Desativar' : '▶ Ativar'}
+                      </button>
+                      <button
+                        onClick={() => setNucleoDeleteConfirm(nucleo)}
+                        style={{ padding: '8px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Modal Criar Núcleo */}
+          {showCreateNucleoModal && (
+            <div onClick={e => { if (e.target === e.currentTarget) setShowCreateNucleoModal(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3 style={{ margin: '0 0 4px', color: '#0284c7', fontWeight: 800, fontSize: '1.05rem' }}>🏢 Criar Novo Núcleo</h3>
+                <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#6b7280' }}>Preencha os dados do novo núcleo/unidade</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Nome do Núcleo *</label>
+                    <input
+                      type="text"
+                      value={nucleoForm.nome}
+                      onChange={e => setNucleoForm(f => ({ ...f, nome: e.target.value }))}
+                      placeholder="Ex: Núcleo Centro"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Endereço</label>
+                    <input
+                      type="text"
+                      value={nucleoForm.endereco}
+                      onChange={e => setNucleoForm(f => ({ ...f, endereco: e.target.value }))}
+                      placeholder="Rua, número, bairro..."
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Cidade</label>
+                      <input
+                        type="text"
+                        value={nucleoForm.cidade}
+                        onChange={e => setNucleoForm(f => ({ ...f, cidade: e.target.value }))}
+                        placeholder="Cidade"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Estado</label>
+                      <input
+                        type="text"
+                        value={nucleoForm.estado}
+                        onChange={e => setNucleoForm(f => ({ ...f, estado: e.target.value }))}
+                        placeholder="UF"
+                        maxLength={2}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Telefone</label>
+                      <input
+                        type="tel"
+                        value={nucleoForm.telefone}
+                        onChange={e => setNucleoForm(f => ({ ...f, telefone: e.target.value }))}
+                        placeholder="(00) 00000-0000"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>E-mail</label>
+                      <input
+                        type="email"
+                        value={nucleoForm.email}
+                        onChange={e => setNucleoForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="email@exemplo.com"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  </div>
+                  {nucleoFormMsg && (
+                    <div style={{ padding: '10px 14px', borderRadius: 8, background: nucleoFormMsg.startsWith('✓') ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${nucleoFormMsg.startsWith('✓') ? 'rgba(34,197,94,0.3)' : 'rgba(220,38,38,0.3)'}`, color: nucleoFormMsg.startsWith('✓') ? '#22c55e' : '#ef4444', fontSize: '0.82rem', fontWeight: 600 }}>
+                      {nucleoFormMsg}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                    <button
+                      onClick={() => setShowCreateNucleoModal(false)}
+                      style={{ flex: 1, padding: '12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 10, color: '#374151', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      disabled={nucleoFormSaving || !nucleoForm.nome.trim()}
+                      onClick={async () => {
+                        setNucleoFormSaving(true);
+                        setNucleoFormMsg('');
+                        try {
+                          const res = await fetch('/api/admin/nucleos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                            body: JSON.stringify({ admin_auth: 'geral', ...nucleoForm }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            setNucleoFormMsg(data.error || 'Erro ao criar núcleo');
+                          } else {
+                            setNucleoFormMsg('✓ Núcleo criado com sucesso!');
+                            setNucleosList(prev => [...prev, data.nucleo]);
+                            setTimeout(() => setShowCreateNucleoModal(false), 1500);
+                          }
+                        } catch (err) {
+                          setNucleoFormMsg('Erro de conexão');
+                        }
+                        setNucleoFormSaving(false);
+                      }}
+                      style={{ flex: 1, padding: '12px', background: nucleoFormSaving || !nucleoForm.nome.trim() ? '#9ca3af' : 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: nucleoFormSaving || !nucleoForm.nome.trim() ? 'not-allowed' : 'pointer' }}
+                    >
+                      {nucleoFormSaving ? 'Salvando...' : 'Criar Núcleo'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Confirmar Exclusão */}
+          {nucleoDeleteConfirm && (
+            <div onClick={e => { if (e.target === e.currentTarget) setNucleoDeleteConfirm(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 400, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+                <h3 style={{ margin: '0 0 12px', color: '#dc2626', fontWeight: 800, fontSize: '1rem' }}>🗑 Excluir Núcleo?</h3>
+                <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#4b5563' }}>
+                  Tem certeza que deseja excluir o núcleo <strong>{nucleoDeleteConfirm.nome}</strong>?
+                </p>
+                <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#9ca3af' }}>
+                  Esta ação não pode ser desfeita. Se houver alunos vinculados, a exclusão será impedida.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => setNucleoDeleteConfirm(null)}
+                    style={{ flex: 1, padding: '12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 10, color: '#374151', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    disabled={nucleoDeleting}
+                    onClick={async () => {
+                      setNucleoDeleting(true);
+                      try {
+                        const res = await fetch('/api/admin/nucleos', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                          body: JSON.stringify({ admin_auth: 'geral', id: nucleoDeleteConfirm.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          alert(data.error || 'Erro ao excluir');
+                        } else {
+                          setNucleosList(prev => prev.filter(n => n.id !== nucleoDeleteConfirm.id));
+                          setNucleoDeleteConfirm(null);
+                        }
+                      } catch (err) {
+                        alert('Erro de conexão');
+                      }
+                      setNucleoDeleting(false);
+                    }}
+                    style={{ flex: 1, padding: '12px', background: nucleoDeleting ? '#9ca3af' : '#dc2626', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: nucleoDeleting ? 'not-allowed' : 'pointer' }}
+                  >
+                    {nucleoDeleting ? 'Excluindo...' : 'Excluir'}
+                  </button>
+                </div>
+              </div>
             </div>
           )}
         </div>
