@@ -111,8 +111,11 @@ export default function Home() {
     // Load nucleos from database
     fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
       .then(r => r.json())
-      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); })
-      .catch(() => {});
+      .then(d => { 
+        console.log('[v0] Nucleos carregados:', d);
+        if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); 
+      })
+      .catch((err) => { console.log('[v0] Erro ao carregar nucleos:', err); });
   }, []);
 
   // Login attempt limiting (max 5 attempts, 5-min lockout, stored in sessionStorage)
