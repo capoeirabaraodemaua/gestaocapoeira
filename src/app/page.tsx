@@ -79,6 +79,9 @@ export default function Home() {
   const [regAdminPass, setRegAdminPass] = useState('');
   const [regMsg, setRegMsg] = useState('');
 
+  // Dynamic nucleos from database
+  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean }>>([]);
+
   // Background changer state
   const [bgUrl, setBgUrl] = useState<string | null>(null);
   const [bgModalOpen, setBgModalOpen] = useState(false);
@@ -105,6 +108,11 @@ export default function Home() {
     fetch('/api/admin/background').then(r => r.json()).then(d => {
       if (d.url) setBgUrl(d.url);
     }).catch(() => {});
+    // Load nucleos from database
+    fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
+      .then(r => r.json())
+      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); })
+      .catch(() => {});
   }, []);
 
   // Login attempt limiting (max 5 attempts, 5-min lockout, stored in sessionStorage)
@@ -145,8 +153,8 @@ export default function Home() {
         setLoginState(0, 0);
         sessionStorage.setItem('admin_auth', data.nucleo);
         // Admin Geral tem acesso a todos os núcleos
-        const ALL_NUCLEOS = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'geral'];
-        const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
+const ALL_NUCLEOS = dynamicNucleos.length > 0 ? [...dynamicNucleos.map(n => n.slug), 'geral'] : ['geral'];
+  const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         window.location.href = '/admin';
         return;
@@ -1098,12 +1106,20 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <label>{t('form_select_nucleus')} <span className="required">*</span></label>
                   <select value={nucleo} onChange={(e) => setNucleo(e.target.value)}>
                     <option value="">{t('form_select_nucleus')}</option>
-                    <option value="Saracuruna">Núcleo Saracuruna</option>
-                    <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves – Mauá</option>
-                    <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga – Mauá</option>
-                    <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                    <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                    <option value="Academia Mais Saúde">Academia Mais Saúde – Praia do Anil</option>
+                    {dynamicNucleos.length > 0 ? (
+                      dynamicNucleos.map(n => (
+                        <option key={n.id} value={n.nome}>{n.nome}</option>
+                      ))
+                    ) : (
+                      <>
+                        <option value="Saracuruna">Nucleo Saracuruna</option>
+                        <option value="Poliesportivo Edson Alves">Nucleo Poliesportivo Edson Alves</option>
+                        <option value="Poliesportivo do Ipiranga">Nucleo Poliesportivo do Ipiranga</option>
+                        <option value="Vila Urussai">Nucleo Vila Urussai</option>
+                        <option value="Jayme Fichman">Nucleo Jayme Fichman</option>
+                        <option value="Academia Mais Saude">Academia Mais Saude</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>
@@ -1995,62 +2011,35 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </div>
 
                 {/* Cards de perfil de acesso */}
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: dynamicNucleos.length > 0 ? `repeat(${Math.min(dynamicNucleos.length + 1, 3)}, 1fr)` : '1fr 1fr 1fr', gap: 8 }}>
                   {/* Admin Geral */}
                   <div onClick={() => { setAdminUser('admin'); setTimeout(() => document.getElementById('adminPassInput')?.focus(), 50); }}
                     style={{ background: 'linear-gradient(135deg,rgba(29,78,216,0.18),rgba(30,64,175,0.1))', border: `1.5px solid ${adminUser === 'admin' ? '#3b82f6' : 'rgba(29,78,216,0.35)'}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: adminUser === 'admin' ? '0 0 0 2px rgba(59,130,246,0.3)' : 'none' }}>
                     <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) brightness(1.1)' }} />
                     <div style={{ color: '#93c5fd', fontWeight: 800, fontSize: '0.7rem', lineHeight: 1.2 }}>Admin Geral</div>
-                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Todos os núcleos</div>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Todos os nucleos</div>
                   </div>
-                  {/* Edson Alves */}
-                  <a href="/nucleo/edson-alves" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(220,38,38,0.15),rgba(185,28,28,0.08))', border: '1.5px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(330deg)' }} />
-                      <div style={{ color: '#fca5a5', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Edson Alves</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Magé – RJ</div>
-                    </div>
-                  </a>
-                  {/* Ipiranga */}
-                  <a href="/nucleo/ipiranga" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(234,88,12,0.15),rgba(194,65,12,0.08))', border: '1.5px solid rgba(234,88,12,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(10deg)' }} />
-                      <div style={{ color: '#fdba74', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Ipiranga</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Magé – RJ</div>
-                    </div>
-                  </a>
-                  {/* Saracuruna */}
-                  <a href="/nucleo/saracuruna" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(22,163,74,0.15),rgba(21,128,61,0.08))', border: '1.5px solid rgba(22,163,74,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(2) hue-rotate(90deg)' }} />
-                      <div style={{ color: '#86efac', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Saracuruna</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
-                    </div>
-                  </a>
-                  {/* Vila Urussaí */}
-                  <a href="/nucleo/vila-urussai" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(147,51,234,0.15),rgba(126,34,206,0.08))', border: '1.5px solid rgba(147,51,234,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(240deg)' }} />
-                      <div style={{ color: '#d8b4fe', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Vila Urussaí</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
-                    </div>
-                  </a>
-                  {/* Jayme Fichman */}
-                  <a href="/nucleo/jayme-fichman" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(8,145,178,0.15),rgba(6,118,145,0.08))', border: '1.5px solid rgba(8,145,178,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(175deg)' }} />
-                      <div style={{ color: '#67e8f9', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Jayme Fichman</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Caxias – RJ</div>
-                    </div>
-                  </a>
-                  {/* Academia Mais Saúde */}
-                  <a href="/nucleo/academia-mais-saude" style={{ textDecoration: 'none' }}>
-                    <div style={{ background: 'linear-gradient(135deg,rgba(5,150,105,0.15),rgba(4,120,87,0.08))', border: '1.5px solid rgba(5,150,105,0.3)', borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
-                      <img src="/logo-barao-maua.png" alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: 'drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(2) hue-rotate(120deg)' }} />
-                      <div style={{ color: '#6ee7b7', fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>Acad. Mais Saúde</div>
-                      <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>Praia do Anil</div>
-                    </div>
-                  </a>
+                  {/* Nucleos dinamicos do banco de dados */}
+                  {dynamicNucleos.map((nuc, idx) => {
+                    const colors = [
+                      { bg: 'rgba(220,38,38,0.15)', border: 'rgba(220,38,38,0.3)', text: '#fca5a5', hue: '330deg' },
+                      { bg: 'rgba(234,88,12,0.15)', border: 'rgba(234,88,12,0.3)', text: '#fdba74', hue: '10deg' },
+                      { bg: 'rgba(22,163,74,0.15)', border: 'rgba(22,163,74,0.3)', text: '#86efac', hue: '90deg' },
+                      { bg: 'rgba(147,51,234,0.15)', border: 'rgba(147,51,234,0.3)', text: '#d8b4fe', hue: '240deg' },
+                      { bg: 'rgba(8,145,178,0.15)', border: 'rgba(8,145,178,0.3)', text: '#67e8f9', hue: '175deg' },
+                      { bg: 'rgba(5,150,105,0.15)', border: 'rgba(5,150,105,0.3)', text: '#6ee7b7', hue: '120deg' },
+                    ];
+                    const c = colors[idx % colors.length];
+                    return (
+                      <a key={nuc.id} href={`/nucleo/${nuc.slug}`} style={{ textDecoration: 'none' }}>
+                        <div style={{ background: `linear-gradient(135deg,${c.bg},rgba(0,0,0,0.08))`, border: `1.5px solid ${c.border}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', height: '100%', boxSizing: 'border-box' }}>
+                          <img src={nuc.logo_url || '/logo-barao-maua.png'} alt="" style={{ width: 36, height: 36, objectFit: 'contain', marginBottom: 5, filter: `drop-shadow(0 2px 6px rgba(0,0,0,0.5)) sepia(1) saturate(3) hue-rotate(${c.hue})` }} />
+                          <div style={{ color: c.text, fontWeight: 800, fontSize: '0.65rem', lineHeight: 1.2 }}>{nuc.nome}</div>
+                          <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.56rem', marginTop: 2 }}>{nuc.cidade || 'Demo'}</div>
+                        </div>
+                      </a>
+                    );
+                  })}
                 </div>
 
                 {/* Separador Admin Geral */}
