@@ -1740,9 +1740,15 @@ export default function AdminPage() {
         }),
       });
     } catch {}
-    const { error } = await supabase.from('students').delete().eq('id', deleteConfirm.id);
-    if (error) {
-      alert('Erro ao excluir. Tente novamente.');
+    // Use API com service role para bypass de RLS
+    const res = await fetch('/api/admin/delete-student', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: deleteConfirm.id }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      alert(data.error || 'Erro ao excluir. Tente novamente.');
     } else {
       // Remove extras do Storage junto com o aluno
       fetch(`/api/student-extras?id=${deleteConfirm.id}`, { method: 'DELETE' }).catch(() => {});
@@ -1980,7 +1986,7 @@ export default function AdminPage() {
               {!adminForgotDone ? (
                 <>
                   <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 0, marginBottom: 10, lineHeight: 1.5 }}>
-                    Informe seu CPF cadastrado. Você receberá um link de redefinição por e-mail.
+                    Informe seu CPF cadastrado. Você receberá um link de redefini��ão por e-mail.
                   </p>
                   <input
                     type="text" inputMode="numeric"
@@ -2755,8 +2761,11 @@ export default function AdminPage() {
             // Responsável de núcleo: mostra apenas dados do seu núcleo
             <>
             {(() => {
-              const ncColor = activeNucleo === 'edson-alves' ? '#dc2626' : activeNucleo === 'ipiranga' ? '#ea580c' : activeNucleo === 'saracuruna' ? '#16a34a' : activeNucleo === 'vila-urussai' ? '#9333ea' : activeNucleo === 'jayme-fichman' ? '#0891b2' : '#1d4ed8';
-              const ncLabel = activeNucleo === 'saracuruna' ? 'CIEP 318 — Saracuruna' : nucleoFilter;
+              // Cores dinamicas baseadas no nucleo
+              const colors = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8'];
+              const nucleoIndex = dynamicNucleos.findIndex(n => n.slug === activeNucleo);
+              const ncColor = nucleoIndex >= 0 ? colors[nucleoIndex % colors.length] : '#1d4ed8';
+              const ncLabel = nucleoFilter || activeNucleo;
               return (
                 <div className="stat-card" style={{ borderTop: `3px solid ${ncColor}` }}>
                   <div className="stat-value" style={{ color: ncColor }}>📍</div>
