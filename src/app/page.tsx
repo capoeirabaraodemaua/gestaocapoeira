@@ -111,11 +111,8 @@ export default function Home() {
     // Load nucleos from database
     fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
       .then(r => r.json())
-      .then(d => { 
-        console.log('[v0] Nucleos carregados:', d);
-        if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); 
-      })
-      .catch((err) => { console.log('[v0] Erro ao carregar nucleos:', err); });
+      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); })
+      .catch(() => {});
   }, []);
 
   // Login attempt limiting (max 5 attempts, 5-min lockout, stored in sessionStorage)
@@ -155,10 +152,17 @@ export default function Home() {
       if (res.ok && data.ok) {
         setLoginState(0, 0);
         sessionStorage.setItem('admin_auth', data.nucleo);
+        sessionStorage.setItem('admin_user', adminUser.trim());
         // Admin Geral tem acesso a todos os núcleos
-const ALL_NUCLEOS = dynamicNucleos.length > 0 ? [...dynamicNucleos.map(n => n.slug), 'geral'] : ['geral'];
-  const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
+        const ALL_NUCLEOS = dynamicNucleos.length > 0 ? [...dynamicNucleos.map(n => n.slug), 'geral'] : ['geral'];
+        const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
+        // Se for primeiro login, redireciona para trocar senha
+        if (data.first_login) {
+          setAdminScreen('change');
+          setAdminLoading(false);
+          return;
+        }
         window.location.href = '/admin';
         return;
       }

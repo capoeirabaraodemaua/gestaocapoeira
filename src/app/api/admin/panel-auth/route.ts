@@ -50,23 +50,11 @@ export const DEFAULT_PASSWORD = '123456';
 
 // Credenciais padrão — admin geral + conta inicial de cada núcleo
 const DEFAULT_CREDS: CredsMap = {
-  admin:                   { nucleo: 'geral',                label: 'Admin Geral',                color: '#1d4ed8', password: 'accbm2025' },
-  'edson-alves':           { nucleo: 'edson-alves',          label: 'Poliesportivo Edson Alves',  color: '#dc2626', password: NUCLEO_DEFAULT_PASSWORDS['edson-alves'],   first_login: true },
-  'ipiranga':              { nucleo: 'ipiranga',             label: 'Poliesportivo do Ipiranga',  color: '#ea580c', password: NUCLEO_DEFAULT_PASSWORDS['ipiranga'],        first_login: true },
-  'saracuruna':            { nucleo: 'saracuruna',           label: 'Núcleo Saracuruna',          color: '#16a34a', password: NUCLEO_DEFAULT_PASSWORDS['saracuruna'],      first_login: true },
-  'vila-urussai':          { nucleo: 'vila-urussai',         label: 'Núcleo Vila Urussaí',        color: '#9333ea', password: NUCLEO_DEFAULT_PASSWORDS['vila-urussai'],    first_login: true },
-  'jayme-fichman':         { nucleo: 'jayme-fichman',        label: 'Núcleo Jayme Fichman',       color: '#0891b2', password: NUCLEO_DEFAULT_PASSWORDS['jayme-fichman'],   first_login: true },
-  'academia-mais-saude':   { nucleo: 'academia-mais-saude',  label: 'Academia Mais Saúde',        color: '#059669', password: NUCLEO_DEFAULT_PASSWORDS['academia-mais-saude'], first_login: true },
+  admin:                   { nucleo: 'geral',                label: 'Admin Geral',                color: '#1d4ed8', password: 'admin123', first_login: true },
 };
 
-export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {
-  'edson-alves':         { nucleo: 'edson-alves',         label: 'Poliesportivo Edson Alves', color: '#dc2626' },
-  'ipiranga':            { nucleo: 'ipiranga',             label: 'Poliesportivo do Ipiranga', color: '#ea580c' },
-  'saracuruna':          { nucleo: 'saracuruna',           label: 'Núcleo Saracuruna',         color: '#16a34a' },
-  'vila-urussai':        { nucleo: 'vila-urussai',         label: 'Núcleo Vila Urussaí',       color: '#9333ea' },
-  'jayme-fichman':       { nucleo: 'jayme-fichman',        label: 'Núcleo Jayme Fichman',      color: '#0891b2' },
-  'academia-mais-saude': { nucleo: 'academia-mais-saude',  label: 'Academia Mais Saúde',       color: '#059669' },
-};
+// NUCLEO_PROFILES agora é carregado dinamicamente do banco de dados
+export const NUCLEO_PROFILES: Record<string, { nucleo: NucleoKey; label: string; color: string }> = {};
 
 function normalizeCpf(s: string): string {
   return s.replace(/\D/g, '');

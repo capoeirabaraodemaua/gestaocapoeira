@@ -52,14 +52,13 @@ type RegistroGraduacao = {
 
 type Tab = 'dashboard' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'justificativas' | 'fotos' | 'playlist' | 'conta' | 'evolucao' | 'dados' | 'termo' | 'docs';
 
-const NUCLEO_COLORS: Record<string, string> = {
-  'Poliesportivo Edson Alves': '#dc2626',
-  'Poliesportivo do Ipiranga': '#ea580c',
-  'Saracuruna': '#16a34a',
-  'Vila Urussaí': '#9333ea',
-  'Jayme Fichman': '#0891b2',
-  'Academia Mais Saúde': '#059669',
-};
+// Cores dinâmicas baseadas no nome do núcleo
+const NUCLEO_COLORS_DEFAULT = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8'];
+function getNucleoColorDynamic(nucleo: string): string {
+  if (!nucleo) return '#1d4ed8';
+  const hash = nucleo.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return NUCLEO_COLORS_DEFAULT[hash % NUCLEO_COLORS_DEFAULT.length];
+}
 
 const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Cru': { bg: '#f8f8f8', text: '#374151', border: '#d1d5db' },
@@ -78,7 +77,7 @@ function getGradColor(grad: string) {
 }
 
 function getNucleoColor(nucleo: string): string {
-  return NUCLEO_COLORS[nucleo] || '#1d4ed8';
+  return getNucleoColorDynamic(nucleo);
 }
 
 export default function AlunoPage() {
