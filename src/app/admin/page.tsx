@@ -1088,7 +1088,7 @@ export default function AdminPage() {
   const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
-  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude'>('todos');
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<string>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   // ── Financeiro admin state ────────────────────────────────────────────────
@@ -1544,13 +1544,9 @@ export default function AdminPage() {
   };
 
   // Restrict students by login profile (nucleus-specific logins see only their own)
-  const nucleoFilter = activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves'
-    : activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga'
-    : activeNucleo === 'saracuruna' ? 'Saracuruna'
-    : activeNucleo === 'vila-urussai' ? 'Vila Urussaí'
-    : activeNucleo === 'jayme-fichman' ? 'Jayme Fichman'
-    : activeNucleo === 'academia-mais-saude' ? 'Academia Mais Saúde'
-    : null;
+  // Nucleos agora sao dinamicos - busca o nome pelo slug
+  const nucleoFilter = activeNucleo === 'geral' ? null : 
+    dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || null;
   const filtered = students.filter(s => {
     const q = search.toLowerCase();
     const matchSearch = !q ||
@@ -1628,17 +1624,9 @@ export default function AdminPage() {
         } catch { /* keep existing */ }
       }
 
-      // Auto-compute tenant_id from nucleo
-      const tenantIdComputed = getTenantIdByKey(
-        Object.entries({
-          'Poliesportivo Edson Alves': 'edson-alves',
-          'Poliesportivo do Ipiranga': 'ipiranga',
-          'Saracuruna': 'saracuruna',
-          'Vila Urussaí': 'vila-urussai',
-          'Jayme Fichman': 'jayme-fichman',
-          'Academia Mais Saúde': 'academia-mais-saude',
-        }).find(([k]) => k === editForm.nucleo)?.[1] ?? 'geral'
-      ) ?? undefined;
+      // Auto-compute tenant_id from nucleo (dinamico)
+      const nucleoSlug = dynamicNucleos.find(n => n.nome === editForm.nucleo)?.slug ?? 'geral';
+      const tenantIdComputed = getTenantIdByKey(nucleoSlug) ?? undefined;
 
       // Core fields — always present in DB
       const corePayload: Record<string, any> = {
@@ -3296,14 +3284,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         )}
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
-        // Se for responsável de núcleo, força o filtro do seu núcleo (ignora o tab selecionado)
+        // Se for responsavel de nucleo, forca o filtro do seu nucleo (ignora o tab selecionado)
         const effectiveRankingTab = nucleoFilter ? activeNucleo! : rankingNucleoTab;
-        const rankNucleoLabel = effectiveRankingTab === 'edson-alves' ? 'Poliesportivo Edson Alves'
-          : effectiveRankingTab === 'ipiranga' ? 'Poliesportivo do Ipiranga'
-          : effectiveRankingTab === 'saracuruna' ? 'Saracuruna'
-          : effectiveRankingTab === 'vila-urussai' ? 'Vila Urussaí'
-          : effectiveRankingTab === 'jayme-fichman' ? 'Jayme Fichman'
-          : null;
+        // Nucleos dinamicos - busca nome pelo slug
+        const rankNucleoLabel = effectiveRankingTab === 'todos' ? null : 
+          dynamicNucleos.find(n => n.slug === effectiveRankingTab)?.nome || null;
         const rankStudents = rankNucleoLabel ? students.filter(s => s.nucleo === rankNucleoLabel) : students;
 
         const rankData = rankStudents.map(s => {
@@ -3378,26 +3363,29 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Controls row */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Núcleo tabs — só admin geral pode trocar */}
+              {/* Nucleo tabs — so admin geral pode trocar */}
               {!nucleoFilter && (
               <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                {([
-                  ['todos',                '🌐 Todos',                      '#1d4ed8'],
-                  ['edson-alves',         '🔴 Edson Alves',                '#dc2626'],
-                  ['ipiranga',            '🟠 Ipiranga',                   '#ea580c'],
-                  ['saracuruna',          '🟢 CIEP 318 — Saracuruna',      '#16a34a'],
-                  ['vila-urussai',        '🟣 Vila Urussaí',               '#9333ea'],
-                  ['jayme-fichman',       '🔵 Jayme Fichman',              '#0891b2'],
-                  ['academia-mais-saude', '🟩 Acad. Mais Saúde',           '#059669'],
-                ] as const).map(([key, label, color]) => (
-                  <button key={key} onClick={() => setRankingNucleoTab(key)}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
-                      background: rankingNucleoTab === key ? color : 'transparent',
-                      color: rankingNucleoTab === key ? '#fff' : 'var(--text-secondary)',
-                      transition: 'all 0.15s' }}>
-                    {label}
-                  </button>
-                ))}
+                <button onClick={() => setRankingNucleoTab('todos')}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === 'todos' ? 700 : 500,
+                    background: rankingNucleoTab === 'todos' ? '#1d4ed8' : 'transparent',
+                    color: rankingNucleoTab === 'todos' ? '#fff' : 'var(--text-secondary)',
+                    transition: 'all 0.15s' }}>
+                  Todos
+                </button>
+                {dynamicNucleos.map((nuc, idx) => {
+                  const colors = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669'];
+                  const color = colors[idx % colors.length];
+                  return (
+                    <button key={nuc.slug} onClick={() => setRankingNucleoTab(nuc.slug as any)}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === nuc.slug ? 700 : 500,
+                        background: rankingNucleoTab === nuc.slug ? color : 'transparent',
+                        color: rankingNucleoTab === nuc.slug ? '#fff' : 'var(--text-secondary)',
+                        transition: 'all 0.15s' }}>
+                      {nuc.nome}
+                    </button>
+                  );
+                })}
               </div>
               )}
               {/* Period */}
@@ -7016,16 +7004,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           </div>
 
-          {/* Responsáveis por Núcleo config — apenas admin geral pode gerenciar */}
-          {activeNucleo === 'geral' && (() => {
-            const nucleosList = [
-              { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
-              { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
-              { key: 'saracuruna',          label: 'Saracuruna' },
-              { key: 'vila-urussai',        label: 'Vila Urussaí' },
-              { key: 'jayme-fichman',       label: 'Jayme Fichman' },
-              { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
-            ];
+          {/* Responsaveis por Nucleo config — apenas owner pode gerenciar */}
+          {activeNucleo === 'geral' && isOwner && (() => {
+            // Nucleos carregados dinamicamente
+            const nucleosList = dynamicNucleos.map(n => ({ key: n.slug, label: n.nome }));
             return (
               <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -11993,7 +11975,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                         const msg = encodeURIComponent(
 `Olá! 👋
 
-Somos da Associação Cultural de Capoeira Barão de Mauá.
+Somos da Associa��ão Cultural de Capoeira Barão de Mauá.
 
 Precisamos que você acesse a área do aluno, crie sua conta e, em seguida, entre novamente com essa conta para finalizar o seu cadastro.
 
@@ -12393,16 +12375,10 @@ Suporte Ginga Gestão.`
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-              {/* ───── SEÇÃO 0: VISÃO GERAL — R1 e R2 por núcleo ───── */}
+              {/* ───── SECAO 0: VISAO GERAL — R1 e R2 por nucleo ───── */}
               {(() => {
-                const NUCLEOS_RESP = [
-                  { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
-                  { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
-                  { key: 'saracuruna',          label: 'Saracuruna' },
-                  { key: 'vila-urussai',        label: 'Vila Urussaí' },
-                  { key: 'jayme-fichman',       label: 'Jayme Fichman' },
-                  { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
-                ];
+                // Nucleos carregados dinamicamente do banco de dados
+                const NUCLEOS_RESP = dynamicNucleos.map(n => ({ key: n.slug, label: n.nome }));
                 const updateRespField = (nucleo_key: string, nucleo_label: string, field: string, val: string) => {
                   setResponsaveis(prev => {
                     const idx = prev.findIndex(r => r.nucleo_key === nucleo_key);
@@ -12605,26 +12581,19 @@ Suporte Ginga Gestão.`
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 12 }}>➕ Cadastrar Novo Responsável</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Núcleo</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nucleo</div>
                       <select value={respNewNucleo} onChange={e => {
                         const nk = e.target.value;
                         setRespNewNucleo(nk); setRespCreateMsg('');
-                        // Preenche com senha padrão do núcleo (sequência 12345)
-                        const defaultPasswords: Record<string, string> = {
-                          'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                          'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
-                        };
-                        setRespNewPass(nk ? (defaultPasswords[nk] || 'acesso12345') : '');
+                        // Preenche com senha padrao do nucleo
+                        setRespNewPass(nk ? 'acesso12345' : '');
                         setRespShowPass(true);
                       }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
-                        <option value="">Selecione o núcleo</option>
-                        <option value="edson-alves">Poliesportivo Edson Alves</option>
-                        <option value="ipiranga">Poliesportivo do Ipiranga</option>
-                        <option value="saracuruna">Núcleo Saracuruna</option>
-                        <option value="vila-urussai">Núcleo Vila Urussaí</option>
-                        <option value="jayme-fichman">Núcleo Jayme Fichman</option>
-                        <option value="academia-mais-saude">Academia Mais Saúde</option>
+                        <option value="">Selecione o nucleo</option>
+                        {dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.slug}>{n.nome}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -12647,11 +12616,7 @@ Suporte Ginga Gestão.`
                           📋
                         </button>
                         <button type="button" onClick={() => {
-                          const defaultPasswords: Record<string, string> = {
-                            'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                            'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
-                          };
-                          setRespNewPass(defaultPasswords[respNewNucleo] || 'acesso12345'); setRespCreateMsg('');
+                          setRespNewPass('acesso12345'); setRespCreateMsg('');
                         }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Restaurar senha padrão">
                           🔄
                         </button>
