@@ -48,8 +48,9 @@ export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
 // Senha padrão única (fallback)
 export const DEFAULT_PASSWORD = '123456';
 
-// Credenciais padrão — admin geral + conta inicial de cada núcleo
+// Credenciais padrão — owner, admin geral
 const DEFAULT_CREDS: CredsMap = {
+  owner:                   { nucleo: 'geral',                label: 'Owner (Desenvolvedor)',      color: '#7c3aed', password: 'owner2025', first_login: false },
   admin:                   { nucleo: 'geral',                label: 'Admin Geral',                color: '#1d4ed8', password: 'admin123', first_login: true },
 };
 
@@ -257,6 +258,7 @@ export async function POST(req: NextRequest) {
     if (!user || !checkPassword(user.password, password))
       return NextResponse.json({ error: 'Usuário ou senha incorretos.' }, { status: 401 });
     const isGeral = user.nucleo === 'geral';
+    const isOwner = key === 'owner';
     return NextResponse.json({
       ok: true,
       nucleo: user.nucleo,
@@ -264,6 +266,7 @@ export async function POST(req: NextRequest) {
       color: user.color,
       nome: user.nome || '',
       isGeral,
+      isOwner,
       first_login: user.first_login === true,
     });
   }

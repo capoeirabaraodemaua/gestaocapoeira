@@ -41,13 +41,17 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// POST /api/admin/nucleos - Create a new nucleo (tenant)
+// POST /api/admin/nucleos - Create a new nucleo (tenant) - OWNER ONLY
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const adminAuth = (req.headers.get('x-admin-auth') || body.admin_auth || '').toLowerCase();
-    if (!['geral', 'admin'].includes(adminAuth)) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
+    // Apenas owner pode criar nucleos
+    if (adminAuth !== 'owner') {
+      return NextResponse.json({ 
+        error: 'Acesso negado. Apenas o Owner (desenvolvedor) pode criar nucleos.',
+        owner_required: true 
+      }, { status: 403 });
     }
 
     const { nome, endereco, cidade, estado, telefone, email } = body;
@@ -96,13 +100,17 @@ export async function POST(req: NextRequest) {
   }
 }
 
-// DELETE /api/admin/nucleos - Delete a nucleo (tenant)
+// DELETE /api/admin/nucleos - Delete a nucleo (tenant) - OWNER ONLY
 export async function DELETE(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const adminAuth = (req.headers.get('x-admin-auth') || body.admin_auth || '').toLowerCase();
-    if (!['geral', 'admin'].includes(adminAuth)) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
+    // Apenas owner pode deletar nucleos
+    if (adminAuth !== 'owner') {
+      return NextResponse.json({ 
+        error: 'Acesso negado. Apenas o Owner (desenvolvedor) pode excluir nucleos.',
+        owner_required: true 
+      }, { status: 403 });
     }
 
     const { id } = body;
@@ -139,13 +147,17 @@ export async function DELETE(req: NextRequest) {
   }
 }
 
-// PATCH /api/admin/nucleos - Update a nucleo (tenant)
+// PATCH /api/admin/nucleos - Update a nucleo (tenant) - OWNER ONLY
 export async function PATCH(req: NextRequest) {
   try {
     const body = await req.json().catch(() => ({}));
     const adminAuth = (req.headers.get('x-admin-auth') || body.admin_auth || '').toLowerCase();
-    if (!['geral', 'admin'].includes(adminAuth)) {
-      return NextResponse.json({ error: 'Não autorizado.' }, { status: 403 });
+    // Apenas owner pode modificar nucleos
+    if (adminAuth !== 'owner') {
+      return NextResponse.json({ 
+        error: 'Acesso negado. Apenas o Owner (desenvolvedor) pode modificar nucleos.',
+        owner_required: true 
+      }, { status: 403 });
     }
 
     const { id, nome, endereco, cidade, estado, telefone, email, ativo } = body;

@@ -1,6 +1,6 @@
 /**
- * Serviço de envio de email centralizado — ACCBM
- * Prioridade: env vars → config/email-config.json (Storage) → skip
+ * Servico de envio de email centralizado - Sistema de Gestao DEMO
+ * Prioridade: env vars -> config/email-config.json (Storage) -> skip
  */
 
 import nodemailer from 'nodemailer';
@@ -52,18 +52,18 @@ function baseLayout(content: string, color = '#1d4ed8') {
   return `<!DOCTYPE html><html><head><meta charset="utf-8"/></head><body style="margin:0;padding:0;background:#f1f5f9;font-family:Inter,Arial,sans-serif">
   <div style="max-width:520px;margin:32px auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(0,0,0,0.10)">
     <div style="background:linear-gradient(135deg,${color},${color}bb);padding:28px 32px;text-align:center">
-      <div style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-0.5px">ACCBM</div>
-      <div style="color:rgba(255,255,255,0.8);font-size:0.82rem;margin-top:4px">Associação Cultural de Capoeira Barão de Mauá</div>
+      <div style="font-size:1.5rem;font-weight:900;color:#fff;letter-spacing:-0.5px">Gestao DEMO</div>
+      <div style="color:rgba(255,255,255,0.8);font-size:0.82rem;margin-top:4px">Sistema de Gestao de Alunos - Demonstrativo</div>
     </div>
     <div style="padding:32px">${content}</div>
     <div style="padding:16px 32px;background:#f8fafc;border-top:1px solid #e5e7eb;text-align:center">
-      <p style="margin:0;color:#94a3b8;font-size:0.75rem">ACCBM · Associação Cultural de Capoeira Barão de Mauá</p>
+      <p style="margin:0;color:#94a3b8;font-size:0.75rem">Sistema de Gestao de Alunos DEMO</p>
     </div>
   </div></body></html>`;
 }
 
 export function buildOtpHtml(nome: string, otp: string): { subject: string; html: string } {
-  const subject = '🔑 Código de recuperação de senha — ACCBM';
+  const subject = 'Codigo de recuperacao de senha - Sistema DEMO';
   const html = baseLayout(`
     <p style="color:#374151;font-size:1rem">Olá, <strong>${nome}</strong>!</p>
     <p style="color:#64748b;margin:0 0 24px">Você solicitou a recuperação da sua senha de acesso à <strong>Área do Aluno</strong>. Use o código abaixo:</p>
@@ -77,10 +77,10 @@ export function buildOtpHtml(nome: string, otp: string): { subject: string; html
 }
 
 export function buildResetLinkHtml(nome: string, resetUrl: string): { subject: string; html: string } {
-  const subject = '🔐 Redefinição de senha — Painel ACCBM';
+  const subject = 'Redefinicao de senha - Painel DEMO';
   const html = baseLayout(`
-    <p style="color:#374151;font-size:1rem">Olá, <strong>${nome || 'Responsável'}</strong>!</p>
-    <p style="color:#64748b;margin:0 0 24px">Recebemos uma solicitação para redefinir a senha do seu acesso ao <strong>Painel de Núcleo ACCBM</strong>.</p>
+    <p style="color:#374151;font-size:1rem">Ola, <strong>${nome || 'Responsavel'}</strong>!</p>
+    <p style="color:#64748b;margin:0 0 24px">Recebemos uma solicitacao para redefinir a senha do seu acesso ao <strong>Painel do Sistema DEMO</strong>.</p>
     <div style="text-align:center;margin:28px 0">
       <a href="${resetUrl}" style="display:inline-block;background:linear-gradient(135deg,#1d4ed8,#1e40af);color:#fff;padding:14px 36px;border-radius:10px;text-decoration:none;font-weight:700;font-size:1rem">🔐 Redefinir minha senha</a>
     </div>
@@ -91,7 +91,7 @@ export function buildResetLinkHtml(nome: string, resetUrl: string): { subject: s
 }
 
 export function buildNewPasswordHtml(nome: string, novaSenha: string, loginUrl: string): { subject: string; html: string } {
-  const subject = '🔑 Nova senha provisória — ACCBM';
+  const subject = 'Nova senha provisoria - Sistema DEMO';
   const html = baseLayout(`
     <p style="color:#374151;font-size:1rem">Olá, <strong>${nome}</strong>!</p>
     <p style="color:#64748b;margin:0 0 20px">O administrador redefiniu sua senha de acesso à <strong>Área do Aluno</strong>. Use a senha abaixo para entrar:</p>

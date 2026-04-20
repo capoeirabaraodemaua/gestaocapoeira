@@ -536,7 +536,7 @@ export default function Home() {
           const phone = tel.startsWith('55') ? tel : `55${tel}`;
           const nome = form.nome_completo ? form.nome_completo.split(' ')[0] : 'Aluno';
           const msg = encodeURIComponent(
-            `Olá ${nome}! Seu pré-cadastro na Associação Cultural de Capoeira Barão de Mauá foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informações:\n${pend.map(p => `• ${p}`).join('\n')}\n\nAcesse o formulário e complete seu cadastro. 🥋`
+            `Ola ${nome}! Seu pre-cadastro no Sistema de Gestao de Alunos DEMO foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informacoes:\n${pend.map(p => `- ${p}`).join('\n')}\n\nAcesse o formulario e complete seu cadastro.`
           );
           window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, '_blank');
         }
@@ -707,7 +707,7 @@ export default function Home() {
         student_id: student_id ?? null,
         data_nascimento: form.data_nascimento || null,
       });
-      // Auto-assign sequential ACCBM display ID
+      // Auto-assign sequential DEMO display ID
       setCriarContaPassword('');
       setCriarContaPhone(form.telefone || '');
       setCriarContaMsg('');
@@ -822,13 +822,13 @@ export default function Home() {
     const phone = (telefone || '').replace(/\D/g, '');
     const br = phone.startsWith('55') ? phone : `55${phone}`;
     const msg = encodeURIComponent(
-`🎖️ *Carteirinha ACCBM — Capoeira Barão de Mauá*
+`*Carteirinha - Sistema de Gestao DEMO*
 
-Olá, *${nome}*! Sua carteirinha de associado está disponível. Toque no link abaixo para visualizar e imprimir:
+Ola, *${nome}*! Sua carteirinha de associado esta disponivel. Toque no link abaixo para visualizar e imprimir:
 
-🔗 ${url}
+${url}
 
-_Associação Cultural de Capoeira Barão de Mauá_`
+_Sistema de Gestao de Alunos DEMO_`
     );
     if (phone.length >= 10) {
       window.open(`https://api.whatsapp.com/send?phone=${br}&text=${msg}`, '_blank');
@@ -882,7 +882,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         {/* Imagem de fundo — contain para não cortar nada */}
         <img
           src={bgUrl || '/wallpaper-capoeira.jpg'}
-          alt="Capoeira Barão de Mauá"
+          alt="Sistema de Gestao DEMO"
           style={{
             display: 'block',
             width: '100%',
@@ -1810,7 +1810,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#93c5fd" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
                   <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Matrícula</span>
                   <span style={{ color: '#fbbf24', fontSize: '0.95rem', fontWeight: 900, letterSpacing: '0.06em' }}>
-                    ACCBM-{String(successData.inscricao_numero).padStart(6, '0')}
+                    DEMO-{String(successData.inscricao_numero).padStart(6, '0')}
                   </span>
                 </div>
               )}

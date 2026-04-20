@@ -111,18 +111,15 @@ interface Student {
 type EditForm = Partial<Student>;
 
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude' | 'geral';
+// Nucleos agora sao carregados dinamicamente do banco de dados
+type NucleoKey = string; // Agora aceita qualquer slug de nucleo
 interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; email?: string; }
 
-const PROFILES_KEY = 'accbm_admin_profiles';
+const PROFILES_KEY = 'gestao_demo_admin_profiles';
+// Profiles padroes minimos - nucleos vem do banco de dados
 const DEFAULT_PROFILES: Profile[] = [
-  { nucleo: 'edson-alves',         label: 'Poliesportivo Edson Alves', color: '#dc2626', user: 'edsonalves',       pass: 'edson2025'       },
-  { nucleo: 'ipiranga',            label: 'Poliesportivo do Ipiranga', color: '#ea580c', user: 'ipiranga',         pass: 'ipiranga2025'    },
-  { nucleo: 'saracuruna',          label: 'Núcleo Saracuruna',         color: '#16a34a', user: 'saracuruna',       pass: 'sara2025'        },
-  { nucleo: 'vila-urussai',        label: 'Núcleo Vila Urussaí',       color: '#9333ea', user: 'vilaurussai',      pass: 'urussai2025'     },
-  { nucleo: 'jayme-fichman',       label: 'Núcleo Jayme Fichman',      color: '#0891b2', user: 'jaymefichman',     pass: 'fichman2025'     },
-  { nucleo: 'academia-mais-saude', label: 'Academia Mais Saúde',       color: '#059669', user: 'academiamaissaude', pass: 'academia2025'   },
-  { nucleo: 'geral',               label: 'Admin Geral',                color: '#1d4ed8', user: 'admin',            pass: 'accbm2025'       },
+  { nucleo: 'geral',  label: 'Admin Geral',           color: '#1d4ed8', user: 'admin', pass: 'admin123' },
+  { nucleo: 'geral',  label: 'Owner (Desenvolvedor)', color: '#7c3aed', user: 'owner', pass: 'owner2025' },
 ];
 
 function getProfiles(): Profile[] {
@@ -658,6 +655,8 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean; cidade?: string }>>([]);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -759,6 +758,16 @@ export default function AdminPage() {
     if (!stored) return;
     setAuthed(true);
     setActiveNucleo(stored);
+    
+    // Restaurar estado de owner
+    const ownerStored = sessionStorage.getItem('admin_is_owner');
+    if (ownerStored === 'true') setIsOwner(true);
+    
+    // Carregar nucleos dinamicos do banco
+    fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
+      .then(r => r.json())
+      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); })
+      .catch(() => {});
 
     // Tenta restaurar lista de núcleos da sessão
     try {
@@ -841,11 +850,14 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         const nk = data.nucleo as NucleoKey;
         sessionStorage.setItem('admin_auth', nk);
-        const ALL_NUCLEOS: NucleoKey[] = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'academia-mais-saude', 'geral'];
-        const nucleosList = data.isGeral ? ALL_NUCLEOS : [nk];
+        sessionStorage.setItem('admin_user', loginKey);
+        sessionStorage.setItem('admin_is_owner', data.isOwner ? 'true' : 'false');
+        // Nucleos serao carregados dinamicamente do banco
+        const nucleosList = data.isGeral ? ['geral'] : [nk];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         setAuthed(true);
         setActiveNucleo(nk);
+        setIsOwner(data.isOwner === true);
         setAdminLoginState(0, 0);
         setLoginError('');
         fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginKey.slice(-4), nucleo: nk }) }).catch(() => {});
@@ -6130,16 +6142,34 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         <div>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
             <div>
-              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#0ea5e9,#0284c7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🏢 Gerenciar Núcleos</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>Cadastre e gerencie os núcleos (tenants) do sistema</div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#0ea5e9,#0284c7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Gerenciar Nucleos</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>
+                {isOwner ? 'Cadastre e gerencie os nucleos (tenants) do sistema' : 'Visualize os nucleos cadastrados no sistema'}
+              </div>
             </div>
-            <button
-              onClick={() => { setNucleoForm({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' }); setNucleoFormMsg(''); setShowCreateNucleoModal(true); }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(14,165,233,0.3)' }}
-            >
-              <span style={{ fontSize: '1rem' }}>➕</span> Criar Novo Núcleo
-            </button>
+            {isOwner ? (
+              <button
+                onClick={() => { setNucleoForm({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' }); setNucleoFormMsg(''); setShowCreateNucleoModal(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(14,165,233,0.3)' }}
+              >
+                <span style={{ fontSize: '1rem' }}>+</span> Criar Novo Nucleo
+              </button>
+            ) : (
+              <div style={{ padding: '10px 18px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, color: '#ef4444', fontWeight: 600, fontSize: '0.82rem' }}>
+                Acesso restrito ao Owner (desenvolvedor)
+              </div>
+            )}
           </div>
+          
+          {/* Aviso de acesso restrito para admin geral */}
+          {!isOwner && (
+            <div style={{ marginBottom: 20, padding: 16, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12 }}>
+              <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Acesso Somente Leitura</div>
+              <div style={{ fontSize: '0.82rem', color: '#d97706' }}>
+                Apenas o Owner (desenvolvedor) pode criar, editar ou excluir nucleos. Como Admin Geral, voce pode apenas visualizar os nucleos cadastrados.
+              </div>
+            </div>
+          )}
 
           {loadingNucleos ? (
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando núcleos...</div>
@@ -6170,13 +6200,14 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 10 }}>
                       Criado em {new Date(nucleo.created_at).toLocaleDateString('pt-BR')}
                     </div>
+                    {isOwner && (
                     <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
                       <button
                         onClick={async () => {
                           const newAtivo = !nucleo.ativo;
                           const res = await fetch('/api/admin/nucleos', {
                             method: 'PATCH',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
                             body: JSON.stringify({ id: nucleo.id, ativo: newAtivo }),
                           });
                           if (res.ok) {
@@ -6185,26 +6216,27 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         }}
                         style={{ flex: 1, padding: '8px 12px', background: nucleo.ativo ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${nucleo.ativo ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}`, color: nucleo.ativo ? '#f59e0b' : '#22c55e', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
                       >
-                        {nucleo.ativo ? '⏸ Desativar' : '▶ Ativar'}
+                        {nucleo.ativo ? 'Desativar' : 'Ativar'}
                       </button>
                       <button
                         onClick={() => setNucleoDeleteConfirm(nucleo)}
                         style={{ padding: '8px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
                       >
-                        🗑
+                        Excluir
                       </button>
                     </div>
+                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {/* Modal Criar Núcleo */}
-          {showCreateNucleoModal && (
+          {/* Modal Criar Nucleo - Apenas Owner */}
+          {showCreateNucleoModal && isOwner && (
             <div onClick={e => { if (e.target === e.currentTarget) setShowCreateNucleoModal(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
               <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
-                <h3 style={{ margin: '0 0 4px', color: '#0284c7', fontWeight: 800, fontSize: '1.05rem' }}>🏢 Criar Novo Núcleo</h3>
+                <h3 style={{ margin: '0 0 4px', color: '#0284c7', fontWeight: 800, fontSize: '1.05rem' }}>Criar Novo Nucleo</h3>
                 <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#6b7280' }}>Preencha os dados do novo núcleo/unidade</p>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                   <div>
@@ -6292,8 +6324,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         try {
                           const res = await fetch('/api/admin/nucleos', {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
-                            body: JSON.stringify({ admin_auth: 'geral', ...nucleoForm }),
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
+                            body: JSON.stringify({ admin_auth: 'owner', ...nucleoForm }),
                           });
                           const data = await res.json();
                           if (!res.ok) {
@@ -6322,12 +6354,12 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           {nucleoDeleteConfirm && (
             <div onClick={e => { if (e.target === e.currentTarget) setNucleoDeleteConfirm(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
               <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 400, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
-                <h3 style={{ margin: '0 0 12px', color: '#dc2626', fontWeight: 800, fontSize: '1rem' }}>🗑 Excluir Núcleo?</h3>
+                <h3 style={{ margin: '0 0 12px', color: '#dc2626', fontWeight: 800, fontSize: '1rem' }}>Excluir Nucleo?</h3>
                 <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#4b5563' }}>
-                  Tem certeza que deseja excluir o núcleo <strong>{nucleoDeleteConfirm.nome}</strong>?
+                  Tem certeza que deseja excluir o nucleo <strong>{nucleoDeleteConfirm.nome}</strong>?
                 </p>
                 <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#9ca3af' }}>
-                  Esta ação não pode ser desfeita. Se houver alunos vinculados, a exclusão será impedida.
+                  Esta acao nao pode ser desfeita. Se houver alunos vinculados, a exclusao sera impedida.
                 </p>
                 <div style={{ display: 'flex', gap: 10 }}>
                   <button
@@ -6343,8 +6375,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                       try {
                         const res = await fetch('/api/admin/nucleos', {
                           method: 'DELETE',
-                          headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'geral' },
-                          body: JSON.stringify({ admin_auth: 'geral', id: nucleoDeleteConfirm.id }),
+                          headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
+                          body: JSON.stringify({ admin_auth: 'owner', id: nucleoDeleteConfirm.id }),
                         });
                         const data = await res.json();
                         if (!res.ok) {
