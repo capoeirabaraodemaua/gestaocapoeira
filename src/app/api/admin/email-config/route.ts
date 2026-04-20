@@ -63,7 +63,7 @@ export async function POST(req: Request) {
       resend_api_key: resend_api_key && resend_api_key !== '***' + (current.resend_api_key || '').slice(-6)
         ? resend_api_key
         : current.resend_api_key || '',
-      resend_from: resend_from || current.resend_from || 'ACCBM <noreply@accbm.com.br>',
+      resend_from: resend_from || current.resend_from || 'Sistema DEMO <noreply@demo.com>',
       smtp_host: smtp_host !== undefined ? smtp_host : current.smtp_host || '',
       smtp_port: smtp_port !== undefined ? smtp_port : current.smtp_port || '587',
       smtp_user: smtp_user !== undefined ? smtp_user : current.smtp_user || '',
@@ -81,8 +81,8 @@ export async function POST(req: Request) {
     if (body.test_to) {
       const result = await sendEmail(
         body.test_to,
-        '✅ Teste de configuração de e-mail — ACCBM',
-        `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:32px;background:#f1f5f9"><div style="max-width:480px;margin:auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,0.1)"><h2 style="color:#1d4ed8">✅ E-mail de teste ACCBM</h2><p>Parabéns! As configurações de e-mail estão funcionando corretamente.</p><p style="color:#64748b;font-size:0.85rem">Este e-mail foi enviado automaticamente pelo painel ACCBM para verificar a configuração.</p></div></body></html>`
+        '✅ Teste de configuração de e-mail — Sistema DEMO',
+        `<!DOCTYPE html><html><body style="font-family:Arial,sans-serif;padding:32px;background:#f1f5f9"><div style="max-width:480px;margin:auto;background:#fff;border-radius:14px;padding:28px;box-shadow:0 4px 16px rgba(0,0,0,0.1)"><h2 style="color:#1d4ed8">✅ E-mail de teste Sistema DEMO</h2><p>Parabéns! As configurações de e-mail estão funcionando corretamente.</p><p style="color:#64748b;font-size:0.85rem">Este e-mail foi enviado automaticamente pelo painel Sistema DEMO para verificar a configuração.</p></div></body></html>`
       );
       return NextResponse.json({ ok: true, test: result });
     }

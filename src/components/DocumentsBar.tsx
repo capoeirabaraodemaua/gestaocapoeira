@@ -7,12 +7,12 @@ import {
 } from '@/lib/docStorage';
 
 // ── Storage keys ──────────────────────────────────────────────────────────────
-const KEY_ESTATUTO   = 'accbm_estatuto';
-const KEY_REGIMENTO  = 'accbm_regimento';
-const KEY_BIO_FRAZAO = 'accbm_bio_frazao';
-const KEY_BIO_NALDO  = 'accbm_bio_naldo';
-const INFO_KEY = (n: NucleoTab) => `accbm_info_${n}`;
-const SESSION_KEY   = 'accbm_doc_admin_ok';
+const KEY_ESTATUTO   = 'demo_estatuto';
+const KEY_REGIMENTO  = 'demo_regimento';
+const KEY_BIO_FRAZAO = 'demo_bio_frazao';
+const KEY_BIO_NALDO  = 'demo_bio_naldo';
+const INFO_KEY = (n: NucleoTab) => `demo_info_${n}`;
+const SESSION_KEY   = 'demo_doc_admin_ok';
 
 // ── Admin check (CPF digits split to avoid plain-text string in bundle) ───────
 const _P = ['09','85','69','25','70','3'];           // 098569257-03
@@ -188,7 +188,7 @@ export default function DocumentsBar({ students=[], studentPhone, studentName, a
 
   const waLink = (phone: string, text: string) => {
     const p = phone.replace(/\D/g,''); const br = p.startsWith('55')?p:`55${p}`;
-    return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(`ℹ️ *Informações — Capoeira Barão de Mauá*\n\n${text}\n\n_Associação Cultural de Capoeira Barão de Mauá_`)}`;
+    return `https://api.whatsapp.com/send?phone=${br}&text=${encodeURIComponent(`ℹ️ *Informacoes — Sistema DEMO*\n\n${text}\n\n_Sistema de Gestao de Alunos DEMO_`)}`;
   };
 
   // ── Shared styles ─────────────────────────────────────────────────────────

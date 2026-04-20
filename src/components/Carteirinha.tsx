@@ -46,10 +46,8 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
 export default function Carteirinha({ data }: Props) {
   const colors = getCordaColors(data.graduacao);
   const nomenclatura = nomenclaturaGraduacao[data.graduacao] || '';
-  const isMaua = data.nucleo === 'Mauá' || data.nucleo === 'Poliesportivo Edson Alves' || data.nucleo === 'Poliesportivo do Ipiranga';
-  const sig = isMaua
-    ? { imgSrc: '/assinatura-frazao.png', nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM' }
-    : { imgSrc: '/assinatura-naldo.png', nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM' };
+  // Sistema DEMO - assinatura generica
+  const sig = { imgSrc: '/assinatura-frazao.png', nome: 'Administrador do Sistema', cargo: 'Sistema de Gestao DEMO' };
 
   // Validity: 1 year from today
   const hoje = new Date();
@@ -58,9 +56,9 @@ export default function Carteirinha({ data }: Props) {
   const emissaoStr = hoje.toLocaleDateString('pt-BR');
   const validadeStr = validade.toLocaleDateString('pt-BR');
 
-  // QR code — URL de verificação pública da carteirinha
-  const matriculaStr = data.inscricao_numero != null ? `ACCBM-${String(data.inscricao_numero).padStart(6, '0')}` : '';
-  const baseUrl = typeof window !== 'undefined' ? window.location.origin : 'https://accbm.org.br';
+  // QR code — URL de verificacao publica da carteirinha
+  const matriculaStr = data.inscricao_numero != null ? `DEMO-${String(data.inscricao_numero).padStart(6, '0')}` : '';
+  const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   // Prefer UUID (always works), fallback to matricula number
   const qrValue = data.student_id
     ? `${baseUrl}/verificar?id=${data.student_id}`
@@ -108,16 +106,16 @@ export default function Carteirinha({ data }: Props) {
       }}>
         {/* Logo + org name centered */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo-maua.png" alt="ACCBM" style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} />
+          <img src="/logo-barao-maua.png" alt="Sistema DEMO" style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Associação Cultural de Capoeira
+              Sistema de Gestao
             </div>
             <div style={{ color: '#fbbf24', fontSize: '1rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.15 }}>
-              Barão de Mauá
+              DEMO
             </div>
             <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.5rem', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 1 }}>
-              Credencial de Associado
+              Credencial de Aluno
             </div>
           </div>
         </div>
@@ -252,7 +250,7 @@ export default function Carteirinha({ data }: Props) {
           ✦ Válida até {validadeStr} ✦
         </span>
         <span style={{ color: 'rgba(255,255,255,0.85)', fontSize: '0.48rem', letterSpacing: '0.06em', textTransform: 'uppercase' }}>
-          ACCBM
+          DEMO
         </span>
       </div>
     </div>

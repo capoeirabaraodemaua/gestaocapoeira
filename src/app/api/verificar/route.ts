@@ -27,7 +27,7 @@ export async function GET(req: NextRequest) {
       .single();
     if (!error && data) row = data as Record<string, any>;
   } else {
-    // Lookup by matrícula number: ACCBM-000001 → extract digits
+    // Lookup by matricula number: DEMO-000001 → extract digits
     const match = matParam!.match(/(\d+)$/);
     if (!match) return NextResponse.json({ error: 'invalid mat' }, { status: 400 });
     const num = parseInt(match[1], 10);

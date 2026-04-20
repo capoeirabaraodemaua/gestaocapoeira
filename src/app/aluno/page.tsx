@@ -605,11 +605,11 @@ export default function AlunoPage() {
           <div style={{ textAlign: 'center', marginBottom: 28 }}>
             <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
               <div style={{ width: 110, height: 110, borderRadius: '50%', background: 'rgba(255,255,255,0.06)', border: '2px solid rgba(255,255,255,0.15)', padding: 6, boxShadow: '0 8px 32px rgba(0,0,0,0.5)' }}>
-                <img src="/logo-accbm.png" alt="ACCBM Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }} />
+                <img src="/logo-accbm.png" alt="Sistema DEMO Logo" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%', display: 'block' }} />
               </div>
             </div>
             <h1 style={{ color: '#fff', fontSize: '1.4rem', fontWeight: 800, margin: 0, letterSpacing: '-0.02em' }}>Área do Aluno</h1>
-            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', margin: '5px 0 0' }}>Associação Cultural de Capoeira Barão de Mauá</p>
+            <p style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', margin: '5px 0 0' }}>Sistema de Gestao de Alunos - DEMO</p>
           </div>
 
           <div style={{ background: '#fff', borderRadius: 20, padding: '32px 28px', boxShadow: '0 25px 60px rgba(0,0,0,0.4)' }}>
@@ -1000,7 +1000,7 @@ export default function AlunoPage() {
               {student?.apelido && student.apelido !== student.nome_completo?.split(' ')[0] && (
                 <div style={{ fontSize: '0.68rem', opacity: 0.7, lineHeight: 1.2 }}>{student.nome_completo}</div>
               )}
-              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 1 }}>{student?.nucleo || 'ACCBM'} • {student?.graduacao || 'Aluno'}</div>
+              <div style={{ fontSize: '0.75rem', opacity: 0.8, marginTop: 1 }}>{student?.nucleo || 'DEMO'} • {student?.graduacao || 'Aluno'}</div>
             </div>
           </div>
           {isAdminPreview ? (
@@ -1065,7 +1065,7 @@ export default function AlunoPage() {
                   </div>
                 )}
                 <div>
-                  <div style={{ fontSize: '0.72rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Área do Aluno — ACCBM</div>
+                  <div style={{ fontSize: '0.72rem', opacity: 0.75, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Area do Aluno - Sistema DEMO</div>
                   <div style={{ fontSize: '1.2rem', fontWeight: 800, lineHeight: 1.3 }}>{welcomeGreeting}</div>
                   {student?.apelido && student.nome_completo && student.apelido !== student.nome_completo.split(' ')[0] && (
                     <div style={{ fontSize: '0.78rem', opacity: 0.75, marginTop: 2 }}>{student.nome_completo}</div>
@@ -1084,7 +1084,7 @@ export default function AlunoPage() {
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 10, padding: '8px 12px', gridColumn: '1 / -1' }}>
                   <div style={{ fontSize: '0.62rem', opacity: 0.7, textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>Núcleo</div>
-                  <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{student?.nucleo || 'ACCBM'}</div>
+                  <div style={{ fontSize: '0.82rem', fontWeight: 700 }}>{student?.nucleo || 'DEMO'}</div>
                 </div>
               </div>
               {/* ── Banner cadastro incompleto DENTRO do card verde ── */}
@@ -1172,10 +1172,10 @@ export default function AlunoPage() {
 
             {/* Links institucionais */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>ACCBM</div>
+              <div style={{ fontSize: '0.72rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>DEMO</div>
               {([
-                { href: '/hierarquia', icon: '🥋', label: 'Hierarquia da ACCBM', color: '#fef2f2', iconBg: '#fecaca', textColor: '#991b1b' },
-                { href: '/organograma', icon: '🏛️', label: 'Organograma da ACCBM', color: '#eff6ff', iconBg: '#bfdbfe', textColor: '#1e40af' },
+                { href: '/hierarquia', icon: '🥋', label: 'Hierarquia DEMO', color: '#fef2f2', iconBg: '#fecaca', textColor: '#991b1b' },
+                { href: '/organograma', icon: '🏛️', label: 'Organograma DEMO', color: '#eff6ff', iconBg: '#bfdbfe', textColor: '#1e40af' },
                 { href: '/documentos', icon: '📚', label: 'Documentos Históricos da Capoeira', color: '#f0fdf4', iconBg: '#bbf7d0', textColor: '#166534' },
               ]).map(item => (
                 <a key={item.href} href={item.href}
@@ -1230,7 +1230,7 @@ export default function AlunoPage() {
                 if (!printArea) return;
                 const w = window.open('', '_blank', 'width=600,height=450');
                 if (!w) return;
-                w.document.write(`<html><head><title>Carteirinha ACCBM — ${cartData.nome}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;font-family:Inter,sans-serif}@media print{body{background:#fff}}</style></head><body>${printArea.innerHTML}</body></html>`);
+                w.document.write(`<html><head><title>Carteirinha DEMO - ${cartData.nome}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9;font-family:Inter,sans-serif}@media print{body{background:#fff}}</style></head><body>${printArea.innerHTML}</body></html>`);
                 w.document.close();
                 w.focus();
                 setTimeout(() => { w.print(); }, 400);
@@ -1247,7 +1247,7 @@ export default function AlunoPage() {
                 const base = process.env.NEXT_PUBLIC_APP_URL ?? window.location.origin;
                 const cpfEnc = encodeURIComponent(cartData.cpf || '');
                 const url = `${base}/carteirinha${cpfEnc ? `?cpf=${cpfEnc}` : ''}`;
-                const msg = encodeURIComponent(`🎖️ *Carteirinha ACCBM — Capoeira Barão de Mauá*\n\nOlá, *${cartData.nome}*! Sua carteirinha de associado está disponível:\n\n🔗 ${url}\n\n_Associação Cultural de Capoeira Barão de Mauá_`);
+                const msg = encodeURIComponent(`🎖️ *Carteirinha DEMO - Sistema de Gestao*\n\nOlá, *${cartData.nome}*! Sua carteirinha de associado está disponível:\n\n🔗 ${url}\n\n_Sistema de Gestao de Alunos - DEMO_`);
                 window.open(phone.length >= 10 ? `https://api.whatsapp.com/send?phone=${br}&text=${msg}` : `https://api.whatsapp.com/send?text=${msg}`, '_blank');
               }}
               style={{ width: '100%', padding: '12px', background: 'linear-gradient(135deg,rgba(37,211,102,0.15),rgba(37,211,102,0.08))', border: '1px solid rgba(37,211,102,0.4)', color: '#25d366', borderRadius: 12, cursor: 'pointer', fontWeight: 700, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
@@ -2597,7 +2597,7 @@ export default function AlunoPage() {
                     <label style={ls}>Graduação <span style={{ color: '#ef4444' }}>*</span></label>
                     <select value={dadosForm.graduacao} onChange={e => setDadosForm(p => ({ ...p, graduacao: e.target.value }))} style={fs}>
                       <option value="">— Selecione sua graduação —</option>
-                      {tipoEfetivo && <optgroup label={`Graduação ${tipoEfetivo}`}>
+                      {tipoEfetivo && <optgroup label={`Graduaç��o ${tipoEfetivo}`}>
                         {gradOpts.map(g => <option key={g} value={g}>{g}{nomenclaturaGraduacao[g] ? ` — ${nomenclaturaGraduacao[g]}` : ''}</option>)}
                       </optgroup>}
                       {!tipoEfetivo && <>
@@ -2642,7 +2642,7 @@ export default function AlunoPage() {
                         style={{ width: 18, height: 18, marginTop: 1, accentColor: nucleoColor, flexShrink: 0 }}
                       />
                       <span style={{ fontWeight: 600, fontSize: '0.82rem', color: '#374151', lineHeight: 1.4 }}>
-                        Autorizo o uso da minha imagem (fotos/vídeos) para fins institucionais da ACCBM, incluindo redes sociais, materiais de divulgação e eventos.
+                        Autorizo o uso da minha imagem (fotos/vídeos) para fins institucionais do sistema DEMO, incluindo redes sociais, materiais de divulgação e eventos.
                       </span>
                     </label>
                   </div>
@@ -2891,14 +2891,14 @@ export default function AlunoPage() {
             if (!w) return;
             w.document.write(`<!DOCTYPE html><html><head><title>Termo — ${student.nome_completo}</title><style>body{font-family:Georgia,serif;max-width:680px;margin:40px auto;padding:20px;color:#111}h1{text-align:center;font-size:1.3rem}p{line-height:1.9;text-align:justify}.box{background:#f9f9f9;border:1px solid #ccc;padding:14px 18px;border-radius:8px;margin-bottom:20px;font-family:sans-serif}.label{font-size:0.75rem;text-transform:uppercase;letter-spacing:0.06em;color:#666}.value{font-weight:700;font-size:0.95rem}.sig{margin-top:40px;display:flex;justify-content:space-between}.line{border-top:1px solid #333;width:260px;text-align:center;padding-top:6px;font-size:0.8rem;font-family:sans-serif}</style></head><body>
               <h1>Termo de Autorização para Prática de Capoeira</h1>
-              <p style="text-align:center;font-size:0.9rem;margin-bottom:24px">Associação Cultural de Capoeira Barão de Mauá</p>
+              <p style="text-align:center;font-size:0.9rem;margin-bottom:24px">Sistema de Gestao de Alunos - DEMO</p>
               <div class="box">
                 <div class="label">Aluno</div><div class="value">${student.nome_completo}</div>
                 <div class="label" style="margin-top:8px">Núcleo</div><div class="value">${student.nucleo || '—'}</div>
                 <div class="label" style="margin-top:8px">Data de Nascimento</div><div class="value">${student.data_nascimento ? new Date((student.data_nascimento as string)+'T12:00:00').toLocaleDateString('pt-BR') : '—'}</div>
                 <div class="label" style="margin-top:8px">Data</div><div class="value">${hoje}</div>
               </div>
-              <p>Eu, <strong>${termoForm.nome_responsavel || '________________________'}</strong>, portador(a) do CPF <strong>${termoForm.cpf_responsavel || '___.___.___-__'}</strong>, responsável legal pelo menor <strong>${student.nome_completo}</strong>, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.</p>
+              <p>Eu, <strong>${termoForm.nome_responsavel || '________________________'}</strong>, portador(a) do CPF <strong>${termoForm.cpf_responsavel || '___.___.___-__'}</strong>, responsável legal pelo menor <strong>${student.nome_completo}</strong>, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Sistema de Gestao de Alunos - DEMO</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.</p>
               <div class="sig">
                 <div class="line">Assinatura do Responsável</div>
                 <div class="line">Local e Data</div>
@@ -2970,7 +2970,7 @@ export default function AlunoPage() {
                     <div><span style={{ color: '#6b7280' }}>Data: </span><strong>{hoje}</strong></div>
                   </div>
                   <p style={{ textAlign: 'justify', lineHeight: 1.9, marginBottom: 22, fontSize: '0.9rem' }}>
-                    Eu, responsável legal pelo menor acima identificado, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Associação Cultural de Capoeira Barão de Mauá</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.
+                    Eu, responsável legal pelo menor acima identificado, autorizo sua participação nas atividades de capoeira realizadas pela <strong>Sistema de Gestao de Alunos - DEMO</strong>, estando ciente das atividades físicas envolvidas, e assumindo a responsabilidade integral pela participação do menor nas referidas atividades.
                   </p>
                   <hr style={{ border: 'none', borderTop: '1px dashed rgba(0,0,0,0.15)', marginBottom: 20 }} />
                   {/* Campos do responsável */}

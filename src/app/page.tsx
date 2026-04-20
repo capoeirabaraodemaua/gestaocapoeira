@@ -153,7 +153,8 @@ export default function Home() {
         setLoginState(0, 0);
         sessionStorage.setItem('admin_auth', data.nucleo);
         sessionStorage.setItem('admin_user', adminUser.trim());
-        // Admin Geral tem acesso a todos os núcleos
+        sessionStorage.setItem('admin_is_owner', data.isOwner ? 'true' : 'false');
+        // Admin Geral e Owner tem acesso a todos os nucleos
         const ALL_NUCLEOS = dynamicNucleos.length > 0 ? [...dynamicNucleos.map(n => n.slug), 'geral'] : ['geral'];
         const nucleosList = data.isGeral ? ALL_NUCLEOS : [data.nucleo];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
@@ -2018,7 +2019,14 @@ _Sistema de Gestao de Alunos DEMO_`
                 </div>
 
                 {/* Cards de perfil de acesso */}
-                <div style={{ display: 'grid', gridTemplateColumns: dynamicNucleos.length > 0 ? `repeat(${Math.min(dynamicNucleos.length + 1, 3)}, 1fr)` : '1fr 1fr 1fr', gap: 8 }}>
+                <div style={{ display: 'grid', gridTemplateColumns: dynamicNucleos.length > 0 ? `repeat(${Math.min(dynamicNucleos.length + 2, 4)}, 1fr)` : '1fr 1fr 1fr', gap: 8 }}>
+                  {/* Owner (Desenvolvedor) */}
+                  <div onClick={() => { setAdminUser('owner'); setTimeout(() => document.getElementById('adminPassInput')?.focus(), 50); }}
+                    style={{ background: 'linear-gradient(135deg,rgba(124,58,237,0.18),rgba(109,40,217,0.1))', border: `1.5px solid ${adminUser === 'owner' ? '#8b5cf6' : 'rgba(124,58,237,0.35)'}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: adminUser === 'owner' ? '0 0 0 2px rgba(139,92,246,0.3)' : 'none' }}>
+                    <div style={{ fontSize: 28, marginBottom: 2 }}>*</div>
+                    <div style={{ color: '#c4b5fd', fontWeight: 800, fontSize: '0.7rem', lineHeight: 1.2 }}>Owner</div>
+                    <div style={{ color: 'rgba(255,255,255,0.3)', fontSize: '0.58rem', marginTop: 2 }}>Desenvolvedor</div>
+                  </div>
                   {/* Admin Geral */}
                   <div onClick={() => { setAdminUser('admin'); setTimeout(() => document.getElementById('adminPassInput')?.focus(), 50); }}
                     style={{ background: 'linear-gradient(135deg,rgba(29,78,216,0.18),rgba(30,64,175,0.1))', border: `1.5px solid ${adminUser === 'admin' ? '#3b82f6' : 'rgba(29,78,216,0.35)'}`, borderRadius: 10, padding: '10px 8px', cursor: 'pointer', textAlign: 'center', transition: 'all 0.15s', boxShadow: adminUser === 'admin' ? '0 0 0 2px rgba(59,130,246,0.3)' : 'none' }}>
@@ -2057,7 +2065,7 @@ _Sistema de Gestao de Alunos DEMO_`
                       <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>{t('admin_login_label')}</div>
                       <input autoFocus value={adminUser} onChange={e => { setAdminUser(e.target.value); setAdminErro(''); }}
                         onKeyDown={e => { if (e.key === 'Enter') handleAdminAccess(); }}
-                        placeholder="admin  ou  CPF (responsável de núcleo)" disabled={adminLoading}
+                        placeholder="owner, admin ou CPF" disabled={adminLoading}
                         style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px', background: 'rgba(255,255,255,0.07)', border: '1.5px solid rgba(255,255,255,0.14)', borderRadius: 9, color: '#fff', fontSize: '0.95rem', outline: 'none' }} />
                     </div>
                     <div>

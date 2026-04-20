@@ -332,7 +332,7 @@ function OrgHierTab({ tab }: { tab: 'organograma' | 'hierarquia' }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{icon} {label} da ACCBM</div>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{icon} {label} DEMO</div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>
             Atualize os dados abaixo. Ao salvar, aparece automaticamente para todos os alunos em <strong>{viewUrl}</strong>.
           </div>
@@ -1457,7 +1457,7 @@ export default function AdminPage() {
         const fresh = listWithNum.find(s => s.id === prev.id);
         return fresh || prev;
       });
-      // Load display IDs (ACCBM-XXXX) for all students
+      // Load display IDs (DEMO-XXXX) for all students
       fetch('/api/aluno/gerar-id').then(r => r.json()).then(d => {
         if (d && typeof d === 'object') setStudentDisplayIds(d as Record<string, string>);
       }).catch(() => {});
@@ -1922,7 +1922,7 @@ export default function AdminPage() {
         {/* Logo + title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img src="/logo-accbm.png" alt="ACCBM" style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10, borderRadius: '50%' }} />
-          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestão de Alunos ACCBM</div>
+          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestao de Alunos DEMO</div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
         </div>
 
@@ -2284,7 +2284,7 @@ export default function AdminPage() {
               textShadow: 'none',
               filter: 'drop-shadow(0 2px 8px rgba(37,99,235,0.25))',
             }}>
-              Sistema de Gestão de Alunos ACCBM
+              Sistema de Gestao de Alunos DEMO
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
               Associação Cultural de Capoeira Barão de Mauá
@@ -2374,7 +2374,7 @@ export default function AdminPage() {
           const justPendCount = justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length;
           const dadosFaltandoCount = (nucleoFilter ? rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter) : rascunhos).filter((r: any) => (r.dados_pendentes || []).length > 0).length;
 
-          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean; href?: string };
+          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean; ownerOnly?: boolean; href?: string };
           const columns: { title: string; color: string; bg: string; buttons: ColBtn[] }[] = [
             {
               title: 'Gestão Principal', color: '#16a34a', bg: 'rgba(22,163,74,0.08)',
@@ -2394,7 +2394,7 @@ export default function AdminPage() {
                 { key: 'aluno-view',    icon: '🔭', label: 'Área do Aluno' },
                 { key: 'contas',        icon: '👤', label: 'Contas Alunos', badge: undefined },
                 { key: 'alunos',        icon: '🎓', label: 'Alunos' },
-                { key: 'responsaveis',  icon: '👥', label: 'Responsáveis de Núcleos', geralOnly: true },
+                { key: 'responsaveis',  icon: '👥', label: 'Responsaveis de Nucleos', ownerOnly: true },
                 { key: 'rascunhos',     icon: '📝', label: 'Cadastro dos Responsáveis', badge: rascunhosCount > 0 ? rascunhosCount : undefined },
                 { key: 'justificativas',icon: '📋', label: 'Justificativas', badge: justPendCount > 0 ? justPendCount : undefined },
               ],
@@ -2450,7 +2450,7 @@ export default function AdminPage() {
                   <div key={col.title} style={{ background: col.bg, border: `1px solid ${col.color}25`, borderRadius: 12, padding: '10px 10px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
                     <div style={{ fontSize: '0.6rem', fontWeight: 800, color: col.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>{col.title}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {col.buttons.filter(b => !b.geralOnly || activeNucleo === 'geral').map((btn, bi) => (
+                      {col.buttons.filter(b => (!b.geralOnly || activeNucleo === 'geral') && (!b.ownerOnly || isOwner)).map((btn, bi) => (
                         <button key={`${btn.key}-${bi}`} onClick={() => btn.href ? window.open(btn.href, '_blank') : goTab(btn.key)}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 7,
@@ -3442,8 +3442,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         const currentProf = profiles.find(p => p.nucleo === activeNucleo);
         const sig = certStudent
           ? (certStudent.nucleo === 'Mauá'
-            ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM', img: '/assinatura-frazao.png' }
-            : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM', img: '/assinatura-naldo.png' })
+            ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Administrador - Sistema DEMO', img: '/assinatura-frazao.png' }
+            : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Administrador - Sistema DEMO', img: '/assinatura-naldo.png' })
           : null;
 
         const printCertificado = async () => {
@@ -3620,7 +3620,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <text x="561" y="540" text-anchor="middle" font-family="Georgia" font-size="12" fill="#92400e">LOCAL — DATA DO EVENTO</text>
                         <line x1="361" y1="660" x2="561" y2="660" stroke="#1e3a8a" stroke-width="1.5"/>
                         <text x="461" y="680" text-anchor="middle" font-family="Georgia" font-size="10" font-weight="bold" fill="#1e3a8a">ASSINATURA DO MESTRE</text>
-                        <text x="461" y="694" text-anchor="middle" font-family="Georgia" font-size="9" fill="#3b82f6">Presidente / Vice-Presidente — ACCBM</text>
+                        <text x="461" y="694" text-anchor="middle" font-family="Georgia" font-size="9" fill="#3b82f6">Presidente / Vice-Administrador - Sistema DEMO</text>
                       </svg>`;
                       const blob = new Blob([svgContent], { type: 'image/svg+xml' });
                       const url = URL.createObjectURL(blob);
@@ -6991,10 +6991,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
               {activeNucleo === 'geral' && (
                 <button onClick={async () => {
-                  if (!confirm('Renumerar matrículas de todos os alunos? O André será ACCBM-000001 e os demais seguirão a ordem de cadastro.')) return;
+                  if (!confirm('Renumerar matrículas de todos os alunos? O André será DEMO-000001 e os demais seguirão a ordem de cadastro.')) return;
                   const res = await fetch('/api/fix-matriculas');
                   const d = await res.json();
-                  if (d.ok) alert(`✅ ${d.updated || d.total} matrículas atualizadas! André = ACCBM-000001`);
+                  if (d.ok) alert(`✅ ${d.updated || d.total} matrículas atualizadas! André = DEMO-000001`);
                   else alert('Erro ao renumerar: ' + JSON.stringify(d));
                 }}
                   style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>
@@ -7972,7 +7972,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {(studentDisplayIds[selected.id]) && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', borderRadius: 8, padding: '6px 16px', marginBottom: 16 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>ID ACCBM</span>
+                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>ID DEMO</span>
                 <span style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 900, letterSpacing: '0.06em' }}>{studentDisplayIds[selected.id]}</span>
               </div>
             )}
@@ -8295,7 +8295,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 }}
                 style={{ width: '100%', marginTop: 10, padding: '9px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)', color: '#818cf8', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
               >
-                🔢 Gerar ID ACCBM para este aluno
+                🔢 Gerar ID DEMO para este aluno
               </button>
             )}
 
@@ -9210,9 +9210,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* GENERATE IDs */}
             <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(16,185,129,0.3)', borderRadius: 14, padding: '20px' }}>
-              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 8 }}>🪪 IDs ACCBM</div>
+              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 8 }}>🪪 IDs DEMO</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 14 }}>
-                Gera automaticamente IDs ACCBM únicos para todos os alunos que ainda não possuem. O ID é vinculado à conta do aluno no sistema.
+                Gera automaticamente IDs DEMO únicos para todos os alunos que ainda não possuem. O ID é vinculado à conta do aluno no sistema.
               </div>
               <button onClick={async () => {
                 const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-assign' }) });
@@ -9735,7 +9735,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         };
         const docs = docConfigs[activeTab] || [];
         const tabTitle = activeTab === 'estatuto' ? '📄 Estatuto Social' : activeTab === 'regimento' ? '📝 Regimento Interno' : '📚 Bibliografia dos Mestres';
-        const tabSub   = activeTab === 'estatuto' ? 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' : activeTab === 'regimento' ? 'Regimento Interno da ACCBM' : 'Portfólios e referências bibliográficas dos mestres da ACCBM';
+        const tabSub   = activeTab === 'estatuto' ? 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' : activeTab === 'regimento' ? 'Regimento Interno DEMO' : 'Portfólios e referências bibliográficas dos mestres DEMO';
         return (
           <div>
             <div style={{ marginBottom: 20 }}>
@@ -10399,7 +10399,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           const origin = typeof window !== 'undefined' ? window.location.origin : '';
                           const dataFmt = ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                           const rows = (ev.participantes || []).map((p: any, i: number) => {
-                            const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                            const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                             const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                             const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
                             return `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
@@ -10470,7 +10470,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Responsável / Mestre</div></div>
                             <div class="gen-info">
                               <div>Relatório gerado em ${new Date().toLocaleString('pt-BR')}</div>
-                              <div style="margin-top:2px;font-weight:700;color:#475569">Associação Cultural de Capoeira Barão de Mauá — ACCBM</div>
+                              <div style="margin-top:2px;font-weight:700;color:#475569">Sistema de Gestao de Alunos DEMO</div>
                             </div>
                             <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Secretário(a)</div></div>
                           </div>
@@ -10514,7 +10514,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
               const printListaGeral = () => {
                 const rows = listaGeral.map((p, i) => {
-                  const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                  const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                   const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                   const ev_data = p._evento_data ? new Date(p._evento_data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                   const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
@@ -10576,7 +10576,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </table>
                 <div class="footer">
                   <div>Gerado em ${new Date().toLocaleString('pt-BR')}</div>
-                  <div><strong>Associação Cultural de Capoeira Barão de Mauá — ACCBM</strong></div>
+                  <div><strong>Sistema de Gestao de Alunos DEMO</strong></div>
                 </div>
                 </body></html>`;
                 const w = window.open('', '_blank');
@@ -10616,7 +10616,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {/* Rows */}
                     <div style={{ maxHeight: 460, overflowY: 'auto' }}>
                       {listaGeral.map((p, i) => {
-                        const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                        const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                         const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                         const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
                         const ev_data = p._evento_data ? new Date(p._evento_data + 'T12:00:00').toLocaleDateString('pt-BR') : '';
@@ -11848,7 +11848,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                           <thead>
                             <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg-input)' }}>
-                              {['ID ACCBM', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso', 'Ações'].map(h => (
+                              {['ID DEMO', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso', 'Ações'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
                               ))}
                             </tr>
@@ -12201,7 +12201,7 @@ Suporte Ginga Gestão.`
                                   <td style={{ padding: '7px 10px' }}>
                                     {engagementFilter === 'sem-email' ? (
                                       tel ? (
-                                        <a href={`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent('Olá! Precisamos que você atualize seu e-mail no cadastro da ACCBM. Acesse a área do aluno.')}`}
+                                        <a href={`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent('Olá! Precisamos que você atualize seu e-mail no cadastro DEMO. Acesse a área do aluno.')}`}
                                           target="_blank" rel="noopener noreferrer"
                                           style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 700 }}>
                                           📱 WhatsApp

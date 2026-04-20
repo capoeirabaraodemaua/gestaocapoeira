@@ -77,7 +77,7 @@ function ResetSenhaContent() {
           <div style={{ fontSize: '1rem', fontWeight: 800, color: '#fff', marginBottom: 4 }}>
             Redefinição de Senha
           </div>
-          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Painel de Núcleo — ACCBM</div>
+          <div style={{ fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)' }}>Painel de Nucleo - Sistema DEMO</div>
           <div style={{
             display: 'inline-block', marginTop: 10,
             background: `${cor}20`, border: `1px solid ${cor}50`,

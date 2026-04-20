@@ -102,22 +102,22 @@ export function buildNewPasswordHtml(nome: string, novaSenha: string, loginUrl: 
     <div style="text-align:center;margin:20px 0">
       <a href="${loginUrl}" style="display:inline-block;background:#16a34a;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;font-size:0.9rem">Acessar Área do Aluno</a>
     </div>
-    <p style="color:#94a3b8;font-size:0.78rem">Se você não reconhece esta ação, entre em contato com a ACCBM imediatamente.</p>
+    <p style="color:#94a3b8;font-size:0.78rem">Se voce nao reconhece esta acao, entre em contato com o administrador.</p>
   `, '#16a34a');
   return { subject, html };
 }
 
 export function buildInscricaoHtml(nome: string, nucleo: string, graduacao: string): { subject: string; html: string } {
-  const subject = '✅ Inscrição Confirmada — Capoeira Barão de Mauá';
+  const subject = 'Inscricao Confirmada - Sistema DEMO';
   const html = baseLayout(`
-    <p style="color:#374151;font-size:1rem">Olá, <strong>${nome}</strong>!</p>
-    <p style="color:#64748b;margin:0 0 20px">Sua inscrição foi recebida com sucesso. Aqui estão seus dados:</p>
+    <p style="color:#374151;font-size:1rem">Ola, <strong>${nome}</strong>!</p>
+    <p style="color:#64748b;margin:0 0 20px">Sua inscricao foi recebida com sucesso. Aqui estao seus dados:</p>
     <table style="width:100%;border-collapse:collapse;margin:0 0 20px">
       <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:0.85rem">Nome</td><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;color:#111827">${nome}</td></tr>
-      <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:0.85rem">Núcleo</td><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;color:#111827">${nucleo || '—'}</td></tr>
-      <tr><td style="padding:10px 0;color:#6b7280;font-size:0.85rem">Graduação</td><td style="padding:10px 0;font-weight:600;color:#111827">${graduacao || '—'}</td></tr>
+      <tr><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;color:#6b7280;font-size:0.85rem">Nucleo</td><td style="padding:10px 0;border-bottom:1px solid #f3f4f6;font-weight:600;color:#111827">${nucleo || '—'}</td></tr>
+      <tr><td style="padding:10px 0;color:#6b7280;font-size:0.85rem">Graduacao</td><td style="padding:10px 0;font-weight:600;color:#111827">${graduacao || '—'}</td></tr>
     </table>
-    <p style="color:#64748b;font-size:0.88rem">Bem-vindo(a) à família Barão de Mauá! Em breve entraremos em contato. <strong>Axé! 🥋</strong></p>
+    <p style="color:#64748b;font-size:0.88rem">Bem-vindo(a)! Em breve entraremos em contato.</p>
   `, '#dc2626');
   return { subject, html };
 }
@@ -166,7 +166,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   // 1. Tenta via env vars (prioridade máxima — Vercel/CI)
   const envResendKey = process.env.RESEND_API_KEY;
   if (envResendKey) {
-    const from = process.env.RESEND_FROM || 'ACCBM <noreply@accbm.com.br>';
+    const from = process.env.RESEND_FROM || 'Sistema DEMO <noreply@demo.com>';
     const ok = await sendViaResend(to, subject, html, envResendKey, from);
     if (ok) return { sent: true };
     return { sent: false, error: 'Resend (env) configurado mas falhou.' };
@@ -185,7 +185,7 @@ export async function sendEmail(to: string, subject: string, html: string): Prom
   const cfg = await getStorageConfig();
 
   if (cfg.provider === 'resend' && cfg.resend_api_key) {
-    const from = cfg.resend_from || 'ACCBM <noreply@accbm.com.br>';
+    const from = cfg.resend_from || 'Sistema DEMO <noreply@demo.com>';
     const ok = await sendViaResend(to, subject, html, cfg.resend_api_key, from);
     if (ok) return { sent: true };
     return { sent: false, error: 'Resend (painel) configurado mas falhou. Verifique a chave API.' };
