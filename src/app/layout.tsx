@@ -8,8 +8,8 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "Sistema de Gestão de Alunos ACCBM",
-  description: "Sistema de Gestão de Alunos da Associação Cultural de Capoeira Barão de Mauá",
+  title: "Sistema de Gestao de Alunos DEMO",
+  description: "Sistema de Gestao de Alunos - Ambiente Demonstrativo",
   manifest: "/manifest.json",
   icons: {
     icon: [
@@ -24,20 +24,20 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "ACCBM",
+    title: "Gestao DEMO",
   },
   openGraph: {
-    title: "Sistema de Gestão de Alunos ACCBM",
-    description: "Associação Cultural de Capoeira Barão de Mauá",
-    siteName: "Sistema de Gestão de Alunos ACCBM",
+    title: "Sistema de Gestao de Alunos DEMO",
+    description: "Sistema de Gestao de Alunos - Ambiente Demonstrativo",
+    siteName: "Sistema de Gestao de Alunos DEMO",
     locale: "pt_BR",
     type: "website",
     images: [{ url: '/icon-512.png' }],
   },
   twitter: {
     card: "summary",
-    title: "Sistema de Gestão de Alunos ACCBM",
-    description: "Associação Cultural de Capoeira Barão de Mauá",
+    title: "Sistema de Gestao de Alunos DEMO",
+    description: "Sistema de Gestao de Alunos - Ambiente Demonstrativo",
   },
 };
 

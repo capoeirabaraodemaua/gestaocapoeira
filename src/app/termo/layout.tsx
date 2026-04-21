@@ -1,19 +1,19 @@
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
-  title: "Termo de Autorização — Sistema de Gestão de Alunos ACCBM",
-  description: "Assine o Termo de Autorização da Associação Cultural de Capoeira Barão de Mauá",
+  title: "Termo de Autorizacao - Sistema de Gestao de Alunos DEMO",
+  description: "Assine o Termo de Autorizacao do Sistema de Gestao DEMO",
   openGraph: {
-    title: "Sistema de Gestão de Alunos ACCBM",
-    description: "Termo de Autorização — Associação Cultural de Capoeira Barão de Mauá",
-    siteName: "Sistema de Gestão de Alunos ACCBM",
+    title: "Sistema de Gestao de Alunos DEMO",
+    description: "Termo de Autorizacao - Sistema de Gestao DEMO",
+    siteName: "Sistema de Gestao de Alunos DEMO",
     locale: "pt_BR",
     type: "website",
   },
   twitter: {
     card: "summary",
-    title: "Sistema de Gestão de Alunos ACCBM",
-    description: "Termo de Autorização — Associação Cultural de Capoeira Barão de Mauá",
+    title: "Sistema de Gestao de Alunos DEMO",
+    description: "Termo de Autorizacao - Sistema de Gestao DEMO",
   },
 };
 

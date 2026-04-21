@@ -1,7 +1,7 @@
 {
-  "name": "Sistema de Gestão de Alunos ACCBM",
-  "short_name": "Sistema ACCBM",
-  "description": "Sistema de Gestão de Alunos - Associação Cultural de Capoeira Barão de Mauá",
+  "name": "Sistema de Gestao de Alunos DEMO",
+  "short_name": "Sistema DEMO",
+  "description": "Sistema de Gestao de Alunos - Demonstrativo",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#1a1a2e",

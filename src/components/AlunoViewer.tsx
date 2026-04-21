@@ -55,14 +55,9 @@ type RegistroGraduacao = {
 
 type Tab = 'dashboard' | 'evolucao' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'fotos' | 'justificativas' | 'playlist' | 'conta';
 
-const NUCLEO_COLORS: Record<string, string> = {
-  'Poliesportivo Edson Alves': '#dc2626',
-  'Poliesportivo do Ipiranga': '#ea580c',
-  'Saracuruna': '#16a34a',
-  'Vila Urussaí': '#9333ea',
-  'Jayme Fichman': '#0891b2',
-  'Academia Mais Saúde': '#059669',
-};
+// Cores dinamicas baseadas em hash do nome do nucleo
+const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed'];
+const NUCLEO_COLORS: Record<string, string> = {};
 
 const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Cru': { bg: '#f8f8f8', text: '#374151', border: '#d1d5db' },
@@ -81,7 +76,10 @@ function getGradColor(grad: string) {
 }
 
 function getNucleoColor(nucleo: string): string {
-  return NUCLEO_COLORS[nucleo] || '#1d4ed8';
+  if (!nucleo) return '#64748b';
+  // Usa hash do nome para cor consistente
+  const hash = nucleo.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return NUCLEO_COLORS_PALETTE[hash % NUCLEO_COLORS_PALETTE.length];
 }
 
 interface AlunoViewerProps {
@@ -283,7 +281,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
       <div style={{ background: '#1d4ed8', color: '#fff', fontSize: '0.72rem', padding: '5px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-          <span>Visualizando como <strong>{student.nome_completo}</strong> — {student.nucleo || 'ACCBM'}</span>
+          <span>Visualizando como <strong>{student.nome_completo}</strong> — {student.nucleo || 'DEMO'}</span>
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
           <button onClick={() => loadStudentData(studentId)} style={{ background: 'rgba(255,255,255,0.2)', border: 'none', color: '#fff', borderRadius: 6, padding: '3px 10px', fontSize: '0.7rem', cursor: 'pointer', fontWeight: 600 }}>↺ Atualizar</button>
@@ -301,7 +299,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
           )}
           <div>
             <div style={{ fontWeight: 800, fontSize: '0.95rem', lineHeight: 1.2 }}>{displayName}</div>
-            <div style={{ fontSize: '0.7rem', opacity: 0.85 }}>{student.nucleo || 'ACCBM'} • {student.graduacao || 'Aluno'}</div>
+            <div style={{ fontSize: '0.7rem', opacity: 0.85 }}>{student.nucleo || 'DEMO'} • {student.graduacao || 'Aluno'}</div>
           </div>
         </div>
       </header>
@@ -348,7 +346,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
                 </div>
                 <div style={{ background: 'rgba(255,255,255,0.15)', borderRadius: 8, padding: '7px 10px', gridColumn: '1 / -1' }}>
                   <div style={{ fontSize: '0.6rem', opacity: 0.7, textTransform: 'uppercase', marginBottom: 2 }}>Núcleo</div>
-                  <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{student.nucleo || 'ACCBM'}</div>
+                  <div style={{ fontSize: '0.78rem', fontWeight: 700 }}>{student.nucleo || 'DEMO'}</div>
                 </div>
               </div>
             </div>
@@ -391,7 +389,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
             )}
 
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ACCBM</div>
+              <div style={{ fontSize: '0.68rem', fontWeight: 700, color: '#9ca3af', textTransform: 'uppercase', letterSpacing: '0.06em' }}>DEMO</div>
               {([
                 { href: '/hierarquia', icon: '🥋', label: 'Hierarquia', color: '#fef2f2', textColor: '#991b1b' },
                 { href: '/organograma', icon: '🏛️', label: 'Organograma', color: '#eff6ff', textColor: '#1e40af' },
@@ -422,7 +420,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
               if (!printArea) return;
               const w = window.open('', '_blank', 'width=600,height=450');
               if (!w) return;
-              w.document.write(`<html><head><title>Carteirinha ACCBM — ${cartData.nome}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9}</style></head><body>${printArea.innerHTML}</body></html>`);
+              w.document.write(`<html><head><title>Carteirinha DEMO — ${cartData.nome}</title><style>body{margin:0;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f1f5f9}</style></head><body>${printArea.innerHTML}</body></html>`);
               w.document.close(); w.focus(); setTimeout(() => w.print(), 400);
             }} style={{ padding: '10px', background: 'linear-gradient(135deg,#1a1a2e,#0f3460)', color: '#fff', border: 'none', borderRadius: 10, cursor: 'pointer', fontWeight: 700, fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
               🖨️ Imprimir / Salvar PDF
@@ -446,12 +444,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
                 <select value={presencaLocalSelecionado} onChange={e => setPresencaLocalSelecionado(e.target.value)}
                   style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
                   <option value="">— Selecione o local —</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves — Magé</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga — Magé</option>
-                  <option value="Saracuruna">CIEP 318 — Saracuruna</option>
-                  <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                  <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                  <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                  <option value={data.nucleo}>{data.nucleo}</option>
                 </select>
               </div>
               {presencaMsg && (
@@ -872,7 +865,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
                   { label: 'Nome completo', value: student.nome_completo },
                   { label: 'E-mail', value: student.email as string || 'Não cadastrado' },
                   { label: 'Telefone', value: student.telefone || 'Não cadastrado' },
-                  { label: 'Núcleo', value: student.nucleo || 'ACCBM' },
+                  { label: 'Núcleo', value: student.nucleo || 'DEMO' },
                   { label: 'Graduação', value: student.graduacao || '—' },
                 ].map(({ label, value }) => (
                   <div key={label} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid #f3f4f6' }}>

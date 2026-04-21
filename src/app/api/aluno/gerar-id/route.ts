@@ -43,7 +43,7 @@ async function loadAuthMap(): Promise<Record<string, { student_id: string; usern
 }
 
 const ID_MAP_KEY = 'config/aluno-id-map.json';
-// Maps student UUID → sequential display ID (ACCBM-0001 format)
+// Maps student UUID -> sequential display ID (DEMO-0001 format)
 async function loadIdMap(): Promise<Record<string, string>> {
   try {
     const { data: urlData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(ID_MAP_KEY, 30);
@@ -60,7 +60,7 @@ async function saveIdMap(map: Record<string, string>): Promise<void> {
 }
 
 function formatId(n: number): string {
-  return `ACCBM-${String(n).padStart(4, '0')}`;
+  return `DEMO-${String(n).padStart(4, '0')}`;
 }
 
 // GET: get display ID for a student UUID, or generate if not exists
@@ -131,7 +131,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'get-by-display-id') {
-    // Find student UUID by display ID (e.g. "ACCBM-0042")
+    // Find student UUID by display ID (e.g. "DEMO-0042")
     const { display_id } = body;
     const idMap = await loadIdMap();
     const entry = Object.entries(idMap).find(([, v]) => v === display_id);

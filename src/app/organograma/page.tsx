@@ -233,13 +233,13 @@ export default function OrganogramaPage() {
 
         <div style={{ textAlign: 'center', marginTop: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'center', marginBottom: 14 }}>
-            <img src="/logo-barao-maua.png" alt="ACCBM" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-accbm.jpeg'; }} style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(167,139,250,0.4))' }} />
+            <img src="/logo-barao-maua.png" alt="Sistema DEMO" onError={(e) => { (e.target as HTMLImageElement).src = '/logo-accbm.jpeg'; }} style={{ width: 100, height: 100, objectFit: 'contain', filter: 'drop-shadow(0 4px 16px rgba(167,139,250,0.4))' }} />
           </div>
           <div style={{ fontSize: '0.75rem', color: 'rgba(255,255,255,0.45)', letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 8 }}>
-            Associação Cultural de Capoeira
+            Sistema de Gestao de Alunos
           </div>
           <h1 style={{ margin: 0, fontSize: '1.8rem', fontWeight: 900, background: 'linear-gradient(90deg,#a78bfa,#67e8f9,#4ade80)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text' }}>
-            Barão de Mauá
+            DEMO
           </h1>
           <div style={{ marginTop: 6, fontSize: '1rem', color: 'rgba(255,255,255,0.6)', fontWeight: 600 }}>Organograma Institucional</div>
           {saveMsg && <div style={{ marginTop: 10, color: saveMsg.includes('Erro') ? '#f87171' : '#4ade80', fontSize: '0.82rem', fontWeight: 700 }}>{saveMsg}</div>}

@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
 
   try {
     const res = await fetch(`https://viacep.com.br/ws/${cep}/json/`, {
-      headers: { 'User-Agent': 'ACCBM/1.0' },
+      headers: { 'User-Agent': 'SistemaDemo/1.0' },
       signal: AbortSignal.timeout(6000),
     });
 

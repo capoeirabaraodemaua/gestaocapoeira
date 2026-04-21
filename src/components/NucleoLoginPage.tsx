@@ -13,62 +13,46 @@ export interface NucleoConfig {
   cidade: string;
 }
 
-export const NUCLEOS: Record<string, NucleoConfig> = {
-  'edson-alves': {
-    key: 'edson-alves',
-    label: 'Poliesportivo Edson Alves',
-    color: '#dc2626',
-    colorLight: '#fca5a5',
-    colorBg: 'rgba(220,38,38,0.08)',
-    emoji: '🥋',
-    cidade: 'Magé – RJ',
-  },
-  'ipiranga': {
-    key: 'ipiranga',
-    label: 'Poliesportivo do Ipiranga',
-    color: '#ea580c',
-    colorLight: '#fdba74',
-    colorBg: 'rgba(234,88,12,0.08)',
-    emoji: '🥋',
-    cidade: 'Magé – RJ',
-  },
-  'saracuruna': {
-    key: 'saracuruna',
-    label: 'Núcleo Saracuruna',
-    color: '#16a34a',
-    colorLight: '#86efac',
-    colorBg: 'rgba(22,163,74,0.08)',
-    emoji: '🥋',
-    cidade: 'Duque de Caxias – RJ',
-  },
-  'vila-urussai': {
-    key: 'vila-urussai',
-    label: 'Núcleo Vila Urussaí',
-    color: '#9333ea',
-    colorLight: '#d8b4fe',
-    colorBg: 'rgba(147,51,234,0.08)',
-    emoji: '🥋',
-    cidade: 'Duque de Caxias – RJ',
-  },
-  'jayme-fichman': {
-    key: 'jayme-fichman',
-    label: 'Núcleo Jayme Fichman',
-    color: '#0891b2',
-    colorLight: '#67e8f9',
-    colorBg: 'rgba(8,145,178,0.08)',
-    emoji: '🥋',
-    cidade: 'Duque de Caxias – RJ',
-  },
-  'academia-mais-saude': {
-    key: 'academia-mais-saude',
-    label: 'Academia Mais Saúde',
-    color: '#059669',
-    colorLight: '#6ee7b7',
-    colorBg: 'rgba(5,150,105,0.08)',
-    emoji: '🥋',
-    cidade: 'Praia do Anil',
-  },
-};
+// Nucleos agora sao carregados dinamicamente do banco de dados
+// Este objeto vazio e usado como fallback e sera populado dinamicamente
+export let NUCLEOS: Record<string, NucleoConfig> = {};
+
+// Cores dinamicas para nucleos
+const NUCLEO_COLORS = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed'];
+
+// Funcao para gerar config de nucleo a partir dos dados do banco
+export function buildNucleoConfig(slug: string, nome: string, cidade?: string, index = 0): NucleoConfig {
+  const color = NUCLEO_COLORS[index % NUCLEO_COLORS.length];
+  return {
+    key: slug,
+    label: nome,
+    color,
+    colorLight: color + '60',
+    colorBg: `${color}15`,
+    emoji: '*',
+    cidade: cidade || '',
+  };
+}
+
+// Funcao para carregar nucleos dinamicamente
+export async function loadNucleosDinamicos(): Promise<Record<string, NucleoConfig>> {
+  try {
+    const res = await fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } });
+    if (res.ok) {
+      const data = await res.json();
+      if (data.nucleos && Array.isArray(data.nucleos)) {
+        const nucleosAtivos = data.nucleos.filter((n: any) => n.ativo);
+        const newNucleos: Record<string, NucleoConfig> = {};
+        nucleosAtivos.forEach((n: any, i: number) => {
+          newNucleos[n.slug] = buildNucleoConfig(n.slug, n.nome, n.cidade, i);
+        });
+        NUCLEOS = newNucleos;
+        return newNucleos;
+      }
+    }
+  } catch {}
+  return NUCLEOS;
+}
 
 const MAX_ATTEMPTS = 5;
 const LOCKOUT_MS = 5 * 60 * 1000;
@@ -89,7 +73,14 @@ interface Props {
 
 export default function NucleoLoginPage({ nucleoKey }: Props) {
   const router = useRouter();
-  const nucleo = NUCLEOS[nucleoKey];
+  const staticNucleo = NUCLEOS[nucleoKey];
+  
+  // Dynamic nucleo from database
+  const [dynamicNucleo, setDynamicNucleo] = useState<NucleoConfig | null>(null);
+  const [loadingNucleo, setLoadingNucleo] = useState(!staticNucleo);
+  
+  // Use static or dynamic nucleo
+  const nucleo = staticNucleo || dynamicNucleo;
 
   // ─── Login ───
   const [cpf, setCpf] = useState('');
@@ -129,6 +120,39 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   const [esqResetUrl, setEsqResetUrl] = useState('');
   const [esqNoEmail, setEsqNoEmail] = useState(false);
   const [esqNoResend, setEsqNoResend] = useState(false);
+
+  // Load dynamic nucleo if not in static list
+  useEffect(() => {
+    if (!staticNucleo) {
+      setLoadingNucleo(true);
+      fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
+        .then(r => r.json())
+        .then(d => {
+          const found = d.nucleos?.find((n: { slug: string }) => n.slug === nucleoKey);
+          if (found) {
+            const colors = [
+              { color: '#dc2626', colorLight: '#fca5a5', colorBg: 'rgba(220,38,38,0.08)' },
+              { color: '#ea580c', colorLight: '#fdba74', colorBg: 'rgba(234,88,12,0.08)' },
+              { color: '#16a34a', colorLight: '#86efac', colorBg: 'rgba(22,163,74,0.08)' },
+              { color: '#9333ea', colorLight: '#d8b4fe', colorBg: 'rgba(147,51,234,0.08)' },
+              { color: '#0891b2', colorLight: '#67e8f9', colorBg: 'rgba(8,145,178,0.08)' },
+            ];
+            const c = colors[Math.abs(found.nome.charCodeAt(0)) % colors.length];
+            setDynamicNucleo({
+              key: found.slug,
+              label: found.nome,
+              color: c.color,
+              colorLight: c.colorLight,
+              colorBg: c.colorBg,
+              emoji: '🥋',
+              cidade: found.cidade || 'Demo',
+            });
+          }
+          setLoadingNucleo(false);
+        })
+        .catch(() => setLoadingNucleo(false));
+    }
+  }, [nucleoKey, staticNucleo]);
 
   useEffect(() => {
     setMounted(true);
@@ -328,7 +352,7 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
       }}>
         {/* Cabeçalho */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
-          <img src="/logo-barao-maua.png" alt="Barão de Mauá"
+          <img src="/logo-barao-maua.png" alt="Sistema DEMO"
             style={{ width: 88, height: 'auto', marginBottom: 14, filter: 'drop-shadow(0 4px 18px rgba(0,0,0,0.6))' }} />
           <div style={{ fontSize: '1.12rem', fontWeight: 800, color: '#fff', marginBottom: 4 }}>
             {nucleo.label}

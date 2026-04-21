@@ -11,6 +11,7 @@ import AlunoViewer from '@/components/AlunoViewer';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getTenantIdByKey } from '@/lib/tenants';
 import WhatsappFilaPanel from '@/components/WhatsappFilaPanel';
+import { invalidateConfigCache } from '@/hooks/useSystemConfig';
 
 interface PresencaCount {
   student_id: string;
@@ -110,19 +111,30 @@ interface Student {
 
 type EditForm = Partial<Student>;
 
+// ─── Helper para cores dinamicas de nucleos ────────────────────────────────────
+const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed', '#db2777'];
+function getNucleoColorDynamic(nucleoName: string, dynamicNucleosList?: Array<{ nome: string; slug: string }>): string {
+  if (!nucleoName) return '#64748b';
+  // Se temos lista dinamica, usa o indice
+  if (dynamicNucleosList && dynamicNucleosList.length > 0) {
+    const idx = dynamicNucleosList.findIndex(n => n.nome === nucleoName || n.slug === nucleoName);
+    if (idx >= 0) return NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length];
+  }
+  // Fallback: hash do nome
+  const hash = nucleoName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return NUCLEO_COLORS_PALETTE[hash % NUCLEO_COLORS_PALETTE.length];
+}
+
 // ─── Auth helpers ────────────────────────────────────────────────────────────
-type NucleoKey = 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude' | 'geral';
+// Nucleos agora sao carregados dinamicamente do banco de dados
+type NucleoKey = string; // Agora aceita qualquer slug de nucleo
 interface Profile { user: string; pass: string; nucleo: NucleoKey; label: string; color: string; email?: string; }
 
-const PROFILES_KEY = 'accbm_admin_profiles';
+const PROFILES_KEY = 'gestao_demo_admin_profiles';
+// Profiles padroes minimos - nucleos vem do banco de dados
 const DEFAULT_PROFILES: Profile[] = [
-  { nucleo: 'edson-alves',         label: 'Poliesportivo Edson Alves', color: '#dc2626', user: 'edsonalves',       pass: 'edson2025'       },
-  { nucleo: 'ipiranga',            label: 'Poliesportivo do Ipiranga', color: '#ea580c', user: 'ipiranga',         pass: 'ipiranga2025'    },
-  { nucleo: 'saracuruna',          label: 'Núcleo Saracuruna',         color: '#16a34a', user: 'saracuruna',       pass: 'sara2025'        },
-  { nucleo: 'vila-urussai',        label: 'Núcleo Vila Urussaí',       color: '#9333ea', user: 'vilaurussai',      pass: 'urussai2025'     },
-  { nucleo: 'jayme-fichman',       label: 'Núcleo Jayme Fichman',      color: '#0891b2', user: 'jaymefichman',     pass: 'fichman2025'     },
-  { nucleo: 'academia-mais-saude', label: 'Academia Mais Saúde',       color: '#059669', user: 'academiamaissaude', pass: 'academia2025'   },
-  { nucleo: 'geral',               label: 'Admin Geral',                color: '#1d4ed8', user: 'admin',            pass: 'accbm2025'       },
+  { nucleo: 'geral',  label: 'Admin Geral',           color: '#1d4ed8', user: 'admin', pass: 'admin123' },
+  { nucleo: 'geral',  label: 'Owner (Desenvolvedor)', color: '#7c3aed', user: 'owner', pass: 'owner2025' },
 ];
 
 function getProfiles(): Profile[] {
@@ -335,7 +347,7 @@ function OrgHierTab({ tab }: { tab: 'organograma' | 'hierarquia' }) {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
         <div>
-          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{icon} {label} da ACCBM</div>
+          <div style={{ fontWeight: 800, fontSize: '1rem', color: '#a78bfa' }}>{icon} {label} DEMO</div>
           <div style={{ color: 'var(--text-secondary)', fontSize: '0.78rem', marginTop: 2 }}>
             Atualize os dados abaixo. Ao salvar, aparece automaticamente para todos os alunos em <strong>{viewUrl}</strong>.
           </div>
@@ -658,6 +670,13 @@ export default function AdminPage() {
   const [authed, setAuthed] = useState(false);
   const [activeNucleo, setActiveNucleo] = useState<NucleoKey | null>(null);
   const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
+  const [isOwner, setIsOwner] = useState(false);
+  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean; cidade?: string }>>([]);
+  // System Config (Owner only)
+  const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [systemConfigLoading, setSystemConfigLoading] = useState(false);
+  const [systemConfigSaving, setSystemConfigSaving] = useState(false);
+  const [systemConfigMsg, setSystemConfigMsg] = useState('');
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -759,6 +778,16 @@ export default function AdminPage() {
     if (!stored) return;
     setAuthed(true);
     setActiveNucleo(stored);
+    
+    // Restaurar estado de owner
+    const ownerStored = sessionStorage.getItem('admin_is_owner');
+    if (ownerStored === 'true') setIsOwner(true);
+    
+    // Carregar nucleos dinamicos do banco
+    fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
+      .then(r => r.json())
+      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: { ativo: boolean }) => n.ativo)); })
+      .catch(() => {});
 
     // Tenta restaurar lista de núcleos da sessão
     try {
@@ -841,13 +870,18 @@ export default function AdminPage() {
       if (res.ok && data.ok) {
         const nk = data.nucleo as NucleoKey;
         sessionStorage.setItem('admin_auth', nk);
-        const ALL_NUCLEOS: NucleoKey[] = ['edson-alves', 'ipiranga', 'saracuruna', 'vila-urussai', 'jayme-fichman', 'academia-mais-saude', 'geral'];
-        const nucleosList = data.isGeral ? ALL_NUCLEOS : [nk];
+        sessionStorage.setItem('admin_user', loginKey);
+        sessionStorage.setItem('admin_is_owner', data.isOwner ? 'true' : 'false');
+        // Nucleos serao carregados dinamicamente do banco
+        const nucleosList = data.isGeral ? ['geral'] : [nk];
         sessionStorage.setItem('admin_auth_nucleos', JSON.stringify(nucleosList));
         setAuthed(true);
         setActiveNucleo(nk);
+        setIsOwner(data.isOwner === true);
         setAdminLoginState(0, 0);
         setLoginError('');
+        // Carrega config do sistema para exibir nome dinamico
+        fetch('/api/admin/system-config').then(r => r.json()).then(cfg => { if (cfg) setSystemConfig(cfg); }).catch(() => {});
         fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginKey.slice(-4), nucleo: nk }) }).catch(() => {});
         return;
       }
@@ -937,7 +971,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia' | 'nucleos'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
@@ -994,6 +1028,16 @@ export default function AdminPage() {
   const [auditLogs, setAuditLogs] = useState<AuditEntry[]>([]);
   const [loadingAudit, setLoadingAudit] = useState(false);
   const [auditSearch, setAuditSearch] = useState('');
+  // ── Gerenciamento de Núcleos (tenants) ────────────────────────────────────
+  type NucleoTenant = { id: string; nome: string; slug: string; endereco?: string; cidade?: string; estado?: string; telefone?: string; email?: string; logo_url?: string; ativo: boolean; created_at: string };
+  const [nucleosList, setNucleosList] = useState<NucleoTenant[]>([]);
+  const [loadingNucleos, setLoadingNucleos] = useState(false);
+  const [showCreateNucleoModal, setShowCreateNucleoModal] = useState(false);
+  const [nucleoForm, setNucleoForm] = useState({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' });
+  const [nucleoFormMsg, setNucleoFormMsg] = useState('');
+  const [nucleoFormSaving, setNucleoFormSaving] = useState(false);
+  const [nucleoDeleteConfirm, setNucleoDeleteConfirm] = useState<NucleoTenant | null>(null);
+  const [nucleoDeleting, setNucleoDeleting] = useState(false);
   // ── Engagement Dashboard ──────────────────────────────────────────────────
   const [engagementFilter, setEngagementFilter] = useState<'todos' | 'ativos' | 'nunca' | 'sem-email'>('todos');
   // Lixeira
@@ -1066,7 +1110,7 @@ export default function AdminPage() {
   const [offlinePending, setOfflinePending] = useState<Array<{ student: { id: string; nome_completo: string; graduacao: string; nucleo: string | null; foto_url: string | null }; date: string; hora: string; localNome: string | null }>>([]);
   const [syncingOffline, setSyncingOffline] = useState(false);
   const [syncOfflineResult, setSyncOfflineResult] = useState<{ ok: number; fail: number } | null>(null);
-  const [rankingNucleoTab, setRankingNucleoTab] = useState<'todos' | 'edson-alves' | 'ipiranga' | 'saracuruna' | 'vila-urussai' | 'jayme-fichman' | 'academia-mais-saude'>('todos');
+  const [rankingNucleoTab, setRankingNucleoTab] = useState<string>('todos');
   const [showBirthdayAlert, setShowBirthdayAlert] = useState(true);
 
   // ── Financeiro admin state ────────────────────────────────────────────────
@@ -1261,7 +1305,7 @@ export default function AdminPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbCopied, setDbCopied] = useState(false);
 
-  // ── Manual video links state ──────────────────────────────────────────────
+  // ── Manual video links state ──────────────────────────��───────────────────
   const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
   const [manualVideoForm, setManualVideoForm] = useState({ title: '', url: '' });
   const [savingManualVideo, setSavingManualVideo] = useState(false);
@@ -1269,7 +1313,7 @@ export default function AdminPage() {
 
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
 
-  // ── Eventos state ──────────────────────────────────────────────────────────
+  // ── Eventos state ────���────────────────────────────────────��────────────────
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [eventoForm, setEventoForm] = useState<any>({ tipo: 'batizado', nome: '', data: '', hora: '', local: '', nucleo: '', participantes: [] });
@@ -1435,7 +1479,7 @@ export default function AdminPage() {
         const fresh = listWithNum.find(s => s.id === prev.id);
         return fresh || prev;
       });
-      // Load display IDs (ACCBM-XXXX) for all students
+      // Load display IDs (DEMO-XXXX) for all students
       fetch('/api/aluno/gerar-id').then(r => r.json()).then(d => {
         if (d && typeof d === 'object') setStudentDisplayIds(d as Record<string, string>);
       }).catch(() => {});
@@ -1522,13 +1566,9 @@ export default function AdminPage() {
   };
 
   // Restrict students by login profile (nucleus-specific logins see only their own)
-  const nucleoFilter = activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves'
-    : activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga'
-    : activeNucleo === 'saracuruna' ? 'Saracuruna'
-    : activeNucleo === 'vila-urussai' ? 'Vila Urussaí'
-    : activeNucleo === 'jayme-fichman' ? 'Jayme Fichman'
-    : activeNucleo === 'academia-mais-saude' ? 'Academia Mais Saúde'
-    : null;
+  // Nucleos agora sao dinamicos - busca o nome pelo slug
+  const nucleoFilter = activeNucleo === 'geral' ? null : 
+    dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || null;
   const filtered = students.filter(s => {
     const q = search.toLowerCase();
     const matchSearch = !q ||
@@ -1606,17 +1646,9 @@ export default function AdminPage() {
         } catch { /* keep existing */ }
       }
 
-      // Auto-compute tenant_id from nucleo
-      const tenantIdComputed = getTenantIdByKey(
-        Object.entries({
-          'Poliesportivo Edson Alves': 'edson-alves',
-          'Poliesportivo do Ipiranga': 'ipiranga',
-          'Saracuruna': 'saracuruna',
-          'Vila Urussaí': 'vila-urussai',
-          'Jayme Fichman': 'jayme-fichman',
-          'Academia Mais Saúde': 'academia-mais-saude',
-        }).find(([k]) => k === editForm.nucleo)?.[1] ?? 'geral'
-      ) ?? undefined;
+      // Auto-compute tenant_id from nucleo (dinamico)
+      const nucleoSlug = dynamicNucleos.find(n => n.nome === editForm.nucleo)?.slug ?? 'geral';
+      const tenantIdComputed = getTenantIdByKey(nucleoSlug) ?? undefined;
 
       // Core fields — always present in DB
       const corePayload: Record<string, any> = {
@@ -1730,9 +1762,15 @@ export default function AdminPage() {
         }),
       });
     } catch {}
-    const { error } = await supabase.from('students').delete().eq('id', deleteConfirm.id);
-    if (error) {
-      alert('Erro ao excluir. Tente novamente.');
+    // Use API com service role para bypass de RLS
+    const res = await fetch('/api/admin/delete-student', {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ id: deleteConfirm.id }),
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      alert(data.error || 'Erro ao excluir. Tente novamente.');
     } else {
       // Remove extras do Storage junto com o aluno
       fetch(`/api/student-extras?id=${deleteConfirm.id}`, { method: 'DELETE' }).catch(() => {});
@@ -1912,7 +1950,7 @@ export default function AdminPage() {
         {/* Logo + title */}
         <div style={{ textAlign: 'center', marginBottom: 28 }}>
           <img src="/logo-accbm.png" alt="ACCBM" style={{ width: 90, height: 90, objectFit: 'contain', marginBottom: 10, borderRadius: '50%' }} />
-          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestão de Alunos ACCBM</div>
+          <div style={{ background: 'linear-gradient(90deg,#dc2626,#2563eb,#16a34a)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', fontSize: '1.15rem', fontWeight: 900, letterSpacing: '0.03em' }}>Sistema de Gestao de Alunos DEMO</div>
           <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: '0.78rem', marginTop: 4 }}>Associação Cultural de Capoeira Barão de Mauá</div>
         </div>
 
@@ -1963,61 +2001,128 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Admin forgot-password inline panel */}
+{/* Admin forgot-password inline panel */}
           {showAdminForgot && (
             <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700, fontSize: '0.88rem', marginBottom: 10 }}>🔑 Recuperar Acesso</div>
-              {!adminForgotDone ? (
-                <>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 0, marginBottom: 10, lineHeight: 1.5 }}>
-                    Informe seu CPF cadastrado. Você receberá um link de redefinição por e-mail.
-                  </p>
-                  <input
-                    type="text" inputMode="numeric"
-                    value={adminForgotCpf}
-                    onChange={e => setAdminForgotCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    placeholder="CPF (apenas números)"
-                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.88rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
-                  />
-                  {adminForgotMsg && (
-                    <div style={{ fontSize: '0.78rem', color: adminForgotMsg.startsWith('✅') ? '#86efac' : '#fca5a5', marginBottom: 8, lineHeight: 1.5 }}>{adminForgotMsg}</div>
-                  )}
-                  {adminResetUrl && (
-                    <div style={{ fontSize: '0.72rem', color: '#93c5fd', marginBottom: 8, wordBreak: 'break-all', lineHeight: 1.6 }}>
-                      <strong>Link de redefinição:</strong><br />
-                      <a href={adminResetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#93c5fd' }}>{adminResetUrl}</a>
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700, fontSize: '0.88rem', marginBottom: 10 }}>Recuperar Acesso</div>
+              
+              {/* Tabs para Admin Geral vs Owner */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <button 
+                  type="button"
+                  onClick={() => setAdminForgotCpf('admin')}
+                  style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                    background: adminForgotCpf === 'admin' || adminForgotCpf === '' ? 'rgba(29,78,216,0.4)' : 'rgba(255,255,255,0.1)',
+                    color: adminForgotCpf === 'admin' || adminForgotCpf === '' ? '#93c5fd' : 'rgba(255,255,255,0.5)' }}>
+                  Admin Geral
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setAdminForgotCpf('owner')}
+                  style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                    background: adminForgotCpf === 'owner' ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.1)',
+                    color: adminForgotCpf === 'owner' ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
+                  Owner
+                </button>
+              </div>
+
+              {/* Recuperacao Admin Geral */}
+              {(adminForgotCpf === 'admin' || adminForgotCpf === '') && (
+                <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: '0.82rem', lineHeight: 1.6 }}>
+                  <div style={{ marginBottom: 12, padding: 12, background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 6 }}>Atencao</div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem' }}>
+                      A senha do Admin Geral so pode ser alterada pelo <strong>Owner</strong> do sistema.
                     </div>
+                  </div>
+                  <p style={{ margin: '8px 0', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+                    Entre em contato com o Owner para solicitar a redefinicao da sua senha.
+                  </p>
+                  <button type="button" onClick={() => setShowAdminForgot(false)} style={{ marginTop: 8, padding: '8px 16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}>Fechar</button>
+                </div>
+              )}
+
+              {/* Recuperacao Owner */}
+              {adminForgotCpf === 'owner' && !adminForgotDone && (
+                <div>
+                  <div style={{ marginBottom: 12, padding: 12, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, color: '#a78bfa', marginBottom: 6, fontSize: '0.82rem' }}>Recuperacao de Senha do Owner</div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', lineHeight: 1.5 }}>
+                      Para redefinir a senha do Owner, informe a <strong>senha de confirmacao</strong> e a nova senha desejada.
+                    </div>
+                  </div>
+                  
+                  <input
+                    type="password"
+                    value={adminResetUrl}
+                    onChange={e => setAdminResetUrl(e.target.value)}
+                    placeholder="Senha de confirmacao"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(124,58,237,0.4)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(124,58,237,0.15)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  <input
+                    type="password"
+                    value={(window as any).__ownerNewPass || ''}
+                    onChange={e => { (window as any).__ownerNewPass = e.target.value; setAdminForgotMsg(''); }}
+                    placeholder="Nova senha (min. 6 caracteres)"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  <input
+                    type="password"
+                    value={(window as any).__ownerNewPassConfirm || ''}
+                    onChange={e => { (window as any).__ownerNewPassConfirm = e.target.value; setAdminForgotMsg(''); }}
+                    placeholder="Confirmar nova senha"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  
+                  {adminForgotMsg && (
+                    <div style={{ fontSize: '0.78rem', color: adminForgotMsg.includes('sucesso') ? '#86efac' : '#fca5a5', marginBottom: 8, lineHeight: 1.5, textAlign: 'center' }}>{adminForgotMsg}</div>
                   )}
+                  
                   <button
                     type="button"
-                    disabled={adminForgotLoading || adminForgotCpf.length < 11}
+                    disabled={adminForgotLoading}
                     onClick={async () => {
-                      setAdminForgotLoading(true); setAdminForgotMsg(''); setAdminResetUrl('');
+                      const newPass = (window as any).__ownerNewPass || '';
+                      const confirmPass = (window as any).__ownerNewPassConfirm || '';
+                      
+                      if (!adminResetUrl) { setAdminForgotMsg('Informe a senha de confirmacao.'); return; }
+                      if (!newPass || newPass.length < 6) { setAdminForgotMsg('Nova senha deve ter pelo menos 6 caracteres.'); return; }
+                      if (newPass !== confirmPass) { setAdminForgotMsg('As senhas nao coincidem.'); return; }
+                      
+                      setAdminForgotLoading(true); setAdminForgotMsg('');
                       try {
-                        const res = await fetch('/api/admin/panel-auth', {
+                        const res = await fetch('/api/admin/recover-owner', {
                           method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'forgot-password', cpf: adminForgotCpf }),
+                          body: JSON.stringify({ action: 'confirm', confirmationPassword: adminResetUrl, newPassword: newPass }),
                         });
                         const data = await res.json();
                         if (data.ok) {
-                          setAdminForgotMsg(data.message || '✅ Solicitação enviada!');
-                          if (data.reset_url) setAdminResetUrl(data.reset_url);
-                          if (!data.no_email && !data.no_resend) setAdminForgotDone(true);
+                          setAdminForgotMsg(data.message || 'Senha atualizada com sucesso!');
+                          setAdminForgotDone(true);
+                          (window as any).__ownerNewPass = '';
+                          (window as any).__ownerNewPassConfirm = '';
                         } else {
-                          setAdminForgotMsg(data.error || 'CPF não encontrado.');
+                          setAdminForgotMsg(data.error || 'Erro ao redefinir senha.');
                         }
-                      } catch { setAdminForgotMsg('Erro de conexão.'); }
+                      } catch { setAdminForgotMsg('Erro de conexao.'); }
                       setAdminForgotLoading(false);
                     }}
-                    style={{ width: '100%', padding: '9px', background: adminForgotCpf.length >= 11 ? 'linear-gradient(135deg,#1d4ed8,#1e40af)' : 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: adminForgotCpf.length >= 11 ? 'pointer' : 'not-allowed', opacity: adminForgotLoading ? 0.6 : 1 }}>
-                    {adminForgotLoading ? '⏳ Enviando...' : '📧 Enviar Link de Redefinição'}
+                    style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', opacity: adminForgotLoading ? 0.6 : 1 }}>
+                    {adminForgotLoading ? 'Processando...' : 'Redefinir Senha do Owner'}
                   </button>
-                </>
-              ) : (
+                  
+                  <div style={{ marginTop: 10, fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+                    Nao tem a senha de confirmacao? Entre em contato: <strong>andrecapoeirabarao@gmail.com</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sucesso Owner */}
+              {adminForgotCpf === 'owner' && adminForgotDone && (
                 <div style={{ textAlign: 'center', color: '#86efac', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                  ✅ Link enviado! Verifique seu e-mail e siga as instruções para redefinir a senha.
+                  Senha do Owner atualizada com sucesso!<br />Faca login com a nova senha.
                   <br />
-                  <button type="button" onClick={() => { setAdminForgotDone(false); setShowAdminForgot(false); }} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Fechar</button>
+                  <button type="button" onClick={() => { setAdminForgotDone(false); setShowAdminForgot(false); setAdminResetUrl(''); }} style={{ marginTop: 10, padding: '8px 16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, color: '#fff', fontSize: '0.78rem', cursor: 'pointer' }}>Fechar e Fazer Login</button>
                 </div>
               )}
             </div>
@@ -2206,11 +2311,13 @@ export default function AdminPage() {
             Voltar ao formulário
           </Link>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Botões de troca de núcleo — visível quando responsável gerencia mais de um */}
+            {/* Botoes de troca de nucleo — visivel quando responsavel gerencia mais de um */}
             {availableNucleos.length > 1 && availableNucleos.map(nk => {
               const prof = getProfiles().find(p => p.nucleo === nk);
               if (!prof) return null;
               const isActive = activeNucleo === nk;
+              // Mostra Owner se for owner, senao usa o label normal
+              const displayLabel = isOwner && nk === 'geral' ? 'Owner' : prof.label;
               return (
                 <button
                   key={nk}
@@ -2221,20 +2328,20 @@ export default function AdminPage() {
                   }}
                   style={{
                     padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem',
-                    background: isActive ? prof.color : `${prof.color}22`,
-                    border: `1px solid ${prof.color}88`,
-                    color: isActive ? '#fff' : prof.color,
+                    background: isActive ? (isOwner ? '#7c3aed' : prof.color) : `${isOwner ? '#7c3aed' : prof.color}22`,
+                    border: `1px solid ${isOwner ? '#7c3aed' : prof.color}88`,
+                    color: isActive ? '#fff' : (isOwner ? '#7c3aed' : prof.color),
                     transition: 'all 0.15s',
                   }}
                 >
-                  {isActive ? '✓ ' : ''}{prof.label}
+                  {isActive ? '* ' : ''}{displayLabel}
                 </button>
               );
             })}
-            {/* Current profile badge — só mostra quando tem 1 núcleo */}
+            {/* Current profile badge — so mostra quando tem 1 nucleo */}
             {availableNucleos.length <= 1 && currentProfile && (
-              <div style={{ padding: '4px 10px', borderRadius: 20, background: `${currentProfile.color}22`, border: `1px solid ${currentProfile.color}55`, color: currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
-                {currentProfile.label}
+              <div style={{ padding: '4px 10px', borderRadius: 20, background: `${isOwner ? '#7c3aed' : currentProfile.color}22`, border: `1px solid ${isOwner ? '#7c3aed' : currentProfile.color}55`, color: isOwner ? '#7c3aed' : currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
+                {isOwner ? 'Owner' : currentProfile.label}
               </div>
             )}
             <button
@@ -2274,17 +2381,17 @@ export default function AdminPage() {
               textShadow: 'none',
               filter: 'drop-shadow(0 2px 8px rgba(37,99,235,0.25))',
             }}>
-              Sistema de Gestão de Alunos ACCBM
+              {systemConfig?.system_name || 'Sistema de Gestao de Alunos DEMO'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
-              Associação Cultural de Capoeira Barão de Mauá
+              {systemConfig?.organization_name || 'Organizacao Demo'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
           </div>
         </div>
 
-        {/* ── Navigation Grid (6 colunas) ── */}
+        {/* ─��� Navigation Grid (6 colunas) ── */}
         {(() => {
           function goTab(key: string) {
             setActiveTab(key as typeof activeTab);
@@ -2312,6 +2419,7 @@ export default function AdminPage() {
             if (key === 'editais') { setLoadingEditais(true); fetch('/api/editais').then(r => r.json()).then(d => { setEditais(d); setLoadingEditais(false); }).catch(() => setLoadingEditais(false)); }
             if (key === 'materiais') { setLoadingMateriais(true); fetch('/api/materiais').then(r => r.json()).then(d => { setMateriais(d); setLoadingMateriais(false); }).catch(() => setLoadingMateriais(false)); }
             if (key === 'patrimonio') { setLoadingPatrimonio(true); fetch('/api/patrimonio').then(r => r.json()).then(d => { setPatrimonio(d); setLoadingPatrimonio(false); }).catch(() => setLoadingPatrimonio(false)); }
+            if (key === 'nucleos') { setLoadingNucleos(true); fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } }).then(r => r.json()).then(d => { setNucleosList(d.nucleos || []); setLoadingNucleos(false); }).catch(() => setLoadingNucleos(false)); }
             if (key === 'rascunhos') {
               setLoadingRascunhos(true);
               fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false));
@@ -2321,6 +2429,10 @@ export default function AdminPage() {
             if (key === 'responsaveis') {
               setLoadingResponsaveis(true);
               fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
+            }
+            if (key === 'system-config') {
+              setSystemConfigLoading(true);
+              fetch('/api/admin/system-config').then(r => r.json()).then(d => { setSystemConfig(d); setSystemConfigLoading(false); }).catch(() => setSystemConfigLoading(false));
             }
             if (key === 'dados-faltantes') { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }
             if (key === 'manual') {
@@ -2363,7 +2475,7 @@ export default function AdminPage() {
           const justPendCount = justificativas.filter(j => j.status === 'pendente' && (!nucleoFilter || j.nucleo === nucleoFilter)).length;
           const dadosFaltandoCount = (nucleoFilter ? rascunhos.filter((r: any) => (r.nucleo || '') === nucleoFilter) : rascunhos).filter((r: any) => (r.dados_pendentes || []).length > 0).length;
 
-          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean; href?: string };
+          type ColBtn = { key: string; icon: string; label: string; badge?: number | string; geralOnly?: boolean; ownerOnly?: boolean; href?: string };
           const columns: { title: string; color: string; bg: string; buttons: ColBtn[] }[] = [
             {
               title: 'Gestão Principal', color: '#16a34a', bg: 'rgba(22,163,74,0.08)',
@@ -2383,7 +2495,7 @@ export default function AdminPage() {
                 { key: 'aluno-view',    icon: '🔭', label: 'Área do Aluno' },
                 { key: 'contas',        icon: '👤', label: 'Contas Alunos', badge: undefined },
                 { key: 'alunos',        icon: '🎓', label: 'Alunos' },
-                { key: 'responsaveis',  icon: '👥', label: 'Responsáveis de Núcleos', geralOnly: true },
+                { key: 'responsaveis',  icon: '👥', label: 'Responsaveis de Nucleos', ownerOnly: true },
                 { key: 'rascunhos',     icon: '📝', label: 'Cadastro dos Responsáveis', badge: rascunhosCount > 0 ? rascunhosCount : undefined },
                 { key: 'justificativas',icon: '📋', label: 'Justificativas', badge: justPendCount > 0 ? justPendCount : undefined },
               ],
@@ -2401,9 +2513,11 @@ export default function AdminPage() {
               title: 'Administrativo e Materiais', color: '#6b7280', bg: 'rgba(107,114,128,0.08)',
               buttons: [
                 { key: 'financeiro',  icon: '💰', label: 'Administrativo', badge: finAlertCount > 0 ? finAlertCount : undefined },
-                { key: 'patrimonio',  icon: '🏛️', label: 'Patrimônio' },
+                { key: 'patrimonio',  icon: '🏛️', label: 'Patrimonio' },
                 { key: 'materiais',   icon: '📦', label: 'Materiais' },
-                { key: 'doacoes',     icon: '💝', label: 'Doações', geralOnly: true },
+                { key: 'doacoes',     icon: '💝', label: 'Doacoes', geralOnly: true },
+                { key: 'nucleos',     icon: '🏢', label: 'Gerenciar Nucleos', ownerOnly: true },
+                { key: 'system-config', icon: '*', label: 'Config. Sistema', ownerOnly: true },
               ],
             },
             {
@@ -2438,7 +2552,7 @@ export default function AdminPage() {
                   <div key={col.title} style={{ background: col.bg, border: `1px solid ${col.color}25`, borderRadius: 12, padding: '10px 10px 8px', display: 'flex', flexDirection: 'column', gap: 0 }}>
                     <div style={{ fontSize: '0.6rem', fontWeight: 800, color: col.color, textTransform: 'uppercase', letterSpacing: '0.07em', marginBottom: 7, textAlign: 'center' }}>{col.title}</div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {col.buttons.filter(b => !b.geralOnly || activeNucleo === 'geral').map((btn, bi) => (
+                      {col.buttons.filter(b => (!b.geralOnly || activeNucleo === 'geral') && (!b.ownerOnly || isOwner)).map((btn, bi) => (
                         <button key={`${btn.key}-${bi}`} onClick={() => btn.href ? window.open(btn.href, '_blank') : goTab(btn.key)}
                           style={{
                             display: 'flex', alignItems: 'center', gap: 7,
@@ -2554,13 +2668,10 @@ export default function AdminPage() {
                       onChange={(e) => setFilterNucleo(e.target.value)}
                       style={{ fontSize: '0.82rem' }}
                     >
-                      <option value="">🏛️ Todos os núcleos</option>
-                      <option value="Saracuruna">Núcleo Saracuruna</option>
-                      <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                      <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                      <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                      <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                      <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                      <option value="">Todos os nucleos</option>
+                      {dynamicNucleos.map(n => (
+                        <option key={n.slug} value={n.nome}>{n.nome}</option>
+                      ))}
                     </select>
                     <select
                       className="search-input"
@@ -2743,8 +2854,11 @@ export default function AdminPage() {
             // Responsável de núcleo: mostra apenas dados do seu núcleo
             <>
             {(() => {
-              const ncColor = activeNucleo === 'edson-alves' ? '#dc2626' : activeNucleo === 'ipiranga' ? '#ea580c' : activeNucleo === 'saracuruna' ? '#16a34a' : activeNucleo === 'vila-urussai' ? '#9333ea' : activeNucleo === 'jayme-fichman' ? '#0891b2' : '#1d4ed8';
-              const ncLabel = activeNucleo === 'saracuruna' ? 'CIEP 318 — Saracuruna' : nucleoFilter;
+              // Cores dinamicas baseadas no nucleo
+              const colors = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8'];
+              const nucleoIndex = dynamicNucleos.findIndex(n => n.slug === activeNucleo);
+              const ncColor = nucleoIndex >= 0 ? colors[nucleoIndex % colors.length] : '#1d4ed8';
+              const ncLabel = nucleoFilter || activeNucleo;
               return (
                 <div className="stat-card" style={{ borderTop: `3px solid ${ncColor}` }}>
                   <div className="stat-value" style={{ color: ncColor }}>📍</div>
@@ -2766,19 +2880,12 @@ export default function AdminPage() {
             </div>
             </>
           ) : (
-            // Admin geral: mostra todos os núcleos
+            // Admin geral: mostra todos os nucleos dinamicos
             <>
-            {([
-              ['CIEP 318 — Saracuruna',       'Saracuruna',                 '#16a34a'],
-              ['Poliesportivo Edson Alves',     'Poliesportivo Edson Alves',  '#dc2626'],
-              ['Poliesportivo do Ipiranga',     'Poliesportivo do Ipiranga',  '#ea580c'],
-              ['Vila Urussaí',                  'Vila Urussaí',               '#9333ea'],
-              ['Jayme Fichman',                 'Jayme Fichman',              '#0891b2'],
-              ['Academia Mais Saúde',           'Academia Mais Saúde',        '#059669'],
-            ] as const).map(([label, nucleo, color]) => (
-              <div key={nucleo} className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
-                <div className="stat-value">{students.filter(s => s.nucleo === nucleo).length}</div>
-                <div className="stat-label">{label}</div>
+            {dynamicNucleos.map((n, idx) => (
+              <div key={n.slug} className="stat-card" style={{ borderTop: `3px solid ${NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]}` }}>
+                <div className="stat-value">{students.filter(s => s.nucleo === n.nome).length}</div>
+                <div className="stat-label">{n.nome}</div>
               </div>
             ))}
             <div className="stat-card">
@@ -2944,7 +3051,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
+                        <span className="badge" style={{ background: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(student.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}40` }}>
                           {student.nucleo || '—'}
                         </span>
                       </td>
@@ -3114,13 +3221,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               />
               <select className="search-input" style={{ width: 220 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                 <option value="">Todos os núcleos</option>
-                <option value="Saracuruna">Núcleo Saracuruna</option>
-                <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
-                <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
-                <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                <option value="Academia Mais Saúde">Academia Mais Saúde</option>
-              </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
+                      </select>
               <button
                 onClick={() => fetchPresencas(true)}
                 disabled={refreshing}
@@ -3272,14 +3376,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         )}
       {/* ===== ABA RANKING ===== */}
       {activeTab === 'ranking' && (() => {
-        // Se for responsável de núcleo, força o filtro do seu núcleo (ignora o tab selecionado)
+        // Se for responsavel de nucleo, forca o filtro do seu nucleo (ignora o tab selecionado)
         const effectiveRankingTab = nucleoFilter ? activeNucleo! : rankingNucleoTab;
-        const rankNucleoLabel = effectiveRankingTab === 'edson-alves' ? 'Poliesportivo Edson Alves'
-          : effectiveRankingTab === 'ipiranga' ? 'Poliesportivo do Ipiranga'
-          : effectiveRankingTab === 'saracuruna' ? 'Saracuruna'
-          : effectiveRankingTab === 'vila-urussai' ? 'Vila Urussaí'
-          : effectiveRankingTab === 'jayme-fichman' ? 'Jayme Fichman'
-          : null;
+        // Nucleos dinamicos - busca nome pelo slug
+        const rankNucleoLabel = effectiveRankingTab === 'todos' ? null : 
+          dynamicNucleos.find(n => n.slug === effectiveRankingTab)?.nome || null;
         const rankStudents = rankNucleoLabel ? students.filter(s => s.nucleo === rankNucleoLabel) : students;
 
         const rankData = rankStudents.map(s => {
@@ -3312,7 +3413,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {item.student.graduacao}
                 {rankingNucleoTab === 'todos' && (() => {
                   const nc = item.student.nucleo;
-                  const ncColor = (nc === 'Poliesportivo Edson Alves' || nc === 'Mauá') ? '#dc2626' : nc === 'Poliesportivo do Ipiranga' ? '#ea580c' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : nc === 'Academia Mais Saúde' ? '#059669' : '#64748b';
+                  const ncColor = getNucleoColorDynamic(nc, dynamicNucleos);
                   return <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${ncColor}18`, color: ncColor }}>{nc || '—'}</span>;
                 })()}
               </div>
@@ -3354,26 +3455,29 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* Controls row */}
             <div style={{ display: 'flex', gap: 8, marginBottom: 16, flexWrap: 'wrap', alignItems: 'center' }}>
-              {/* Núcleo tabs — só admin geral pode trocar */}
+              {/* Nucleo tabs — so admin geral pode trocar */}
               {!nucleoFilter && (
               <div style={{ display: 'flex', gap: 4, background: 'var(--bg-input)', borderRadius: 10, padding: 3, border: '1px solid var(--border)', flexWrap: 'wrap' }}>
-                {([
-                  ['todos',                '🌐 Todos',                      '#1d4ed8'],
-                  ['edson-alves',         '🔴 Edson Alves',                '#dc2626'],
-                  ['ipiranga',            '🟠 Ipiranga',                   '#ea580c'],
-                  ['saracuruna',          '🟢 CIEP 318 — Saracuruna',      '#16a34a'],
-                  ['vila-urussai',        '🟣 Vila Urussaí',               '#9333ea'],
-                  ['jayme-fichman',       '🔵 Jayme Fichman',              '#0891b2'],
-                  ['academia-mais-saude', '🟩 Acad. Mais Saúde',           '#059669'],
-                ] as const).map(([key, label, color]) => (
-                  <button key={key} onClick={() => setRankingNucleoTab(key)}
-                    style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === key ? 700 : 500,
-                      background: rankingNucleoTab === key ? color : 'transparent',
-                      color: rankingNucleoTab === key ? '#fff' : 'var(--text-secondary)',
-                      transition: 'all 0.15s' }}>
-                    {label}
-                  </button>
-                ))}
+                <button onClick={() => setRankingNucleoTab('todos')}
+                  style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === 'todos' ? 700 : 500,
+                    background: rankingNucleoTab === 'todos' ? '#1d4ed8' : 'transparent',
+                    color: rankingNucleoTab === 'todos' ? '#fff' : 'var(--text-secondary)',
+                    transition: 'all 0.15s' }}>
+                  Todos
+                </button>
+                {dynamicNucleos.map((nuc, idx) => {
+                  const colors = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669'];
+                  const color = colors[idx % colors.length];
+                  return (
+                    <button key={nuc.slug} onClick={() => setRankingNucleoTab(nuc.slug as any)}
+                      style={{ padding: '6px 12px', borderRadius: 8, border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: rankingNucleoTab === nuc.slug ? 700 : 500,
+                        background: rankingNucleoTab === nuc.slug ? color : 'transparent',
+                        color: rankingNucleoTab === nuc.slug ? '#fff' : 'var(--text-secondary)',
+                        transition: 'all 0.15s' }}>
+                      {nuc.nome}
+                    </button>
+                  );
+                })}
               </div>
               )}
               {/* Period */}
@@ -3430,8 +3534,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         const currentProf = profiles.find(p => p.nucleo === activeNucleo);
         const sig = certStudent
           ? (certStudent.nucleo === 'Mauá'
-            ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Presidente — ACCBM', img: '/assinatura-frazao.png' }
-            : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Presidente — ACCBM', img: '/assinatura-naldo.png' })
+            ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Administrador - Sistema DEMO', img: '/assinatura-frazao.png' }
+            : { nome: 'Mestre Elionaldo Pontes de Lima', cargo: 'Vice-Administrador - Sistema DEMO', img: '/assinatura-naldo.png' })
           : null;
 
         const printCertificado = async () => {
@@ -3608,7 +3712,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         <text x="561" y="540" text-anchor="middle" font-family="Georgia" font-size="12" fill="#92400e">LOCAL — DATA DO EVENTO</text>
                         <line x1="361" y1="660" x2="561" y2="660" stroke="#1e3a8a" stroke-width="1.5"/>
                         <text x="461" y="680" text-anchor="middle" font-family="Georgia" font-size="10" font-weight="bold" fill="#1e3a8a">ASSINATURA DO MESTRE</text>
-                        <text x="461" y="694" text-anchor="middle" font-family="Georgia" font-size="9" fill="#3b82f6">Presidente / Vice-Presidente — ACCBM</text>
+                        <text x="461" y="694" text-anchor="middle" font-family="Georgia" font-size="9" fill="#3b82f6">Presidente / Vice-Administrador - Sistema DEMO</text>
                       </svg>`;
                       const blob = new Blob([svgContent], { type: 'image/svg+xml' });
                       const url = URL.createObjectURL(blob);
@@ -3644,7 +3748,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Local</label>
-                    <input value={certLocal} onChange={e => setCertLocal(e.target.value)} placeholder="ex: Poliesportivo Edson Alves, Mauá"
+                    <input value={certLocal} onChange={e => setCertLocal(e.target.value)} placeholder="ex: Nucleo Demo Centro"
                       style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
@@ -4125,7 +4229,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </td>
                             <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                             <td>
-                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
+                              <span className="badge" style={{ background: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(student.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}40` }}>
                                 {student.nucleo || '—'}
                               </span>
                             </td>
@@ -4331,16 +4435,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {finVisao && (() => {
                 const vg = finVisao as any;
 
-                // Cards de resumo por núcleo
+                // Cards de resumo por nucleo
                 const nucleos = Object.keys(vg.por_nucleo || {});
-                const NUCLEO_COLORS: Record<string,string> = {
-                  'Poliesportivo Edson Alves': '#dc2626',
-                  'Poliesportivo do Ipiranga': '#ea580c',
-                  'Saracuruna': '#16a34a',
-                  'Vila Urussaí': '#9333ea',
-                  'Jayme Fichman': '#0891b2',
-                  'Academia Mais Saúde': '#059669',
-                };
+                // Cores dinamicas baseadas nos nucleos
+                const NUCLEO_COLORS: Record<string,string> = {};
+                dynamicNucleos.forEach((n, idx) => { NUCLEO_COLORS[n.nome] = NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]; });
 
                 // Filter lançamentos
                 const allLanc: any[] = vg.lancamentos || [];
@@ -4961,7 +5060,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           )}
 
-          {/* ── Config de Valores ─────────────────────────────────────── */}
+          {/* ── Config de Valores ───────────���─────────────────────────── */}
           <div style={{ marginBottom: 16 }}>
             <button onClick={() => {
               setShowFinConfig(v => !v);
@@ -5631,7 +5730,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {finSection === 'contribuicao' && (
                   <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden', marginBottom: 16 }}>
                     <div style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', padding: '10px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
-                      <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição — Projeto Social</div>
+                      <div style={{ color: '#fff', fontWeight: 800 }}>🤝 Contribuição �� Projeto Social</div>
                       <button onClick={() => { setFinAddContrib(v => !v); setFinAddContribData({ mes: new Date().toISOString().slice(0,7), valor: finConfig.contribuicao_mensal, status: 'pendente' }); }}
                         style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', color: '#fff', borderRadius: 8, padding: '5px 12px', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}>
                         + Adicionar
@@ -6113,6 +6212,299 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         </div>
       )}
 
+      {/* ===== ABA GERENCIAR NÚCLEOS ===== */}
+      {activeTab === 'nucleos' && activeNucleo === 'geral' && (
+        <div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#0ea5e9,#0284c7)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Gerenciar Nucleos</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>
+                {isOwner ? 'Cadastre e gerencie os nucleos (tenants) do sistema' : 'Visualize os nucleos cadastrados no sistema'}
+              </div>
+            </div>
+            {isOwner ? (
+              <button
+                onClick={() => { setNucleoForm({ nome: '', endereco: '', cidade: '', estado: '', telefone: '', email: '' }); setNucleoFormMsg(''); setShowCreateNucleoModal(true); }}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(14,165,233,0.3)' }}
+              >
+                <span style={{ fontSize: '1rem' }}>+</span> Criar Novo Nucleo
+              </button>
+            ) : (
+              <div style={{ padding: '10px 18px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, color: '#ef4444', fontWeight: 600, fontSize: '0.82rem' }}>
+                Acesso restrito ao Owner (desenvolvedor)
+              </div>
+            )}
+          </div>
+          
+          {/* Aviso de acesso restrito para admin geral */}
+          {!isOwner && (
+            <div style={{ marginBottom: 20, padding: 16, background: 'rgba(245,158,11,0.1)', border: '1px solid rgba(245,158,11,0.3)', borderRadius: 12 }}>
+              <div style={{ fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>Acesso Somente Leitura</div>
+              <div style={{ fontSize: '0.82rem', color: '#d97706' }}>
+                Apenas o Owner (desenvolvedor) pode criar, editar ou excluir nucleos. Como Admin Geral, voce pode apenas visualizar os nucleos cadastrados.
+              </div>
+            </div>
+          )}
+
+          {loadingNucleos ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando núcleos...</div>
+          ) : nucleosList.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>🏢</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Nenhum núcleo cadastrado</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Clique em &quot;Criar Novo Núcleo&quot; para começar</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {nucleosList.map(nucleo => (
+                <div key={nucleo.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: nucleo.ativo ? 'linear-gradient(135deg,#0ea5e9,#0284c7)' : 'linear-gradient(135deg,#6b7280,#4b5563)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>{nucleo.nome}</div>
+                    <span style={{ background: nucleo.ativo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+                      {nucleo.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <div style={{ padding: '14px 16px' }}>
+                    <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 10 }}>
+                      <strong>Slug:</strong> {nucleo.slug}
+                    </div>
+                    {nucleo.endereco && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>📍 {nucleo.endereco}</div>}
+                    {(nucleo.cidade || nucleo.estado) && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>🏙️ {[nucleo.cidade, nucleo.estado].filter(Boolean).join(' - ')}</div>}
+                    {nucleo.telefone && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>📞 {nucleo.telefone}</div>}
+                    {nucleo.email && <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 4 }}>✉️ {nucleo.email}</div>}
+                    <div style={{ fontSize: '0.7rem', color: 'var(--text-tertiary)', marginTop: 10 }}>
+                      Criado em {new Date(nucleo.created_at).toLocaleDateString('pt-BR')}
+                    </div>
+                    {isOwner && (
+                    <div style={{ display: 'flex', gap: 8, marginTop: 14 }}>
+                      <button
+                        onClick={async () => {
+                          const newAtivo = !nucleo.ativo;
+                          const res = await fetch('/api/admin/nucleos', {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
+                            body: JSON.stringify({ id: nucleo.id, ativo: newAtivo }),
+                          });
+                          if (res.ok) {
+                            setNucleosList(prev => prev.map(n => n.id === nucleo.id ? { ...n, ativo: newAtivo } : n));
+                          }
+                        }}
+                        style={{ flex: 1, padding: '8px 12px', background: nucleo.ativo ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${nucleo.ativo ? 'rgba(245,158,11,0.3)' : 'rgba(34,197,94,0.3)'}`, color: nucleo.ativo ? '#f59e0b' : '#22c55e', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                      >
+                        {nucleo.ativo ? 'Desativar' : 'Ativar'}
+                      </button>
+                      <button
+                        onClick={() => setNucleoDeleteConfirm(nucleo)}
+                        style={{ padding: '8px 12px', background: 'rgba(220,38,38,0.1)', border: '1px solid rgba(220,38,38,0.3)', color: '#f87171', borderRadius: 8, cursor: 'pointer', fontSize: '0.78rem', fontWeight: 700 }}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Modal Criar Nucleo - Apenas Owner */}
+          {showCreateNucleoModal && isOwner && (
+            <div onClick={e => { if (e.target === e.currentTarget) setShowCreateNucleoModal(false); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 480, boxShadow: '0 8px 40px rgba(0,0,0,0.3)', maxHeight: '90vh', overflowY: 'auto' }}>
+                <h3 style={{ margin: '0 0 4px', color: '#0284c7', fontWeight: 800, fontSize: '1.05rem' }}>Criar Novo Nucleo</h3>
+                <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#6b7280' }}>Preencha os dados do novo núcleo/unidade</p>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Nome do Núcleo *</label>
+                    <input
+                      type="text"
+                      value={nucleoForm.nome}
+                      onChange={e => setNucleoForm(f => ({ ...f, nome: e.target.value }))}
+                      placeholder="Ex: Núcleo Centro"
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                  <div>
+                    <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Endereço</label>
+                    <input
+                      type="text"
+                      value={nucleoForm.endereco}
+                      onChange={e => setNucleoForm(f => ({ ...f, endereco: e.target.value }))}
+                      placeholder="Rua, número, bairro..."
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                    />
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Cidade</label>
+                      <input
+                        type="text"
+                        value={nucleoForm.cidade}
+                        onChange={e => setNucleoForm(f => ({ ...f, cidade: e.target.value }))}
+                        placeholder="Cidade"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Estado</label>
+                      <input
+                        type="text"
+                        value={nucleoForm.estado}
+                        onChange={e => setNucleoForm(f => ({ ...f, estado: e.target.value }))}
+                        placeholder="UF"
+                        maxLength={2}
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Telefone</label>
+                      <input
+                        type="tel"
+                        value={nucleoForm.telefone}
+                        onChange={e => setNucleoForm(f => ({ ...f, telefone: e.target.value }))}
+                        placeholder="(00) 00000-0000"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>E-mail</label>
+                      <input
+                        type="email"
+                        value={nucleoForm.email}
+                        onChange={e => setNucleoForm(f => ({ ...f, email: e.target.value }))}
+                        placeholder="email@exemplo.com"
+                        style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
+                      />
+                    </div>
+                  </div>
+                  {/* Coordenadas para presenca por GPS */}
+                  <div style={{ padding: 12, background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0284c7', marginBottom: 8 }}>Coordenadas GPS (para registro de presenca)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Latitude</label>
+                        <input
+                          type="text"
+                          value={(nucleoForm as any).lat || ''}
+                          onChange={e => setNucleoForm(f => ({ ...f, lat: e.target.value }))}
+                          placeholder="Ex: -22.7077"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Longitude</label>
+                        <input
+                          type="text"
+                          value={(nucleoForm as any).lng || ''}
+                          onChange={e => setNucleoForm(f => ({ ...f, lng: e.target.value }))}
+                          placeholder="Ex: -43.1451"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 6 }}>
+                      Dica: Use o Google Maps para obter as coordenadas do local de treino.
+                    </div>
+                  </div>
+                  {nucleoFormMsg && (
+                    <div style={{ padding: '10px 14px', borderRadius: 8, background: nucleoFormMsg.startsWith('✓') ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.1)', border: `1px solid ${nucleoFormMsg.startsWith('✓') ? 'rgba(34,197,94,0.3)' : 'rgba(220,38,38,0.3)'}`, color: nucleoFormMsg.startsWith('✓') ? '#22c55e' : '#ef4444', fontSize: '0.82rem', fontWeight: 600 }}>
+                      {nucleoFormMsg}
+                    </div>
+                  )}
+                  <div style={{ display: 'flex', gap: 10, marginTop: 6 }}>
+                    <button
+                      onClick={() => setShowCreateNucleoModal(false)}
+                      style={{ flex: 1, padding: '12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 10, color: '#374151', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      disabled={nucleoFormSaving || !nucleoForm.nome.trim()}
+                      onClick={async () => {
+                        setNucleoFormSaving(true);
+                        setNucleoFormMsg('');
+                        try {
+                          const res = await fetch('/api/admin/nucleos', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
+                            body: JSON.stringify({ admin_auth: 'owner', ...nucleoForm }),
+                          });
+                          const data = await res.json();
+                          if (!res.ok) {
+                            setNucleoFormMsg(data.error || 'Erro ao criar núcleo');
+                          } else {
+                            setNucleoFormMsg('✓ Núcleo criado com sucesso!');
+                            setNucleosList(prev => [...prev, data.nucleo]);
+                            setTimeout(() => setShowCreateNucleoModal(false), 1500);
+                          }
+                        } catch (err) {
+                          setNucleoFormMsg('Erro de conexão');
+                        }
+                        setNucleoFormSaving(false);
+                      }}
+                      style={{ flex: 1, padding: '12px', background: nucleoFormSaving || !nucleoForm.nome.trim() ? '#9ca3af' : 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: nucleoFormSaving || !nucleoForm.nome.trim() ? 'not-allowed' : 'pointer' }}
+                    >
+                      {nucleoFormSaving ? 'Salvando...' : 'Criar Núcleo'}
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Confirmar Exclusão */}
+          {nucleoDeleteConfirm && (
+            <div onClick={e => { if (e.target === e.currentTarget) setNucleoDeleteConfirm(null); }} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.65)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 300, padding: 20 }}>
+              <div style={{ background: '#fff', borderRadius: 16, padding: '24px', width: '100%', maxWidth: 400, boxShadow: '0 8px 40px rgba(0,0,0,0.3)' }}>
+                <h3 style={{ margin: '0 0 12px', color: '#dc2626', fontWeight: 800, fontSize: '1rem' }}>Excluir Nucleo?</h3>
+                <p style={{ margin: '0 0 20px', fontSize: '0.85rem', color: '#4b5563' }}>
+                  Tem certeza que deseja excluir o nucleo <strong>{nucleoDeleteConfirm.nome}</strong>?
+                </p>
+                <p style={{ margin: '0 0 20px', fontSize: '0.78rem', color: '#9ca3af' }}>
+                  Esta acao nao pode ser desfeita. Se houver alunos vinculados, a exclusao sera impedida.
+                </p>
+                <div style={{ display: 'flex', gap: 10 }}>
+                  <button
+                    onClick={() => setNucleoDeleteConfirm(null)}
+                    style={{ flex: 1, padding: '12px', background: '#f3f4f6', border: '1px solid #d1d5db', borderRadius: 10, color: '#374151', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer' }}
+                  >
+                    Cancelar
+                  </button>
+                  <button
+                    disabled={nucleoDeleting}
+                    onClick={async () => {
+                      setNucleoDeleting(true);
+                      try {
+                        const res = await fetch('/api/admin/nucleos', {
+                          method: 'DELETE',
+                          headers: { 'Content-Type': 'application/json', 'x-admin-auth': 'owner' },
+                          body: JSON.stringify({ admin_auth: 'owner', id: nucleoDeleteConfirm.id }),
+                        });
+                        const data = await res.json();
+                        if (!res.ok) {
+                          alert(data.error || 'Erro ao excluir');
+                        } else {
+                          setNucleosList(prev => prev.filter(n => n.id !== nucleoDeleteConfirm.id));
+                          setNucleoDeleteConfirm(null);
+                        }
+                      } catch (err) {
+                        alert('Erro de conexão');
+                      }
+                      setNucleoDeleting(false);
+                    }}
+                    style={{ flex: 1, padding: '12px', background: nucleoDeleting ? '#9ca3af' : '#dc2626', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: nucleoDeleting ? 'not-allowed' : 'pointer' }}
+                  >
+                    {nucleoDeleting ? 'Excluindo...' : 'Excluir'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ===== ABA PLAYLIST ===== */}
       {activeTab === 'playlist' && activeNucleo === 'geral' && (() => {
         // ── helpers (inline, avoid top-level scope pollution) ──
@@ -6151,7 +6543,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#7c3aed,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🎵 Minha Playlist</div>
+                <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#7c3aed,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>���� Minha Playlist</div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>YouTube · Spotify · Deezer · TikTok · Kwai — visível na Área do Aluno</div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -6451,13 +6843,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <select value={filterMatNucleo} onChange={e => setFilterMatNucleo(e.target.value)}
               style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
               <option value="">Todos os núcleos</option>
-              <option value="Poliesportivo Edson Alves">Edson Alves</option>
-              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
-              <option value="Saracuruna">Saracuruna</option>
-              <option value="Vila Urussaí">Vila Urussaí</option>
-              <option value="Jayme Fichman">Jayme Fichman</option>
-              <option value="Geral">Geral</option>
-            </select>
+{dynamicNucleos.map(n => (
+                              <option key={n.slug} value={n.nome}>{n.nome}</option>
+                            ))}
+                          </select>
           </div>
 
           {/* Form */}
@@ -6474,7 +6863,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   { key: 'parcelas', label: 'Nº Parcelas (se parcelado)', placeholder: '', type: 'number' },
                   { key: 'metodo_pagamento', label: 'Forma de Pagamento', placeholder: '', type: 'select', opts: ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro', 'Boleto'] },
                   { key: 'fornecedor', label: 'Fornecedor', placeholder: 'Opcional', type: 'text' },
-                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'nucleo', label: 'Nucleo', placeholder: '', type: 'select', opts: ['Geral', ...dynamicNucleos.map(n => n.nome)] },
                   { key: 'data_compra', label: 'Data da Compra', placeholder: '', type: 'date' },
                   { key: 'notas', label: 'Observações', placeholder: 'Opcional', type: 'text' },
                 ].map(({ key, label, placeholder, type, opts }) => (
@@ -6593,13 +6982,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <select value={filterPatNucleo} onChange={e => setFilterPatNucleo(e.target.value)}
               style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
               <option value="">Todos os núcleos</option>
-              <option value="Poliesportivo Edson Alves">Edson Alves</option>
-              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
-              <option value="Saracuruna">Saracuruna</option>
-              <option value="Vila Urussaí">Vila Urussaí</option>
-              <option value="Jayme Fichman">Jayme Fichman</option>
-              <option value="Geral">Geral</option>
-            </select>
+{dynamicNucleos.map(n => (
+                              <option key={n.slug} value={n.nome}>{n.nome}</option>
+                            ))}
+                          </select>
           </div>
 
           {/* Form */}
@@ -6610,7 +6996,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {[
                   { key: 'nome', label: 'Nome do Item', placeholder: 'Ex: Berimbau médio', type: 'text' },
                   { key: 'tipo', label: 'Tipo', placeholder: '', type: 'select', opts: ['instrumento', 'mobiliário', 'equipamento', 'uniforme', 'material pedagógico', 'outros'] },
-                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'nucleo', label: 'Nucleo', placeholder: '', type: 'select', opts: ['Geral', ...dynamicNucleos.map(n => n.nome)] },
                   { key: 'quantidade', label: 'Quantidade', placeholder: '1', type: 'number' },
                   { key: 'valor_estimado', label: 'Valor Estimado (R$)', placeholder: '0,00', type: 'number' },
                   { key: 'estado', label: 'Estado de Conservação', placeholder: '', type: 'select', opts: ['otimo', 'bom', 'regular', 'ruim', 'descartado'] },
@@ -6715,10 +7101,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 style={{ background: 'var(--bg-input)', border: '1px solid var(--border)', color: 'var(--text-secondary)', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem' }}>↻ Atualizar</button>
               {activeNucleo === 'geral' && (
                 <button onClick={async () => {
-                  if (!confirm('Renumerar matrículas de todos os alunos? O André será ACCBM-000001 e os demais seguirão a ordem de cadastro.')) return;
+                  if (!confirm('Renumerar matrículas de todos os alunos? O André será DEMO-000001 e os demais seguirão a ordem de cadastro.')) return;
                   const res = await fetch('/api/fix-matriculas');
                   const d = await res.json();
-                  if (d.ok) alert(`✅ ${d.updated || d.total} matrículas atualizadas! André = ACCBM-000001`);
+                  if (d.ok) alert(`✅ ${d.updated || d.total} matrículas atualizadas! André = DEMO-000001`);
                   else alert('Erro ao renumerar: ' + JSON.stringify(d));
                 }}
                   style={{ background: 'rgba(251,191,36,0.12)', border: '1px solid rgba(251,191,36,0.3)', color: '#fbbf24', borderRadius: 8, padding: '8px 14px', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 700 }}>
@@ -6728,16 +7114,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           </div>
 
-          {/* Responsáveis por Núcleo config — apenas admin geral pode gerenciar */}
-          {activeNucleo === 'geral' && (() => {
-            const nucleosList = [
-              { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
-              { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
-              { key: 'saracuruna',          label: 'Saracuruna' },
-              { key: 'vila-urussai',        label: 'Vila Urussaí' },
-              { key: 'jayme-fichman',       label: 'Jayme Fichman' },
-              { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
-            ];
+          {/* Responsaveis por Nucleo config — apenas owner pode gerenciar */}
+          {activeNucleo === 'geral' && isOwner && (() => {
+            // Nucleos carregados dinamicamente
+            const nucleosList = dynamicNucleos.map(n => ({ key: n.slug, label: n.nome }));
             return (
               <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(251,191,36,0.2)', borderRadius: 14, padding: '18px 20px', marginBottom: 20 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
@@ -7286,12 +7666,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     setRelAlunosList(list);
                   }} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                     <option value="">Todos os núcleos</option>
-                    <option value="Saracuruna">Saracuruna</option>
-                    <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                    <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                    <option value="Vila Urussaí">Vila Urussaí</option>
-                    <option value="Jayme Fichman">Jayme Fichman</option>
-                  </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
+                      </select>
                 </div>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -7692,7 +8070,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </span>
                   )}
                   {selected.nucleo && (
-                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (selected.nucleo === 'Poliesportivo Edson Alves' || selected.nucleo === 'Mauá') ? 'badge-maua' : selected.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : selected.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : selected.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>{selected.nucleo}</span>
+                    <span className="badge" style={{ background: `${getNucleoColorDynamic(selected.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(selected.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(selected.nucleo, dynamicNucleos)}40` }}>{selected.nucleo}</span>
                   )}
                 </div>
               </div>
@@ -7702,7 +8080,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             {(studentDisplayIds[selected.id]) && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', borderRadius: 8, padding: '6px 16px', marginBottom: 16 }}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" strokeWidth="2"><rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/></svg>
-                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>ID ACCBM</span>
+                <span style={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.72rem', fontWeight: 600 }}>ID DEMO</span>
                 <span style={{ color: '#fff', fontSize: '0.95rem', fontWeight: 900, letterSpacing: '0.06em' }}>{studentDisplayIds[selected.id]}</span>
               </div>
             )}
@@ -8025,7 +8403,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 }}
                 style={{ width: '100%', marginTop: 10, padding: '9px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.35)', color: '#818cf8', borderRadius: 10, cursor: 'pointer', fontWeight: 600, fontSize: '0.85rem' }}
               >
-                🔢 Gerar ID ACCBM para este aluno
+                🔢 Gerar ID DEMO para este aluno
               </button>
             )}
 
@@ -8136,11 +8514,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" name="nucleo" value={editForm.nucleo || ''} onChange={handleEditChange}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Núcleo Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                  <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
                 </select>
               </div>
               <div className="detail-item">
@@ -8757,7 +9133,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* ===== ABA RESTAURAÇÃO DE DADOS ===== */}
       {activeTab === 'restauracao' && activeNucleo === 'geral' && (() => {
-        const NUCLEOS_LIST = ['Poliesportivo Edson Alves','Poliesportivo do Ipiranga','Saracuruna','Vila Urussaí','Jayme Fichman','Academia Mais Saúde'];
+        // Nucleos dinamicos carregados do banco
+              const NUCLEOS_LIST = dynamicNucleos.map(n => n.nome);
         const GRADUACOES_LIST = ['Crua','Crua-Amarela','Amarela','Amarela-Laranja','Laranja','Laranja-Azul','Azul','Azul-Verde','Verde','Verde-Roxa','Roxa','Roxa-Marrom','Marrom','Marrom-Vermelha','Vermelha','Vermelha-Preta','Preta'];
         return (
           <div>
@@ -8940,9 +9317,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
             {/* GENERATE IDs */}
             <div style={{ background: 'var(--bg-card)', border: '2px solid rgba(16,185,129,0.3)', borderRadius: 14, padding: '20px' }}>
-              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 8 }}>🪪 IDs ACCBM</div>
+              <div style={{ fontWeight: 700, color: '#34d399', marginBottom: 8 }}>🪪 IDs DEMO</div>
               <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginBottom: 14 }}>
-                Gera automaticamente IDs ACCBM únicos para todos os alunos que ainda não possuem. O ID é vinculado à conta do aluno no sistema.
+                Gera automaticamente IDs DEMO únicos para todos os alunos que ainda não possuem. O ID é vinculado à conta do aluno no sistema.
               </div>
               <button onClick={async () => {
                 const res = await fetch('/api/aluno/gerar-id', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'bulk-assign' }) });
@@ -9465,7 +9842,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
         };
         const docs = docConfigs[activeTab] || [];
         const tabTitle = activeTab === 'estatuto' ? '📄 Estatuto Social' : activeTab === 'regimento' ? '📝 Regimento Interno' : '📚 Bibliografia dos Mestres';
-        const tabSub   = activeTab === 'estatuto' ? 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' : activeTab === 'regimento' ? 'Regimento Interno da ACCBM' : 'Portfólios e referências bibliográficas dos mestres da ACCBM';
+        const tabSub   = activeTab === 'estatuto' ? 'Estatuto Social da Associação Cultural de Capoeira Barão de Mauá' : activeTab === 'regimento' ? 'Regimento Interno DEMO' : 'Portfólios e referências bibliográficas dos mestres DEMO';
         return (
           <div>
             <div style={{ marginBottom: 20 }}>
@@ -9965,11 +10342,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA EVENTOS ===== */}
       {activeTab === 'eventos' && (() => {
         const nucleoFilter = activeNucleo !== 'geral' ? (
-          activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves' :
-          activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga' :
-          activeNucleo === 'saracuruna' ? 'Saracuruna' :
-          activeNucleo === 'vila-urussai' ? 'Vila Urussaí' :
-          activeNucleo === 'jayme-fichman' ? 'Jayme Fichman' : ''
+dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
         ) : '';
         // Admin geral vê TODOS os eventos
         // Responsável de núcleo vê APENAS eventos do seu núcleo OU sem núcleo definido
@@ -10129,7 +10502,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           const origin = typeof window !== 'undefined' ? window.location.origin : '';
                           const dataFmt = ev.data ? new Date(ev.data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                           const rows = (ev.participantes || []).map((p: any, i: number) => {
-                            const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                            const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                             const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                             const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
                             return `<tr style="background:${i%2===0?'#f8fafc':'#fff'}">
@@ -10139,7 +10512,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${dn}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.nucleo || '—'}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:700;font-size:0.78em">${p.graduacao_atual}</td>
-                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">→</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">��</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:${mudou?'#15803d':'#94a3b8'};font-weight:${mudou?'800':'400'};font-size:0.78em">${p.nova_graduacao || p.graduacao_atual}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#94a3b8;border-left:1px dashed #e2e8f0"></td>
                             </tr>`;
@@ -10200,7 +10573,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Responsável / Mestre</div></div>
                             <div class="gen-info">
                               <div>Relatório gerado em ${new Date().toLocaleString('pt-BR')}</div>
-                              <div style="margin-top:2px;font-weight:700;color:#475569">Associação Cultural de Capoeira Barão de Mauá — ACCBM</div>
+                              <div style="margin-top:2px;font-weight:700;color:#475569">Sistema de Gestao de Alunos DEMO</div>
                             </div>
                             <div class="sig-box"><div class="sig-line"></div><div class="sig-label">Secretário(a)</div></div>
                           </div>
@@ -10244,7 +10617,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
               const printListaGeral = () => {
                 const rows = listaGeral.map((p, i) => {
-                  const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                  const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                   const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                   const ev_data = p._evento_data ? new Date(p._evento_data + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                   const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
@@ -10306,7 +10679,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 </table>
                 <div class="footer">
                   <div>Gerado em ${new Date().toLocaleString('pt-BR')}</div>
-                  <div><strong>Associação Cultural de Capoeira Barão de Mauá — ACCBM</strong></div>
+                  <div><strong>Sistema de Gestao de Alunos DEMO</strong></div>
                 </div>
                 </body></html>`;
                 const w = window.open('', '_blank');
@@ -10346,7 +10719,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {/* Rows */}
                     <div style={{ maxHeight: 460, overflowY: 'auto' }}>
                       {listaGeral.map((p, i) => {
-                        const mat = p.inscricao_numero ? `ACCBM-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
+                        const mat = p.inscricao_numero ? `DEMO-${String(p.inscricao_numero).padStart(6,'0')}` : '—';
                         const dn = p.data_nascimento ? new Date(p.data_nascimento + 'T12:00:00').toLocaleDateString('pt-BR') : '—';
                         const mudou = p.nova_graduacao && p.nova_graduacao !== p.graduacao_atual;
                         const ev_data = p._evento_data ? new Date(p._evento_data + 'T12:00:00').toLocaleDateString('pt-BR') : '';
@@ -10435,7 +10808,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📍 {t('admin_event_local_label')}</label>
                 <input value={eventoForm.local || ''} onChange={e => setEventoForm((f: any) => ({ ...f, local: e.target.value }))}
-                  placeholder="Ex: Poliesportivo Edson Alves"
+                  placeholder="Ex: Nucleo Demo Centro"
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
               <div>
@@ -10443,19 +10816,17 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <select value={eventoForm.nucleo || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nucleo: e.target.value }))}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}>
                   <option value="">{t('admin_event_all_nucleos')}</option>
-                  <option>Poliesportivo Edson Alves</option>
-                  <option>Poliesportivo do Ipiranga</option>
-                  <option>Saracuruna</option>
-                  <option>Vila Urussaí</option>
-                  <option>Jayme Fichman</option>
-                </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug}>{n.nome}</option>
+                        ))}
+                      </select>
               </div>
             </div>
 
             {/* Participants section */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                👥 {t('admin_event_participants')}
+                �� {t('admin_event_participants')}
                 {(eventoForm.participantes || []).length > 0 && (
                   <span style={{ background: 'rgba(14,165,233,0.15)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 20, padding: '2px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
                     {(eventoForm.participantes || []).length} inserido{(eventoForm.participantes || []).length !== 1 ? 's' : ''}
@@ -10578,7 +10949,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         setEventoParticipantSearch('');
                       }}
                       style={{ flex: 1, padding: '10px 0', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', color: '#fff', borderRadius: 9, cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem', boxShadow: '0 2px 10px rgba(14,165,233,0.4)' }}>
-                      ✅ Inserir na Lista
+                      �� Inserir na Lista
                     </button>
                     <button
                       onClick={() => { setEventoParticipantStaging(null); setEventoParticipantSearch(''); }}
@@ -10796,11 +11167,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" value={rascunhoEditForm.nucleo || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Núcleo Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Vila Urussaí</option>
-                  <option value="Jayme Fichman">Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                  <option key={n.slug} value={n.nome}>{n.nome}</option>
+                ))}
                 </select>
               </div>
               <div className="detail-item">
@@ -10886,11 +11255,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" value={newRascunhoForm.nucleo || ''} onChange={e => setNewRascunhoForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Vila Urussaí</option>
-                  <option value="Jayme Fichman">Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                  <option key={n.slug} value={n.nome}>{n.nome}</option>
+                ))}
                 </select>
               </div>
             </div>
@@ -11209,7 +11576,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
           {/* WhatsApp template — request student email */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>📨 Solicitar E-mail do Aluno via WhatsApp</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>��� Solicitar E-mail do Aluno via WhatsApp</h3>
             <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Use este modelo para pedir o e-mail ao aluno e criar a conta de acesso.</p>
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '14px 16px', fontSize: '0.82rem', color: '#14532d', lineHeight: 1.7, fontFamily: 'monospace', whiteSpace: 'pre-wrap', userSelect: 'text' }}>
 {`Olá! Tudo bem? 👋🏽
@@ -11578,7 +11945,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
                           <thead>
                             <tr style={{ borderBottom: '2px solid var(--border)', background: 'var(--bg-input)' }}>
-                              {['ID ACCBM', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso', 'Ações'].map(h => (
+                              {['ID DEMO', 'Nome Completo do Aluno', 'Login (Usuário)', 'E-mail', 'WhatsApp', 'Núcleo', 'Status', 'Criado em', 'Último acesso', 'Ações'].map(h => (
                                 <th key={h} style={{ textAlign: 'left', padding: '9px 10px', color: 'var(--text-secondary)', fontWeight: 700, whiteSpace: 'nowrap', fontSize: '0.78rem' }}>{h}</th>
                               ))}
                             </tr>
@@ -11705,7 +12072,7 @@ Associação Cultural de Capoeira Barão de Mauá 🥋`
                         const msg = encodeURIComponent(
 `Olá! 👋
 
-Somos da Associação Cultural de Capoeira Barão de Mauá.
+Somos da Associa��ão Cultural de Capoeira Barão de Mauá.
 
 Precisamos que você acesse a área do aluno, crie sua conta e, em seguida, entre novamente com essa conta para finalizar o seu cadastro.
 
@@ -11767,11 +12134,10 @@ Suporte Ginga Gestão.`
             const inativosPorc = 100 - ativosPorc;
 
             // By nucleo counts (active today)
-            const nucleoNames = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
-            const nucleoColors: Record<string, string> = {
-              'Poliesportivo Edson Alves': '#dc2626', 'Poliesportivo do Ipiranga': '#ea580c',
-              'Saracuruna': '#16a34a', 'Vila Urussaí': '#9333ea', 'Jayme Fichman': '#0891b2', 'Academia Mais Saúde': '#059669',
-            };
+// Nucleos dinamicos
+                const nucleoNames = dynamicNucleos.map(n => n.nome);
+                const nucleoColors: Record<string, string> = {};
+                dynamicNucleos.forEach((n, idx) => { nucleoColors[n.nome] = NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]; });
             const nucleoStats = nucleoNames.map(nc => {
               const ncStudents = allStudents.filter((s: any) => s.nucleo === nc);
               const ncAtivos = ncStudents.filter((s: any) => {
@@ -11931,7 +12297,7 @@ Suporte Ginga Gestão.`
                                   <td style={{ padding: '7px 10px' }}>
                                     {engagementFilter === 'sem-email' ? (
                                       tel ? (
-                                        <a href={`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent('Olá! Precisamos que você atualize seu e-mail no cadastro da ACCBM. Acesse a área do aluno.')}`}
+                                        <a href={`https://api.whatsapp.com/send?phone=55${tel}&text=${encodeURIComponent('Olá! Precisamos que você atualize seu e-mail no cadastro DEMO. Acesse a área do aluno.')}`}
                                           target="_blank" rel="noopener noreferrer"
                                           style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: 'linear-gradient(135deg,#25d366,#128c7e)', color: '#fff', borderRadius: 6, padding: '4px 10px', textDecoration: 'none', fontSize: '0.72rem', fontWeight: 700 }}>
                                           📱 WhatsApp
@@ -12055,8 +12421,207 @@ Suporte Ginga Gestão.`
         </div>
       )}
 
-      {/* ===== ABA RESPONSÁVEIS / ADMINISTRADORES (geral only) ===== */}
-      {activeTab === 'responsaveis' && activeNucleo === 'geral' && (
+      {/* ===== ABA CONFIGURACOES DO SISTEMA (Owner only) ===== */}
+      {activeTab === 'system-config' && isOwner && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>* Configuracoes do Sistema</h2>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Configure nome, logo, cores e informacoes gerais do sistema (apenas Owner).
+            </p>
+          </div>
+          
+          {systemConfigLoading ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando configuracoes...</div>
+          ) : !systemConfig ? (
+            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>*</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Erro ao carregar configuracoes</div>
+              <button onClick={() => { setSystemConfigLoading(true); fetch('/api/admin/system-config').then(r => r.json()).then(d => { setSystemConfig(d); setSystemConfigLoading(false); }).catch(() => setSystemConfigLoading(false)); }}
+                style={{ marginTop: 12, padding: '10px 20px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>
+                Tentar Novamente
+              </button>
+            </div>
+          ) : (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+              {systemConfigMsg && (
+                <div style={{ marginBottom: 16, padding: 12, background: systemConfigMsg.includes('Erro') ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${systemConfigMsg.includes('Erro') ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 8, color: systemConfigMsg.includes('Erro') ? '#ef4444' : '#22c55e', fontWeight: 600, fontSize: '0.85rem' }}>
+                  {systemConfigMsg}
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                {/* Identidade */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Identidade do Sistema</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome do Sistema</label>
+                      <input value={systemConfig.system_name || ''} onChange={e => setSystemConfig({ ...systemConfig, system_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome da Organizacao</label>
+                      <input value={systemConfig.organization_name || ''} onChange={e => setSystemConfig({ ...systemConfig, organization_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Sigla (para IDs)</label>
+                      <input value={systemConfig.organization_short || ''} onChange={e => setSystemConfig({ ...systemConfig, organization_short: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="DEMO" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Prefixo do ID</label>
+                      <input value={systemConfig.id_prefix || ''} onChange={e => setSystemConfig({ ...systemConfig, id_prefix: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="DEMO" />
+                    </div>
+                    {/* Logos e Imagens */}
+                    <div style={{ marginTop: 8, padding: 12, background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#7c3aed', marginBottom: 10 }}>Logos e Imagens</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>URL do Logo Principal</label>
+                          <input value={systemConfig.logo_url || ''} onChange={e => setSystemConfig({ ...systemConfig, logo_url: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.8rem' }} placeholder="/logo.png ou https://..." />
+                          {systemConfig.logo_url && (
+                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <img src={systemConfig.logo_url} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6, background: '#fff', padding: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Preview</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>URL da Imagem de Assinatura</label>
+                          <input value={systemConfig.signature_image_url || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_image_url: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.8rem' }} placeholder="/assinatura.png ou https://..." />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Carteirinha */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Carteirinha / Credencial</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Titulo da Carteirinha</label>
+                      <input value={systemConfig.card_title || ''} onChange={e => setSystemConfig({ ...systemConfig, card_title: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Subtitulo da Carteirinha</label>
+                      <input value={systemConfig.card_subtitle || ''} onChange={e => setSystemConfig({ ...systemConfig, card_subtitle: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome do Assinante</label>
+                      <input value={systemConfig.signature_name || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Cargo do Assinante</label>
+                      <input value={systemConfig.signature_role || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_role: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Contato */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Contato</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>E-mail</label>
+                      <input value={systemConfig.contact_email || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_email: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Telefone</label>
+                      <input value={systemConfig.contact_phone || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_phone: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>WhatsApp</label>
+                      <input value={systemConfig.contact_whatsapp || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_whatsapp: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Website</label>
+                      <input value={systemConfig.website_url || ''} onChange={e => setSystemConfig({ ...systemConfig, website_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Redes Sociais */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Redes Sociais</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Instagram</label>
+                      <input value={systemConfig.instagram_url || ''} onChange={e => setSystemConfig({ ...systemConfig, instagram_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://instagram.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Facebook</label>
+                      <input value={systemConfig.facebook_url || ''} onChange={e => setSystemConfig({ ...systemConfig, facebook_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://facebook.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>YouTube</label>
+                      <input value={systemConfig.youtube_url || ''} onChange={e => setSystemConfig({ ...systemConfig, youtube_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://youtube.com/..." />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Rodape */}
+              <div style={{ marginTop: 20 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Texto do Rodape</label>
+                <input value={systemConfig.footer_text || ''} onChange={e => setSystemConfig({ ...systemConfig, footer_text: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+              </div>
+              
+              {/* Botao Salvar */}
+              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  disabled={systemConfigSaving}
+                  onClick={async () => {
+                    setSystemConfigSaving(true);
+                    setSystemConfigMsg('');
+                    try {
+                      const res = await fetch('/api/admin/system-config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ updates: systemConfig, updated_by: 'owner' }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setSystemConfigMsg('Configuracoes salvas com sucesso!');
+                        setSystemConfig(data.config);
+                        invalidateConfigCache(); // Invalida cache para atualizar em toda a plataforma
+                      } else {
+                        setSystemConfigMsg('Erro: ' + (data.error || 'Falha ao salvar'));
+                      }
+                    } catch (err: any) {
+                      setSystemConfigMsg('Erro: ' + err.message);
+                    }
+                    setSystemConfigSaving(false);
+                  }}
+                  style={{ padding: '12px 28px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: systemConfigSaving ? 'wait' : 'pointer', opacity: systemConfigSaving ? 0.7 : 1 }}
+                >
+                  {systemConfigSaving ? 'Salvando...' : 'Salvar Configuracoes'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA RESPONSAVEIS / ADMINISTRADORES (geral only) ===== */}
+      {activeTab === 'responsaveis' && activeNucleo === 'geral' && isOwner && (
         <div style={{ paddingTop: 24 }}>
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👥 Responsáveis e Administradores</h2>
@@ -12105,16 +12670,10 @@ Suporte Ginga Gestão.`
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
 
-              {/* ───── SEÇÃO 0: VISÃO GERAL — R1 e R2 por núcleo ───── */}
+              {/* ───── SECAO 0: VISAO GERAL — R1 e R2 por nucleo ───── */}
               {(() => {
-                const NUCLEOS_RESP = [
-                  { key: 'edson-alves',         label: 'Poliesportivo Edson Alves' },
-                  { key: 'ipiranga',            label: 'Poliesportivo do Ipiranga' },
-                  { key: 'saracuruna',          label: 'Saracuruna' },
-                  { key: 'vila-urussai',        label: 'Vila Urussaí' },
-                  { key: 'jayme-fichman',       label: 'Jayme Fichman' },
-                  { key: 'academia-mais-saude', label: 'Academia Mais Saúde' },
-                ];
+                // Nucleos carregados dinamicamente do banco de dados
+                const NUCLEOS_RESP = dynamicNucleos.map(n => ({ key: n.slug, label: n.nome }));
                 const updateRespField = (nucleo_key: string, nucleo_label: string, field: string, val: string) => {
                   setResponsaveis(prev => {
                     const idx = prev.findIndex(r => r.nucleo_key === nucleo_key);
@@ -12317,26 +12876,19 @@ Suporte Ginga Gestão.`
                   <div style={{ fontWeight: 700, fontSize: '0.88rem', color: 'var(--text-primary)', marginBottom: 12 }}>➕ Cadastrar Novo Responsável</div>
                   <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
                     <div>
-                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Núcleo</div>
+                      <div style={{ fontSize: '0.7rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4, textTransform: 'uppercase', letterSpacing: '0.04em' }}>Nucleo</div>
                       <select value={respNewNucleo} onChange={e => {
                         const nk = e.target.value;
                         setRespNewNucleo(nk); setRespCreateMsg('');
-                        // Preenche com senha padrão do núcleo (sequência 12345)
-                        const defaultPasswords: Record<string, string> = {
-                          'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                          'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
-                        };
-                        setRespNewPass(nk ? (defaultPasswords[nk] || 'acesso12345') : '');
+                        // Preenche com senha padrao do nucleo
+                        setRespNewPass(nk ? 'acesso12345' : '');
                         setRespShowPass(true);
                       }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
-                        <option value="">Selecione o núcleo</option>
-                        <option value="edson-alves">Poliesportivo Edson Alves</option>
-                        <option value="ipiranga">Poliesportivo do Ipiranga</option>
-                        <option value="saracuruna">Núcleo Saracuruna</option>
-                        <option value="vila-urussai">Núcleo Vila Urussaí</option>
-                        <option value="jayme-fichman">Núcleo Jayme Fichman</option>
-                        <option value="academia-mais-saude">Academia Mais Saúde</option>
+                        <option value="">Selecione o nucleo</option>
+                        {dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.slug}>{n.nome}</option>
+                        ))}
                       </select>
                     </div>
                     <div>
@@ -12359,11 +12911,7 @@ Suporte Ginga Gestão.`
                           📋
                         </button>
                         <button type="button" onClick={() => {
-                          const defaultPasswords: Record<string, string> = {
-                            'edson-alves': 'edson12345', 'ipiranga': 'ipiranga12345',
-                            'saracuruna': 'sara12345', 'vila-urussai': 'urussai12345', 'jayme-fichman': 'jayme12345', 'academia-mais-saude': 'academia12345',
-                          };
-                          setRespNewPass(defaultPasswords[respNewNucleo] || 'acesso12345'); setRespCreateMsg('');
+                          setRespNewPass('acesso12345'); setRespCreateMsg('');
                         }} style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-secondary)', cursor: 'pointer', fontSize: '0.78rem', whiteSpace: 'nowrap', fontWeight: 700 }} title="Restaurar senha padrão">
                           🔄
                         </button>
@@ -12406,7 +12954,7 @@ Suporte Ginga Gestão.`
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Administradores Gerais</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {respGeralUsers.length}/3 contas · Máximo de 3 administradores gerais
+                      {respGeralUsers.length}/3 contas �� Máximo de 3 administradores gerais
                     </div>
                   </div>
                 </div>

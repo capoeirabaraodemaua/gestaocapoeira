@@ -92,7 +92,7 @@ function CarteirinhaContent() {
       if (!win) {
         const a = document.createElement('a');
         a.href = imgData;
-        a.download = `credencial-accbm.png`;
+        a.download = `credencial-demo.png`;
         document.body.appendChild(a);
         a.click();
         document.body.removeChild(a);
@@ -123,7 +123,7 @@ function CarteirinhaContent() {
       const canvas = await captureCanvas(el);
       const a = document.createElement('a');
       a.href = canvas.toDataURL('image/png');
-      a.download = `credencial-accbm-${data.nome.split(' ')[0].toLowerCase()}.png`;
+      a.download = `credencial-demo-${data.nome.split(' ')[0].toLowerCase()}.png`;
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
@@ -149,9 +149,9 @@ function CarteirinhaContent() {
 
       {/* Logo + título */}
       <div style={{ textAlign: 'center', marginBottom: 28 }}>
-        <img src="/logo-maua.png" alt="ACCBM" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
+        <img src="/logo-maua.png" alt="Sistema DEMO" style={{ width: 72, height: 72, objectFit: 'contain', marginBottom: 10 }} />
         <div style={{ color: '#f87171', fontSize: '1.1rem', fontWeight: 900, textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-          Capoeira Barão de Mauá
+          Sistema de Gestao DEMO
         </div>
         <div style={{ color: 'rgba(255,255,255,0.55)', fontSize: '0.8rem', marginTop: 4 }}>
           {loading ? 'Carregando sua carteirinha…' : data ? `Bem-vindo(a), ${data.nome.split(' ')[0]}!` : 'Informe seu CPF para gerar sua carteirinha'}
