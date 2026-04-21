@@ -110,6 +110,20 @@ interface Student {
 
 type EditForm = Partial<Student>;
 
+// ─── Helper para cores dinamicas de nucleos ────────────────────────────────────
+const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed', '#db2777'];
+function getNucleoColorDynamic(nucleoName: string, dynamicNucleosList?: Array<{ nome: string; slug: string }>): string {
+  if (!nucleoName) return '#64748b';
+  // Se temos lista dinamica, usa o indice
+  if (dynamicNucleosList && dynamicNucleosList.length > 0) {
+    const idx = dynamicNucleosList.findIndex(n => n.nome === nucleoName || n.slug === nucleoName);
+    if (idx >= 0) return NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length];
+  }
+  // Fallback: hash do nome
+  const hash = nucleoName.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return NUCLEO_COLORS_PALETTE[hash % NUCLEO_COLORS_PALETTE.length];
+}
+
 // ─── Auth helpers ────────────────────────────────────────────────────────────
 // Nucleos agora sao carregados dinamicamente do banco de dados
 type NucleoKey = string; // Agora aceita qualquer slug de nucleo
@@ -2572,13 +2586,10 @@ export default function AdminPage() {
                       onChange={(e) => setFilterNucleo(e.target.value)}
                       style={{ fontSize: '0.82rem' }}
                     >
-                      <option value="">🏛️ Todos os núcleos</option>
-                      <option value="Saracuruna">Núcleo Saracuruna</option>
-                      <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                      <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                      <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                      <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                      <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                      <option value="">Todos os nucleos</option>
+                      {dynamicNucleos.map(n => (
+                        <option key={n.slug} value={n.nome}>{n.nome}</option>
+                      ))}
                     </select>
                     <select
                       className="search-input"
@@ -2787,19 +2798,12 @@ export default function AdminPage() {
             </div>
             </>
           ) : (
-            // Admin geral: mostra todos os núcleos
+            // Admin geral: mostra todos os nucleos dinamicos
             <>
-            {([
-              ['CIEP 318 — Saracuruna',       'Saracuruna',                 '#16a34a'],
-              ['Poliesportivo Edson Alves',     'Poliesportivo Edson Alves',  '#dc2626'],
-              ['Poliesportivo do Ipiranga',     'Poliesportivo do Ipiranga',  '#ea580c'],
-              ['Vila Urussaí',                  'Vila Urussaí',               '#9333ea'],
-              ['Jayme Fichman',                 'Jayme Fichman',              '#0891b2'],
-              ['Academia Mais Saúde',           'Academia Mais Saúde',        '#059669'],
-            ] as const).map(([label, nucleo, color]) => (
-              <div key={nucleo} className="stat-card" style={{ borderTop: `3px solid ${color}` }}>
-                <div className="stat-value">{students.filter(s => s.nucleo === nucleo).length}</div>
-                <div className="stat-label">{label}</div>
+            {dynamicNucleos.map((n, idx) => (
+              <div key={n.slug} className="stat-card" style={{ borderTop: `3px solid ${NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]}` }}>
+                <div className="stat-value">{students.filter(s => s.nucleo === n.nome).length}</div>
+                <div className="stat-label">{n.nome}</div>
               </div>
             ))}
             <div className="stat-card">
@@ -2965,7 +2969,7 @@ export default function AdminPage() {
                         </div>
                       </td>
                       <td>
-                        <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
+                        <span className="badge" style={{ background: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(student.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}40` }}>
                           {student.nucleo || '—'}
                         </span>
                       </td>
@@ -3135,13 +3139,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               />
               <select className="search-input" style={{ width: 220 }} value={filterPresencaNucleo} onChange={e => setFilterPresencaNucleo(e.target.value)}>
                 <option value="">Todos os núcleos</option>
-                <option value="Saracuruna">Núcleo Saracuruna</option>
-                <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
-                <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
-                <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                <option value="Academia Mais Saúde">Academia Mais Saúde</option>
-              </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
+                      </select>
               <button
                 onClick={() => fetchPresencas(true)}
                 disabled={refreshing}
@@ -3330,7 +3331,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {item.student.graduacao}
                 {rankingNucleoTab === 'todos' && (() => {
                   const nc = item.student.nucleo;
-                  const ncColor = (nc === 'Poliesportivo Edson Alves' || nc === 'Mauá') ? '#dc2626' : nc === 'Poliesportivo do Ipiranga' ? '#ea580c' : nc === 'Saracuruna' ? '#16a34a' : nc === 'Vila Urussaí' ? '#9333ea' : nc === 'Jayme Fichman' ? '#0891b2' : nc === 'Academia Mais Saúde' ? '#059669' : '#64748b';
+                  const ncColor = getNucleoColorDynamic(nc, dynamicNucleos);
                   return <span style={{ marginLeft: 4, padding: '1px 6px', borderRadius: 4, fontSize: '0.62rem', fontWeight: 700, background: `${ncColor}18`, color: ncColor }}>{nc || '—'}</span>;
                 })()}
               </div>
@@ -3665,7 +3666,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   </div>
                   <div>
                     <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4 }}>Local</label>
-                    <input value={certLocal} onChange={e => setCertLocal(e.target.value)} placeholder="ex: Poliesportivo Edson Alves, Mauá"
+                    <input value={certLocal} onChange={e => setCertLocal(e.target.value)} placeholder="ex: Nucleo Demo Centro"
                       style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, fontSize: '0.9rem', background: 'var(--bg-input)', color: 'var(--text-primary)', outline: 'none', boxSizing: 'border-box' }} />
                   </div>
                   <div>
@@ -4146,7 +4147,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             </td>
                             <td style={{ fontWeight: 600 }}>{student.nome_completo}</td>
                             <td>
-                              <span className={`badge ${student.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (student.nucleo === 'Poliesportivo Edson Alves' || student.nucleo === 'Mauá') ? 'badge-maua' : student.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : student.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : student.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : student.nucleo === 'Academia Mais Saúde' ? 'badge-academia-mais-saude' : ''}`}>
+                              <span className="badge" style={{ background: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(student.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(student.nucleo, dynamicNucleos)}40` }}>
                                 {student.nucleo || '—'}
                               </span>
                             </td>
@@ -4352,16 +4353,11 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               {finVisao && (() => {
                 const vg = finVisao as any;
 
-                // Cards de resumo por núcleo
+                // Cards de resumo por nucleo
                 const nucleos = Object.keys(vg.por_nucleo || {});
-                const NUCLEO_COLORS: Record<string,string> = {
-                  'Poliesportivo Edson Alves': '#dc2626',
-                  'Poliesportivo do Ipiranga': '#ea580c',
-                  'Saracuruna': '#16a34a',
-                  'Vila Urussaí': '#9333ea',
-                  'Jayme Fichman': '#0891b2',
-                  'Academia Mais Saúde': '#059669',
-                };
+                // Cores dinamicas baseadas nos nucleos
+                const NUCLEO_COLORS: Record<string,string> = {};
+                dynamicNucleos.forEach((n, idx) => { NUCLEO_COLORS[n.nome] = NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]; });
 
                 // Filter lançamentos
                 const allLanc: any[] = vg.lancamentos || [];
@@ -6736,13 +6732,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <select value={filterMatNucleo} onChange={e => setFilterMatNucleo(e.target.value)}
               style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
               <option value="">Todos os núcleos</option>
-              <option value="Poliesportivo Edson Alves">Edson Alves</option>
-              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
-              <option value="Saracuruna">Saracuruna</option>
-              <option value="Vila Urussaí">Vila Urussaí</option>
-              <option value="Jayme Fichman">Jayme Fichman</option>
-              <option value="Geral">Geral</option>
-            </select>
+{dynamicNucleos.map(n => (
+                              <option key={n.slug} value={n.nome}>{n.nome}</option>
+                            ))}
+                          </select>
           </div>
 
           {/* Form */}
@@ -6759,7 +6752,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   { key: 'parcelas', label: 'Nº Parcelas (se parcelado)', placeholder: '', type: 'number' },
                   { key: 'metodo_pagamento', label: 'Forma de Pagamento', placeholder: '', type: 'select', opts: ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro', 'Boleto'] },
                   { key: 'fornecedor', label: 'Fornecedor', placeholder: 'Opcional', type: 'text' },
-                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'nucleo', label: 'Nucleo', placeholder: '', type: 'select', opts: ['Geral', ...dynamicNucleos.map(n => n.nome)] },
                   { key: 'data_compra', label: 'Data da Compra', placeholder: '', type: 'date' },
                   { key: 'notas', label: 'Observações', placeholder: 'Opcional', type: 'text' },
                 ].map(({ key, label, placeholder, type, opts }) => (
@@ -6878,13 +6871,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <select value={filterPatNucleo} onChange={e => setFilterPatNucleo(e.target.value)}
               style={{ padding: '8px 12px', background: 'var(--bg-input)', border: '1px solid var(--border)', borderRadius: 8, color: 'var(--text-primary)', fontSize: '0.85rem', outline: 'none' }}>
               <option value="">Todos os núcleos</option>
-              <option value="Poliesportivo Edson Alves">Edson Alves</option>
-              <option value="Poliesportivo do Ipiranga">Ipiranga</option>
-              <option value="Saracuruna">Saracuruna</option>
-              <option value="Vila Urussaí">Vila Urussaí</option>
-              <option value="Jayme Fichman">Jayme Fichman</option>
-              <option value="Geral">Geral</option>
-            </select>
+{dynamicNucleos.map(n => (
+                              <option key={n.slug} value={n.nome}>{n.nome}</option>
+                            ))}
+                          </select>
           </div>
 
           {/* Form */}
@@ -6895,7 +6885,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 {[
                   { key: 'nome', label: 'Nome do Item', placeholder: 'Ex: Berimbau médio', type: 'text' },
                   { key: 'tipo', label: 'Tipo', placeholder: '', type: 'select', opts: ['instrumento', 'mobiliário', 'equipamento', 'uniforme', 'material pedagógico', 'outros'] },
-                  { key: 'nucleo', label: 'Núcleo', placeholder: '', type: 'select', opts: ['Geral', 'Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman'] },
+                  { key: 'nucleo', label: 'Nucleo', placeholder: '', type: 'select', opts: ['Geral', ...dynamicNucleos.map(n => n.nome)] },
                   { key: 'quantidade', label: 'Quantidade', placeholder: '1', type: 'number' },
                   { key: 'valor_estimado', label: 'Valor Estimado (R$)', placeholder: '0,00', type: 'number' },
                   { key: 'estado', label: 'Estado de Conservação', placeholder: '', type: 'select', opts: ['otimo', 'bom', 'regular', 'ruim', 'descartado'] },
@@ -7565,12 +7555,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     setRelAlunosList(list);
                   }} style={{ padding: '6px 10px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.85rem' }}>
                     <option value="">Todos os núcleos</option>
-                    <option value="Saracuruna">Saracuruna</option>
-                    <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                    <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                    <option value="Vila Urussaí">Vila Urussaí</option>
-                    <option value="Jayme Fichman">Jayme Fichman</option>
-                  </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
+                      </select>
                 </div>
               )}
               <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
@@ -7971,7 +7959,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     </span>
                   )}
                   {selected.nucleo && (
-                    <span className={`badge ${selected.nucleo === 'Saracuruna' ? 'badge-saracuruna' : (selected.nucleo === 'Poliesportivo Edson Alves' || selected.nucleo === 'Mauá') ? 'badge-maua' : selected.nucleo === 'Poliesportivo do Ipiranga' ? 'badge-ipiranga' : selected.nucleo === 'Vila Urussaí' ? 'badge-vila-urussai' : selected.nucleo === 'Jayme Fichman' ? 'badge-jayme-fichman' : ''}`}>{selected.nucleo}</span>
+                    <span className="badge" style={{ background: `${getNucleoColorDynamic(selected.nucleo, dynamicNucleos)}20`, color: getNucleoColorDynamic(selected.nucleo, dynamicNucleos), borderColor: `${getNucleoColorDynamic(selected.nucleo, dynamicNucleos)}40` }}>{selected.nucleo}</span>
                   )}
                 </div>
               </div>
@@ -8415,11 +8403,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" name="nucleo" value={editForm.nucleo || ''} onChange={handleEditChange}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Núcleo Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Núcleo Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Núcleo Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                  <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug} value={n.nome}>{n.nome}</option>
+                        ))}
                 </select>
               </div>
               <div className="detail-item">
@@ -9036,7 +9022,8 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* ===== ABA RESTAURAÇÃO DE DADOS ===== */}
       {activeTab === 'restauracao' && activeNucleo === 'geral' && (() => {
-        const NUCLEOS_LIST = ['Poliesportivo Edson Alves','Poliesportivo do Ipiranga','Saracuruna','Vila Urussaí','Jayme Fichman','Academia Mais Saúde'];
+        // Nucleos dinamicos carregados do banco
+              const NUCLEOS_LIST = dynamicNucleos.map(n => n.nome);
         const GRADUACOES_LIST = ['Crua','Crua-Amarela','Amarela','Amarela-Laranja','Laranja','Laranja-Azul','Azul','Azul-Verde','Verde','Verde-Roxa','Roxa','Roxa-Marrom','Marrom','Marrom-Vermelha','Vermelha','Vermelha-Preta','Preta'];
         return (
           <div>
@@ -10244,11 +10231,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
       {/* ===== ABA EVENTOS ===== */}
       {activeTab === 'eventos' && (() => {
         const nucleoFilter = activeNucleo !== 'geral' ? (
-          activeNucleo === 'edson-alves' ? 'Poliesportivo Edson Alves' :
-          activeNucleo === 'ipiranga' ? 'Poliesportivo do Ipiranga' :
-          activeNucleo === 'saracuruna' ? 'Saracuruna' :
-          activeNucleo === 'vila-urussai' ? 'Vila Urussaí' :
-          activeNucleo === 'jayme-fichman' ? 'Jayme Fichman' : ''
+dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
         ) : '';
         // Admin geral vê TODOS os eventos
         // Responsável de núcleo vê APENAS eventos do seu núcleo OU sem núcleo definido
@@ -10714,7 +10697,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
               <div>
                 <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 4 }}>📍 {t('admin_event_local_label')}</label>
                 <input value={eventoForm.local || ''} onChange={e => setEventoForm((f: any) => ({ ...f, local: e.target.value }))}
-                  placeholder="Ex: Poliesportivo Edson Alves"
+                  placeholder="Ex: Nucleo Demo Centro"
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }} />
               </div>
               <div>
@@ -10722,12 +10705,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <select value={eventoForm.nucleo || ''} onChange={e => setEventoForm((f: any) => ({ ...f, nucleo: e.target.value }))}
                   style={{ width: '100%', padding: '9px 12px', background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 9, color: 'var(--text-primary)', fontSize: '0.88rem', boxSizing: 'border-box' }}>
                   <option value="">{t('admin_event_all_nucleos')}</option>
-                  <option>Poliesportivo Edson Alves</option>
-                  <option>Poliesportivo do Ipiranga</option>
-                  <option>Saracuruna</option>
-                  <option>Vila Urussaí</option>
-                  <option>Jayme Fichman</option>
-                </select>
+{dynamicNucleos.map(n => (
+                          <option key={n.slug}>{n.nome}</option>
+                        ))}
+                      </select>
               </div>
             </div>
 
@@ -11075,11 +11056,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" value={rascunhoEditForm.nucleo || ''} onChange={e => setRascunhoEditForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Núcleo Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Vila Urussaí</option>
-                  <option value="Jayme Fichman">Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                  <option key={n.slug} value={n.nome}>{n.nome}</option>
+                ))}
                 </select>
               </div>
               <div className="detail-item">
@@ -11165,11 +11144,9 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 <span className="detail-label">Núcleo</span>
                 <select className="edit-input" value={newRascunhoForm.nucleo || ''} onChange={e => setNewRascunhoForm((p: any) => ({ ...p, nucleo: e.target.value }))}>
                   <option value="">Selecione</option>
-                  <option value="Saracuruna">Saracuruna</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga</option>
-                  <option value="Vila Urussaí">Vila Urussaí</option>
-                  <option value="Jayme Fichman">Jayme Fichman</option>
+{dynamicNucleos.map(n => (
+                  <option key={n.slug} value={n.nome}>{n.nome}</option>
+                ))}
                 </select>
               </div>
             </div>
@@ -12046,11 +12023,10 @@ Suporte Ginga Gestão.`
             const inativosPorc = 100 - ativosPorc;
 
             // By nucleo counts (active today)
-            const nucleoNames = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
-            const nucleoColors: Record<string, string> = {
-              'Poliesportivo Edson Alves': '#dc2626', 'Poliesportivo do Ipiranga': '#ea580c',
-              'Saracuruna': '#16a34a', 'Vila Urussaí': '#9333ea', 'Jayme Fichman': '#0891b2', 'Academia Mais Saúde': '#059669',
-            };
+// Nucleos dinamicos
+                const nucleoNames = dynamicNucleos.map(n => n.nome);
+                const nucleoColors: Record<string, string> = {};
+                dynamicNucleos.forEach((n, idx) => { nucleoColors[n.nome] = NUCLEO_COLORS_PALETTE[idx % NUCLEO_COLORS_PALETTE.length]; });
             const nucleoStats = nucleoNames.map(nc => {
               const ncStudents = allStudents.filter((s: any) => s.nucleo === nc);
               const ncAtivos = ncStudents.filter((s: any) => {
@@ -12335,7 +12311,7 @@ Suporte Ginga Gestão.`
       )}
 
       {/* ===== ABA RESPONSÁVEIS / ADMINISTRADORES (geral only) ===== */}
-      {activeTab === 'responsaveis' && activeNucleo === 'geral' && (
+      {activeTab === 'responsaveis' && activeNucleo === 'geral' && isOwner && (
         <div style={{ paddingTop: 24 }}>
           <div style={{ marginBottom: 20 }}>
             <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>👥 Responsáveis e Administradores</h2>
