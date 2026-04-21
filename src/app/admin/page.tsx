@@ -676,9 +676,6 @@ export default function AdminPage() {
   const [systemConfigLoading, setSystemConfigLoading] = useState(false);
   const [systemConfigSaving, setSystemConfigSaving] = useState(false);
   const [systemConfigMsg, setSystemConfigMsg] = useState('');
-  // Locais de Treino (Owner only)
-  const [locaisTreino, setLocaisTreino] = useState<Array<{ id: string; nome: string; endereco: string; nucleo: string; lat: number; lng: number; mapUrl: string; ativo: boolean }>>([]);
-  const [locaisLoading, setLocaisLoading] = useState(false);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -2369,10 +2366,6 @@ export default function AdminPage() {
               setSystemConfigLoading(true);
               fetch('/api/admin/system-config').then(r => r.json()).then(d => { setSystemConfig(d); setSystemConfigLoading(false); }).catch(() => setSystemConfigLoading(false));
             }
-            if (key === 'locais-config') {
-              setLocaisLoading(true);
-              fetch('/api/admin/locais').then(r => r.json()).then(d => { setLocaisTreino(Array.isArray(d) ? d : []); setLocaisLoading(false); }).catch(() => setLocaisLoading(false));
-            }
             if (key === 'dados-faltantes') { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }
             if (key === 'manual') {
               setLoadingManuais(true); setManualMsg('');
@@ -2457,7 +2450,6 @@ export default function AdminPage() {
                 { key: 'doacoes',     icon: '💝', label: 'Doacoes', geralOnly: true },
                 { key: 'nucleos',     icon: '🏢', label: 'Gerenciar Nucleos', ownerOnly: true },
                 { key: 'system-config', icon: '*', label: 'Config. Sistema', ownerOnly: true },
-                { key: 'locais-config', icon: '📍', label: 'Locais de Treino', ownerOnly: true },
               ],
             },
             {
@@ -6483,7 +6475,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           <div>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
               <div>
-                <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#7c3aed,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>🎵 Minha Playlist</div>
+                <div style={{ fontWeight: 800, fontSize: '1.05rem', background: 'linear-gradient(90deg,#7c3aed,#6d28d9)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>���� Minha Playlist</div>
                 <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: 2 }}>YouTube · Spotify · Deezer · TikTok · Kwai — visível na Área do Aluno</div>
               </div>
               <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -12415,6 +12407,28 @@ Suporte Ginga Gestão.`
                       <input value={systemConfig.id_prefix || ''} onChange={e => setSystemConfig({ ...systemConfig, id_prefix: e.target.value.toUpperCase() })}
                         style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="DEMO" />
                     </div>
+                    {/* Logos e Imagens */}
+                    <div style={{ marginTop: 8, padding: 12, background: 'rgba(124,58,237,0.06)', border: '1px solid rgba(124,58,237,0.15)', borderRadius: 10 }}>
+                      <div style={{ fontWeight: 700, fontSize: '0.78rem', color: '#7c3aed', marginBottom: 10 }}>Logos e Imagens</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>URL do Logo Principal</label>
+                          <input value={systemConfig.logo_url || ''} onChange={e => setSystemConfig({ ...systemConfig, logo_url: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.8rem' }} placeholder="/logo.png ou https://..." />
+                          {systemConfig.logo_url && (
+                            <div style={{ marginTop: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+                              <img src={systemConfig.logo_url} alt="Logo" style={{ width: 40, height: 40, objectFit: 'contain', borderRadius: 6, background: '#fff', padding: 4 }} onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Preview</span>
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <label style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>URL da Imagem de Assinatura</label>
+                          <input value={systemConfig.signature_image_url || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_image_url: e.target.value })}
+                            style={{ width: '100%', padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.8rem' }} placeholder="/assinatura.png ou https://..." />
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
                 
@@ -12532,127 +12546,6 @@ Suporte Ginga Gestão.`
                   {systemConfigSaving ? 'Salvando...' : 'Salvar Configuracoes'}
                 </button>
               </div>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ===== ABA LOCAIS DE TREINO (Owner only) ===== */}
-      {activeTab === 'locais-config' && isOwner && (
-        <div style={{ paddingTop: 24 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
-            <div>
-              <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>Locais de Treino</h2>
-              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                Configure os locais de treino para registro de presenca por GPS.
-              </p>
-            </div>
-            <button
-              onClick={async () => {
-                const nome = prompt('Nome do local:');
-                if (!nome) return;
-                const endereco = prompt('Endereco:') || '';
-                const nucleo = prompt('Nucleo (nome):') || '';
-                const latStr = prompt('Latitude (ex: -22.7077):') || '0';
-                const lngStr = prompt('Longitude (ex: -43.1451):') || '0';
-                const lat = parseFloat(latStr);
-                const lng = parseFloat(lngStr);
-                
-                setLocaisLoading(true);
-                try {
-                  const res = await fetch('/api/admin/locais', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'add', local: { nome, endereco, nucleo, lat, lng, ativo: true } }),
-                  });
-                  const data = await res.json();
-                  if (data.ok) {
-                    setLocaisTreino(prev => [...prev, data.local]);
-                  } else {
-                    alert('Erro: ' + (data.error || 'Falha ao adicionar'));
-                  }
-                } catch (err: any) {
-                  alert('Erro: ' + err.message);
-                }
-                setLocaisLoading(false);
-              }}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(124,58,237,0.3)' }}
-            >
-              + Adicionar Local
-            </button>
-          </div>
-          
-          {locaisLoading ? (
-            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando locais...</div>
-          ) : locaisTreino.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
-              <div style={{ fontSize: 48, marginBottom: 12 }}>📍</div>
-              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Nenhum local cadastrado</div>
-              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Clique em Adicionar Local para comecar</div>
-            </div>
-          ) : (
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
-              {locaisTreino.map(local => (
-                <div key={local.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
-                  <div style={{ background: local.ativo ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'linear-gradient(135deg,#6b7280,#4b5563)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>{local.nome}</div>
-                    <span style={{ background: local.ativo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
-                      {local.ativo ? 'Ativo' : 'Inativo'}
-                    </span>
-                  </div>
-                  <div style={{ padding: 16 }}>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                      <strong>Endereco:</strong> {local.endereco || '-'}
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
-                      <strong>Nucleo:</strong> {local.nucleo || '-'}
-                    </div>
-                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
-                      <strong>Coordenadas:</strong> {local.lat?.toFixed(6)}, {local.lng?.toFixed(6)}
-                    </div>
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <button
-                        onClick={async () => {
-                          if (!confirm('Deseja ' + (local.ativo ? 'desativar' : 'ativar') + ' este local?')) return;
-                          try {
-                            const res = await fetch('/api/admin/locais', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ action: 'update', local: { id: local.id, ativo: !local.ativo } }),
-                            });
-                            const data = await res.json();
-                            if (data.ok) {
-                              setLocaisTreino(prev => prev.map(l => l.id === local.id ? { ...l, ativo: !local.ativo } : l));
-                            }
-                          } catch {}
-                        }}
-                        style={{ flex: 1, padding: '8px 12px', background: local.ativo ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${local.ativo ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 8, color: local.ativo ? '#ef4444' : '#22c55e', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                      >
-                        {local.ativo ? 'Desativar' : 'Ativar'}
-                      </button>
-                      <button
-                        onClick={async () => {
-                          if (!confirm('Deseja excluir permanentemente este local?')) return;
-                          try {
-                            const res = await fetch('/api/admin/locais', {
-                              method: 'POST',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ action: 'delete', local: { id: local.id } }),
-                            });
-                            const data = await res.json();
-                            if (data.ok) {
-                              setLocaisTreino(prev => prev.filter(l => l.id !== local.id));
-                            }
-                          } catch {}
-                        }}
-                        style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#ef4444', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
-                      >
-                        Excluir
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
             </div>
           )}
         </div>
