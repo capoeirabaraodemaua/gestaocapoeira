@@ -2127,46 +2127,6 @@ export default function AdminPage() {
               )}
             </div>
           )}
-                  {adminResetUrl && (
-                    <div style={{ fontSize: '0.72rem', color: '#93c5fd', marginBottom: 8, wordBreak: 'break-all', lineHeight: 1.6 }}>
-                      <strong>Link de redefinição:</strong><br />
-                      <a href={adminResetUrl} target="_blank" rel="noopener noreferrer" style={{ color: '#93c5fd' }}>{adminResetUrl}</a>
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    disabled={adminForgotLoading || adminForgotCpf.length < 11}
-                    onClick={async () => {
-                      setAdminForgotLoading(true); setAdminForgotMsg(''); setAdminResetUrl('');
-                      try {
-                        const res = await fetch('/api/admin/panel-auth', {
-                          method: 'POST', headers: { 'Content-Type': 'application/json' },
-                          body: JSON.stringify({ action: 'forgot-password', cpf: adminForgotCpf }),
-                        });
-                        const data = await res.json();
-                        if (data.ok) {
-                          setAdminForgotMsg(data.message || '✅ Solicitação enviada!');
-                          if (data.reset_url) setAdminResetUrl(data.reset_url);
-                          if (!data.no_email && !data.no_resend) setAdminForgotDone(true);
-                        } else {
-                          setAdminForgotMsg(data.error || 'CPF não encontrado.');
-                        }
-                      } catch { setAdminForgotMsg('Erro de conexão.'); }
-                      setAdminForgotLoading(false);
-                    }}
-                    style={{ width: '100%', padding: '9px', background: adminForgotCpf.length >= 11 ? 'linear-gradient(135deg,#1d4ed8,#1e40af)' : 'rgba(255,255,255,0.1)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: adminForgotCpf.length >= 11 ? 'pointer' : 'not-allowed', opacity: adminForgotLoading ? 0.6 : 1 }}>
-                    {adminForgotLoading ? '⏳ Enviando...' : '📧 Enviar Link de Redefinição'}
-                  </button>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center', color: '#86efac', fontSize: '0.85rem', lineHeight: 1.6 }}>
-                  ✅ Link enviado! Verifique seu e-mail e siga as instruções para redefinir a senha.
-                  <br />
-                  <button type="button" onClick={() => { setAdminForgotDone(false); setShowAdminForgot(false); }} style={{ marginTop: 8, background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', cursor: 'pointer' }}>Fechar</button>
-                </div>
-              )}
-            </div>
-          )}
         </div>
 
         {showChangeCreds && <ChangeCrendsModal />}
@@ -2431,7 +2391,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* ── Navigation Grid (6 colunas) ── */}
+        {/* ─��� Navigation Grid (6 colunas) ── */}
         {(() => {
           function goTab(key: string) {
             setActiveTab(key as typeof activeTab);
