@@ -2,6 +2,7 @@
 import { getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
 import { useEffect, useRef } from 'react';
 import QRCode from 'qrcode';
+import { useSystemConfig } from '@/hooks/useSystemConfig';
 
 export interface CarteirinhaData {
   nome: string;
@@ -44,10 +45,15 @@ function QRCodeCanvas({ value, size }: { value: string; size: number }) {
 }
 
 export default function Carteirinha({ data }: Props) {
+  const { config: sysConfig } = useSystemConfig();
   const colors = getCordaColors(data.graduacao);
   const nomenclatura = nomenclaturaGraduacao[data.graduacao] || '';
-  // Sistema DEMO - assinatura generica
-  const sig = { imgSrc: '/assinatura-frazao.png', nome: 'Administrador do Sistema', cargo: 'Sistema de Gestao DEMO' };
+  // Assinatura dinamica do sistema
+  const sig = { 
+    imgSrc: sysConfig.signature_image_url || '/assinatura-frazao.png', 
+    nome: sysConfig.signature_name || 'Administrador do Sistema', 
+    cargo: sysConfig.signature_role || sysConfig.organization_name 
+  };
 
   // Validity: 1 year from today
   const hoje = new Date();
@@ -57,7 +63,8 @@ export default function Carteirinha({ data }: Props) {
   const validadeStr = validade.toLocaleDateString('pt-BR');
 
   // QR code — URL de verificacao publica da carteirinha
-  const matriculaStr = data.inscricao_numero != null ? `DEMO-${String(data.inscricao_numero).padStart(6, '0')}` : '';
+  const idPrefix = sysConfig.id_prefix || 'DEMO';
+  const matriculaStr = data.inscricao_numero != null ? `${idPrefix}-${String(data.inscricao_numero).padStart(6, '0')}` : '';
   const baseUrl = typeof window !== 'undefined' ? window.location.origin : '';
   // Prefer UUID (always works), fallback to matricula number
   const qrValue = data.student_id
@@ -106,16 +113,16 @@ export default function Carteirinha({ data }: Props) {
       }}>
         {/* Logo + org name centered */}
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <img src="/logo-barao-maua.png" alt="Sistema DEMO" style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} />
+          <img src={sysConfig.logo_url || '/logo-barao-maua.png'} alt={sysConfig.organization_short} style={{ width: 44, height: 44, objectFit: 'contain', flexShrink: 0 }} />
           <div style={{ textAlign: 'center' }}>
             <div style={{ color: 'rgba(255,255,255,0.75)', fontSize: '0.52rem', fontWeight: 700, letterSpacing: '0.1em', textTransform: 'uppercase' }}>
-              Sistema de Gestao
+              {sysConfig.card_title || 'Carteira de Identificacao'}
             </div>
             <div style={{ color: '#fbbf24', fontSize: '1rem', fontWeight: 900, letterSpacing: '0.04em', textTransform: 'uppercase', lineHeight: 1.15 }}>
-              DEMO
+              {sysConfig.organization_short}
             </div>
             <div style={{ color: 'rgba(255,255,255,0.65)', fontSize: '0.5rem', letterSpacing: '0.1em', textTransform: 'uppercase', marginTop: 1 }}>
-              Credencial de Aluno
+              {sysConfig.card_subtitle || 'Membro Ativo'}
             </div>
           </div>
         </div>

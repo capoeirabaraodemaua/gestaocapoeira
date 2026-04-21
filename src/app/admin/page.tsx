@@ -11,6 +11,7 @@ import AlunoViewer from '@/components/AlunoViewer';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { getTenantIdByKey } from '@/lib/tenants';
 import WhatsappFilaPanel from '@/components/WhatsappFilaPanel';
+import { invalidateConfigCache } from '@/hooks/useSystemConfig';
 
 interface PresencaCount {
   student_id: string;
@@ -2000,25 +2001,132 @@ export default function AdminPage() {
             </button>
           </div>
 
-          {/* Admin forgot-password inline panel */}
+{/* Admin forgot-password inline panel */}
           {showAdminForgot && (
             <div style={{ marginTop: 14, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 12, padding: '16px 18px' }}>
-              <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700, fontSize: '0.88rem', marginBottom: 10 }}>🔑 Recuperar Acesso</div>
-              {!adminForgotDone ? (
-                <>
-                  <p style={{ color: 'rgba(255,255,255,0.5)', fontSize: '0.75rem', marginTop: 0, marginBottom: 10, lineHeight: 1.5 }}>
-                    Informe seu CPF cadastrado. Você receberá um link de redefini��ão por e-mail.
+              <div style={{ color: 'rgba(255,255,255,0.8)', fontWeight: 700, fontSize: '0.88rem', marginBottom: 10 }}>Recuperar Acesso</div>
+              
+              {/* Tabs para Admin Geral vs Owner */}
+              <div style={{ display: 'flex', gap: 8, marginBottom: 14 }}>
+                <button 
+                  type="button"
+                  onClick={() => setAdminForgotCpf('admin')}
+                  style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                    background: adminForgotCpf === 'admin' || adminForgotCpf === '' ? 'rgba(29,78,216,0.4)' : 'rgba(255,255,255,0.1)',
+                    color: adminForgotCpf === 'admin' || adminForgotCpf === '' ? '#93c5fd' : 'rgba(255,255,255,0.5)' }}>
+                  Admin Geral
+                </button>
+                <button 
+                  type="button"
+                  onClick={() => setAdminForgotCpf('owner')}
+                  style={{ flex: 1, padding: '8px', borderRadius: 8, border: 'none', fontWeight: 600, fontSize: '0.78rem', cursor: 'pointer',
+                    background: adminForgotCpf === 'owner' ? 'rgba(124,58,237,0.4)' : 'rgba(255,255,255,0.1)',
+                    color: adminForgotCpf === 'owner' ? '#c4b5fd' : 'rgba(255,255,255,0.5)' }}>
+                  Owner
+                </button>
+              </div>
+
+              {/* Recuperacao Admin Geral */}
+              {(adminForgotCpf === 'admin' || adminForgotCpf === '') && (
+                <div style={{ textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: '0.82rem', lineHeight: 1.6 }}>
+                  <div style={{ marginBottom: 12, padding: 12, background: 'rgba(251,191,36,0.15)', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, color: '#fbbf24', marginBottom: 6 }}>Atencao</div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem' }}>
+                      A senha do Admin Geral so pode ser alterada pelo <strong>Owner</strong> do sistema.
+                    </div>
+                  </div>
+                  <p style={{ margin: '8px 0', fontSize: '0.78rem', color: 'rgba(255,255,255,0.5)' }}>
+                    Entre em contato com o Owner para solicitar a redefinicao da sua senha.
                   </p>
+                  <button type="button" onClick={() => setShowAdminForgot(false)} style={{ marginTop: 8, padding: '8px 16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, color: 'rgba(255,255,255,0.6)', fontSize: '0.78rem', cursor: 'pointer' }}>Fechar</button>
+                </div>
+              )}
+
+              {/* Recuperacao Owner */}
+              {adminForgotCpf === 'owner' && !adminForgotDone && (
+                <div>
+                  <div style={{ marginBottom: 12, padding: 12, background: 'rgba(124,58,237,0.15)', border: '1px solid rgba(124,58,237,0.3)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, color: '#a78bfa', marginBottom: 6, fontSize: '0.82rem' }}>Recuperacao de Senha do Owner</div>
+                    <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: '0.75rem', lineHeight: 1.5 }}>
+                      Para redefinir a senha do Owner, informe a <strong>senha de confirmacao</strong> e a nova senha desejada.
+                    </div>
+                  </div>
+                  
                   <input
-                    type="text" inputMode="numeric"
-                    value={adminForgotCpf}
-                    onChange={e => setAdminForgotCpf(e.target.value.replace(/\D/g, '').slice(0, 11))}
-                    placeholder="CPF (apenas números)"
-                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.88rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                    type="password"
+                    value={adminResetUrl}
+                    onChange={e => setAdminResetUrl(e.target.value)}
+                    placeholder="Senha de confirmacao"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(124,58,237,0.4)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(124,58,237,0.15)', boxSizing: 'border-box', marginBottom: 8 }}
                   />
+                  <input
+                    type="password"
+                    value={(window as any).__ownerNewPass || ''}
+                    onChange={e => { (window as any).__ownerNewPass = e.target.value; setAdminForgotMsg(''); }}
+                    placeholder="Nova senha (min. 6 caracteres)"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  <input
+                    type="password"
+                    value={(window as any).__ownerNewPassConfirm || ''}
+                    onChange={e => { (window as any).__ownerNewPassConfirm = e.target.value; setAdminForgotMsg(''); }}
+                    placeholder="Confirmar nova senha"
+                    style={{ width: '100%', padding: '9px 12px', border: '1.5px solid rgba(255,255,255,0.2)', borderRadius: 8, fontSize: '0.85rem', outline: 'none', color: '#fff', background: 'rgba(255,255,255,0.1)', boxSizing: 'border-box', marginBottom: 8 }}
+                  />
+                  
                   {adminForgotMsg && (
-                    <div style={{ fontSize: '0.78rem', color: adminForgotMsg.startsWith('✅') ? '#86efac' : '#fca5a5', marginBottom: 8, lineHeight: 1.5 }}>{adminForgotMsg}</div>
+                    <div style={{ fontSize: '0.78rem', color: adminForgotMsg.includes('sucesso') ? '#86efac' : '#fca5a5', marginBottom: 8, lineHeight: 1.5, textAlign: 'center' }}>{adminForgotMsg}</div>
                   )}
+                  
+                  <button
+                    type="button"
+                    disabled={adminForgotLoading}
+                    onClick={async () => {
+                      const newPass = (window as any).__ownerNewPass || '';
+                      const confirmPass = (window as any).__ownerNewPassConfirm || '';
+                      
+                      if (!adminResetUrl) { setAdminForgotMsg('Informe a senha de confirmacao.'); return; }
+                      if (!newPass || newPass.length < 6) { setAdminForgotMsg('Nova senha deve ter pelo menos 6 caracteres.'); return; }
+                      if (newPass !== confirmPass) { setAdminForgotMsg('As senhas nao coincidem.'); return; }
+                      
+                      setAdminForgotLoading(true); setAdminForgotMsg('');
+                      try {
+                        const res = await fetch('/api/admin/recover-owner', {
+                          method: 'POST', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ action: 'confirm', confirmationPassword: adminResetUrl, newPassword: newPass }),
+                        });
+                        const data = await res.json();
+                        if (data.ok) {
+                          setAdminForgotMsg(data.message || 'Senha atualizada com sucesso!');
+                          setAdminForgotDone(true);
+                          (window as any).__ownerNewPass = '';
+                          (window as any).__ownerNewPassConfirm = '';
+                        } else {
+                          setAdminForgotMsg(data.error || 'Erro ao redefinir senha.');
+                        }
+                      } catch { setAdminForgotMsg('Erro de conexao.'); }
+                      setAdminForgotLoading(false);
+                    }}
+                    style={{ width: '100%', padding: '10px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', color: '#fff', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: '0.85rem', cursor: 'pointer', opacity: adminForgotLoading ? 0.6 : 1 }}>
+                    {adminForgotLoading ? 'Processando...' : 'Redefinir Senha do Owner'}
+                  </button>
+                  
+                  <div style={{ marginTop: 10, fontSize: '0.7rem', color: 'rgba(255,255,255,0.4)', textAlign: 'center' }}>
+                    Nao tem a senha de confirmacao? Entre em contato: <strong>andrecapoeirabarao@gmail.com</strong>
+                  </div>
+                </div>
+              )}
+
+              {/* Sucesso Owner */}
+              {adminForgotCpf === 'owner' && adminForgotDone && (
+                <div style={{ textAlign: 'center', color: '#86efac', fontSize: '0.85rem', lineHeight: 1.6 }}>
+                  Senha do Owner atualizada com sucesso!<br />Faca login com a nova senha.
+                  <br />
+                  <button type="button" onClick={() => { setAdminForgotDone(false); setShowAdminForgot(false); setAdminResetUrl(''); }} style={{ marginTop: 10, padding: '8px 16px', background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: 8, color: '#fff', fontSize: '0.78rem', cursor: 'pointer' }}>Fechar e Fazer Login</button>
+                </div>
+              )}
+            </div>
+          )}
                   {adminResetUrl && (
                     <div style={{ fontSize: '0.72rem', color: '#93c5fd', marginBottom: 8, wordBreak: 'break-all', lineHeight: 1.6 }}>
                       <strong>Link de redefinição:</strong><br />
@@ -10444,7 +10552,7 @@ dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${dn}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#64748b;font-size:0.78em">${p.nucleo || '—'}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:#b45309;font-weight:700;font-size:0.78em">${p.graduacao_atual}</td>
-                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">→</td>
+                              <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;text-align:center;color:#94a3b8;font-size:0.75em">��</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;color:${mudou?'#15803d':'#94a3b8'};font-weight:${mudou?'800':'400'};font-size:0.78em">${p.nova_graduacao || p.graduacao_atual}</td>
                               <td style="padding:7px 10px;border-bottom:1px solid #e2e8f0;font-size:0.75em;color:#94a3b8;border-left:1px dashed #e2e8f0"></td>
                             </tr>`;
@@ -12533,6 +12641,7 @@ Suporte Ginga Gestão.`
                       if (data.ok) {
                         setSystemConfigMsg('Configuracoes salvas com sucesso!');
                         setSystemConfig(data.config);
+                        invalidateConfigCache(); // Invalida cache para atualizar em toda a plataforma
                       } else {
                         setSystemConfigMsg('Erro: ' + (data.error || 'Falha ao salvar'));
                       }

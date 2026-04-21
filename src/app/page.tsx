@@ -6,11 +6,13 @@ import { graduacoes, getCordaColors, nomenclaturaGraduacao } from '@/lib/graduac
 import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
+import { useSystemConfig } from '@/hooks/useSystemConfig';
 
 type SuccessData = CarteirinhaData;
 
 export default function Home() {
   const { t } = useLanguage();
+  const { config: sysConfig } = useSystemConfig();
   const [loading, setLoading] = useState(false);
   const [emailTouched, setEmailTouched] = useState(false);
   const [draftLoading, setDraftLoading] = useState(false);
@@ -537,7 +539,7 @@ export default function Home() {
           const phone = tel.startsWith('55') ? tel : `55${tel}`;
           const nome = form.nome_completo ? form.nome_completo.split(' ')[0] : 'Aluno';
           const msg = encodeURIComponent(
-            `Ola ${nome}! Seu pre-cadastro no Sistema de Gestao de Alunos DEMO foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informacoes:\n${pend.map(p => `- ${p}`).join('\n')}\n\nAcesse o formulario e complete seu cadastro.`
+            `Ola ${nome}! Seu pre-cadastro foi salvo como rascunho.\n\nPara completar seu cadastro, ainda faltam as seguintes informacoes:\n${pend.map(p => `- ${p}`).join('\n')}\n\nAcesse o formulario e complete seu cadastro.`
           );
           window.open(`https://api.whatsapp.com/send?phone=${phone}&text=${msg}`, '_blank');
         }
@@ -823,13 +825,13 @@ export default function Home() {
     const phone = (telefone || '').replace(/\D/g, '');
     const br = phone.startsWith('55') ? phone : `55${phone}`;
     const msg = encodeURIComponent(
-`*Carteirinha - Sistema de Gestao DEMO*
+`*Carteirinha - ${sysConfig.organization_short}*
 
 Ola, *${nome}*! Sua carteirinha de associado esta disponivel. Toque no link abaixo para visualizar e imprimir:
 
 ${url}
 
-_Sistema de Gestao de Alunos DEMO_`
+_${sysConfig.organization_name}_`
     );
     if (phone.length >= 10) {
       window.open(`https://api.whatsapp.com/send?phone=${br}&text=${msg}`, '_blank');
@@ -883,7 +885,7 @@ _Sistema de Gestao de Alunos DEMO_`
         {/* Imagem de fundo — contain para não cortar nada */}
         <img
           src={bgUrl || '/wallpaper-capoeira.jpg'}
-          alt="Sistema de Gestao DEMO"
+          alt={sysConfig.system_name}
           style={{
             display: 'block',
             width: '100%',
