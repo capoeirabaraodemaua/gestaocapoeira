@@ -13,14 +13,31 @@ export interface Local {
 // Este array e usado como cache local e fallback
 export let LOCAIS: Local[] = [];
 
-// Funcao para carregar locais da API
+// Funcao para carregar locais dos nucleos (tenants)
+// Nucleos e locais de treino sao a mesma coisa
 export async function carregarLocais(): Promise<Local[]> {
   try {
-    const res = await fetch('/api/admin/locais', { cache: 'no-store' });
+    // Carrega nucleos do banco - eles tem as coordenadas
+    const res = await fetch('/api/admin/nucleos', { 
+      headers: { 'x-admin-auth': 'geral' },
+      cache: 'no-store' 
+    });
     if (res.ok) {
       const data = await res.json();
-      if (Array.isArray(data)) {
-        LOCAIS = data.filter(l => l.ativo !== false);
+      if (data.nucleos && Array.isArray(data.nucleos)) {
+        // Converte nucleos para formato de locais
+        LOCAIS = data.nucleos
+          .filter((n: any) => n.ativo && n.lat && n.lng)
+          .map((n: any) => ({
+            id: n.id,
+            nome: n.nome,
+            endereco: n.endereco || '',
+            nucleo: n.nome,
+            lat: n.lat,
+            lng: n.lng,
+            mapUrl: `https://maps.google.com/?q=${n.lat},${n.lng}`,
+            ativo: n.ativo,
+          }));
         return LOCAIS;
       }
     }

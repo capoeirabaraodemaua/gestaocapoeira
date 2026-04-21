@@ -882,6 +882,8 @@ export default function AdminPage() {
         setIsOwner(data.isOwner === true);
         setAdminLoginState(0, 0);
         setLoginError('');
+        // Carrega config do sistema para exibir nome dinamico
+        fetch('/api/admin/system-config').then(r => r.json()).then(cfg => { if (cfg) setSystemConfig(cfg); }).catch(() => {});
         fetch('/api/admin/logs', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'login', user: loginKey.slice(-4), nucleo: nk }) }).catch(() => {});
         return;
       }
@@ -1305,7 +1307,7 @@ export default function AdminPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbCopied, setDbCopied] = useState(false);
 
-  // ── Manual video links state ──────────────────────────────────────────────
+  // ── Manual video links state ──────────────────────────��───────────────────
   const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
   const [manualVideoForm, setManualVideoForm] = useState({ title: '', url: '' });
   const [savingManualVideo, setSavingManualVideo] = useState(false);
@@ -2244,11 +2246,13 @@ export default function AdminPage() {
             Voltar ao formulário
           </Link>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-            {/* Botões de troca de núcleo — visível quando responsável gerencia mais de um */}
+            {/* Botoes de troca de nucleo — visivel quando responsavel gerencia mais de um */}
             {availableNucleos.length > 1 && availableNucleos.map(nk => {
               const prof = getProfiles().find(p => p.nucleo === nk);
               if (!prof) return null;
               const isActive = activeNucleo === nk;
+              // Mostra Owner se for owner, senao usa o label normal
+              const displayLabel = isOwner && nk === 'geral' ? 'Owner' : prof.label;
               return (
                 <button
                   key={nk}
@@ -2259,20 +2263,20 @@ export default function AdminPage() {
                   }}
                   style={{
                     padding: '5px 12px', borderRadius: 20, cursor: 'pointer', fontWeight: 700, fontSize: '0.75rem',
-                    background: isActive ? prof.color : `${prof.color}22`,
-                    border: `1px solid ${prof.color}88`,
-                    color: isActive ? '#fff' : prof.color,
+                    background: isActive ? (isOwner ? '#7c3aed' : prof.color) : `${isOwner ? '#7c3aed' : prof.color}22`,
+                    border: `1px solid ${isOwner ? '#7c3aed' : prof.color}88`,
+                    color: isActive ? '#fff' : (isOwner ? '#7c3aed' : prof.color),
                     transition: 'all 0.15s',
                   }}
                 >
-                  {isActive ? '✓ ' : ''}{prof.label}
+                  {isActive ? '* ' : ''}{displayLabel}
                 </button>
               );
             })}
-            {/* Current profile badge — só mostra quando tem 1 núcleo */}
+            {/* Current profile badge — so mostra quando tem 1 nucleo */}
             {availableNucleos.length <= 1 && currentProfile && (
-              <div style={{ padding: '4px 10px', borderRadius: 20, background: `${currentProfile.color}22`, border: `1px solid ${currentProfile.color}55`, color: currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
-                {currentProfile.label}
+              <div style={{ padding: '4px 10px', borderRadius: 20, background: `${isOwner ? '#7c3aed' : currentProfile.color}22`, border: `1px solid ${isOwner ? '#7c3aed' : currentProfile.color}55`, color: isOwner ? '#7c3aed' : currentProfile.color, fontSize: '0.75rem', fontWeight: 700 }}>
+                {isOwner ? 'Owner' : currentProfile.label}
               </div>
             )}
             <button
@@ -2312,10 +2316,10 @@ export default function AdminPage() {
               textShadow: 'none',
               filter: 'drop-shadow(0 2px 8px rgba(37,99,235,0.25))',
             }}>
-              Sistema de Gestao de Alunos DEMO
+              {systemConfig?.system_name || 'Sistema de Gestao de Alunos DEMO'}
             </h1>
             <p style={{ color: 'var(--text-secondary)', fontSize: '0.9rem', marginTop: 4 }}>
-              Associação Cultural de Capoeira Barão de Mauá
+              {systemConfig?.organization_name || 'Organizacao Demo'}
             </p>
           </div>
           <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -6313,6 +6317,35 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         placeholder="email@exemplo.com"
                         style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: '0.88rem' }}
                       />
+                    </div>
+                  </div>
+                  {/* Coordenadas para presenca por GPS */}
+                  <div style={{ padding: 12, background: 'rgba(14,165,233,0.08)', border: '1px solid rgba(14,165,233,0.2)', borderRadius: 10 }}>
+                    <div style={{ fontWeight: 700, fontSize: '0.8rem', color: '#0284c7', marginBottom: 8 }}>Coordenadas GPS (para registro de presenca)</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Latitude</label>
+                        <input
+                          type="text"
+                          value={(nucleoForm as any).lat || ''}
+                          onChange={e => setNucleoForm(f => ({ ...f, lat: e.target.value }))}
+                          placeholder="Ex: -22.7077"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                      <div>
+                        <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 600, marginBottom: 4, color: '#374151' }}>Longitude</label>
+                        <input
+                          type="text"
+                          value={(nucleoForm as any).lng || ''}
+                          onChange={e => setNucleoForm(f => ({ ...f, lng: e.target.value }))}
+                          placeholder="Ex: -43.1451"
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: '0.82rem' }}
+                        />
+                      </div>
+                    </div>
+                    <div style={{ fontSize: '0.7rem', color: '#6b7280', marginTop: 6 }}>
+                      Dica: Use o Google Maps para obter as coordenadas do local de treino.
                     </div>
                   </div>
                   {nucleoFormMsg && (
@@ -10856,7 +10889,7 @@ dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
                         setEventoParticipantSearch('');
                       }}
                       style={{ flex: 1, padding: '10px 0', background: 'linear-gradient(135deg,#0ea5e9,#0284c7)', border: 'none', color: '#fff', borderRadius: 9, cursor: 'pointer', fontWeight: 800, fontSize: '0.9rem', boxShadow: '0 2px 10px rgba(14,165,233,0.4)' }}>
-                      ✅ Inserir na Lista
+                      �� Inserir na Lista
                     </button>
                     <button
                       onClick={() => { setEventoParticipantStaging(null); setEventoParticipantSearch(''); }}
@@ -12959,7 +12992,7 @@ Suporte Ginga Gestão.`
                   <div>
                     <div style={{ fontWeight: 800, fontSize: '1rem', color: 'var(--text-primary)' }}>Administradores Gerais</div>
                     <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                      {respGeralUsers.length}/3 contas · Máximo de 3 administradores gerais
+                      {respGeralUsers.length}/3 contas �� Máximo de 3 administradores gerais
                     </div>
                   </div>
                 </div>

@@ -54,10 +54,10 @@ export async function POST(req: NextRequest) {
       }, { status: 403 });
     }
 
-    const { nome, endereco, cidade, estado, telefone, email } = body;
+    const { nome, endereco, cidade, estado, telefone, email, lat, lng } = body;
 
     if (!nome || typeof nome !== 'string' || nome.trim().length < 2) {
-      return NextResponse.json({ error: 'Nome do núcleo é obrigatório (mínimo 2 caracteres).' }, { status: 400 });
+      return NextResponse.json({ error: 'Nome do nucleo e obrigatorio (minimo 2 caracteres).' }, { status: 400 });
     }
 
     const slug = slugify(nome.trim());
@@ -84,6 +84,8 @@ export async function POST(req: NextRequest) {
         estado: estado?.trim() || null,
         telefone: telefone?.trim() || null,
         email: email?.trim() || null,
+        lat: lat ? parseFloat(lat) : null,
+        lng: lng ? parseFloat(lng) : null,
         ativo: true,
       })
       .select()
