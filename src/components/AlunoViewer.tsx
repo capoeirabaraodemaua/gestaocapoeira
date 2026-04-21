@@ -55,14 +55,9 @@ type RegistroGraduacao = {
 
 type Tab = 'dashboard' | 'evolucao' | 'carteirinha' | 'presenca' | 'financeiro' | 'graduacao' | 'fotos' | 'justificativas' | 'playlist' | 'conta';
 
-const NUCLEO_COLORS: Record<string, string> = {
-  'Poliesportivo Edson Alves': '#dc2626',
-  'Poliesportivo do Ipiranga': '#ea580c',
-  'Saracuruna': '#16a34a',
-  'Vila Urussaí': '#9333ea',
-  'Jayme Fichman': '#0891b2',
-  'Academia Mais Saúde': '#059669',
-};
+// Cores dinamicas baseadas em hash do nome do nucleo
+const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed'];
+const NUCLEO_COLORS: Record<string, string> = {};
 
 const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Cru': { bg: '#f8f8f8', text: '#374151', border: '#d1d5db' },
@@ -81,7 +76,10 @@ function getGradColor(grad: string) {
 }
 
 function getNucleoColor(nucleo: string): string {
-  return NUCLEO_COLORS[nucleo] || '#1d4ed8';
+  if (!nucleo) return '#64748b';
+  // Usa hash do nome para cor consistente
+  const hash = nucleo.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return NUCLEO_COLORS_PALETTE[hash % NUCLEO_COLORS_PALETTE.length];
 }
 
 interface AlunoViewerProps {
@@ -446,12 +444,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
                 <select value={presencaLocalSelecionado} onChange={e => setPresencaLocalSelecionado(e.target.value)}
                   style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
                   <option value="">— Selecione o local —</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves — Magé</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga — Magé</option>
-                  <option value="Saracuruna">CIEP 318 — Saracuruna</option>
-                  <option value="Vila Urussaí">Núcleo Vila Urussaí</option>
-                  <option value="Jayme Fichman">Núcleo Jayme Fichman</option>
-                  <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                  <option value={data.nucleo}>{data.nucleo}</option>
                 </select>
               </div>
               {presencaMsg && (

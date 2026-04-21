@@ -1118,16 +1118,7 @@ _Sistema de Gestao de Alunos DEMO_`
                       dynamicNucleos.map(n => (
                         <option key={n.id} value={n.nome}>{n.nome}</option>
                       ))
-                    ) : (
-                      <>
-                        <option value="Saracuruna">Nucleo Saracuruna</option>
-                        <option value="Poliesportivo Edson Alves">Nucleo Poliesportivo Edson Alves</option>
-                        <option value="Poliesportivo do Ipiranga">Nucleo Poliesportivo do Ipiranga</option>
-                        <option value="Vila Urussai">Nucleo Vila Urussai</option>
-                        <option value="Jayme Fichman">Nucleo Jayme Fichman</option>
-                        <option value="Academia Mais Saude">Academia Mais Saude</option>
-                      </>
-                    )}
+                    ) : null}
                   </select>
                 </div>
               </div>
