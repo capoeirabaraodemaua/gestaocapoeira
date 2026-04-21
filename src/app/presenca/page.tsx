@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { registerCheckin, getCheckins } from '@/lib/checkins';
-import { capturarGPS, iniciarWatchGPS, detectarLocal, LocalDetectado, LOCAIS } from '@/lib/locais';
+import { capturarGPS, iniciarWatchGPS, detectarLocal, LocalDetectado, LOCAIS, carregarLocais } from '@/lib/locais';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 
 interface Student {
@@ -37,9 +37,9 @@ export default function PresencaPage() {
   const [manualLocal, setManualLocal] = useState<typeof LOCAIS[0] | null>(null);
   const watchIdRef = useRef<number>(-1);
 
-  const OFFLINE_QUEUE_KEY   = 'accbm_offline_checkins';
-  const STUDENTS_CACHE_KEY  = 'accbm_students_cache';
-  const CHECKINS_CACHE_KEY  = 'accbm_checkins_today_cache';
+  const OFFLINE_QUEUE_KEY   = 'demo_offline_checkins';
+  const STUDENTS_CACHE_KEY  = 'demo_students_cache';
+  const CHECKINS_CACHE_KEY  = 'demo_checkins_today_cache';
 
   useEffect(() => {
     // Load offline queue from localStorage immediately (before network)
@@ -61,9 +61,12 @@ export default function PresencaPage() {
       }
     } catch {}
 
-    fetchStudents();
-    loadTodayCheckins();
-    iniciarGPS();
+    // Carrega locais dinamicos antes de iniciar GPS
+    carregarLocais().then(() => {
+      fetchStudents();
+      loadTodayCheckins();
+      iniciarGPS();
+    });
 
     // Listen for online/offline events
     const handleOnline = () => { setIsOnline(true); };

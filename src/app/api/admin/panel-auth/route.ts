@@ -48,9 +48,9 @@ export const NUCLEO_DEFAULT_PASSWORDS: Record<string, string> = {
 // Senha padrão única (fallback)
 export const DEFAULT_PASSWORD = '123456';
 
-// Credenciais padrão — owner, admin geral
+// Credenciais padrao — owner, admin geral
 const DEFAULT_CREDS: CredsMap = {
-  owner:                   { nucleo: 'geral',                label: 'Owner (Desenvolvedor)',      color: '#7c3aed', password: 'owner2025', first_login: false },
+  owner:                   { nucleo: 'geral',                label: 'Owner (Desenvolvedor)',      color: '#7c3aed', password: 'owner123', first_login: true },
   admin:                   { nucleo: 'geral',                label: 'Admin Geral',                color: '#1d4ed8', password: 'admin123', first_login: true },
 };
 

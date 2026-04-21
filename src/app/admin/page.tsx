@@ -671,6 +671,14 @@ export default function AdminPage() {
   const [availableNucleos, setAvailableNucleos] = useState<NucleoKey[]>([]);
   const [isOwner, setIsOwner] = useState(false);
   const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean; cidade?: string }>>([]);
+  // System Config (Owner only)
+  const [systemConfig, setSystemConfig] = useState<any>(null);
+  const [systemConfigLoading, setSystemConfigLoading] = useState(false);
+  const [systemConfigSaving, setSystemConfigSaving] = useState(false);
+  const [systemConfigMsg, setSystemConfigMsg] = useState('');
+  // Locais de Treino (Owner only)
+  const [locaisTreino, setLocaisTreino] = useState<Array<{ id: string; nome: string; endereco: string; nucleo: string; lat: number; lng: number; mapUrl: string; ativo: boolean }>>([]);
+  const [locaisLoading, setLocaisLoading] = useState(false);
   const [loginUser, setLoginUser] = useState('');
   const [loginPass, setLoginPass] = useState('');
   const [loginError, setLoginError] = useState('');
@@ -1305,7 +1313,7 @@ export default function AdminPage() {
 
   // ── DB maintenance state (Admin Geral only) ───────────────────────────────
 
-  // ── Eventos state ─────────────────────────────────────────��────────────────
+  // ── Eventos state ────���────────────────────────────────────��────────────────
   const [eventos, setEventos] = useState<any[]>([]);
   const [loadingEventos, setLoadingEventos] = useState(false);
   const [eventoForm, setEventoForm] = useState<any>({ tipo: 'batizado', nome: '', data: '', hora: '', local: '', nucleo: '', participantes: [] });
@@ -2353,6 +2361,14 @@ export default function AdminPage() {
               setLoadingResponsaveis(true);
               fetch('/api/admin/responsaveis').then(r => r.json()).then(cfg => { setResponsaveis(cfg.responsaveis || []); setLoadingResponsaveis(false); }).catch(() => setLoadingResponsaveis(false));
             }
+            if (key === 'system-config') {
+              setSystemConfigLoading(true);
+              fetch('/api/admin/system-config').then(r => r.json()).then(d => { setSystemConfig(d); setSystemConfigLoading(false); }).catch(() => setSystemConfigLoading(false));
+            }
+            if (key === 'locais-config') {
+              setLocaisLoading(true);
+              fetch('/api/admin/locais').then(r => r.json()).then(d => { setLocaisTreino(Array.isArray(d) ? d : []); setLocaisLoading(false); }).catch(() => setLocaisLoading(false));
+            }
             if (key === 'dados-faltantes') { setLoadingRascunhos(true); fetch('/api/rascunhos').then(r => r.json()).then(d => { setRascunhos(d); setRascunhosCount(d.length); setLoadingRascunhos(false); }).catch(() => setLoadingRascunhos(false)); }
             if (key === 'manual') {
               setLoadingManuais(true); setManualMsg('');
@@ -2432,10 +2448,12 @@ export default function AdminPage() {
               title: 'Administrativo e Materiais', color: '#6b7280', bg: 'rgba(107,114,128,0.08)',
               buttons: [
                 { key: 'financeiro',  icon: '💰', label: 'Administrativo', badge: finAlertCount > 0 ? finAlertCount : undefined },
-                { key: 'patrimonio',  icon: '🏛️', label: 'Patrimônio' },
+                { key: 'patrimonio',  icon: '🏛️', label: 'Patrimonio' },
                 { key: 'materiais',   icon: '📦', label: 'Materiais' },
-                { key: 'doacoes',     icon: '💝', label: 'Doações', geralOnly: true },
-                { key: 'nucleos',     icon: '🏢', label: 'Gerenciar Núcleos', geralOnly: true },
+                { key: 'doacoes',     icon: '💝', label: 'Doacoes', geralOnly: true },
+                { key: 'nucleos',     icon: '🏢', label: 'Gerenciar Nucleos', ownerOnly: true },
+                { key: 'system-config', icon: '*', label: 'Config. Sistema', ownerOnly: true },
+                { key: 'locais-config', icon: '📍', label: 'Locais de Treino', ownerOnly: true },
               ],
             },
             {
@@ -4978,7 +4996,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             </div>
           )}
 
-          {/* ── Config de Valores ─────────────────────────────────────── */}
+          {/* ── Config de Valores ───────────���─────────────────────────── */}
           <div style={{ marginBottom: 16 }}>
             <button onClick={() => {
               setShowFinConfig(v => !v);
@@ -10715,7 +10733,7 @@ dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
             {/* Participants section */}
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: 10, color: 'var(--text-primary)', display: 'flex', alignItems: 'center', gap: 8 }}>
-                👥 {t('admin_event_participants')}
+                �� {t('admin_event_participants')}
                 {(eventoForm.participantes || []).length > 0 && (
                   <span style={{ background: 'rgba(14,165,233,0.15)', color: '#38bdf8', border: '1px solid rgba(14,165,233,0.3)', borderRadius: 20, padding: '2px 10px', fontSize: '0.72rem', fontWeight: 700 }}>
                     {(eventoForm.participantes || []).length} inserido{(eventoForm.participantes || []).length !== 1 ? 's' : ''}
@@ -11465,7 +11483,7 @@ dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
 
           {/* WhatsApp template — request student email */}
           <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 20, marginBottom: 20 }}>
-            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>📨 Solicitar E-mail do Aluno via WhatsApp</h3>
+            <h3 style={{ margin: '0 0 4px', fontSize: '0.95rem', color: 'var(--text-primary)' }}>��� Solicitar E-mail do Aluno via WhatsApp</h3>
             <p style={{ margin: '0 0 14px', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Use este modelo para pedir o e-mail ao aluno e criar a conta de acesso.</p>
             <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: 10, padding: '14px 16px', fontSize: '0.82rem', color: '#14532d', lineHeight: 1.7, fontFamily: 'monospace', whiteSpace: 'pre-wrap', userSelect: 'text' }}>
 {`Olá! Tudo bem? 👋🏽
@@ -12310,7 +12328,304 @@ Suporte Ginga Gestão.`
         </div>
       )}
 
-      {/* ===== ABA RESPONSÁVEIS / ADMINISTRADORES (geral only) ===== */}
+      {/* ===== ABA CONFIGURACOES DO SISTEMA (Owner only) ===== */}
+      {activeTab === 'system-config' && isOwner && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ marginBottom: 20 }}>
+            <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>* Configuracoes do Sistema</h2>
+            <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+              Configure nome, logo, cores e informacoes gerais do sistema (apenas Owner).
+            </p>
+          </div>
+          
+          {systemConfigLoading ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando configuracoes...</div>
+          ) : !systemConfig ? (
+            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>*</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Erro ao carregar configuracoes</div>
+              <button onClick={() => { setSystemConfigLoading(true); fetch('/api/admin/system-config').then(r => r.json()).then(d => { setSystemConfig(d); setSystemConfigLoading(false); }).catch(() => setSystemConfigLoading(false)); }}
+                style={{ marginTop: 12, padding: '10px 20px', background: 'var(--accent)', border: 'none', borderRadius: 8, color: '#fff', cursor: 'pointer' }}>
+                Tentar Novamente
+              </button>
+            </div>
+          ) : (
+            <div style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, padding: 24 }}>
+              {systemConfigMsg && (
+                <div style={{ marginBottom: 16, padding: 12, background: systemConfigMsg.includes('Erro') ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${systemConfigMsg.includes('Erro') ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 8, color: systemConfigMsg.includes('Erro') ? '#ef4444' : '#22c55e', fontWeight: 600, fontSize: '0.85rem' }}>
+                  {systemConfigMsg}
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
+                {/* Identidade */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Identidade do Sistema</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome do Sistema</label>
+                      <input value={systemConfig.system_name || ''} onChange={e => setSystemConfig({ ...systemConfig, system_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome da Organizacao</label>
+                      <input value={systemConfig.organization_name || ''} onChange={e => setSystemConfig({ ...systemConfig, organization_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Sigla (para IDs)</label>
+                      <input value={systemConfig.organization_short || ''} onChange={e => setSystemConfig({ ...systemConfig, organization_short: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="DEMO" />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Prefixo do ID</label>
+                      <input value={systemConfig.id_prefix || ''} onChange={e => setSystemConfig({ ...systemConfig, id_prefix: e.target.value.toUpperCase() })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="DEMO" />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Carteirinha */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Carteirinha / Credencial</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Titulo da Carteirinha</label>
+                      <input value={systemConfig.card_title || ''} onChange={e => setSystemConfig({ ...systemConfig, card_title: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Subtitulo da Carteirinha</label>
+                      <input value={systemConfig.card_subtitle || ''} onChange={e => setSystemConfig({ ...systemConfig, card_subtitle: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Nome do Assinante</label>
+                      <input value={systemConfig.signature_name || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_name: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Cargo do Assinante</label>
+                      <input value={systemConfig.signature_role || ''} onChange={e => setSystemConfig({ ...systemConfig, signature_role: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Contato */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Contato</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>E-mail</label>
+                      <input value={systemConfig.contact_email || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_email: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Telefone</label>
+                      <input value={systemConfig.contact_phone || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_phone: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>WhatsApp</label>
+                      <input value={systemConfig.contact_whatsapp || ''} onChange={e => setSystemConfig({ ...systemConfig, contact_whatsapp: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Website</label>
+                      <input value={systemConfig.website_url || ''} onChange={e => setSystemConfig({ ...systemConfig, website_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Redes Sociais */}
+                <div>
+                  <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 12, fontSize: '0.9rem' }}>Redes Sociais</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Instagram</label>
+                      <input value={systemConfig.instagram_url || ''} onChange={e => setSystemConfig({ ...systemConfig, instagram_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://instagram.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Facebook</label>
+                      <input value={systemConfig.facebook_url || ''} onChange={e => setSystemConfig({ ...systemConfig, facebook_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://facebook.com/..." />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>YouTube</label>
+                      <input value={systemConfig.youtube_url || ''} onChange={e => setSystemConfig({ ...systemConfig, youtube_url: e.target.value })}
+                        style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} placeholder="https://youtube.com/..." />
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Rodape */}
+              <div style={{ marginTop: 20 }}>
+                <label style={{ fontSize: '0.75rem', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 4, display: 'block' }}>Texto do Rodape</label>
+                <input value={systemConfig.footer_text || ''} onChange={e => setSystemConfig({ ...systemConfig, footer_text: e.target.value })}
+                  style={{ width: '100%', padding: '10px 12px', border: '1.5px solid var(--border)', borderRadius: 8, background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem' }} />
+              </div>
+              
+              {/* Botao Salvar */}
+              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'flex-end' }}>
+                <button
+                  disabled={systemConfigSaving}
+                  onClick={async () => {
+                    setSystemConfigSaving(true);
+                    setSystemConfigMsg('');
+                    try {
+                      const res = await fetch('/api/admin/system-config', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ updates: systemConfig, updated_by: 'owner' }),
+                      });
+                      const data = await res.json();
+                      if (data.ok) {
+                        setSystemConfigMsg('Configuracoes salvas com sucesso!');
+                        setSystemConfig(data.config);
+                      } else {
+                        setSystemConfigMsg('Erro: ' + (data.error || 'Falha ao salvar'));
+                      }
+                    } catch (err: any) {
+                      setSystemConfigMsg('Erro: ' + err.message);
+                    }
+                    setSystemConfigSaving(false);
+                  }}
+                  style={{ padding: '12px 28px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.9rem', cursor: systemConfigSaving ? 'wait' : 'pointer', opacity: systemConfigSaving ? 0.7 : 1 }}
+                >
+                  {systemConfigSaving ? 'Salvando...' : 'Salvar Configuracoes'}
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA LOCAIS DE TREINO (Owner only) ===== */}
+      {activeTab === 'locais-config' && isOwner && (
+        <div style={{ paddingTop: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20, flexWrap: 'wrap', gap: 10 }}>
+            <div>
+              <h2 style={{ margin: '0 0 4px', fontSize: '1.15rem', color: 'var(--text-primary)' }}>Locais de Treino</h2>
+              <p style={{ margin: 0, fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                Configure os locais de treino para registro de presenca por GPS.
+              </p>
+            </div>
+            <button
+              onClick={async () => {
+                const nome = prompt('Nome do local:');
+                if (!nome) return;
+                const endereco = prompt('Endereco:') || '';
+                const nucleo = prompt('Nucleo (nome):') || '';
+                const latStr = prompt('Latitude (ex: -22.7077):') || '0';
+                const lngStr = prompt('Longitude (ex: -43.1451):') || '0';
+                const lat = parseFloat(latStr);
+                const lng = parseFloat(lngStr);
+                
+                setLocaisLoading(true);
+                try {
+                  const res = await fetch('/api/admin/locais', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: 'add', local: { nome, endereco, nucleo, lat, lng, ativo: true } }),
+                  });
+                  const data = await res.json();
+                  if (data.ok) {
+                    setLocaisTreino(prev => [...prev, data.local]);
+                  } else {
+                    alert('Erro: ' + (data.error || 'Falha ao adicionar'));
+                  }
+                } catch (err: any) {
+                  alert('Erro: ' + err.message);
+                }
+                setLocaisLoading(false);
+              }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', background: 'linear-gradient(135deg,#7c3aed,#6d28d9)', border: 'none', borderRadius: 10, color: '#fff', fontWeight: 700, fontSize: '0.88rem', cursor: 'pointer', boxShadow: '0 4px 15px rgba(124,58,237,0.3)' }}
+            >
+              + Adicionar Local
+            </button>
+          </div>
+          
+          {locaisLoading ? (
+            <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)' }}>Carregando locais...</div>
+          ) : locaisTreino.length === 0 ? (
+            <div style={{ textAlign: 'center', padding: 60, background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14 }}>
+              <div style={{ fontSize: 48, marginBottom: 12 }}>📍</div>
+              <div style={{ fontWeight: 700, color: 'var(--text-primary)', marginBottom: 6 }}>Nenhum local cadastrado</div>
+              <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Clique em Adicionar Local para comecar</div>
+            </div>
+          ) : (
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+              {locaisTreino.map(local => (
+                <div key={local.id} style={{ background: 'var(--card-bg)', border: '1px solid var(--border)', borderRadius: 14, overflow: 'hidden' }}>
+                  <div style={{ background: local.ativo ? 'linear-gradient(135deg,#7c3aed,#6d28d9)' : 'linear-gradient(135deg,#6b7280,#4b5563)', padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ color: '#fff', fontWeight: 800, fontSize: '0.95rem' }}>{local.nome}</div>
+                    <span style={{ background: local.ativo ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.15)', color: '#fff', fontSize: '0.68rem', padding: '2px 8px', borderRadius: 20, fontWeight: 700 }}>
+                      {local.ativo ? 'Ativo' : 'Inativo'}
+                    </span>
+                  </div>
+                  <div style={{ padding: 16 }}>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                      <strong>Endereco:</strong> {local.endereco || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+                      <strong>Nucleo:</strong> {local.nucleo || '-'}
+                    </div>
+                    <div style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+                      <strong>Coordenadas:</strong> {local.lat?.toFixed(6)}, {local.lng?.toFixed(6)}
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Deseja ' + (local.ativo ? 'desativar' : 'ativar') + ' este local?')) return;
+                          try {
+                            const res = await fetch('/api/admin/locais', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'update', local: { id: local.id, ativo: !local.ativo } }),
+                            });
+                            const data = await res.json();
+                            if (data.ok) {
+                              setLocaisTreino(prev => prev.map(l => l.id === local.id ? { ...l, ativo: !local.ativo } : l));
+                            }
+                          } catch {}
+                        }}
+                        style={{ flex: 1, padding: '8px 12px', background: local.ativo ? 'rgba(239,68,68,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${local.ativo ? 'rgba(239,68,68,0.3)' : 'rgba(34,197,94,0.3)'}`, borderRadius: 8, color: local.ativo ? '#ef4444' : '#22c55e', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+                      >
+                        {local.ativo ? 'Desativar' : 'Ativar'}
+                      </button>
+                      <button
+                        onClick={async () => {
+                          if (!confirm('Deseja excluir permanentemente este local?')) return;
+                          try {
+                            const res = await fetch('/api/admin/locais', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ action: 'delete', local: { id: local.id } }),
+                            });
+                            const data = await res.json();
+                            if (data.ok) {
+                              setLocaisTreino(prev => prev.filter(l => l.id !== local.id));
+                            }
+                          } catch {}
+                        }}
+                        style={{ padding: '8px 12px', background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 8, color: '#ef4444', fontWeight: 600, fontSize: '0.8rem', cursor: 'pointer' }}
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ===== ABA RESPONSAVEIS / ADMINISTRADORES (geral only) ===== */}
       {activeTab === 'responsaveis' && activeNucleo === 'geral' && isOwner && (
         <div style={{ paddingTop: 24 }}>
           <div style={{ marginBottom: 20 }}>

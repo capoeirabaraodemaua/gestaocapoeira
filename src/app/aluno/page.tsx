@@ -116,7 +116,10 @@ export default function AlunoPage() {
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
   const [resetMsg, setResetMsg] = useState('');
 
-  // ── Presença ──────────────────────────────────────────────────────────────
+  // ── Nucleos Dinamicos ────────────────────────────────────────────────────
+  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean }>>([]);
+
+  // ── Presenca ──────────────────────────────────────────────────────────────
   const [presencaMsg, setPresencaMsg] = useState('');
   const [presencaLoading, setPresencaLoading] = useState(false);
   const [presencaStatus, setPresencaStatus] = useState<'idle' | 'success' | 'error'>('idle');
@@ -221,6 +224,14 @@ export default function AlunoPage() {
 
   // ── Admin preview mode flag ────────────────────────────────────────────────
   const [isAdminPreview, setIsAdminPreview] = useState(false);
+
+  // ── Load nucleos dinamicos ──────────────────────────────────────────────────
+  useEffect(() => {
+    fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
+      .then(r => r.json())
+      .then(d => { if (d.nucleos) setDynamicNucleos(d.nucleos.filter((n: any) => n.ativo)); })
+      .catch(() => {});
+  }, []);
 
   // ── Load session ──────────────────────────────────────────────────────────
   useEffect(() => {
@@ -1285,12 +1296,9 @@ export default function AlunoPage() {
                   style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 10, padding: '10px 14px', fontSize: '0.88rem', outline: 'none', boxSizing: 'border-box', background: '#fff', color: '#111827' }}
                 >
                   <option value="">— Selecione o local de treino —</option>
-                  <option value="Poliesportivo Edson Alves">Poliesportivo Edson Alves — Magé</option>
-                  <option value="Poliesportivo do Ipiranga">Poliesportivo do Ipiranga — Magé</option>
-                  <option value="Saracuruna">CIEP 318 — Saracuruna, Duque de Caxias</option>
-                  <option value="Vila Urussaí">Núcleo Vila Urussaí — Duque de Caxias</option>
-                  <option value="Jayme Fichman">Núcleo Jayme Fichman — Duque de Caxias</option>
-                  <option value="Academia Mais Saúde">Academia Mais Saúde</option>
+                  {dynamicNucleos.map(n => (
+                    <option key={n.slug} value={n.nome}>{n.nome}</option>
+                  ))}
                 </select>
                 {!presencaLocalSelecionado && student?.nucleo && (
                   <div style={{ fontSize: '0.72rem', color: '#6b7280', marginTop: 4 }}>
@@ -2482,7 +2490,8 @@ export default function AlunoPage() {
             setFotoUploading(false);
           };
 
-          const nucleo_opts = ['Poliesportivo Edson Alves', 'Poliesportivo do Ipiranga', 'Saracuruna', 'Vila Urussaí', 'Jayme Fichman', 'Academia Mais Saúde'];
+          // Nucleos dinamicos carregados do banco
+                const nucleo_opts = dynamicNucleos.map(n => n.nome);
           const sexo_opts = [{ v: 'M', l: 'Masculino' }, { v: 'F', l: 'Feminino' }, { v: 'O', l: 'Outro' }];
           const estados = ['AC','AL','AP','AM','BA','CE','DF','ES','GO','MA','MT','MS','MG','PA','PB','PR','PE','PI','RJ','RN','RS','RO','RR','SC','SP','SE','TO'];
           const isMissing = cadastroIncompleto;

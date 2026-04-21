@@ -6,70 +6,33 @@ export interface Local {
   lat: number;
   lng: number;
   mapUrl: string;
+  ativo?: boolean;
 }
 
-export const LOCAIS: Local[] = [
-  {
-    id: 'poliesportivo-edson-alves',
-    nome: 'Poliesportivo Edson Alves',
-    endereco: '7VR3+VW Magé, RJ',
-    nucleo: 'Poliesportivo Edson Alves',
-    lat: -22.7077527,
-    lng: -43.1451925,
-    mapUrl: 'https://maps.google.com/?q=-22.7077527,-43.1451925',
-  },
-  {
-    id: 'poliesportivo-ipiranga',
-    nome: 'Poliesportivo do Ipiranga',
-    endereco: '7RMC+M8 Parque Baia Branca, Magé - RJ',
-    nucleo: 'Poliesportivo do Ipiranga',
-    lat: -22.7157655,
-    lng: -43.1791247,
-    mapUrl: 'https://maps.google.com/?q=-22.7157655,-43.1791247',
-  },
-  {
-    id: 'polo-saracuruna',
-    nome: 'CIEP 318',
-    endereco: '8PGR+4V Parque Uruguaiana, Duque de Caxias - RJ',
-    nucleo: 'Saracuruna',
-    lat: -22.6746110,
-    lng: -43.2577859,
-    mapUrl: 'https://maps.google.com/?q=-22.6746110,-43.2577859',
-  },
-  {
-    id: 'nucleo-vila-urussai',
-    nome: 'Núcleo Vila Urussaí',
-    endereco: 'Vila Urussaí, Duque de Caxias - RJ',
-    nucleo: 'Vila Urussaí',
-    lat: -22.6681359,
-    lng: -43.2545703,
-    mapUrl: 'https://maps.google.com/?q=-22.6681359,-43.2545703',
-  },
-  {
-    id: 'nucleo-jayme-fichman',
-    nome: 'Núcleo Jayme Fichman',
-    endereco: 'Jayme Fichman, Duque de Caxias - RJ',
-    nucleo: 'Jayme Fichman',
-    lat: -22.6757683,
-    lng: -43.2487348,
-    mapUrl: 'https://maps.google.com/?q=-22.6757683,-43.2487348',
-  },
-  {
-    id: 'academia-mais-saude',
-    nome: 'Academia Mais Saúde',
-    endereco: 'Rua 15 de Novembro, 31B – Praia do Anil',
-    nucleo: 'Academia Mais Saúde',
-    lat: -22.6757683,
-    lng: -43.2487348,
-    mapUrl: 'https://maps.google.com/?q=-22.6757683,-43.2487348',
-  },
-];
+// Locais sao carregados dinamicamente da API
+// Este array e usado como cache local e fallback
+export let LOCAIS: Local[] = [];
+
+// Funcao para carregar locais da API
+export async function carregarLocais(): Promise<Local[]> {
+  try {
+    const res = await fetch('/api/admin/locais', { cache: 'no-store' });
+    if (res.ok) {
+      const data = await res.json();
+      if (Array.isArray(data)) {
+        LOCAIS = data.filter(l => l.ativo !== false);
+        return LOCAIS;
+      }
+    }
+  } catch {}
+  return LOCAIS;
+}
 
 function deg2rad(deg: number) {
   return deg * (Math.PI / 180);
 }
 
-/** Distância em metros entre dois pontos (Haversine) */
+/** Distancia em metros entre dois pontos (Haversine) */
 export function distMetros(lat1: number, lng1: number, lat2: number, lng2: number): number {
   const R = 6371000;
   const dLat = deg2rad(lat2 - lat1);
@@ -87,9 +50,9 @@ export interface LocalDetectado {
 }
 
 /**
- * Dado lat/lng do usuário, retorna o local mais próximo.
+ * Dado lat/lng do usuario, retorna o local mais proximo.
  * Retorna null se nenhum local estiver dentro de maxMetros.
- * maxMetros = 200 → precisa estar dentro de 200m do local.
+ * maxMetros = 200 -> precisa estar dentro de 200m do local.
  */
 export function detectarLocal(lat: number, lng: number, maxMetros = 200): LocalDetectado | null {
   let melhor: LocalDetectado | null = null;
@@ -103,14 +66,14 @@ export function detectarLocal(lat: number, lng: number, maxMetros = 200): LocalD
   return null;
 }
 
-/** Captura posição GPS de alta precisão via browser.
- *  Sempre força leitura fresca do sensor (maximumAge: 0).
- *  Funciona online e offline — GPS é recurso do dispositivo.
+/** Captura posicao GPS de alta precisao via browser.
+ *  Sempre forca leitura fresca do sensor (maximumAge: 0).
+ *  Funciona online e offline — GPS e recurso do dispositivo.
  */
 export function capturarGPS(timeoutMs = 30000): Promise<GeolocationPosition> {
   return new Promise((resolve, reject) => {
     if (!navigator.geolocation) {
-      reject(new Error('Geolocalização não suportada'));
+      reject(new Error('Geolocalizacao nao suportada'));
       return;
     }
     navigator.geolocation.getCurrentPosition(resolve, reject, {
@@ -121,7 +84,7 @@ export function capturarGPS(timeoutMs = 30000): Promise<GeolocationPosition> {
   });
 }
 
-/** Inicia watchPosition para atualização contínua de GPS.
+/** Inicia watchPosition para atualizacao continua de GPS.
  *  Retorna o watchId para cancelamento posterior via clearWatch.
  */
 export function iniciarWatchGPS(
