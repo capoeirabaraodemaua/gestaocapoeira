@@ -113,7 +113,7 @@ type EditForm = Partial<Student>;
 
 // ─── Helper para cores dinamicas de nucleos ────────────────────────────────────
 const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed', '#db2777'];
-function getNucleoColorDynamic(nucleoName: string, dynamicNucleosList?: Array<{ nome: string; slug: string }>): string {
+function getNucleoColorDynamic(nucleoName: string | null | undefined, dynamicNucleosList?: Array<{ nome: string; slug: string }>): string {
   if (!nucleoName) return '#64748b';
   // Se temos lista dinamica, usa o indice
   if (dynamicNucleosList && dynamicNucleosList.length > 0) {
@@ -971,7 +971,7 @@ export default function AdminPage() {
   const [editFotoFile, setEditFotoFile] = useState<File | null>(null);
   const editFotoRef = useRef<HTMLInputElement>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<Student | null>(null);
-  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia' | 'nucleos'>('alunos');
+  const [activeTab, setActiveTab] = useState<'alunos' | 'presencas' | 'relatorio' | 'ranking' | 'certificado' | 'financeiro' | 'doacoes' | 'editais' | 'materiais' | 'patrimonio' | 'rascunhos' | 'dados-faltantes' | 'manual' | 'eventos' | 'lixeira' | 'justificativas' | 'contas' | 'auditoria' | 'responsaveis' | 'docs-historicos' | 'bibliografia' | 'estatuto' | 'regimento' | 'informacoes' | 'playlist' | 'admins' | 'aluno-view' | 'restauracao' | 'organograma' | 'hierarquia' | 'nucleos' | 'system-config'>('alunos');
   const [institucionalExpanded, setInstitucionalExpanded] = useState(false);
   // Área do Aluno — visualização pelo admin
   const [alunoViewStudentId, setAlunoViewStudentId] = useState('');
@@ -1305,7 +1305,7 @@ export default function AdminPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbCopied, setDbCopied] = useState(false);
 
-  // ── Manual video links state ──────────────────────────��───────────────────
+  // ── Manual video links state ──────────────────────────��───��───────────────
   const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
   const [manualVideoForm, setManualVideoForm] = useState({ title: '', url: '' });
   const [savingManualVideo, setSavingManualVideo] = useState(false);

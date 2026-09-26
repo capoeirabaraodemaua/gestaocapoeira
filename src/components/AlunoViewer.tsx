@@ -444,7 +444,7 @@ export default function AlunoViewer({ studentId, onClose }: AlunoViewerProps) {
                 <select value={presencaLocalSelecionado} onChange={e => setPresencaLocalSelecionado(e.target.value)}
                   style={{ width: '100%', border: '1.5px solid #e5e7eb', borderRadius: 8, padding: '9px 12px', fontSize: '0.85rem', outline: 'none', boxSizing: 'border-box' }}>
                   <option value="">— Selecione o local —</option>
-                  <option value={data.nucleo}>{data.nucleo}</option>
+                  {student?.nucleo && <option value={student.nucleo}>{student.nucleo}</option>}
                 </select>
               </div>
               {presencaMsg && (

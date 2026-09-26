@@ -82,7 +82,7 @@ export default function Home() {
   const [regMsg, setRegMsg] = useState('');
 
   // Dynamic nucleos from database
-  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean }>>([]);
+  const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean; logo_url?: string | null; cidade?: string | null }>>([]);
 
   // Background changer state
   const [bgUrl, setBgUrl] = useState<string | null>(null);
