@@ -13,11 +13,6 @@ import { getTenantIdByKey } from '@/lib/tenants';
 import WhatsappFilaPanel from '@/components/WhatsappFilaPanel';
 import { invalidateConfigCache } from '@/hooks/useSystemConfig';
 
-interface PresencaCount {
-  student_id: string;
-  count: number;
-}
-
 interface TermoEnviado {
   sent_at: string;   // ISO timestamp
   sent_count: number;
@@ -981,12 +976,10 @@ export default function AdminPage() {
   const [respAdminPass, setRespAdminPass] = useState('');
   const [respAdminAuthed, setRespAdminAuthed] = useState(false);
   const [respAuthMsg, setRespAuthMsg] = useState('');
-  const [respNewLogin, setRespNewLogin] = useState('');
   const [respNewPass, setRespNewPass] = useState('');
   const [respNewNucleo, setRespNewNucleo] = useState('');
   const [respCreateMsg, setRespCreateMsg] = useState('');
   const [respCreating, setRespCreating] = useState(false);
-  const [respShowPass, setRespShowPass] = useState(false);
   const [respDeleteTarget, setRespDeleteTarget] = useState('');
   const [respDeleteMsg, setRespDeleteMsg] = useState('');
   const [respDeleting, setRespDeleting] = useState(false);
@@ -1056,8 +1049,6 @@ export default function AdminPage() {
   const [relatorioHistorico, setRelatorioHistorico] = useState<Record<string, string[]>>({});
   const [loadingRelatorio, setLoadingRelatorio] = useState(false);
   const [relDias, setRelDias] = useState(30);
-  const [presencas, setPresencas] = useState<PresencaCount[]>([]);
-  const [totalTreinos, setTotalTreinos] = useState(0);
   const [filterPresencaNucleo, setFilterPresencaNucleo] = useState('');
   const [checkins, setCheckins] = useState<CheckinRecord[]>([]);
   const [historico, setHistorico] = useState<Record<string, string[]>>({});
@@ -1119,7 +1110,6 @@ export default function AdminPage() {
   const [finFicha, setFinFicha] = useState<any>(null);
   const [finSearch, setFinSearch] = useState('');
   const [finLoading, setFinLoading] = useState(false);
-  const [finSaving, setFinSaving] = useState(false);
   const [finMsg, setFinMsg] = useState('');
   const [finSection, setFinSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
   // inline edit state: key = 'mensalidade:YYYY-MM' | 'parcela:N' | 'contribuicao:YYYY-MM' | 'uniforme:ID'
@@ -1230,7 +1220,6 @@ export default function AdminPage() {
   const [loadingRascunhos, setLoadingRascunhos] = useState(false);
   const [rascunhoExpanded, setRascunhoExpanded] = useState<string | null>(null);
   const [rascunhosCount, setRascunhosCount] = useState(0);
-  const [showDadosFaltantes, setShowDadosFaltantes] = useState(false);
   const [rascunhoEditId, setRascunhoEditId] = useState<string | null>(null);
   const [rascunhoEditForm, setRascunhoEditForm] = useState<any>({});
   const [rascunhoSaving, setRascunhoSaving] = useState(false);
@@ -2265,7 +2254,7 @@ export default function AdminPage() {
     <div class="value" style="color:#d97706">R$ ${totalPendente.toFixed(2)}</div>
   </div>
   ${tipo !== 'uniforme' ? `<div class="sum-card" style="background:#fef2f2;border-color:#fecaca">
-    <div class="label">⚠ Total Atrasado</div>
+    <div class="label">��� Total Atrasado</div>
     <div class="value" style="color:#dc2626">R$ ${totalAtrasado.toFixed(2)}</div>
   </div>` : ''}
   <div class="sum-card" style="background:#f8fafc;border-color:#e2e8f0">
@@ -2541,7 +2530,6 @@ export default function AdminPage() {
             { key: 'hierarquia',   icon: '🥋', label: 'Hierarquia',   geralOnly: true },
           ];
           const institucionalColor = '#ea580c';
-          const institucionalIsActive = [...institucionalSubItems, ...institucionalDirectItems].some(b => b.key === activeTab);
 
           return (
             <div style={{ marginBottom: 0 }}>
@@ -3529,8 +3517,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
 
       {/* ===== ABA CERTIFICADO ===== */}
       {activeTab === 'certificado' && (() => {
-        const profiles = getProfiles();
-        const currentProf = profiles.find(p => p.nucleo === activeNucleo);
         const sig = certStudent
           ? (certStudent.nucleo === 'Mauá'
             ? { nome: 'Mestre Márcio da Silva Frazão', cargo: 'Administrador - Sistema DEMO', img: '/assinatura-frazao.png' }
@@ -3987,9 +3973,10 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   const ym = d.slice(0, 7);
                   monthMap[ym] = (monthMap[ym] || 0) + 1;
                 });
+                const months = Object.keys(monthMap).sort();
 
                 // Also calculate per-student monthly presence for avg%
-                const months = Object.keys(monthMap).sort();
+
                 if (months.length === 0) return null;
 
                 // Per month: how many students had ≥1 check-in (unique student-days / total students)
@@ -5183,7 +5170,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             const METODOS = ['PIX', 'Cartão de Débito', 'Cartão de Crédito', 'Dinheiro'];
 
             const adminSaveFicha = async (updated: any) => {
-              setFinSaving(true);
               // _admin_save=true tells the API to clear action-notification flags (admin has seen them)
               const res = await fetch('/api/financeiro', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...updated, _admin_save: true }) });
               if (res.ok) {
@@ -5191,7 +5177,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 if (data) setFinFicha(normalizeFicha(data));
                 setFinMsg('Salvo!'); setTimeout(() => setFinMsg(''), 2500);
               } else { setFinMsg('Erro ao salvar'); }
-              setFinSaving(false);
               // Refresh alerts
               fetch('/api/financeiro/alertas').then(r => r.json()).then(d => setFinAlerts(d)).catch(() => {});
             };
@@ -6438,7 +6423,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             setNucleosList(prev => [...prev, data.nucleo]);
                             setTimeout(() => setShowCreateNucleoModal(false), 1500);
                           }
-                        } catch (err) {
+                        } catch {
                           setNucleoFormMsg('Erro de conexão');
                         }
                         setNucleoFormSaving(false);
@@ -6488,7 +6473,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           setNucleosList(prev => prev.filter(n => n.id !== nucleoDeleteConfirm.id));
                           setNucleoDeleteConfirm(null);
                         }
-                      } catch (err) {
+                      } catch {
                         alert('Erro de conexão');
                       }
                       setNucleoDeleting(false);
@@ -7885,7 +7870,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 const ym = d.slice(0, 7);
                 monthMap[ym] = (monthMap[ym] || 0) + 1;
               });
-              const months = Object.keys(monthMap).sort();
 
               // Also include months with 0 check-ins from the last 12 months
               const now = new Date(new Date().toLocaleString('en-US', { timeZone: 'America/Sao_Paulo' }));
@@ -8824,7 +8808,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                         const d = await res.json();
                         setDeleteContaLoading(false);
                         if (!res.ok) { setContasMsg(`❌ ${d.error}`); return; }
-                        const acc2 = alunoContas.find(a => a.student_id === deleteContaForm.student_id);
                         setContasMsg(`✅ Conta excluída!`);
                         fetch('/api/aluno/contas').then(r => r.json()).then(d2 => setAlunoContas(Array.isArray(d2) ? d2 : [])).catch(() => {});
                         setTimeout(() => { setShowDeleteContaModal(false); setDeleteContaForm({ student_id: '', confirm_text: '' }); setContasMsg(''); }, 1200);
@@ -9432,7 +9415,6 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                 const hasTranslations = !!manualTranslations[m.name];
                 const isTranslating = translatingManual === m.name;
                 const currentLang = manualViewLang[m.name] || 'pt';
-                const isOpen = manualViewOpen === m.name;
                 const translatedText = manualTranslations[m.name]?.[currentLang] || '';
 
                 return (
@@ -9478,7 +9460,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                               } else {
                                 setManualMsg('✓ Manual disponível. Tradução automática indisponível.');
                               }
-                            } catch (err: any) { setManualMsg('✓ Manual disponível.'); }
+                            } catch { setManualMsg('✓ Manual disponível.'); }
                             setTranslatingManual(null);
                           }}
                             style={{ background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', color: '#a78bfa', borderRadius: 8, padding: '7px 13px', cursor: 'pointer', fontSize: '0.75rem', fontWeight: 700 }}>
@@ -11375,7 +11357,6 @@ dynamicNucleos.find(n => n.slug === activeNucleo)?.nome || ''
           })
           .sort((a, b) => (a.nome_completo || '').localeCompare(b.nome_completo || ''));
 
-        const selectedStudent = students.find(s => s.id === alunoViewStudentId) || null;
 
         const launchPreview = (studentId: string) => {
           setAlunoViewStudentId(studentId);
@@ -12130,7 +12111,6 @@ Suporte Ginga Gestão.`
               return !s.email && !contaEmail;
             }).length;
             const ativosPorc = total > 0 ? Math.round((ativos24h / total) * 100) : 0;
-            const inativosPorc = 100 - ativosPorc;
 
             // By nucleo counts (active today)
 // Nucleos dinamicos
@@ -12279,7 +12259,6 @@ Suporte Ginga Gestão.`
                               const hasLogin = !!loginMap[s.id];
                               const isActive = ll && new Date(ll).getTime() >= h24ago;
                               const tel = (s.telefone || '').replace(/\D/g, '');
-                              const contaEmail = alunoContas.find(a => a.student_id === s.id)?.email;
                               return (
                                 <tr key={s.id} style={{ borderBottom: '1px solid var(--border)' }}>
                                   <td style={{ padding: '7px 10px', fontWeight: 600, color: 'var(--text-primary)' }}>{s.nome_completo}</td>
@@ -12881,7 +12860,6 @@ Suporte Ginga Gestão.`
                         setRespNewNucleo(nk); setRespCreateMsg('');
                         // Preenche com senha padrao do nucleo
                         setRespNewPass(nk ? 'acesso12345' : '');
-                        setRespShowPass(true);
                       }}
                         style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg-input)', color: 'var(--text-primary)', fontSize: '0.88rem', outline: 'none' }}>
                         <option value="">Selecione o nucleo</option>
@@ -12934,7 +12912,7 @@ Suporte Ginga Gestão.`
                     if (res.ok) {
                       const savedPass = respNewPass;
                       setRespCreateMsg(`✅ Cadastro realizado com sucesso! CPF ${cpfDigits.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, '$1.$2.$3-$4')} habilitado para ${respNewNucleo}. Senha inicial: ${savedPass}`);
-                      setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo(''); setRespShowPass(false);
+                      setRespNewCpf(''); setRespNewNome(''); setRespNewPass(''); setRespNewNucleo('');
                       const lr = await fetch('/api/admin/panel-auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'list-users', admin_username: loginUser.trim() || 'admin', admin_password: respAdminPass }) });
                       const ld = await lr.json();
                       if (lr.ok) setRespUsers(ld.filter((u: any) => u.nucleo !== 'geral'));

@@ -31,17 +31,6 @@ async function saveCounter(id: number): Promise<void> {
   await supabaseAdmin.storage.from(BUCKET).upload(COUNTER_KEY, blob, { upsert: true });
 }
 
-const AUTH_KEY = 'config/aluno-auth.json';
-async function loadAuthMap(): Promise<Record<string, { student_id: string; username: string; [key: string]: unknown }>> {
-  try {
-    const { data: urlData } = await supabaseAdmin.storage.from(BUCKET).createSignedUrl(AUTH_KEY, 30);
-    if (!urlData?.signedUrl) return {};
-    const res = await fetch(urlData.signedUrl, { cache: 'no-store' });
-    if (!res.ok) return {};
-    return await res.json();
-  } catch { return {}; }
-}
-
 const ID_MAP_KEY = 'config/aluno-id-map.json';
 // Maps student UUID -> sequential display ID (DEMO-0001 format)
 async function loadIdMap(): Promise<Record<string, string>> {

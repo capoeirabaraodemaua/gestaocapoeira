@@ -145,7 +145,6 @@ export default function FinanceiroPage() {
 
   const [student, setStudent] = useState<{ id: string; nome_completo: string; cpf: string; nucleo: string | null; foto_url: string | null; graduacao: string } | null>(null);
   const [ficha, setFicha] = useState<FichaFinanceira | null>(null);
-  const [saving, setSaving] = useState(false);
   const [saveMsg, setSaveMsg] = useState('');
   const [activeSection, setActiveSection] = useState<'batizado' | 'mensalidades' | 'contribuicao' | 'uniformes'>('batizado');
 
@@ -247,7 +246,6 @@ export default function FinanceiroPage() {
   };
 
   const saveFicha = async (updated: FichaFinanceira) => {
-    setSaving(true);
     const res = await fetch('/api/financeiro', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -261,7 +259,6 @@ export default function FinanceiroPage() {
     } else {
       setSaveMsg('Erro ao salvar. Tente novamente.');
     }
-    setSaving(false);
   };
 
   const uploadComprovante = async (file: File, tipo: string, ref: string): Promise<string | null> => {
@@ -358,10 +355,6 @@ export default function FinanceiroPage() {
 
   // Count near-due parcelas for alert banner
   const parcelasVencendo = ficha?.batizado.parcelas.filter(p => isVencendoEm5Dias(p.vencimento, p.status)) ?? [];
-  const mensalidadesVencendo = ficha?.mensalidades.filter(m => {
-    // For mensalidades we don't have explicit due date, skip
-    return m.status === 'atrasado';
-  }) ?? [];
 
   // ─── RENDER ───────────────────────────────────────────────────────────────
 

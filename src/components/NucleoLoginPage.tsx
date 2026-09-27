@@ -78,7 +78,6 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   
   // Dynamic nucleo from database
   const [dynamicNucleo, setDynamicNucleo] = useState<NucleoConfig | null>(null);
-  const [loadingNucleo, setLoadingNucleo] = useState(!staticNucleo);
   
   // Use static or dynamic nucleo
   const nucleo = staticNucleo || dynamicNucleo;
@@ -125,7 +124,6 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
   // Load dynamic nucleo if not in static list
   useEffect(() => {
     if (!staticNucleo) {
-      setLoadingNucleo(true);
       fetch('/api/admin/nucleos', { headers: { 'x-admin-auth': 'geral' } })
         .then(r => r.json())
         .then(d => {
@@ -149,9 +147,8 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
               cidade: found.cidade || 'Demo',
             });
           }
-          setLoadingNucleo(false);
         })
-        .catch(() => setLoadingNucleo(false));
+        .catch(() => {});
     }
   }, [nucleoKey, staticNucleo]);
 

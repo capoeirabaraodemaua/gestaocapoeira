@@ -193,7 +193,6 @@ export default function OrganogramaPage() {
     setDraft(prev => ({ ...prev, [cargoKey]: { ...(prev as any)[cargoKey], nome: value } }));
   };
 
-  const mainCargos = ['presidente', 'vice_presidente', 'secretario', 'tesoureiro', 'coordenador_tecnico_cultural'] as const;
 
   return (
     <div style={{ minHeight: '100vh', background: 'linear-gradient(135deg,#0f172a 0%,#1e1b4b 60%,#0f172a 100%)', fontFamily: 'Inter, sans-serif', padding: '24px 16px' }}>

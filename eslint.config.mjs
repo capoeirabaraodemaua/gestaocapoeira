@@ -18,6 +18,7 @@ const eslintConfig = [
     // Legacy code relies heavily on `any`; keep it visible as a warning while it is typed incrementally.
     rules: {
       "@typescript-eslint/no-explicit-any": "warn",
+      "@typescript-eslint/no-unused-vars": ["warn", { ignoreRestSiblings: true }],
     },
   },
 ];

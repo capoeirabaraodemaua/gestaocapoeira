@@ -59,7 +59,7 @@ export async function GET() {
     cacheTime = Date.now();
 
     return NextResponse.json(config);
-  } catch (err: any) {
+  } catch {
     return NextResponse.json(DEFAULT_CONFIG);
   }
 }

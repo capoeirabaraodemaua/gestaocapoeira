@@ -57,7 +57,6 @@ type Tab = 'dashboard' | 'evolucao' | 'carteirinha' | 'presenca' | 'financeiro' 
 
 // Cores dinamicas baseadas em hash do nome do nucleo
 const NUCLEO_COLORS_PALETTE = ['#dc2626', '#ea580c', '#16a34a', '#9333ea', '#0891b2', '#059669', '#1d4ed8', '#7c3aed'];
-const NUCLEO_COLORS: Record<string, string> = {};
 
 const GRAD_COLORS: Record<string, { bg: string; text: string; border: string }> = {
   'Cru': { bg: '#f8f8f8', text: '#374151', border: '#d1d5db' },

@@ -59,15 +59,6 @@ async function ensureNullableColumns() {
   constraintsFixed = true;
 }
 
-const KNOWN_COLUMNS = [
-  'nome_completo', 'apelido', 'nome_social', 'sexo', 'cpf', 'identidade',
-  'data_nascimento', 'telefone', 'email', 'cep', 'endereco', 'numero',
-  'complemento', 'bairro', 'cidade', 'estado', 'graduacao', 'tipo_graduacao',
-  'nucleo', 'tenant_id', 'foto_url', 'nome_pai', 'nome_mae', 'autoriza_imagem',
-  'menor_de_idade', 'nome_responsavel', 'cpf_responsavel',
-  'assinatura_responsavel', 'assinatura_pai', 'assinatura_mae',
-];
-
 export async function POST(req: NextRequest) {
   try {
     // Garante que colunas sejam nullable (remove NOT NULL constraints legados)
@@ -131,7 +122,6 @@ export async function POST(req: NextRequest) {
     // Verificar duplicata por nome — busca ampla pela primeira palavra, compara normalizado no JS
     // Isso garante que JOÃO == Joao == joao == João (maiúsculas, acentos, capitalização)
     if (nomeRaw) {
-      const primeiroNome = normalizeName(nomeParts[0]);
       // Busca todos os alunos cujo nome começa com a primeira letra do nome (broad search)
       // Fazemos filtro pela primeira palavra usando ilike com wildcard para garantir hits
       const { data: candidates } = await supabaseAdmin

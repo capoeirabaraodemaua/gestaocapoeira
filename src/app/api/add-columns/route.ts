@@ -65,7 +65,6 @@ async function columnExists(col: string): Promise<boolean> {
 
 export async function GET() {
   const results: Array<{ col: string; status: 'ok' | 'already_exists' | 'error'; error?: string }> = [];
-  let anyError = false;
 
   for (const { col, sql } of DDL_STATEMENTS) {
     // Skip if already exists (except sequence/update steps which always run safely)
@@ -82,7 +81,6 @@ export async function GET() {
       results.push({ col, status: 'ok' });
     } else {
       results.push({ col, status: 'error', error });
-      anyError = true;
     }
   }
 

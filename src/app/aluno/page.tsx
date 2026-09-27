@@ -111,7 +111,6 @@ export default function AlunoPage() {
   const [forgotStudentId, setForgotStudentId] = useState('');
   const [forgotStep, setForgotStep] = useState<'lookup' | 'reset' | 'done'>('lookup');
   const [forgotLoading, setForgotLoading] = useState(false);
-  const [showResetPassword, setShowResetPassword] = useState(false);
   const [resetOtp, setResetOtp] = useState('');
   const [resetPassword, setResetPassword] = useState('');
   const [resetConfirmPassword, setResetConfirmPassword] = useState('');
@@ -1801,7 +1800,7 @@ export default function AlunoPage() {
                   const json = await res.json();
                   if (res.ok) { setFotosMsg('✓ Arquivo enviado com sucesso!'); await loadFotos(session.student_id); }
                   else { setFotosMsg('Erro: ' + (json.error || 'falha no upload')); }
-                } catch (err: unknown) { setFotosMsg('Erro de conexão.'); }
+                } catch { setFotosMsg('Erro de conexão.'); }
                 setFotosUploading(false);
                 e.target.value = '';
               }} />

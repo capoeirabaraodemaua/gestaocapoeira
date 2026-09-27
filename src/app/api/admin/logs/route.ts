@@ -37,13 +37,6 @@ async function readLogs(): Promise<AdminLogEntry[]> {
   }
 }
 
-async function saveLogs(logs: AdminLogEntry[]): Promise<void> {
-  const blob = new Blob([JSON.stringify(logs)], { type: 'application/json' });
-  await supabaseAdmin.storage
-    .from(BUCKET)
-    .upload(KEY, blob, { upsert: true, contentType: 'application/json' });
-}
-
 function generateId(): string {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }

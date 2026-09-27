@@ -55,7 +55,6 @@ export async function GET() {
 
 export async function POST(req: NextRequest) {
   const body = await req.json();
-  const current = await readConfig();
 
   // Handle array update: { super_admin_cpfs: ['111','222','333'] }
   if (body.super_admin_cpfs !== undefined) {

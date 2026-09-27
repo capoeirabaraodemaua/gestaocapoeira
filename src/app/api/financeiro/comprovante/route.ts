@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Envie os dados como JSON com { student_id, tipo, ref, filename, filetype }.' }, { status: 400 });
   }
 
-  const { student_id, tipo, ref, filename, filetype } = body;
+  const { student_id, tipo, ref, filename } = body;
   if (!student_id || !filename) {
     return NextResponse.json({ error: 'student_id and filename required' }, { status: 400 });
   }

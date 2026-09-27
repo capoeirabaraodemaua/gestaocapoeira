@@ -250,7 +250,6 @@ export async function POST(req: NextRequest) {
 
       const salt = generateSalt();
       const password_hash = hashPassword(password, salt);
-      const otp = generateOTP();
       const finalEmail = emailNorm || student.email || '';
 
       const account: AlunoAccount = {

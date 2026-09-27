@@ -9,7 +9,6 @@ const supabaseAdmin = createClient(
 );
 
 // Terminações de nomes tipicamente femininos em português brasileiro
-const TERMINACOES_FEMININAS = ['a', 'ane', 'ane', 'inha', 'ela', 'elia', 'enia', 'esia', 'icia', 'ina', 'ira', 'isa', 'ita', 'iza', 'lda', 'nde', 'nia', 'oa', 'ola', 'ona', 'ora', 'osa', 'uda', 'uma', 'ura'];
 
 // Nomes masculinos comuns (primeiro nome) — base ampla
 const NOMES_MASCULINOS = new Set([

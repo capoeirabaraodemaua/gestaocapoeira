@@ -1,9 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { supabase } from '@/lib/supabase';
 import { graduacoes, getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
-import Link from 'next/link';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 import { useLanguage } from '@/lib/i18n/LanguageContext';
 import { useSystemConfig } from '@/hooks/useSystemConfig';
@@ -49,16 +47,11 @@ export default function Home() {
   const [duplicateErrors, setDuplicateErrors] = useState<{ cpf?: string; identidade?: string; email?: string; nome?: string }>({});
   const [checkingDuplicate, setCheckingDuplicate] = useState<{ cpf?: boolean; identidade?: boolean; email?: boolean; nome?: boolean }>({});
   const [adminModalOpen, setAdminModalOpen] = useState(false);
-  const [adminCpf, setAdminCpf] = useState(''); // kept for backward compat (unused)
   const [adminErro, setAdminErro] = useState('');
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminScreen, setAdminScreen] = useState<'login' | 'change' | 'recover' | 'register'>('login');
-  const [adminConfigCpf, setAdminConfigCpf] = useState(''); // legacy
-  const [adminConfigCpfs, setAdminConfigCpfs] = useState<string[]>([]); // legacy
-  const [manageTab, setManageTab] = useState<'edit' | 'include' | 'remove'>('edit');
-  const [newAdminCpf, setNewAdminCpf] = useState('');
+  const [adminConfigCpfs, setAdminConfigCpfs] = useState<string[]>([]);
   const [manageSaving, setManageSaving] = useState(false);
-  const [manageMsg, setManageMsg] = useState('');
   // New login fields
   const [adminUser, setAdminUser] = useState('');
   const [adminPass, setAdminPass] = useState('');
@@ -73,13 +66,6 @@ export default function Home() {
   const [recTargetUser, setRecTargetUser] = useState('');
   const [recNewPass, setRecNewPass] = useState('');
   const [recMsg, setRecMsg] = useState('');
-  // Register: new admin sets initial password (authorized by Admin Geral)
-  const [regUser, setRegUser] = useState('');
-  const [regNewPass, setRegNewPass] = useState('');
-  const [regConfirm, setRegConfirm] = useState('');
-  const [regAdminUser, setRegAdminUser] = useState('');
-  const [regAdminPass, setRegAdminPass] = useState('');
-  const [regMsg, setRegMsg] = useState('');
 
   // Dynamic nucleos from database
   const [dynamicNucleos, setDynamicNucleos] = useState<Array<{ id: string; nome: string; slug: string; ativo: boolean; logo_url?: string | null; cidade?: string | null }>>([]);
@@ -104,7 +90,6 @@ export default function Home() {
         ? d.super_admin_cpfs
         : d.super_admin_cpf ? [d.super_admin_cpf] : ['09856925703'];
       setAdminConfigCpfs(cpfs);
-      setAdminConfigCpf(cpfs[0]);
     }).catch(() => {});
     // Load background URL
     fetch('/api/admin/background').then(r => r.json()).then(d => {
@@ -182,50 +167,6 @@ export default function Home() {
     }
     setAdminPass('');
     setAdminLoading(false);
-  }
-
-  async function saveAdminCpfs(list: string[]) {
-    const res = await fetch('/api/admin/config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ super_admin_cpfs: list }),
-    });
-    const json = await res.json();
-    if (res.ok && json.ok) {
-      const saved: string[] = json.data.super_admin_cpfs;
-      setAdminConfigCpfs(saved);
-      setAdminConfigCpf(saved[0]);
-      return true;
-    }
-    setManageMsg('Erro: ' + (json.error || 'falha ao salvar'));
-    return false;
-  }
-
-  async function handleManageAdmin() {
-    const digits = newAdminCpf.replace(/\D/g, '');
-    if (digits.length < 11) { setManageMsg('CPF inválido (mínimo 11 dígitos).'); return; }
-    setManageSaving(true);
-    setManageMsg('');
-    try {
-      if (manageTab === 'include') {
-        if (adminConfigCpfs.includes(digits)) { setManageMsg('Este CPF já está cadastrado como administrador.'); setManageSaving(false); return; }
-        if (adminConfigCpfs.length >= 3) { setManageMsg('Limite de 3 administradores atingido. Remova um antes de incluir.'); setManageSaving(false); return; }
-        const ok = await saveAdminCpfs([...adminConfigCpfs, digits]);
-        if (ok) { setManageMsg('✓ Administrador incluído com sucesso!'); setNewAdminCpf(''); }
-      } else if (manageTab === 'remove') {
-        if (!adminConfigCpfs.includes(digits)) { setManageMsg('CPF não encontrado na lista de administradores.'); setManageSaving(false); return; }
-        if (adminConfigCpfs.length === 1) { setManageMsg('Não é possível remover o único administrador ativo.'); setManageSaving(false); return; }
-        const ok = await saveAdminCpfs(adminConfigCpfs.filter(c => c !== digits));
-        if (ok) { setManageMsg('✓ Administrador removido com sucesso!'); setNewAdminCpf(''); }
-      } else {
-        // edit slot: replace by index (editSlot state)
-        const ok = await saveAdminCpfs([digits]);
-        if (ok) { setManageMsg('✓ Administrador atualizado!'); setNewAdminCpf(''); }
-      }
-    } catch (e: any) {
-      setManageMsg('Erro: ' + e.message);
-    }
-    setManageSaving(false);
   }
 
   const [honeypot, setHoneypot] = useState('');
@@ -315,11 +256,6 @@ export default function Home() {
   const handleCPFResponsavelChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setForm(prev => ({ ...prev, cpf_responsavel: formatCPF(e.target.value) }));
   };
-
-  // Normaliza nome: remove acentos, minúsculas, colapsa espaços
-  // "JOÃO DA SILVA" == "joao da silva" == "João da Silva"
-  const normalizeName = (s: string) =>
-    (s || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/\s+/g, ' ').trim();
 
   const checkDuplicate = async (field: 'cpf' | 'identidade' | 'email', value: string) => {
     const cleanValue = value.trim();
@@ -1984,7 +1920,7 @@ _${sysConfig.organization_name}_`
 
       {/* Botão fixo — Painel Administrativo */}
       <button
-        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminCpf(''); setAdminScreen('login'); setManageMsg(''); setNewAdminCpf(''); }}
+        onClick={() => { setAdminModalOpen(true); setAdminErro(''); setAdminScreen('login'); }}
         style={{
           position: 'fixed', bottom: '20px', left: '20px',
           background: 'linear-gradient(135deg,#b45309,#d97706)',

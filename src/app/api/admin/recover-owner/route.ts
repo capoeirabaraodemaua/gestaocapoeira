@@ -13,7 +13,7 @@ const OWNER_EMAIL = 'andrecapoeirabarao@gmail.com';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { action, confirmationPassword, newPassword, email } = body;
+    const { action, confirmationPassword, newPassword } = body;
 
     // Acao: solicitar recuperacao (envia email)
     if (action === 'request') {
