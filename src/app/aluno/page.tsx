@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import Link from 'next/link';
 import Carteirinha from '@/components/Carteirinha';
 import DocumentsBar from '@/components/DocumentsBar';
 import { graduacoes as GRADUACOES_ALL, nomenclaturaGraduacao } from '@/lib/graduacoes';
@@ -695,7 +696,7 @@ export default function AlunoPage() {
             </div>
 
             <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid #f3f4f6', textAlign: 'center' }}>
-              <a href="/" style={{ color: '#9ca3af', fontSize: '0.82rem', textDecoration: 'none' }}>← Voltar à página inicial</a>
+              <Link href="/" style={{ color: '#9ca3af', fontSize: '0.82rem', textDecoration: 'none' }}>← Voltar à página inicial</Link>
             </div>
           </div>
         </div>
@@ -1288,7 +1289,7 @@ export default function AlunoPage() {
               {/* Local de treino */}
               <div style={{ textAlign: 'left', marginBottom: 18 }}>
                 <label style={{ display: 'block', fontSize: '0.78rem', fontWeight: 700, color: '#374151', marginBottom: 6 }}>
-                  📍 Local de Treino <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span>
+                  ��� Local de Treino <span style={{ color: '#9ca3af', fontWeight: 400 }}>(opcional)</span>
                 </label>
                 <select
                   value={presencaLocalSelecionado}
@@ -1818,7 +1819,7 @@ export default function AlunoPage() {
               <div style={{ textAlign: 'center', padding: '60px 20px', background: '#fdf2f8', borderRadius: 16, border: '2px dashed #f0abfc' }}>
                 <div style={{ fontSize: '3rem', marginBottom: 12 }}>📷</div>
                 <div style={{ fontWeight: 700, color: '#86198f', fontSize: '0.95rem' }}>Nenhum arquivo ainda</div>
-                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Clique em "Enviar Arquivo" para adicionar fotos ou vídeos de treino</div>
+                <div style={{ fontSize: '0.78rem', color: '#9ca3af', marginTop: 6 }}>Clique em &quot;Enviar Arquivo&quot; para adicionar fotos ou vídeos de treino</div>
               </div>
             ) : (
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))', gap: 12 }}>
@@ -2407,7 +2408,7 @@ export default function AlunoPage() {
           const tipoEfetivo = (dadosForm.tipo_graduacao || autoTipo) as 'Infantil' | 'Adulto' | '';
           const gradOpts = tipoEfetivo === 'Infantil' ? GRADS_INFANTIL : tipoEfetivo === 'Adulto' ? GRADS_ADULTO : [...GRADS_INFANTIL, ...GRADS_ADULTO];
 
-          // ── masks ──────────────────────────────────────────────────────────
+          // ── masks ──────────────��───────────────────────────────────────────
           const maskCPF = (v: string) => {
             const d = v.replace(/\D/g, '').slice(0, 11);
             if (d.length <= 3) return d;

@@ -193,7 +193,7 @@ export default function Carteirinha({ data }: Props) {
               <div style={{ color: '#64748b', fontSize: '0.55rem', marginTop: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>({data.nome})</div>
             )}
             {data.apelido && (
-              <div style={{ color: '#7c3aed', fontSize: '0.58rem', fontStyle: 'italic', marginTop: 1 }}>"{data.apelido}"</div>
+              <div style={{ color: '#7c3aed', fontSize: '0.58rem', fontStyle: 'italic', marginTop: 1 }}>&quot;{data.apelido}&quot;</div>
             )}
             {nomenclatura && (
               <div style={{ display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 3 }}>

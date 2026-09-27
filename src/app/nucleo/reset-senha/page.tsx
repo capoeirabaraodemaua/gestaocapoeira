@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
+import Link from 'next/link';
 import { useSearchParams, useRouter } from 'next/navigation';
 
 function ResetSenhaContent() {
@@ -97,7 +98,7 @@ function ResetSenhaContent() {
             <div style={{ background: 'rgba(220,38,38,0.12)', border: '1px solid rgba(220,38,38,0.3)', borderRadius: 10, padding: '16px', color: '#f87171', fontSize: '0.85rem', fontWeight: 600, marginBottom: 20 }}>
               ⚠ {msgErro}
             </div>
-            <a href="/nucleo" style={{ color: cor, fontSize: '0.8rem', textDecoration: 'underline' }}>← Voltar ao painel</a>
+            <Link href="/nucleo" style={{ color: cor, fontSize: '0.8rem', textDecoration: 'underline' }}>← Voltar ao painel</Link>
           </div>
         )}
 
@@ -197,9 +198,9 @@ function ResetSenhaContent() {
       </div>
 
       <div style={{ marginTop: 20 }}>
-        <a href="/" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', textDecoration: 'none' }}>
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', textDecoration: 'none' }}>
           ← Voltar para o site
-        </a>
+        </Link>
       </div>
     </div>
   );

@@ -49,7 +49,6 @@ async function getAll(): Promise<Evento[]> {
         'Cache-Control': 'no-cache, no-store, must-revalidate',
         Pragma: 'no-cache',
       },
-      // @ts-ignore — Next.js extended fetch option
       cache: 'no-store',
       next: { revalidate: 0 },
     });

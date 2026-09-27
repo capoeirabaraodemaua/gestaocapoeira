@@ -113,7 +113,8 @@ export async function POST(req: NextRequest) {
 
     if (action === 'register') {
       // Support both student_id (legacy) and cpf/documento (self-registration)
-      let { student_id, username, email, password, phone, cpf_or_doc } = body;
+      const { username, email, password, phone, cpf_or_doc } = body;
+      let { student_id } = body;
 
       // ── Validate required fields ──────────────────────────────────────────
       if (!username || !password) {

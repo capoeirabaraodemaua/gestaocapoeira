@@ -283,7 +283,7 @@ export default function FinanceiroPage() {
     const url = await uploadComprovante(file, pendingUpload.tipo, pendingUpload.ref);
     if (!url) { alert('Erro ao enviar comprovante.'); return; }
 
-    let updated = { ...ficha };
+    const updated = { ...ficha };
     if (pendingUpload.tipo === 'mensalidade') {
       updated.mensalidades = updated.mensalidades.map(m =>
         m.mes === pendingUpload.ref ? { ...m, comprovante_url: url, comprovante_pendente: true } : m

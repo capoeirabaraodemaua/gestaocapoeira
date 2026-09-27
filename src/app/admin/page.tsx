@@ -181,8 +181,7 @@ function GpsMap({ checkins, containerRef, leafletMapRef }: {
       }
 
       // Fix default icon paths for Next.js
-      // @ts-ignore
-      delete L.Icon.Default.prototype._getIconUrl;
+      delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
       L.Icon.Default.mergeOptions({
         iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
         iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
@@ -656,7 +655,7 @@ function DbStatusPanel({ ds, dbCopied, setDbCopied }: { ds: Record<string,unknow
             {String(ds.sql_to_run)}
           </pre>
           <div style={{ marginTop: 10, padding: '10px 14px', background: 'rgba(251,191,36,0.08)', border: '1px solid rgba(251,191,36,0.25)', borderRadius: 8, fontSize: '0.75rem', color: '#fbbf24' }}>
-            💡 Depois de executar o SQL, clique em <strong>"🏷️ Preencher tenant_id"</strong> na aba <strong>Alunos</strong> para preencher os dados de todos os 120 alunos.
+            💡 Depois de executar o SQL, clique em <strong>&quot;🏷️ Preencher tenant_id&quot;</strong> na aba <strong>Alunos</strong> para preencher os dados de todos os 120 alunos.
           </div>
         </div>
       )}
@@ -1162,7 +1161,7 @@ export default function AdminPage() {
   const [editalEditId, setEditalEditId] = useState<string | null>(null);
   const [showEditalForm, setShowEditalForm] = useState(false);
 
-  // ── Helpers financeiro ───────────────────────────────────────────────────
+  // ── Helpers financeiro ─────────────────────────────────────────���─────────
   function normalizeFicha(d: any, s?: any): any {
     const now = new Date().toISOString().slice(0,10);
     return {
@@ -1305,7 +1304,7 @@ export default function AdminPage() {
   const [dbLoading, setDbLoading] = useState(false);
   const [dbCopied, setDbCopied] = useState(false);
 
-  // ── Manual video links state ──────────────────────────��───��───────────────
+  // ── Manual video links state ───────────────────���──────��───��───────────────
   const [manualVideos, setManualVideos] = useState<Array<{ id: string; title: string; url: string; created_at: string }>>([]);
   const [manualVideoForm, setManualVideoForm] = useState({ title: '', url: '' });
   const [savingManualVideo, setSavingManualVideo] = useState(false);
@@ -1407,7 +1406,7 @@ export default function AdminPage() {
       .then(r => r.json())
       .then(d => { setEventos(Array.isArray(d) ? d : []); setLoadingEventos(false); })
       .catch(() => setLoadingEventos(false));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+   
   }, [activeTab]);
 
   // Auto-refresh presencas every 30s when GPS map is visible
@@ -2152,7 +2151,7 @@ export default function AdminPage() {
     const { tipo, tipoLabel, tipoIcon, tipoColor, lancamentos, nucleoFiltro, statusFiltro, dataInicio, dataFim, colunas, statusColorMap, statusLabelMap } = opts;
 
     // Apply filters
-    let rows = lancamentos.filter((l: any) => {
+    const rows = lancamentos.filter((l: any) => {
       if (nucleoFiltro && nucleoFiltro !== 'todos' && l.nucleo !== nucleoFiltro) return false;
       if (statusFiltro && statusFiltro !== 'todos' && l.status !== statusFiltro) return false;
       if (dataInicio) {
@@ -3438,7 +3437,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                     {offlinePending.length} presença(s) offline pendentes de validação
                   </div>
                   <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: 2 }}>
-                    Registradas sem internet pelos alunos. Clique em "Validar e Sincronizar" para computar no painel.
+                    Registradas sem internet pelos alunos. Clique em &quot;Validar e Sincronizar&quot; para computar no painel.
                   </div>
                   {syncOfflineResult && (
                     <div style={{ marginTop: 6, fontSize: '0.8rem', fontWeight: 700, color: syncOfflineResult.fail === 0 ? '#16a34a' : '#b45309' }}>
@@ -7475,7 +7474,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                             <div style={{ marginBottom: 16, padding: '12px 14px', background: 'rgba(34,197,94,0.08)', border: '1px solid rgba(34,197,94,0.25)', borderRadius: 10 }}>
                               <div style={{ fontWeight: 700, fontSize: '0.82rem', color: '#4ade80', marginBottom: 4 }}>✅ Cadastro completo</div>
                               <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', lineHeight: 1.6 }}>
-                                Todos os dados obrigatórios foram preenchidos. Este rascunho está pronto para ser <strong style={{ color: '#4ade80' }}>finalizado</strong> — clique em "✅ Finalizar Cadastro" abaixo para incluir o aluno no sistema.
+                                Todos os dados obrigatórios foram preenchidos. Este rascunho está pronto para ser <strong style={{ color: '#4ade80' }}>finalizado</strong> — clique em &quot;✅ Finalizar Cadastro&quot; abaixo para incluir o aluno no sistema.
                               </div>
                             </div>
                           ) : (
@@ -8636,7 +8635,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                   const hasOutro = currentConds.some(c => c.startsWith('Outro'));
                   const outroText = currentConds.find(c => c.startsWith('Outro: '))?.replace('Outro: ', '') || '';
                   const toggle = (op: string) => {
-                    let next = currentConds.includes(op)
+                    const next = currentConds.includes(op)
                       ? currentConds.filter(x => x !== op)
                       : [...currentConds, op];
                     setEditForm(prev => ({ ...prev, condicoes_atipicas: JSON.stringify(next) } as any));
@@ -9425,7 +9424,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
             <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-secondary)', fontSize: '0.88rem' }}>
               <div style={{ fontSize: '2.5rem', marginBottom: 12 }}>📄</div>
               <div style={{ fontWeight: 700 }}>Nenhum manual disponível ainda.</div>
-              {activeNucleo === 'geral' && <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em "Subir PDF" para adicionar o primeiro manual.</div>}
+              {activeNucleo === 'geral' && <div style={{ marginTop: 6, fontSize: '0.78rem' }}>Clique em &quot;Subir PDF&quot; para adicionar o primeiro manual.</div>}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -9799,7 +9798,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
           )}
           {manuais.length === 0 ? (
             <div style={{ textAlign: 'center', padding: '40px 20px', color: 'var(--text-secondary)', fontSize: '0.85rem' }}>
-              Nenhum documento disponível ainda.{activeNucleo === 'geral' ? ' Clique em "Subir PDF" para adicionar.' : ''}
+              Nenhum documento disponível ainda.{activeNucleo === 'geral' ? ' Clique em &quot;Subir PDF&quot; para adicionar.' : ''}
             </div>
           ) : (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
@@ -10171,7 +10170,7 @@ _Associação Cultural de Capoeira Barão de Mauá_`
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 700, fontSize: '1rem', color: 'var(--text-primary)' }}>{String(s.nome_completo || '—')}</span>
-                              {entry.extras?.apelido && <span style={{ fontSize: '0.78rem', color: '#a78bfa', background: 'rgba(124,58,237,0.12)', padding: '2px 8px', borderRadius: 99 }}>"{entry.extras.apelido}"</span>}
+                              {entry.extras?.apelido && <span style={{ fontSize: '0.78rem', color: '#a78bfa', background: 'rgba(124,58,237,0.12)', padding: '2px 8px', borderRadius: 99 }}>&quot;{entry.extras.apelido}&quot;</span>}
                               <span style={{ fontSize: '0.78rem', padding: '2px 8px', borderRadius: 99, background: 'rgba(239,68,68,0.12)', color: '#f87171', border: '1px solid rgba(239,68,68,0.2)' }}>Excluído</span>
                             </div>
                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px 18px', marginTop: 6, fontSize: '0.82rem', color: 'var(--text-secondary)' }}>

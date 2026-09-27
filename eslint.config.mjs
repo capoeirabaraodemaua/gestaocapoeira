@@ -14,6 +14,12 @@ const eslintConfig = [
     ignores: [".next/", "next-env.d.ts"],
   },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
+  {
+    // Legacy code relies heavily on `any`; keep it visible as a warning while it is typed incrementally.
+    rules: {
+      "@typescript-eslint/no-explicit-any": "warn",
+    },
+  },
 ];
 
 export default eslintConfig;

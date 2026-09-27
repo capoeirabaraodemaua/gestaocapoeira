@@ -219,7 +219,7 @@ function VerificarContent() {
                   <div style={{ color: '#64748b', fontSize: '0.72rem', marginBottom: 2 }}>({data.nome_completo})</div>
                 )}
                 {data.apelido && (
-                  <div style={{ color: '#7c3aed', fontSize: '0.72rem', fontStyle: 'italic', marginBottom: 4 }}>"{data.apelido}"</div>
+                  <div style={{ color: '#7c3aed', fontSize: '0.72rem', fontStyle: 'italic', marginBottom: 4 }}>&quot;{data.apelido}&quot;</div>
                 )}
 
                 {/* Badge graduação */}

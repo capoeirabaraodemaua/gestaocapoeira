@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
 export interface NucleoConfig {
@@ -644,9 +645,9 @@ export default function NucleoLoginPage({ nucleoKey }: Props) {
 
       {/* Rodapé */}
       <div style={{ marginTop: 24, textAlign: 'center' }}>
-        <a href="/" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', textDecoration: 'none' }}>
+        <Link href="/" style={{ color: 'rgba(255,255,255,0.25)', fontSize: '0.72rem', textDecoration: 'none' }}>
           ← Voltar para o site
-        </a>
+        </Link>
       </div>
     </div>
   );

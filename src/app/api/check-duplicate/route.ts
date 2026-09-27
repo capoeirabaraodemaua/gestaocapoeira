@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
     }
 
     // CPF, identidade, email
-    let query = supabaseAdmin
+    const query = supabaseAdmin
       .from('students')
       .select('id, nome_completo')
       .eq(field, cleanValue)

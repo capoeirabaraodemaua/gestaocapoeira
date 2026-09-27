@@ -10,10 +10,11 @@ const supabaseAdmin = createClient(
 
 export async function GET() {
   try {
-    let { data, error } = await supabaseAdmin
+    const { data: firstData, error } = await supabaseAdmin
       .from('students')
       .select('id, nome_completo, cpf, graduacao, nucleo, foto_url, telefone, email')
       .order('nome_completo');
+    let data = firstData;
 
     if (error) {
       // Retry without email if column doesn't exist

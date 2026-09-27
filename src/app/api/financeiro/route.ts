@@ -94,7 +94,6 @@ export async function GET(req: NextRequest) {
         Authorization: `Bearer ${SERVICE_KEY}`,
         'Cache-Control': 'no-cache, no-store, must-revalidate',
       },
-      // @ts-ignore
       cache: 'no-store',
       next: { revalidate: 0 },
     });
