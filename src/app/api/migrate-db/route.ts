@@ -3,7 +3,7 @@ import { Pool } from 'pg';
 
 export const dynamic = 'force-dynamic';
 
-const PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_URL!
+const PROJECT_REF = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321'
   .replace('https://', '').replace('.supabase.co', '');
 
 const MIGRATION_SQLS = [

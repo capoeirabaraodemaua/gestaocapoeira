@@ -3,8 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 
 // Service role for both read and write — bucket 'photos' is private, anon key cannot read it
 const supabaseRead = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build',
 );
 
 const supabaseWrite = supabaseRead;
@@ -84,8 +84,8 @@ export async function GET(req: NextRequest) {
   if (!studentId) return NextResponse.json({ error: 'student_id required' }, { status: 400 });
 
   // Fetch directly via HTTP to bypass all Next.js / SDK caches
-  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+  const SERVICE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build';
   const url = `${SUPABASE_URL}/storage/v1/object/${BUCKET}/financeiro/${studentId}.json?t=${Date.now()}`;
 
   try {

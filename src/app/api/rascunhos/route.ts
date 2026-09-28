@@ -6,8 +6,8 @@ export const revalidate = 0;
 
 // Service role required — bucket 'photos' is private, anon key cannot read it
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build',
 );
 const supabaseWrite = supabase;
 

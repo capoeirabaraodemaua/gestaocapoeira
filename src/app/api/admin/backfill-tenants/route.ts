@@ -4,8 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 export const dynamic = 'force-dynamic';
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build'
 );
 
 // Map nucleo display name → tenant UUID (stable, deterministic)
@@ -41,8 +41,8 @@ async function ensureColumn(column: string, definition: string): Promise<{ creat
   // that Supabase exposes: pg_catalog functions via rpc
 
   // Attempt via rpc('query') if available (self-hosted) or via HTTP header trick
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build';
 
   // Try the Supabase DB API endpoint (available on all plans)
   const projectRef = url.replace('https://', '').split('.')[0];

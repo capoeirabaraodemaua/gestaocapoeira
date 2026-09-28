@@ -5,8 +5,8 @@ import { invalidateEmailConfigCache, sendEmail } from '@/lib/email';
 export const dynamic = 'force-dynamic';
 
 const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build'
 );
 const BUCKET = 'photos';
 const CONFIG_KEY = 'config/email-config.json';

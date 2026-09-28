@@ -4,11 +4,11 @@ import { Pool } from 'pg';
 export const dynamic = 'force-dynamic';
 
 export async function GET() {
-  const url = process.env.NEXT_PUBLIC_SUPABASE_URL!;
+  const url = process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321';
   // Build the DB connection string from the Supabase URL
   // Format: postgresql://postgres:[password]@db.[ref].supabase.co:5432/postgres
   const projectRef = url.replace('https://', '').replace('.supabase.co', '');
-  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY!;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build';
 
   // Try multiple pooler regions
   const regions = ['us-east-1', 'us-west-1', 'eu-west-1', 'ap-southeast-1', 'sa-east-1'];

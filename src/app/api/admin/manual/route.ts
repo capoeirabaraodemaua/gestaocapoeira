@@ -5,8 +5,8 @@ export const dynamic = 'force-dynamic';
 export const maxDuration = 60; // allow up to 60s for large PDF uploads
 
 const supabaseAdmin = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!,
+  process.env.NEXT_PUBLIC_SUPABASE_URL || 'http://localhost:54321',
+  process.env.SUPABASE_SERVICE_ROLE_KEY || 'dummy-key-for-build',
 );
 
 const BUCKET = 'photos';
