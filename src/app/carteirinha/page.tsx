@@ -4,6 +4,8 @@ import { useState, useRef, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Carteirinha, { CarteirinhaData } from '@/components/Carteirinha';
 
+export const dynamic = 'force-dynamic';
+
 function CarteirinhaContent() {
   const searchParams = useSearchParams();
   const [cpf, setCpf] = useState('');

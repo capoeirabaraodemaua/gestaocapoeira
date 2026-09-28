@@ -3,6 +3,8 @@ import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { getCordaColors, nomenclaturaGraduacao } from '@/lib/graduacoes';
 
+export const dynamic = 'force-dynamic';
+
 interface StudentData {
   student_id: string;
   nome_completo: string;

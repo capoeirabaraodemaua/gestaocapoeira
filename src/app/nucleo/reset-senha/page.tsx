@@ -3,6 +3,8 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
+export const dynamic = 'force-dynamic';
+
 function ResetSenhaContent() {
   const params = useSearchParams();
   const router = useRouter();

@@ -4,6 +4,8 @@ import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { supabase } from '@/lib/supabase';
 
+export const dynamic = 'force-dynamic';
+
 interface Student {
   id: string;
   nome_completo: string;
